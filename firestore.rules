@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /clients/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    match /propertySales/{docId} {
+      allow read: if isSignedIn() && resource.data.clientEmail == request.auth.token.email;
+      allow write: if isSignedIn(); // use regras mais restritas quando tiver admin auth
+    }
+
+    match /repairRequests/{docId} {
+      allow read, write: if isSignedIn() && request.resource.data.clientUid == request.auth.uid;
+    }
+
+    match /emailQueue/{docId} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}
+
+
+

@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B F Marques Empreendimentos - Fale Conosco</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <a class="nav-brand" href="index.html#home" aria-label="Início">
+                <img src="assets/images/logo-bf-marques.png" alt="B F Marques" class="brand-logo">
+            </a>
+            <nav class="nav-menu">
+                <ul>
+                    <li><a href="index.html#properties">Imóveis</a></li>
+                    <li><a href="index.html#simulador">Simulador</a></li>
+                    <li><a href="index.html#about">Sobre</a></li>
+                    <li><a href="calculadora.html">Calculadora dos Sonhos✨</a></li>
+                    <li><a href="mcmv.html">MCMV</a></li>
+                    <li><a href="contato.html">Fale Conosco</a></li>
+                </ul>
+            </nav>
+            <div class="nav-actions">
+                <button class="btn-client-area" onclick="openClientArea()" style="margin-right: 10px;">
+                    <i class="fas fa-user-circle"></i> Área do Cliente
+                </button>
+                <button class="btn-login" onclick="openLoginModal()">
+                    <i class="fas fa-user"></i> Área do Corretor
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <section class="page-hero">
+        <div class="container">
+            <h1>Fale Conosco</h1>
+            <p>Tire dúvidas, fale com a empresa ou ofereça seu terreno.</p>
+        </div>
+    </section>
+
+
+    <section id="contact" class="contact">
+        <div class="container">
+            <div class="contact-content">
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <i class="fas fa-phone"></i>
+                        <div>
+                            <h4>Telefone</h4>
+                            <p>(21) 99555-7010</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <h4>Email</h4>
+                            <p>bfmarquesempreendimentos@gmail.com</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <h4>Localização</h4>
+                            <p>São Gonçalo, Rio de Janeiro - RJ</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="contact-forms">
+                    <div class="contact-tabs">
+                        <button class="contact-tab-btn active" onclick="showContactTab('general')">
+                            <i class="fas fa-comments"></i> Contato Geral
+                        </button>
+                        <button class="contact-tab-btn" onclick="showContactTab('land')">
+                            <i class="fas fa-map"></i> Oferecer Terreno
+                        </button>
+                    </div>
+
+                    <form id="generalContactForm" class="contact-form active" onsubmit="handleGeneralContact(event)">
+                        <div class="form-group">
+                            <label>Assunto</label>
+                            <select id="contactSubject" required>
+                                <option value="">Selecione um assunto</option>
+                                <option value="duvida">Dúvida sobre Imóveis</option>
+                                <option value="financiamento">Dúvida sobre Financiamento</option>
+                                <option value="mcmv">Dúvida sobre MCMV</option>
+                                <option value="reparo">Solicitação de Reparo</option>
+                                <option value="documento">Solicitação de Documento</option>
+                                <option value="outro">Outro</option>
+                            </select>
+                        </div>
+                        <input type="text" id="contactName" placeholder="Seu nome" required>
+                        <input type="email" id="contactEmail" placeholder="Seu email" required>
+                        <input type="tel" id="contactPhone" placeholder="Seu telefone">
+                        <textarea id="contactMessage" placeholder="Sua mensagem" required></textarea>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Enviar Mensagem
+                        </button>
+                    </form>
+
+                    <form id="landOfferForm" class="contact-form" onsubmit="handleLandOffer(event)">
+                        <h3><i class="fas fa-map"></i> Ofereça Seu Terreno</h3>
+                        <p class="form-description">Temos interesse em adquirir terrenos para novos empreendimentos. Preencha o formulário abaixo:</p>
+                        <input type="text" id="landOwnerName" placeholder="Seu nome completo" required>
+                        <input type="email" id="landOwnerEmail" placeholder="Seu email" required>
+                        <input type="tel" id="landOwnerPhone" placeholder="Seu telefone" required>
+                        <div class="form-group">
+                            <label>Endereço do Terreno *</label>
+                            <input type="text" id="landAddress" placeholder="Rua, número, bairro, cidade" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Área do Terreno (m²) *</label>
+                                <input type="number" id="landSize" placeholder="Ex: 500" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Valor Estimado (R$)</label>
+                                <input type="number" id="landValue" placeholder="Ex: 500000" min="0">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Características do Terreno</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" name="landFeatures" value="documentado"> Documentado</label>
+                                <label><input type="checkbox" name="landFeatures" value="esquina"> Esquina</label>
+                                <label><input type="checkbox" name="landFeatures" value="frente-rua"> Frente para Rua</label>
+                                <label><input type="checkbox" name="landFeatures" value="agua"> Água</label>
+                                <label><input type="checkbox" name="landFeatures" value="luz"> Energia Elétrica</label>
+                                <label><input type="checkbox" name="landFeatures" value="esgoto"> Esgoto</label>
+                            </div>
+                        </div>
+                        <textarea id="landDescription" placeholder="Informações adicionais sobre o terreno (topografia, localização, etc.)"></textarea>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-handshake"></i> Enviar Proposta
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <h3>B F Marques Empreendimentos</h3>
+                    <p>Construindo o futuro com qualidade e inovação</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Links Úteis</h4>
+                    <ul>
+                        <li><a href="index.html#home">Início</a></li>
+                        <li><a href="index.html#properties">Imóveis</a></li>
+                        <li><a href="index.html#about">Sobre</a></li>
+                        <li><a href="contato.html">Contato</a></li>
+                    </ul>
+                </div>
+                <div class="footer-social">
+                    <h4>Redes Sociais</h4>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 B F Marques Empreendimentos - Todos os direitos reservados</p>
+            </div>
+        </div>
+    </footer>
+
+<!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLoginModal()">&times;</span>
+            <h2>Área do Corretor</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Senha:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Entrar</button>
+                <p class="register-link">
+                    Não tem conta? <a href="#" onclick="showRegisterForm()">Cadastre-se aqui</a>
+                </p>
+            </form>
+            
+            <form id="registerForm" style="display: none;">
+                <h2>Cadastro de Corretor</h2>
+                <div class="form-group">
+                    <label for="regName">Nome Completo:</label>
+                    <input type="text" id="regName" name="name" required placeholder="Digite seu nome completo">
+                </div>
+                <div class="form-group">
+                    <label for="regCPF">CPF:</label>
+                    <input type="text" id="regCPF" name="cpf" required placeholder="000.000.000-00">
+                </div>
+                <div class="form-group">
+                    <label for="regEmail">Email:</label>
+                    <input type="email" id="regEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="regPhone">Telefone:</label>
+                    <input type="tel" id="regPhone" name="phone" required placeholder="(00) 00000-0000">
+                </div>
+                <div class="form-group">
+                    <label for="regCRECI">CRECI:</label>
+                    <input type="text" id="regCRECI" name="creci" placeholder="Opcional">
+                </div>
+                <div class="form-group">
+                    <label for="regPassword">Senha:</label>
+                    <input type="password" id="regPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="regConfirmPassword">Confirmar Senha:</label>
+                    <input type="password" id="regConfirmPassword" name="confirmPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Cadastrar</button>
+                <p class="register-link">
+                    Já tem conta? <a href="#" onclick="showLoginForm()">Entre aqui</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Property Detail Modal -->
+    <div id="propertyModal" class="modal">
+        <div class="modal-content property-modal">
+            <span class="close" onclick="closePropertyModal()">&times;</span>
+            <div id="propertyDetails">
+                <!-- Property details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Area Modal -->
+    <div id="clientAreaModal" class="modal">
+        <div class="modal-content client-area-modal">
+            <span class="close" onclick="closeClientArea()">&times;</span>
+            <div class="client-area-header">
+                <h2><i class="fas fa-user-circle"></i> Área do Cliente</h2>
+                <p>Gerencie suas informações e acompanhe seu imóvel</p>
+            </div>
+            <div class="client-area-tabs">
+                <button class="tab-btn active" onclick="showClientTab('login')">Entrar</button>
+                <button class="tab-btn" onclick="showClientTab('register')">Cadastrar</button>
+            </div>
+            <div id="clientLoginTab" class="client-tab active">
+                <form id="clientLoginForm" onsubmit="loginClient(event)">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="clientLogin" required placeholder="Digite seu email cadastrado">
+                        <small style="display: block; margin-top: 5px; color: #666;">Use o mesmo email cadastrado no momento da compra</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Senha</label>
+                        <input type="password" id="clientPassword" required placeholder="Digite sua senha">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Entrar</button>
+                    <p class="forgot-password"><a href="#" onclick="showForgotPassword()">Esqueci minha senha</a></p>
+                </form>
+            </div>
+            <div id="clientRegisterTab" class="client-tab">
+                <form id="clientRegisterForm" onsubmit="registerClient(event)">
+                    <div class="form-group">
+                        <label>Nome Completo</label>
+                        <input type="text" id="clientName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>CPF</label>
+                        <input type="text" id="clientCPF" required placeholder="000.000.000-00">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="clientEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Telefone</label>
+                        <input type="tel" id="clientPhone" required placeholder="(00) 00000-0000">
+                    </div>
+                    <div class="form-group">
+                        <label>Senha</label>
+                        <input type="password" id="clientRegPassword" required minlength="6">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Cadastrar</button>
+                </form>
+            </div>
+            <div id="clientDashboard" class="client-dashboard" style="display:none;">
+                <div class="client-info-header">
+                    <div>
+                        <h3 id="clientWelcomeName">Bem-vindo!</h3>
+                        <p id="clientWelcomeEmail"></p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="logoutClient()">Sair</button>
+                </div>
+                <div class="client-dashboard-tabs">
+                    <button class="dashboard-tab-btn active" onclick="showDashboardTab('properties')">Meus Imóveis</button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('documents')">Documentos</button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('repairs')">Reparos</button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('manual')">
+                        <i class="fas fa-book"></i> Manual
+                    </button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('newsletter')">
+                        <i class="fas fa-newspaper"></i> Newsletter
+                    </button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('history')">Histórico</button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('profile')">Meu Perfil</button>
+                </div>
+                <div id="clientPropertiesTab" class="dashboard-tab-content active">
+                    <h4>Meus Imóveis</h4>
+                    <div id="clientPropertiesList">
+                        <p>Você ainda não possui imóveis cadastrados.</p>
+                    </div>
+                </div>
+                <div id="clientDocumentsTab" class="dashboard-tab-content">
+                    <h4>Documentos</h4>
+                    <div id="clientDocumentsList">
+                        <p>Nenhum documento disponível no momento.</p>
+                    </div>
+                </div>
+                <div id="clientRepairsTab" class="dashboard-tab-content">
+                    <h4>Solicitações de Reparo</h4>
+                    <div class="repair-actions">
+                        <button class="btn btn-primary" onclick="showRepairRequestForm()">
+                            <i class="fas fa-tools"></i> Nova Solicitação de Reparo
+                        </button>
+                    </div>
+                    <div id="clientRepairsList">
+                        <p>Nenhuma solicitação de reparo no momento.</p>
+                    </div>
+                </div>
+                <div id="clientManualTab" class="dashboard-tab-content">
+                    <div class="manual-tab-header">
+                        <h4><i class="fas fa-book"></i> Manual do Cliente</h4>
+                        <p>Guia completo com garantias, dúvidas frequentes e informações sobre seu imóvel</p>
+                    </div>
+                    <div class="manual-quick-access">
+                        <div class="quick-card" onclick="showClientManual()">
+                            <i class="fas fa-book-open"></i>
+                            <h5>Manual Completo</h5>
+                            <p>Acesse o manual completo com todas as informações</p>
+                        </div>
+                        <div class="quick-card" onclick="showWarrantyInfo()">
+                            <i class="fas fa-shield-alt"></i>
+                            <h5>Prazos de Garantia</h5>
+                            <p>Consulte os prazos de garantia de cada item</p>
+                        </div>
+                        <div class="quick-card" onclick="showFAQ()">
+                            <i class="fas fa-question-circle"></i>
+                            <h5>Dúvidas Frequentes</h5>
+                            <p>Respostas para as principais dúvidas</p>
+                        </div>
+                        <div class="quick-card" onclick="showMaintenanceGuide()">
+                            <i class="fas fa-tools"></i>
+                            <h5>Guia de Manutenção</h5>
+                            <p>Dicas de manutenção preventiva</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="clientNewsletterTab" class="dashboard-tab-content">
+                    <div class="newsletter-tab-header">
+                        <h4><i class="fas fa-newspaper"></i> Newsletter Trimestral</h4>
+                        <p>Receba trimestralmente dicas de manutenção, prevenção e curiosidades sobre construção civil</p>
+                    </div>
+                    <div class="newsletter-quick-access">
+                        <div class="quick-card" onclick="showClientNewsletter()">
+                            <i class="fas fa-newspaper"></i>
+                            <h5>Última Newsletter</h5>
+                            <p>Leia a newsletter mais recente</p>
+                        </div>
+                        <div class="newsletter-info">
+                            <p><strong>Newsletter Trimestral</strong></p>
+                            <p>Nossa newsletter é enviada trimestralmente com:</p>
+                            <ul>
+                                <li>Dicas de manutenção preventiva</li>
+                                <li>Prevenção de problemas comuns</li>
+                                <li>Curiosidades de construção civil</li>
+                                <li>Soluções práticas para problemas</li>
+                                <li>Dicas específicas para São Gonçalo, RJ</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div id="clientHistoryTab" class="dashboard-tab-content">
+                    <h4>Histórico de Relacionamento</h4>
+                    <div id="clientHistoryList">
+                        <p>Nenhum histórico disponível.</p>
+                    </div>
+                </div>
+                <div id="clientProfileTab" class="dashboard-tab-content">
+                    <h4>Meu Perfil</h4>
+                    <form id="clientProfileForm" onsubmit="updateClientProfile(event)">
+                        <div class="form-group">
+                            <label>Nome Completo</label>
+                            <input type="text" id="profileName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>CPF</label>
+                            <input type="text" id="profileCPF" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="profileEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Telefone</label>
+                            <input type="tel" id="profilePhone" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Endereço</label>
+                            <input type="text" id="profileAddress">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Repair Request Modal -->
+    <div id="repairRequestModal" class="modal">
+        <div class="modal-content repair-modal">
+            <span class="close" onclick="closeRepairRequestModal()">&times;</span>
+            <h2><i class="fas fa-tools"></i> Nova Solicitação de Reparo</h2>
+            <form id="repairRequestForm" onsubmit="submitRepairRequest(event)">
+                <div class="form-group">
+                    <label>Selecione o Imóvel *</label>
+                    <select id="repairProperty" required>
+                        <option value="">Selecione um imóvel</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Descrição do Problema *</label>
+                    <textarea id="repairDescription" rows="4" required placeholder="Descreva detalhadamente o problema que precisa ser reparado..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Localização do Problema *</label>
+                    <input type="text" id="repairLocation" required placeholder="Ex: Sala, Cozinha, Banheiro, Quarto, etc.">
+                </div>
+                <div class="form-group">
+                    <label>Foto e/ou Vídeo do Problema *</label>
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <input type="file" id="repairFile" accept="image/*,video/*" multiple required onchange="handleFileSelect(event)">
+                        <div class="upload-placeholder">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Clique para selecionar ou arraste arquivos aqui</p>
+                            <small>Até 1 vídeo curto + 3 ou 4 fotos. Máx: 5 arquivos, total 30MB</small>
+                        </div>
+                        <div class="file-preview" id="filePreview" style="display:none;">
+                            <div id="filePreviewList" class="file-preview-grid"></div>
+                            <button type="button" class="btn-remove-file" onclick="removeFile()">
+                                <i class="fas fa-times"></i> Remover Tudo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Prioridade</label>
+                    <select id="repairPriority">
+                        <option value="normal">Normal</option>
+                        <option value="alta">Alta</option>
+                        <option value="urgente">Urgente</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeRepairRequestModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Enviar Solicitação
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+<!-- Scripts -->
+    <script src="config.js"></script>
+    <!-- Firebase (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/firebase-service.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/properties.js"></script>
+    <script src="js/reservations.js"></script>
+    <script src="js/property-units.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/documents.js"></script>
+    <script src="js/sample-data.js"></script>
+    <script src="js/mcmv-calculadora.js"></script>
+    <script src="js/simulador-interativo.js"></script>
+    <script src="js/property-sales.js"></script>
+    <script src="js/email-service.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/client-area.js"></script>
+    <script src="js/repair-requests.js"></script>
+    <script src="js/client-manual.js"></script>
+    <script src="js/contact-forms.js"></script>
+    <script src="js/newsletter.js"></script>
+</body>
+</html>
+

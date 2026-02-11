@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B F Marques Empreendimentos - Área do Cliente</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <a class="nav-brand" href="index.html#home" aria-label="Início">
+                <img src="assets/images/logo-bf-marques.png" alt="B F Marques" class="brand-logo">
+            </a>
+            <nav class="nav-menu">
+                <ul>
+                    <li><a href="index.html#properties">Imóveis</a></li>
+                    <li><a href="index.html#simulador">Simulador</a></li>
+                    <li><a href="index.html#about">Sobre</a></li>
+                    <li><a href="calculadora.html">Calculadora dos Sonhos✨</a></li>
+                    <li><a href="mcmv.html">MCMV</a></li>
+                    <li><a href="contato.html">Fale Conosco</a></li>
+                </ul>
+            </nav>
+            <div class="nav-actions">
+                <a class="btn-client-area" href="client-area.html" style="margin-right: 10px;">
+                    <i class="fas fa-user-circle"></i> Área do Cliente
+                </a>
+                <button class="btn-login" onclick="openLoginModal()">
+                    <i class="fas fa-user"></i> Área do Corretor
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <section class="page-hero">
+        <div class="container">
+            <h1>Área do Cliente</h1>
+            <p>Acompanhe seu imóvel, documentos e solicitações em um só lugar.</p>
+        </div>
+    </section>
+
+    <section class="client-page">
+        <div class="container">
+            <div class="client-page-panel">
+                
+            <div class="client-area-header">
+                <h2><i class="fas fa-user-circle"></i> Área do Cliente</h2>
+                <p>Gerencie suas informações e acompanhe seu imóvel</p>
+            </div>
+            <div class="client-area-tabs">
+                <button class="tab-btn active" onclick="showClientTab('login')">Entrar</button>
+                <button class="tab-btn" onclick="showClientTab('register')">Cadastrar</button>
+            </div>
+            <div id="clientLoginTab" class="client-tab active">
+                <form id="clientLoginForm" onsubmit="loginClient(event)">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="clientLogin" required placeholder="Digite seu email cadastrado">
+                        <small style="display: block; margin-top: 5px; color: #666;">Use o mesmo email cadastrado no momento da compra</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Senha</label>
+                        <input type="password" id="clientPassword" required placeholder="Digite sua senha">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Entrar</button>
+                    <p class="forgot-password"><a href="#" onclick="showForgotPassword()">Esqueci minha senha</a></p>
+                </form>
+            </div>
+            <div id="clientRegisterTab" class="client-tab">
+                <form id="clientRegisterForm" onsubmit="registerClient(event)">
+                    <div class="form-group">
+                        <label>Nome Completo</label>
+                        <input type="text" id="clientName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>CPF</label>
+                        <input type="text" id="clientCPF" required placeholder="000.000.000-00">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="clientEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Telefone</label>
+                        <input type="tel" id="clientPhone" required placeholder="(00) 00000-0000">
+                    </div>
+                    <div class="form-group">
+                        <label>Senha</label>
+                        <input type="password" id="clientRegPassword" required minlength="6">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Cadastrar</button>
+                </form>
+            </div>
+            <div id="clientDashboard" class="client-dashboard" style="display:none;">
+                <div class="client-info-header">
+                    <div>
+                        <h3 id="clientWelcomeName">Bem-vindo!</h3>
+                        <p id="clientWelcomeEmail"></p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="logoutClient()">Sair</button>
+                </div>
+                <div class="client-dashboard-tabs">
+                    <button class="dashboard-tab-btn active" onclick="showDashboardTab('properties')">Meus Imóveis</button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('documents')">Documentos</button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('repairs')">Reparos</button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('manual')">
+                        <i class="fas fa-book"></i> Manual
+                    </button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('newsletter')">
+                        <i class="fas fa-newspaper"></i> Newsletter
+                    </button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('history')">Histórico</button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('profile')">Meu Perfil</button>
+                </div>
+                <div id="clientPropertiesTab" class="dashboard-tab-content active">
+                    <h4>Meus Imóveis</h4>
+                    <div id="clientPropertiesList">
+                        <p>Você ainda não possui imóveis cadastrados.</p>
+                    </div>
+                </div>
+                <div id="clientDocumentsTab" class="dashboard-tab-content">
+                    <h4>Documentos</h4>
+                    <div id="clientDocumentsList">
+                        <p>Nenhum documento disponível no momento.</p>
+                    </div>
+                </div>
+                <div id="clientRepairsTab" class="dashboard-tab-content">
+                    <h4>Solicitações de Reparo</h4>
+                    <div class="repair-actions">
+                        <button class="btn btn-primary" onclick="showRepairRequestForm()">
+                            <i class="fas fa-tools"></i> Nova Solicitação de Reparo
+                        </button>
+                    </div>
+                    <div id="clientRepairsList">
+                        <p>Nenhuma solicitação de reparo no momento.</p>
+                    </div>
+                </div>
+                <div id="clientManualTab" class="dashboard-tab-content">
+                    <div class="manual-tab-header">
+                        <h4><i class="fas fa-book"></i> Manual do Cliente</h4>
+                        <p>Guia completo com garantias, dúvidas frequentes e informações sobre seu imóvel</p>
+                    </div>
+                    <div class="manual-quick-access">
+                        <div class="quick-card" onclick="showClientManual()">
+                            <i class="fas fa-book-open"></i>
+                            <h5>Manual Completo</h5>
+                            <p>Acesse o manual completo com todas as informações</p>
+                        </div>
+                        <div class="quick-card" onclick="showWarrantyInfo()">
+                            <i class="fas fa-shield-alt"></i>
+                            <h5>Prazos de Garantia</h5>
+                            <p>Consulte os prazos de garantia de cada item</p>
+                        </div>
+                        <div class="quick-card" onclick="showFAQ()">
+                            <i class="fas fa-question-circle"></i>
+                            <h5>Dúvidas Frequentes</h5>
+                            <p>Respostas para as principais dúvidas</p>
+                        </div>
+                        <div class="quick-card" onclick="showMaintenanceGuide()">
+                            <i class="fas fa-tools"></i>
+                            <h5>Guia de Manutenção</h5>
+                            <p>Dicas de manutenção preventiva</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="clientNewsletterTab" class="dashboard-tab-content">
+                    <div class="newsletter-tab-header">
+                        <h4><i class="fas fa-newspaper"></i> Newsletter Trimestral</h4>
+                        <p>Receba trimestralmente dicas de manutenção, prevenção e curiosidades sobre construção civil</p>
+                    </div>
+                    <div class="newsletter-quick-access">
+                        <div class="quick-card" onclick="showClientNewsletter()">
+                            <i class="fas fa-newspaper"></i>
+                            <h5>Última Newsletter</h5>
+                            <p>Leia a newsletter mais recente</p>
+                        </div>
+                        <div class="newsletter-info">
+                            <p><strong>Newsletter Trimestral</strong></p>
+                            <p>Nossa newsletter é enviada trimestralmente com:</p>
+                            <ul>
+                                <li>Dicas de manutenção preventiva</li>
+                                <li>Prevenção de problemas comuns</li>
+                                <li>Curiosidades de construção civil</li>
+                                <li>Soluções práticas para problemas</li>
+                                <li>Dicas específicas para São Gonçalo, RJ</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div id="clientHistoryTab" class="dashboard-tab-content">
+                    <h4>Histórico de Relacionamento</h4>
+                    <div id="clientHistoryList">
+                        <p>Nenhum histórico disponível.</p>
+                    </div>
+                </div>
+                <div id="clientProfileTab" class="dashboard-tab-content">
+                    <h4>Meu Perfil</h4>
+                    <form id="clientProfileForm" onsubmit="updateClientProfile(event)">
+                        <div class="form-group">
+                            <label>Nome Completo</label>
+                            <input type="text" id="profileName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>CPF</label>
+                            <input type="text" id="profileCPF" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="profileEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Telefone</label>
+                            <input type="tel" id="profilePhone" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Endereço</label>
+                            <input type="text" id="profileAddress">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <h3>B F Marques Empreendimentos</h3>
+                    <p>Construindo o futuro com qualidade e inovação</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Links Úteis</h4>
+                    <ul>
+                        <li><a href="index.html#home">Início</a></li>
+                        <li><a href="index.html#properties">Imóveis</a></li>
+                        <li><a href="index.html#about">Sobre</a></li>
+                        <li><a href="contato.html">Contato</a></li>
+                    </ul>
+                </div>
+                <div class="footer-social">
+                    <h4>Redes Sociais</h4>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 B F Marques Empreendimentos - Todos os direitos reservados</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLoginModal()">&times;</span>
+            <h2>Área do Corretor</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Senha:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Entrar</button>
+                <p class="register-link">
+                    Não tem conta? <a href="#" onclick="showRegisterForm()">Cadastre-se aqui</a>
+                </p>
+            </form>
+
+            <form id="registerForm" style="display: none;">
+                <h2>Cadastro de Corretor</h2>
+                <div class="form-group">
+                    <label for="regName">Nome Completo:</label>
+                    <input type="text" id="regName" name="name" required placeholder="Digite seu nome completo">
+                </div>
+                <div class="form-group">
+                    <label for="regCPF">CPF:</label>
+                    <input type="text" id="regCPF" name="cpf" required placeholder="000.000.000-00">
+                </div>
+                <div class="form-group">
+                    <label for="regEmail">Email:</label>
+                    <input type="email" id="regEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="regPhone">Telefone:</label>
+                    <input type="tel" id="regPhone" name="phone" required placeholder="(00) 00000-0000">
+                </div>
+                <div class="form-group">
+                    <label for="regCRECI">CRECI:</label>
+                    <input type="text" id="regCRECI" name="creci" placeholder="Opcional">
+                </div>
+                <div class="form-group">
+                    <label for="regPassword">Senha:</label>
+                    <input type="password" id="regPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="regConfirmPassword">Confirmar Senha:</label>
+                    <input type="password" id="regConfirmPassword" name="confirmPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Cadastrar</button>
+                <p class="register-link">
+                    Já tem conta? <a href="#" onclick="showLoginForm()">Entre aqui</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/firebase-service.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/properties.js"></script>
+    <script src="js/reservations.js"></script>
+    <script src="js/property-units.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/documents.js"></script>
+    <script src="js/sample-data.js"></script>
+    <script src="js/mcmv-calculadora.js"></script>
+    <script src="js/simulador-interativo.js"></script>
+    <script src="js/property-sales.js"></script>
+    <script src="js/email-service.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/client-area.js"></script>
+    <script src="js/repair-requests.js"></script>
+    <script src="js/client-manual.js"></script>
+    <script src="js/contact-forms.js"></script>
+    <script src="js/newsletter.js"></script>
+</body>
+</html>

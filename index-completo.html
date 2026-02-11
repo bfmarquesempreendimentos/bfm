@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B F Marques Empreendimentos - Imóveis de Qualidade</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>B F Marques Empreendimentos</h1>
+            </div>
+            <nav class="nav-menu">
+                <ul>
+                    <li><a href="#home">Início</a></li>
+                    <li><a href="#properties">Imóveis</a></li>
+                    <li><a href="#about">Sobre</a></li>
+                    <li><a href="#contact">Contato</a></li>
+                </ul>
+            </nav>
+            <div class="nav-actions">
+                <button class="btn-login" onclick="openLoginModal()">
+                    <i class="fas fa-user"></i> Área do Corretor
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="hero-content">
+            <div class="container">
+                <h1>Encontre o Imóvel dos Seus Sonhos</h1>
+                <p>15 anos construindo com qualidade, vendemos com transparência</p>
+                <div class="hero-actions">
+                    <button class="btn btn-primary" onclick="scrollToSection('properties')">
+                        Ver Imóveis Disponíveis
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="hero-video">
+            <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #3498db, #2c3e50); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; text-align: center; padding: 20px;">
+                <div>
+                    <h2>B F Marques Empreendimentos</h2>
+                    <p style="font-size: 1rem; margin-top: 10px; opacity: 0.9;">Qualidade em cada projeto desde 2010</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Properties Section -->
+    <section id="properties" class="properties">
+        <div class="container">
+            <div class="section-header">
+                <h2>Nossos 7 Empreendimentos</h2>
+                <div class="filters">
+                    <select id="typeFilter">
+                        <option value="">Todos os Tipos</option>
+                        <option value="apartamento">Apartamento</option>
+                        <option value="casa">Casa</option>
+                    </select>
+                    <select id="statusFilter">
+                        <option value="">Todos os Status</option>
+                        <option value="disponivel">Disponível</option>
+                        <option value="reservado">Reservado</option>
+                        <option value="vendido">Vendido</option>
+                    </select>
+                    <input type="number" id="priceFilter" placeholder="Preço máximo">
+                </div>
+            </div>
+            <div class="properties-grid" id="propertiesGrid">
+                <!-- Os 7 empreendimentos serão carregados aqui -->
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about">
+        <div class="container">
+            <div class="about-content">
+                <div class="about-text">
+                    <h2>Sobre a B F Marques Empreendimentos</h2>
+                    <p>Desde 05/04/2010, com 15 anos de experiência no mercado imobiliário, a B F Marques Empreendimentos é sinônimo de qualidade, inovação e confiança. Desenvolvemos projetos únicos no Rio de Janeiro com foco em acessibilidade e localização privilegiada.</p>
+                    <div class="stats">
+                        <div class="stat">
+                            <h3>7</h3>
+                            <p>Empreendimentos Ativos</p>
+                        </div>
+                        <div class="stat">
+                            <h3>98%</h3>
+                            <p>Satisfação dos Clientes</p>
+                        </div>
+                        <div class="stat">
+                            <h3>15</h3>
+                            <p>Anos de Experiência</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="about-image">
+                    <div style="width: 100%; height: 400px; background: #ddd; border-radius: 15px; display: flex; align-items: center; justify-content: center; color: #666; font-size: 1.2rem;">
+                        🏗️ B F Marques Empreendimentos<br>
+                        <small>Desde 2010</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2>Entre em Contato</h2>
+            <div class="contact-content">
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <i class="fas fa-phone"></i>
+                        <div>
+                            <h4>Telefone</h4>
+                            <p>(21) 99555-7010</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <h4>Email</h4>
+                            <p>bfmarquesempreendimentos@gmail.com</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <h4>Localização</h4>
+                            <p>Rio de Janeiro - RJ</p>
+                        </div>
+                    </div>
+                </div>
+                <form class="contact-form">
+                    <input type="text" placeholder="Seu nome" required>
+                    <input type="email" placeholder="Seu email" required>
+                    <input type="tel" placeholder="Seu telefone" required>
+                    <textarea placeholder="Sua mensagem" required></textarea>
+                    <button type="submit" class="btn btn-primary">Enviar Mensagem</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <h3>B F Marques Empreendimentos</h3>
+                    <p>Construindo o futuro com qualidade e inovação</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Links Úteis</h4>
+                    <ul>
+                        <li><a href="#home">Início</a></li>
+                        <li><a href="#properties">Imóveis</a></li>
+                        <li><a href="#about">Sobre</a></li>
+                        <li><a href="#contact">Contato</a></li>
+                    </ul>
+                </div>
+                <div class="footer-social">
+                    <h4>Redes Sociais</h4>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 B F Marques Empreendimentos. Todos os direitos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLoginModal()">&times;</span>
+            <h2>Área do Corretor</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Senha:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Entrar</button>
+                <p class="register-link">
+                    Não tem conta? <a href="#" onclick="showRegisterForm()">Cadastre-se aqui</a>
+                </p>
+            </form>
+            
+            <form id="registerForm" style="display: none;">
+                <h2>Cadastro de Corretor</h2>
+                <div class="form-group">
+                    <label for="regName">Nome Completo:</label>
+                    <input type="text" id="regName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="regEmail">Email:</label>
+                    <input type="email" id="regEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="regPhone">Telefone:</label>
+                    <input type="tel" id="regPhone" name="phone" required>
+                </div>
+                <div class="form-group">
+                    <label for="regCRECI">CRECI:</label>
+                    <input type="text" id="regCRECI" name="creci" required>
+                </div>
+                <div class="form-group">
+                    <label for="regPassword">Senha:</label>
+                    <input type="password" id="regPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="regConfirmPassword">Confirmar Senha:</label>
+                    <input type="password" id="regConfirmPassword" name="confirmPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Cadastrar</button>
+                <p class="register-link">
+                    Já tem conta? <a href="#" onclick="showLoginForm()">Entre aqui</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Property Detail Modal -->
+    <div id="propertyModal" class="modal">
+        <div class="modal-content property-modal">
+            <span class="close" onclick="closePropertyModal()">&times;</span>
+            <div id="propertyDetails">
+                <!-- Property details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/properties.js"></script>
+    <script src="js/reservations.js"></script>
+    <script src="js/property-units.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/documents.js"></script>
+    <script src="js/sample-data.js"></script>
+</body>
+</html>

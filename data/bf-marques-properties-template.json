@@ -1,0 +1,157 @@
+[
+  {
+    "id": 1,
+    "title": "EMPREENDIMENTO 1 - [NOME A DEFINIR]",
+    "type": "apartamento",
+    "location": "Rio de Janeiro - RJ",
+    "price": 0,
+    "bedrooms": 0,
+    "bathrooms": 0,
+    "area": 0,
+    "parking": 0,
+    "status": "disponivel",
+    "images": [
+      "assets/images/bf-property1-1.jpg",
+      "assets/images/bf-property1-2.jpg",
+      "assets/images/bf-property1-3.jpg"
+    ],
+    "videos": ["assets/videos/bf-property1-tour.mp4"],
+    "description": "Descrição do empreendimento 1 - aguardando dados do Google Sheets",
+    "features": [
+      "A definir com base nos dados do Google Sheets"
+    ]
+  },
+  {
+    "id": 2,
+    "title": "EMPREENDIMENTO 2 - [NOME A DEFINIR]",
+    "type": "apartamento",
+    "location": "Rio de Janeiro - RJ",
+    "price": 0,
+    "bedrooms": 0,
+    "bathrooms": 0,
+    "area": 0,
+    "parking": 0,
+    "status": "disponivel",
+    "images": [
+      "assets/images/bf-property2-1.jpg",
+      "assets/images/bf-property2-2.jpg",
+      "assets/images/bf-property2-3.jpg"
+    ],
+    "videos": ["assets/videos/bf-property2-tour.mp4"],
+    "description": "Descrição do empreendimento 2 - aguardando dados do Google Sheets",
+    "features": [
+      "A definir com base nos dados do Google Sheets"
+    ]
+  },
+  {
+    "id": 3,
+    "title": "EMPREENDIMENTO 3 - [NOME A DEFINIR]",
+    "type": "apartamento",
+    "location": "Rio de Janeiro - RJ",
+    "price": 0,
+    "bedrooms": 0,
+    "bathrooms": 0,
+    "area": 0,
+    "parking": 0,
+    "status": "disponivel",
+    "images": [
+      "assets/images/bf-property3-1.jpg",
+      "assets/images/bf-property3-2.jpg",
+      "assets/images/bf-property3-3.jpg"
+    ],
+    "videos": ["assets/videos/bf-property3-tour.mp4"],
+    "description": "Descrição do empreendimento 3 - aguardando dados do Google Sheets",
+    "features": [
+      "A definir com base nos dados do Google Sheets"
+    ]
+  },
+  {
+    "id": 4,
+    "title": "EMPREENDIMENTO 4 - [NOME A DEFINIR]",
+    "type": "apartamento",
+    "location": "Rio de Janeiro - RJ",
+    "price": 0,
+    "bedrooms": 0,
+    "bathrooms": 0,
+    "area": 0,
+    "parking": 0,
+    "status": "disponivel",
+    "images": [
+      "assets/images/bf-property4-1.jpg",
+      "assets/images/bf-property4-2.jpg",
+      "assets/images/bf-property4-3.jpg"
+    ],
+    "videos": ["assets/videos/bf-property4-tour.mp4"],
+    "description": "Descrição do empreendimento 4 - aguardando dados do Google Sheets",
+    "features": [
+      "A definir com base nos dados do Google Sheets"
+    ]
+  },
+  {
+    "id": 5,
+    "title": "EMPREENDIMENTO 5 - [NOME A DEFINIR]",
+    "type": "apartamento",
+    "location": "Rio de Janeiro - RJ",
+    "price": 0,
+    "bedrooms": 0,
+    "bathrooms": 0,
+    "area": 0,
+    "parking": 0,
+    "status": "disponivel",
+    "images": [
+      "assets/images/bf-property5-1.jpg",
+      "assets/images/bf-property5-2.jpg",
+      "assets/images/bf-property5-3.jpg"
+    ],
+    "videos": ["assets/videos/bf-property5-tour.mp4"],
+    "description": "Descrição do empreendimento 5 - aguardando dados do Google Sheets",
+    "features": [
+      "A definir com base nos dados do Google Sheets"
+    ]
+  },
+  {
+    "id": 6,
+    "title": "EMPREENDIMENTO 6 - [NOME A DEFINIR]",
+    "type": "apartamento",
+    "location": "Rio de Janeiro - RJ",
+    "price": 0,
+    "bedrooms": 0,
+    "bathrooms": 0,
+    "area": 0,
+    "parking": 0,
+    "status": "disponivel",
+    "images": [
+      "assets/images/bf-property6-1.jpg",
+      "assets/images/bf-property6-2.jpg",
+      "assets/images/bf-property6-3.jpg"
+    ],
+    "videos": ["assets/videos/bf-property6-tour.mp4"],
+    "description": "Descrição do empreendimento 6 - aguardando dados do Google Sheets",
+    "features": [
+      "A definir com base nos dados do Google Sheets"
+    ]
+  },
+  {
+    "id": 7,
+    "title": "EMPREENDIMENTO 7 - [NOME A DEFINIR]",
+    "type": "apartamento",
+    "location": "Rio de Janeiro - RJ",
+    "price": 0,
+    "bedrooms": 0,
+    "bathrooms": 0,
+    "area": 0,
+    "parking": 0,
+    "status": "disponivel",
+    "images": [
+      "assets/images/bf-property7-1.jpg",
+      "assets/images/bf-property7-2.jpg",
+      "assets/images/bf-property7-3.jpg"
+    ],
+    "videos": ["assets/videos/bf-property7-tour.mp4"],
+    "description": "Descrição do empreendimento 7 - aguardando dados do Google Sheets",
+    "features": [
+      "A definir com base nos dados do Google Sheets"
+    ]
+  }
+]
+

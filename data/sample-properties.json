@@ -1,0 +1,240 @@
+[
+  {
+    "id": 1,
+    "title": "Condomínio Porto Novo - Rua Lourival Martins, 31",
+    "type": "apartamento",
+    "location": "Porto Novo, Rio de Janeiro - RJ",
+    "price": 150000,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "area": 50,
+    "parking": 0,
+    "status": "disponivel",
+    "images": [
+      "assets/images/porto-novo/WhatsApp Image 2025-12-22 at 17.47.29.jpeg",
+      "assets/images/porto-novo/WhatsApp Image 2025-12-22 at 17.47.30.jpeg",
+      "assets/images/porto-novo/WhatsApp Image 2025-12-22 at 17.47.30 (1).jpeg",
+      "assets/images/porto-novo/WhatsApp Image 2025-12-22 at 17.47.30 (2).jpeg",
+      "assets/images/porto-novo/WhatsApp Image 2025-12-22 at 17.47.30 (3).jpeg"
+    ],
+    "videos": [],
+    "description": "Apartamentos modernos no Condomínio Porto Novo com opções de 1 e 2 quartos a partir de 50m². Unidades sem vaga de garagem, ideais para quem busca praticidade e localização estratégica. Acabamento de qualidade com pisos cerâmicos, janelas com grades de segurança e boa ventilação natural.",
+    "features": [
+      "Apartamentos de 1 e 2 quartos",
+      "A partir de 50m²",
+      "Sem vaga de garagem",
+      "Acabamento moderno",
+      "Pisos cerâmicos",
+      "Grades de segurança",
+      "Boa ventilação",
+      "Localização estratégica",
+      "Fácil acesso ao transporte",
+      "Próximo ao comércio"
+    ],
+    "matricula": "51.881 a 51.894",
+    "engineeringValue": "R$ 162.906,09 a R$ 226.100,00"
+  },
+  {
+    "id": 2,
+    "title": "Residencial Itaúna - Rua Alcio Souto",
+    "type": "casa",
+    "location": "Nova Cidade, Rio de Janeiro - RJ",
+    "price": 155000,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "area": null,
+    "parking": 0,
+    "status": "disponivel",
+    "images": [
+      "assets/images/residencial-itauna/itauna-01.jpg",
+      "assets/images/residencial-itauna/itauna-02.jpg",
+      "assets/images/residencial-itauna/itauna-03.jpg"
+    ],
+    "videos": [],
+    "description": "Casas no Residencial Itaúna, todas com 1 quarto. Empreendimento moderno com acabamento de qualidade, ideal para primeira moradia ou investimento. Localização com boa infraestrutura urbana.",
+    "features": [
+      "Casa Base Disponível",
+      "Múltiplas Opções",
+      "Acabamento Moderno",
+      "Boa Localização",
+      "Cozinha Planejada",
+      "Banheiro Social"
+    ]
+  },
+  {
+    "id": 3,
+    "title": "Edifício Amendoeira - Rua Lopes da Cruz, 136",
+    "type": "apartamento",
+    "location": "Amendoeira, Rio de Janeiro - RJ",
+    "price": 165000,
+    "bedrooms": 2,
+    "bathrooms": 1,
+    "area": 55,
+    "parking": 1,
+    "status": "disponivel",
+    "images": [
+      "assets/images/amendoeira-1.jpg",
+      "assets/images/amendoeira-2.jpg",
+      "assets/images/amendoeira-3.jpg"
+    ],
+    "videos": [],
+    "description": "Apartamentos no Edifício Amendoeira com 20 unidades disponíveis (101 a 210). Apartamentos de 2 quartos com excelente aproveitamento de espaço. Prédio moderno em localização privilegiada com fácil acesso ao comércio e transporte.",
+    "features": [
+      "20 Unidades Disponíveis",
+      "2 Quartos",
+      "Elevador",
+      "Portaria",
+      "Área de Serviço",
+      "Sacada",
+      "Localização Central",
+      "Próximo ao Comércio"
+    ]
+  },
+  {
+    "id": 4,
+    "title": "Condomínio Laranjal - Rua Jussara, 178",
+    "type": "casa",
+    "location": "Laranjal, Rio de Janeiro - RJ",
+    "price": 145000,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "area": 48,
+    "parking": 1,
+    "status": "disponivel",
+    "images": [
+      "assets/images/laranjal-1.jpg",
+      "assets/images/laranjal-2.jpg",
+      "assets/images/laranjal-3.jpg"
+    ],
+    "videos": [],
+    "description": "Casas no Condomínio Laranjal com 15 unidades disponíveis. Opções de casa base e casas de 1 a 14 quartos. Empreendimento familiar em bairro tranquilo, ideal para quem busca qualidade de vida e segurança.",
+    "features": [
+      "15 Unidades",
+      "Casa Base a 14 Quartos",
+      "Condomínio Fechado",
+      "Bairro Tranquilo",
+      "Segurança",
+      "Área Verde",
+      "Cozinha",
+      "Área de Serviço"
+    ]
+  },
+  {
+    "id": 5,
+    "title": "Residencial Apolo - Itaboraí",
+    "type": "casa",
+    "location": "Apolo, Itaboraí - RJ",
+    "price": 135000,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "area": 42,
+    "parking": 1,
+    "status": "disponivel",
+    "images": [
+      "assets/images/apolo-1.jpg",
+      "assets/images/apolo-2.jpg",
+      "assets/images/apolo-3.jpg"
+    ],
+    "videos": [],
+    "description": "Casas no Residencial Apolo em Itaboraí, com opções de casa base e casas de 1 a 9 quartos. Empreendimento em região de crescimento, ideal para investimento. Ótimo custo-benefício para primeira moradia.",
+    "features": [
+      "Casa Base a 9 Quartos",
+      "Região em Crescimento",
+      "Ótimo Custo-Benefício",
+      "Área de Serviço",
+      "Cozinha",
+      "Quintal",
+      "Portão Individual",
+      "Boa Ventilação"
+    ]
+  },
+  {
+    "id": 6,
+    "title": "Condomínio Coelho - Rua Dr. Lopes da Cruz",
+    "type": "casa",
+    "location": "Coelho, Rio de Janeiro - RJ",
+    "price": 145000,
+    "bedrooms": 1,
+    "bathrooms": 1,
+    "area": 45,
+    "parking": 1,
+    "status": "disponivel",
+    "images": [
+      "assets/images/coelho-1.jpg",
+      "assets/images/coelho-2.jpg",
+      "assets/images/coelho-3.jpg"
+    ],
+    "videos": [],
+    "description": "Casas no Condomínio Coelho com opções de casa base e casas de 1 a 9 quartos. Empreendimento com excelente padrão de acabamento, localizado em área de fácil acesso. Ideal para famílias que buscam segurança e comodidade.",
+    "features": [
+      "Casa Base a 9 Quartos",
+      "Condomínio Seguro",
+      "Bom Acabamento",
+      "Fácil Acesso",
+      "Área de Serviço",
+      "Cozinha Funcional",
+      "Banheiro Social",
+      "Área Externa"
+    ],
+    "engineeringValue": "R$ 165.336,19 a R$ 199.100,00"
+  },
+  {
+    "id": 7,
+    "title": "Edifício Caçador - Rua Alcio Souto, 576",
+    "type": "apartamento",
+    "location": "Luiz Caçador, Rio de Janeiro - RJ",
+    "price": 165000,
+    "bedrooms": 2,
+    "bathrooms": 1,
+    "area": 58,
+    "parking": 1,
+    "status": "disponivel",
+    "images": [
+      "assets/images/luiz-cacador-1.jpg",
+      "assets/images/luiz-cacador-2.jpg",
+      "assets/images/luiz-cacador-3.jpg"
+    ],
+    "videos": [],
+    "description": "Apartamentos no Edifício Caçador com 20 unidades disponíveis (101 a 210). Apartamentos de 1 quarto em prédio moderno. Excelente localização com infraestrutura completa no entorno.",
+    "features": [
+      "20 Apartamentos",
+      "2 Quartos",
+      "Prédio Moderno",
+      "Elevador",
+      "Portaria",
+      "Área de Serviço",
+      "Sala Ampla",
+      "Boa Localização",
+      "Infraestrutura Completa"
+    ]
+  },
+  {
+    "id": 8,
+    "title": "Residencial Maricá Premium",
+    "type": "casa",
+    "location": "Maricá, Rio de Janeiro - RJ",
+    "price": 180000,
+    "bedrooms": 2,
+    "bathrooms": 2,
+    "area": 80,
+    "parking": 1,
+    "status": "disponivel",
+    "images": [
+      "assets/images/marica/foto1.jpeg"
+    ],
+    "videos": [],
+    "description": "Casas modernas em Maricá com 2 quartos e 2 banheiros. Empreendimento de alto padrão com acabamento diferenciado, garagem coberta e localização privilegiada próxima às praias de Maricá. Ideal para quem busca qualidade de vida e investimento seguro.",
+    "features": [
+      "2 Quartos",
+      "2 Banheiros", 
+      "Garagem Coberta",
+      "Acabamento Premium",
+      "Próximo às Praias",
+      "Área Gourmet",
+      "Quintal",
+      "Portão Eletrônico",
+      "Localização Privilegiada",
+      "Alto Padrão"
+    ]
+  }
+]

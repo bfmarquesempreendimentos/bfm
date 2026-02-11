@@ -1,0 +1,39 @@
+{
+  "periodo": "1º Trimestre 2025",
+  "titulo": "Newsletter Trimestral - Manutenção e Reparos (Faixa 2)",
+  "introducao": "Olá! Esta newsletter é feita para clientes Faixa 2. A linguagem é simples e direta, com dicas práticas para cuidar do seu imóvel, evitar gastos extras e saber quando pedir reparo.",
+  "secoes": [
+    {
+      "titulo": "Manutenção Preventiva - O básico que evita dor de cabeça",
+      "conteudo": "<h4>1. Olhadinha rápida todo mês</h4><p>Reserve 15 minutos por mês:</p><ul><li><strong>Vazamentos:</strong> veja se torneiras e registros pingam.</li><li><strong>Elétrica:</strong> tomada quente ou cheiro de queimado é sinal de alerta. Desligue o disjuntor e peça ajuda.</li><li><strong>Umidade:</strong> manchas na parede precisam de atenção.</li></ul><h4>2. Calhas e ralos</h4><p>Limpe a cada 3 meses. Em São Gonçalo chove bastante, então calha entupida vira infiltração.</p><h4>3. Telhado</h4><p>Olhe o telhado duas vezes ao ano:</p><ul><li>Telha quebrada ou fora do lugar</li><li>Pingos no teto</li><li>Manchas de mofo</li></ul>"
+    },
+    {
+      "titulo": "Prevenção de Problemas Comuns",
+      "conteudo": "<h4>Umidade e mofo</h4><p>Para evitar mofo:</p><ul><li>Abra janelas sempre que puder</li><li>Seque banheiro e cozinha depois do banho e da louça</li><li>Use tinta antimofo em áreas úmidas</li></ul><h4>Entupimento</h4><p>Evite entupir:</p><ul><li>Não jogue óleo na pia</li><li>Use ralo com grelha</li><li>Não jogue papel no vaso</li></ul><h4>Desgaste normal</h4><p>Com o tempo é normal:</p><ul><li>Pintura perder brilho</li><li>Silicone do box ressecar</li><li>Vedação de janela ficar dura</li></ul>"
+    },
+    {
+      "titulo": "Curiosidades Simples (para entender sua casa)",
+      "conteudo": "<h4>Você sabia?</h4><ul><li><strong>Concreto:</strong> ele fica mais forte com o tempo. Por isso, evite mexer em paredes estruturais.</li><li><strong>Impermeabilização:</strong> protege contra infiltração. Se estiver ruim, aparece mancha e bolha na parede.</li><li><strong>Juntas:</strong> pequenas rachaduras finas podem aparecer com mudança de temperatura. Se aumentar, avise a construtora.</li></ul>"
+    },
+    {
+      "titulo": "Soluções Rápidas (sem gastar muito)",
+      "conteudo": "<h4>1. Torneira pingando</h4><p><strong>O que fazer:</strong> feche o registro e troque a borracha. É barato e resolve na maioria dos casos.</p><h4>2. Tomada sem energia</h4><p><strong>O que fazer:</strong> veja se o disjuntor caiu. Se cair de novo, chame eletricista.</p><h4>3. Infiltração</h4><p><strong>O que fazer:</strong> tire foto e abra chamado. Se for garantia, a gente resolve.</p><h4>4. Porta não fecha</h4><p><strong>O que fazer:</strong> aperte as dobradiças. Se continuar, abra chamado.</p>"
+    },
+    {
+      "titulo": "Dicas para São Gonçalo",
+      "conteudo": "<h4>Clima úmido</h4><p>São Gonçalo é úmido, então:</p><ul><li>Deixe o sol entrar quando puder</li><li>Evite deixar roupa molhada dentro de casa</li><li>Limpe paredes com pano seco se aparecer mofo</li></ul><h4>Serviços locais</h4><ul><li><strong>Água e Esgoto:</strong> CEDAE - 0800 024 0195</li><li><strong>Energia:</strong> Light - 0800 721 0111</li><li><strong>IPTU:</strong> Prefeitura de São Gonçalo (consulte descontos MCMV)</li></ul>"
+    },
+    {
+      "titulo": "Quando abrir chamado (Reparos)",
+      "conteudo": "<h4>Abra chamado se:</h4><ul><li>Tomada esquentando ou cheiro de queimado</li><li>Infiltração no teto ou na parede</li><li>Porta ou janela não fechando direito</li><li>Vazamento que não para</li></ul><h4>Importante</h4><p>Se estiver na garantia, a gente resolve. Abra o chamado na Área do Cliente com foto ou vídeo.</p>"
+    }
+  ],
+  "dicaDoTrimestre": "Dica do Trimestre: guarde fotos e anotações de tudo que você mandar no chamado. Isso ajuda a gente a resolver mais rápido.",
+  "contato": {
+    "texto": "Precisa de ajuda? Entre em contato:",
+    "telefone": "(21) 99555-7010",
+    "email": "bfmarquesempreendimentos@gmail.com",
+    "areaCliente": "Acesse sua Área do Cliente para solicitar reparos e acompanhar seu imóvel"
+  }
+}
+

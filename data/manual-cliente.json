@@ -1,0 +1,353 @@
+{
+  "titulo": "Manual do Cliente - B F Marques Empreendimentos",
+  "subtitulo": "Guia Completo para Proprietários MCMV Faixa 2 - São Gonçalo, RJ",
+  "versao": "1.0",
+  "dataAtualizacao": "2025-01-14",
+  "localizacao": {
+    "cidade": "São Gonçalo",
+    "estado": "Rio de Janeiro",
+    "regiao": "Região Metropolitana do Rio de Janeiro"
+  },
+  "secoes": [
+    {
+      "id": "introducao",
+      "titulo": "Bem-vindo ao Seu Novo Lar!",
+      "conteudo": "Parabéns pela conquista do seu imóvel através do Programa Minha Casa Minha Vida - Faixa 2! Este manual foi elaborado especialmente para você, cliente da B F Marques Empreendimentos em São Gonçalo, RJ. Aqui você encontrará todas as informações importantes sobre garantias, manutenção, reparos e dúvidas frequentes."
+    },
+    {
+      "id": "garantias",
+      "titulo": "Prazos de Garantia - Conforme Caixa Econômica e NBR 15575",
+      "itens": [
+        {
+          "categoria": "Estrutura",
+          "itens": [
+            {
+              "descricao": "Estrutura de Concreto (Fundações, Pilares, Vigas, Lajes)",
+              "prazo": "5 anos",
+              "observacoes": "Garantia obrigatória conforme NBR 15575. Cobre defeitos estruturais que comprometam a segurança."
+            },
+            {
+              "descricao": "Estrutura de Alvenaria",
+              "prazo": "5 anos",
+              "observacoes": "Cobre trincas estruturais, recalques e problemas de estabilidade."
+            }
+          ]
+        },
+        {
+          "categoria": "Vedações Verticais",
+          "itens": [
+            {
+              "descricao": "Paredes e Alvenarias",
+              "prazo": "1 ano",
+              "observacoes": "Cobre trincas, fissuras, descolamento de revestimento e problemas de impermeabilização."
+            },
+            {
+              "descricao": "Esquadrias (Portas e Janelas)",
+              "prazo": "1 ano",
+              "observacoes": "Cobre defeitos de fabricação, problemas de fechamento e vedação."
+            }
+          ]
+        },
+        {
+          "categoria": "Coberturas",
+          "itens": [
+            {
+              "descricao": "Telhado e Impermeabilização",
+              "prazo": "5 anos",
+              "observacoes": "Cobre infiltrações, vazamentos e problemas de impermeabilização."
+            },
+            {
+              "descricao": "Calhas e Rufos",
+              "prazo": "1 ano",
+              "observacoes": "Cobre vazamentos e problemas de escoamento."
+            }
+          ]
+        },
+        {
+          "categoria": "Instalações",
+          "itens": [
+            {
+              "descricao": "Instalações Elétricas",
+              "prazo": "1 ano",
+              "observacoes": "Cobre defeitos de instalação, tomadas, interruptores e iluminação."
+            },
+            {
+              "descricao": "Instalações Hidráulicas (Água Fria e Quente)",
+              "prazo": "1 ano",
+              "observacoes": "Cobre vazamentos, entupimentos e defeitos de instalação."
+            },
+            {
+              "descricao": "Instalações Sanitárias (Esgoto)",
+              "prazo": "1 ano",
+              "observacoes": "Cobre entupimentos, vazamentos e problemas de escoamento."
+            },
+            {
+              "descricao": "Gás (se aplicável)",
+              "prazo": "1 ano",
+              "observacoes": "Cobre defeitos de instalação e vazamentos."
+            }
+          ]
+        },
+        {
+          "categoria": "Revestimentos",
+          "itens": [
+            {
+              "descricao": "Pisos e Azulejos",
+              "prazo": "90 dias",
+              "observacoes": "Cobre descolamento, trincas e defeitos de assentamento."
+            },
+            {
+              "descricao": "Pintura Interna e Externa",
+              "prazo": "90 dias",
+              "observacoes": "Cobre descascamento, bolhas e defeitos de aplicação."
+            }
+          ]
+        },
+        {
+          "categoria": "Acabamentos",
+          "itens": [
+            {
+              "descricao": "Louças e Metais Sanitários",
+              "prazo": "90 dias",
+              "observacoes": "Cobre defeitos de fabricação e instalação."
+            },
+            {
+              "descricao": "Torneiras e Registros",
+              "prazo": "90 dias",
+              "observacoes": "Cobre defeitos de fabricação e vazamentos."
+            },
+            {
+              "descricao": "Portas e Janelas (Acabamento)",
+              "prazo": "90 dias",
+              "observacoes": "Cobre defeitos de acabamento e pintura."
+            }
+          ]
+        },
+        {
+          "categoria": "Equipamentos",
+          "itens": [
+            {
+              "descricao": "Equipamentos Fornecidos pela Construtora",
+              "prazo": "Conforme fabricante",
+              "observacoes": "Seguir garantia do fabricante. Manter nota fiscal."
+            }
+          ]
+        }
+      ],
+      "observacoesGerais": [
+        "Os prazos de garantia começam a contar a partir da data de entrega do imóvel.",
+        "A garantia cobre apenas defeitos construtivos, não desgaste natural ou mau uso.",
+        "É necessário notificar a construtora por escrito sobre qualquer defeito dentro do prazo de garantia.",
+        "A Caixa Econômica exige que a construtora mantenha seguro de garantia para os primeiros 5 anos.",
+        "Para itens com garantia de 5 anos, a Caixa mantém seguro específico conforme regulamentação."
+      ]
+    },
+    {
+      "id": "duvidasFrequentes",
+      "titulo": "Dúvidas Frequentes - Primeira Compra de Imóvel",
+      "perguntas": [
+        {
+          "pergunta": "Como funciona o financiamento MCMV Faixa 2?",
+          "resposta": "O MCMV Faixa 2 é destinado a famílias com renda de até R$ 4.000,00. Oferece subsídio de até R$ 55.000,00, taxa de juros reduzida (6,5% ao ano) e prazo de até 360 meses. Você pode usar o FGTS como entrada e para amortização."
+        },
+        {
+          "pergunta": "Quando posso usar o FGTS?",
+          "resposta": "Você pode usar o FGTS: 1) Como entrada na compra; 2) Para amortizar o saldo devedor a cada 3 anos; 3) Para pagar prestações em atraso. Consulte a Caixa para mais informações."
+        },
+        {
+          "pergunta": "O que fazer se encontrar um problema no imóvel?",
+          "resposta": "1) Documente o problema com fotos/vídeos; 2) Acesse a Área do Cliente e abra uma solicitação de reparo; 3) Nossa equipe técnica irá analisar; 4) Se estiver na garantia, faremos o reparo gratuitamente. Resposta automática será enviada com protocolo."
+        },
+        {
+          "pergunta": "Quanto tempo tenho para reclamar de um defeito?",
+          "resposta": "Depende do tipo de defeito: Estrutura e cobertura = 5 anos; Instalações e vedações = 1 ano; Revestimentos e acabamentos = 90 dias. Sempre notifique por escrito o mais rápido possível."
+        },
+        {
+          "pergunta": "Preciso fazer seguro do imóvel?",
+          "resposta": "Sim, é obrigatório fazer seguro residencial enquanto houver financiamento. A Caixa oferece o seguro, mas você pode contratar de outras seguradoras. O seguro protege contra incêndio, desabamento e outros riscos."
+        },
+        {
+          "pergunta": "Posso fazer reformas no imóvel?",
+          "resposta": "Sim, mas com algumas restrições: 1) Não pode alterar a estrutura sem autorização; 2) Reformas que alterem a fachada podem precisar de aprovação do condomínio; 3) Enquanto houver financiamento, mantenha a documentação atualizada."
+        },
+        {
+          "pergunta": "Como funciona o IPTU em São Gonçalo?",
+          "resposta": "O IPTU em São Gonçalo é cobrado anualmente, com opção de parcelamento. Imóveis MCMV podem ter isenção ou desconto. Consulte a Prefeitura de São Gonçalo para verificar sua situação. Mantenha o pagamento em dia para evitar multas."
+        },
+        {
+          "pergunta": "O que fazer se a prestação ficar alta?",
+          "resposta": "Você pode: 1) Usar o FGTS para amortizar (a cada 3 anos); 2) Solicitar renegociação na Caixa; 3) Fazer amortizações extras; 4) Verificar se tem direito a benefícios sociais. Nunca deixe de pagar sem comunicar a Caixa."
+        },
+        {
+          "pergunta": "Preciso fazer vistoria antes de receber o imóvel?",
+          "resposta": "Sim! É muito importante fazer uma vistoria detalhada antes de assinar a entrega. Verifique: instalações elétricas e hidráulicas, pintura, pisos, portas, janelas, banheiros, cozinha. Documente tudo com fotos. Problemas encontrados devem ser comunicados imediatamente."
+        },
+        {
+          "pergunta": "Como funciona a entrega de chaves?",
+          "resposta": "A entrega é feita após: 1) Quitação de todas as taxas; 2) Assinatura do contrato de compra e venda; 3) Vistoria e aceite do imóvel; 4) Assinatura do termo de entrega. Você receberá: chaves, manual do imóvel, documentação e garantias."
+        },
+        {
+          "pergunta": "O que fazer se houver infiltração?",
+          "resposta": "1) Documente com fotos/vídeos imediatamente; 2) Abra solicitação na Área do Cliente; 3) Se estiver na garantia (5 anos para cobertura), faremos o reparo; 4) Se for problema de manutenção, orientaremos sobre como resolver. Infiltrações podem causar danos maiores se não tratadas rapidamente."
+        },
+        {
+          "pergunta": "Posso alugar o imóvel?",
+          "resposta": "Sim, mas há algumas condições: 1) O imóvel não pode estar em atraso com a Caixa; 2) Você precisa informar a Caixa sobre o aluguel; 3) O aluguel pode ser usado para pagar a prestação; 4) Mantenha toda documentação atualizada."
+        },
+        {
+          "pergunta": "Como funciona a transferência do imóvel?",
+          "resposta": "A transferência (escritura) é feita após o pagamento de todas as prestações ou quitação antecipada. Você precisará: 1) Quitar o financiamento na Caixa; 2) Pagar as taxas cartoriais; 3) Fazer a escritura no cartório; 4) Atualizar o IPTU. A Caixa fornece toda documentação necessária."
+        },
+        {
+          "pergunta": "O que fazer em caso de emergência (vazamento, falta de energia)?",
+          "resposta": "Emergências: 1) Vazamento de água - feche o registro geral imediatamente; 2) Problema elétrico - desligue o disjuntor; 3) Gás - feche a válvula e ventile o ambiente. Depois, abra uma solicitação de reparo urgente na Área do Cliente. Para emergências graves, ligue para (21) 99555-7010."
+        },
+        {
+          "pergunta": "Como manter o imóvel em bom estado?",
+          "resposta": "Manutenção preventiva: 1) Limpe calhas e rufos regularmente; 2) Verifique vazamentos periodicamente; 3) Mantenha pintura em dia; 4) Limpe e mantenha instalações; 5) Verifique telhado anualmente; 6) Mantenha documentação organizada. Pequenos cuidados evitam grandes problemas."
+        }
+      ]
+    },
+    {
+      "id": "saoGoncalo",
+      "titulo": "Informações Específicas - São Gonçalo, RJ",
+      "conteudo": "São Gonçalo é o segundo maior município do estado do Rio de Janeiro, localizado na Região Metropolitana. Com mais de 1 milhão de habitantes, oferece boa infraestrutura e acesso facilitado à capital.",
+      "informacoes": [
+        {
+          "categoria": "Serviços Públicos",
+          "itens": [
+            {
+              "titulo": "IPTU",
+              "descricao": "Prefeitura de São Gonçalo - Secretaria de Fazenda. Consulte desconto para imóveis MCMV.",
+              "contato": "Disque São Gonçalo: 1746"
+            },
+            {
+              "titulo": "Água e Esgoto",
+              "descricao": "CEDAE (Companhia Estadual de Águas e Esgotos)",
+              "contato": "0800 024 0195"
+            },
+            {
+              "titulo": "Energia Elétrica",
+              "descricao": "Light - Distribuidora de Energia",
+              "contato": "0800 721 0111"
+            },
+            {
+              "titulo": "Gás",
+              "descricao": "Naturgy (antiga Gas Natural)",
+              "contato": "0800 701 9192"
+            }
+          ]
+        },
+        {
+          "categoria": "Transporte",
+          "itens": [
+            {
+              "titulo": "Transporte Público",
+              "descricao": "Linhas de ônibus conectam São Gonçalo ao Rio de Janeiro e outras cidades da região metropolitana."
+            },
+            {
+              "titulo": "Acesso à Capital",
+              "descricao": "Fácil acesso via Ponte Rio-Niterói e rodovias estaduais."
+            }
+          ]
+        },
+        {
+          "categoria": "Saúde e Educação",
+          "itens": [
+            {
+              "titulo": "Rede Pública",
+              "descricao": "São Gonçalo possui ampla rede de saúde e educação pública, com unidades básicas de saúde e escolas municipais."
+            }
+          ]
+        },
+        {
+          "categoria": "Documentação",
+          "itens": [
+            {
+              "titulo": "Cartórios",
+              "descricao": "Vários cartórios disponíveis para escrituração e documentação imobiliária."
+            },
+            {
+              "titulo": "CRECI",
+              "descricao": "Conselho Regional de Corretores de Imóveis - Para questões sobre documentação imobiliária."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "manutencao",
+      "titulo": "Guia de Manutenção Preventiva",
+      "itens": [
+        {
+          "periodicidade": "Mensal",
+          "tarefas": [
+            "Verificar vazamentos em torneiras e registros",
+            "Limpar ralos e sifões",
+            "Verificar funcionamento de interruptores e tomadas",
+            "Limpar filtros de ar condicionado (se houver)"
+          ]
+        },
+        {
+          "periodicidade": "Trimestral",
+          "tarefas": [
+            "Limpar calhas e rufos",
+            "Verificar telhado e impermeabilização",
+            "Inspecionar pintura externa",
+            "Verificar esquadrias (portas e janelas)"
+          ]
+        },
+        {
+          "periodicidade": "Semestral",
+          "tarefas": [
+            "Limpeza geral profunda",
+            "Verificação de instalações elétricas",
+            "Inspeção de instalações hidráulicas",
+            "Manutenção de portões e fechaduras"
+          ]
+        },
+        {
+          "periodicidade": "Anual",
+          "tarefas": [
+            "Revisão completa do imóvel",
+            "Repintura (se necessário)",
+            "Verificação de estrutura",
+            "Atualização de documentação"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "contatos",
+      "titulo": "Contatos Importantes",
+      "contatos": [
+        {
+          "nome": "B F Marques Empreendimentos",
+          "telefone": "(21) 99555-7010",
+          "email": "bfmarquesempreendimentos@gmail.com",
+          "horario": "Segunda a Sexta: 9h às 18h"
+        },
+        {
+          "nome": "Caixa Econômica - Atendimento MCMV",
+          "telefone": "0800 726 0101",
+          "horario": "Segunda a Sexta: 8h às 20h"
+        },
+        {
+          "nome": "Área do Cliente",
+          "descricao": "Acesse pelo site para solicitar reparos, ver documentos e acompanhar seu imóvel",
+          "url": "Área do Cliente no site"
+        }
+      ]
+    }
+  ],
+  "observacoesFinais": [
+    "Mantenha sempre a documentação do imóvel organizada e em local seguro.",
+    "Notifique problemas dentro do prazo de garantia para ter direito ao reparo gratuito.",
+    "Use a Área do Cliente para acompanhar todas as suas solicitações e histórico.",
+    "Em caso de dúvidas, entre em contato conosco ou consulte a Caixa Econômica.",
+    "Este manual é seu guia de referência - guarde-o com cuidado!"
+  ]
+}
+
+
+

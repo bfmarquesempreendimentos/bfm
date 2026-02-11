@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Sistema B F Marques</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .image-test {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .image-test img {
+            max-width: 300px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin: 5px;
+        }
+        
+        .units-demo {
+            margin: 20px 0;
+        }
+        
+        .demo-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        
+        .demo-table th,
+        .demo-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .demo-table th {
+            background: #34495e;
+            color: white;
+        }
+        
+        .unit-available { background: #2ecc71; color: white; }
+        .unit-reserved { background: #f39c12; color: white; }
+        .unit-signed { background: #e74c3c; color: white; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🏗️ Teste do Sistema B F Marques Empreendimentos</h1>
+        
+        <div class="image-test">
+            <h3>📸 Teste das Imagens do Porto Novo</h3>
+            <p>Testando se as imagens estão carregando corretamente:</p>
+            
+            <img src="assets/images/porto-novo/WhatsApp Image 2025-12-22 at 17.47.29.jpeg" alt="Fachada" onerror="this.style.border='2px solid red'; this.alt='❌ Erro ao carregar'">
+            <img src="assets/images/porto-novo/WhatsApp Image 2025-12-22 at 17.47.30.jpeg" alt="Interior 1" onerror="this.style.border='2px solid red'; this.alt='❌ Erro ao carregar'">
+            <img src="assets/images/porto-novo/WhatsApp Image 2025-12-22 at 17.47.30 (1).jpeg" alt="Interior 2" onerror="this.style.border='2px solid red'; this.alt='❌ Erro ao carregar'">
+            
+            <p><strong>Se as imagens aparecerem, os caminhos estão corretos!</strong></p>
+        </div>
+        
+        <div class="units-demo">
+            <h3>📊 Demonstração da Tabela de Unidades - Porto Novo</h3>
+            
+            <div style="display: flex; gap: 20px; margin: 10px 0; justify-content: center;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="width: 20px; height: 15px; background: #2ecc71; display: inline-block;"></span>
+                    <span>DISPONÍVEL</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="width: 20px; height: 15px; background: #f39c12; display: inline-block;"></span>
+                    <span>RESERVADO</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="width: 20px; height: 15px; background: #e74c3c; display: inline-block;"></span>
+                    <span>ASSINADO ESCRITURA</span>
+                </div>
+            </div>
+            
+            <table class="demo-table">
+                <thead>
+                    <tr>
+                        <th colspan="2">Vlr. Venda</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="unit-signed">31 (1qt)<br>R$ 140.000</td>
+                        <td class="unit-signed">31 cs 5 sob (1qt)<br>R$ 165.000</td>
+                    </tr>
+                    <tr>
+                        <td class="unit-signed">31 cs 6 (1qt)<br>R$ 170.000</td>
+                        <td class="unit-signed">31 cs 6 sob (1 qt)<br>R$ 160.000</td>
+                    </tr>
+                    <tr>
+                        <td class="unit-signed">31 cs 8 (1qt)<br>R$ 170.000</td>
+                        <td class="unit-signed">31 cs 7 sob (1qt)<br>R$ 170.000</td>
+                    </tr>
+                    <tr>
+                        <td class="unit-signed">31 cs 4 (1qt)<br>R$ 140.000</td>
+                        <td class="unit-signed">31 cs 8 sob (1qt)<br>R$ 160.000</td>
+                    </tr>
+                    <tr>
+                        <td class="unit-signed">31 cs 5 (1qt ind.)<br>R$ 160.000</td>
+                        <td class="unit-signed">31 cs 1 (2qts)<br>R$ 170.000</td>
+                    </tr>
+                    <tr>
+                        <td class="unit-reserved">31 cs 7 (1qt)<br>R$ 170.000</td>
+                        <td class="unit-signed">31 cs 2 (2qts)<br>R$ 160.000</td>
+                    </tr>
+                    <tr>
+                        <td class="unit-signed">31 cs 4 ap (2qts)<br>R$ 150.000</td>
+                        <td class="unit-reserved">31 cs 3 (2qts)<br>R$ 180.000</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <p><strong>✅ Esta é a tabela que será exibida nos detalhes dos imóveis!</strong></p>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <h4>💰 Exemplo de Valores Reais:</h4>
+                <ul style="list-style: none; padding: 0;">
+                    <li>🏠 <strong>31 cs 4 (1qt)</strong> → R$ 140.000 (Casa 4 de 1 quarto)</li>
+                    <li>🏠 <strong>31 cs 1 (2qts)</strong> → R$ 170.000 (Casa 1 de 2 quartos)</li>
+                    <li>🏠 <strong>31 cs 3 (2qts)</strong> → R$ 180.000 (Casa 3 de 2 quartos)</li>
+                </ul>
+                <p style="margin-top: 10px; font-style: italic; color: #7f8c8d;">
+                    * Todos os valores são exibidos em reais completos, não abreviados
+                </p>
+            </div>
+        </div>
+        
+        <div style="margin: 30px 0; padding: 20px; background: #e8f5e8; border-radius: 10px;">
+            <h3>🎯 Funcionalidades Implementadas:</h3>
+            <ul>
+                <li>✅ <strong>Imagens reais</strong> do Porto Novo carregando</li>
+                <li>✅ <strong>Fotos maiores</strong> (450px de altura vs 300px antes)</li>
+                <li>✅ <strong>Barra de rolagem estilizada</strong> no modal de detalhes</li>
+                <li>✅ <strong>Indicador de rolagem</strong> com progresso visual</li>
+                <li>✅ <strong>Botão "Rolar para baixo"</strong> animado</li>
+                <li>✅ <strong>Zoom nas imagens</strong> - clique para ampliar</li>
+                <li>✅ <strong>Tabelas de unidades</strong> com cores por status</li>
+                <li>✅ <strong>Sistema de cores:</strong>
+                    <ul>
+                        <li>🟢 Verde = Disponível</li>
+                        <li>🟡 Amarelo = Reservado</li>
+                        <li>🔴 Vermelho = Assinado Escritura</li>
+                    </ul>
+                </li>
+                <li>✅ <strong>Clique nas unidades</strong> para reservar (apenas disponíveis)</li>
+                <li>✅ <strong>Matrículas</strong> de cada unidade</li>
+                <li>✅ <strong>Valores de engenharia</strong> quando disponíveis</li>
+                <li>✅ <strong>Thumbnails maiores</strong> (100x80px vs 80x60px)</li>
+                <li>✅ <strong>Animações suaves</strong> em hover e cliques</li>
+            </ul>
+        </div>
+        
+        <div style="margin: 30px 0; padding: 20px; background: #fff3cd; border-radius: 10px; border-left: 4px solid #f39c12;">
+            <h3>🎨 Melhorias Visuais Adicionadas:</h3>
+            <ul>
+                <li>🎯 <strong>Modal maior</strong> (900px vs 800px)</li>
+                <li>📏 <strong>Altura máxima</strong> do modal (90vh)</li>
+                <li>🎨 <strong>Barra de rolagem personalizada</strong> com gradiente azul</li>
+                <li>📊 <strong>Indicador de progresso</strong> na parte inferior</li>
+                <li>🖼️ <strong>Lightbox para imagens</strong> - clique para zoom completo</li>
+                <li>⬇️ <strong>Botão animado</strong> para rolar até o final</li>
+                <li>✨ <strong>Efeitos hover</strong> nas thumbnails</li>
+                <li>🎭 <strong>Animações suaves</strong> em todas as interações</li>
+            </ul>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="index.html" style="background: #3498db; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">
+                🏠 Ir para o Site Principal
+            </a>
+            <br><br>
+            <a href="admin-login.html" style="background: #2c3e50; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">
+                ⚙️ Painel Administrativo
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        // Test if images load correctly
+        document.addEventListener('DOMContentLoaded', function() {
+            const images = document.querySelectorAll('.image-test img');
+            let loadedCount = 0;
+            let totalImages = images.length;
+            
+            images.forEach(img => {
+                img.onload = function() {
+                    loadedCount++;
+                    if (loadedCount === totalImages) {
+                        console.log('✅ Todas as imagens carregaram com sucesso!');
+                    }
+                };
+                
+                img.onerror = function() {
+                    console.log('❌ Erro ao carregar:', this.src);
+                    this.style.border = '2px solid red';
+                    this.alt = '❌ Erro ao carregar';
+                };
+            });
+        });
+    </script>
+</body>
+</html>
