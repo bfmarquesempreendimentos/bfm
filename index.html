@@ -9,12 +9,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div class="nav-overlay" onclick="closeMobileMenu()" aria-hidden="true"></div>
     <!-- Header -->
     <header class="header">
         <div class="container">
             <a class="nav-brand" href="#home" aria-label="Início">
                 <img src="assets/images/logo-bf-marques.png" alt="B F Marques" class="brand-logo">
             </a>
+            <button class="nav-hamburger" aria-label="Abrir menu" onclick="toggleMobileMenu()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="nav-wrapper">
             <nav class="nav-menu">
                 <ul>
                     <li><a href="#properties">Imóveis</a></li>
@@ -32,6 +37,7 @@
                 <button class="btn-login" onclick="openLoginModal()">
                     <i class="fas fa-user"></i> Área do Corretor
                 </button>
+            </div>
             </div>
         </div>
     </header>
