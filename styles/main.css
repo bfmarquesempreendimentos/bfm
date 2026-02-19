@@ -1341,6 +1341,25 @@ body {
     text-decoration: underline;
 }
 
+.admin-link {
+    text-align: center;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+    font-size: 0.85rem;
+    color: #95a5a6;
+}
+
+.admin-link a {
+    color: #7f8c8d;
+    text-decoration: none;
+}
+
+.admin-link a:hover {
+    color: #2c3e50;
+    text-decoration: underline;
+}
+
 /* Property Detail Styles */
 .property-detail-header {
     display: flex;
