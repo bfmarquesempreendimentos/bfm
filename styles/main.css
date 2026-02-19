@@ -576,19 +576,21 @@ body {
     .lead-subsidy {
         display: flex;
         flex-direction: column;
+        gap: 0;
     }
 
     .lead-header {
         order: -1;
         flex-direction: column;
         align-items: flex-start;
-        gap: 12px;
-        margin-bottom: 16px;
+        gap: 16px;
+        margin-bottom: 24px;
     }
 
     .lead-kicker--corner {
         position: static;
         margin-bottom: 0;
+        display: block;
     }
 
     .lead-header .lead-logos {
@@ -601,7 +603,9 @@ body {
     .lead-side-logo-group {
         position: static;
         flex-direction: row;
-        margin-bottom: 16px;
+        order: 0;
+        margin-top: 0;
+        margin-bottom: 20px;
         transform: none;
         justify-content: flex-start;
         gap: 10px;
@@ -1715,9 +1719,10 @@ body {
     color: #fff;
     font-size: 1.5rem;
     cursor: pointer;
-    padding: 8px 12px;
+    padding: 12px 16px;
     z-index: 1001;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 /* Responsive Design */
@@ -1797,11 +1802,16 @@ body {
     
     body.mobile-menu-open .nav-wrapper {
         transform: translateX(0);
+        z-index: 1100;
+    }
+
+    body.mobile-menu-open .nav-overlay {
+        z-index: 1099;
     }
     
     body.mobile-menu-open .nav-hamburger {
         position: relative;
-        z-index: 1002;
+        z-index: 1102;
     }
     
     body.mobile-menu-open {
@@ -1811,9 +1821,12 @@ body {
     .nav-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0,0,0,0.4);
+        background: rgba(0,0,0,0.5);
         z-index: 998;
         display: none;
+        -webkit-tap-highlight-color: transparent;
+        cursor: pointer;
+        touch-action: manipulation;
     }
     
     body.mobile-menu-open .nav-overlay {

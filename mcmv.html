@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>B F Marques Empreendimentos - Minha Casa Minha Vida</title>
+    <script>
+      function toggleMobileMenu(){document.body.classList.toggle('mobile-menu-open');var i=document.querySelector('.nav-hamburger i');if(i){i.classList.toggle('fa-bars');i.classList.toggle('fa-times');}}
+      function closeMobileMenu(){document.body.classList.remove('mobile-menu-open');var i=document.querySelector('.nav-hamburger i');if(i){i.classList.remove('fa-times');i.classList.add('fa-bars');}}
+    </script>
     <link rel="stylesheet" href="styles/main.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -14,7 +18,7 @@
             <a class="nav-brand" href="index.html#home" aria-label="Início">
                 <img src="assets/images/logo-bf-marques.png" alt="B F Marques" class="brand-logo">
             </a>
-            <button class="nav-hamburger" aria-label="Abrir menu" onclick="toggleMobileMenu()">
+            <button class="nav-hamburger" type="button" aria-label="Abrir menu" onclick="toggleMobileMenu()">
                 <i class="fas fa-bars"></i>
             </button>
             <div class="nav-wrapper">
