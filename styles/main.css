@@ -62,6 +62,7 @@ body {
     backdrop-filter: none;
     z-index: 1000;
     padding: 10px 0;
+    padding-top: max(10px, env(safe-area-inset-top));
     border-bottom: 1px solid transparent;
     overflow: hidden;
     opacity: 1;
@@ -566,8 +567,67 @@ body {
         margin-top: -40px;
     }
 
+    .lead-subsidy {
+        padding-left: 20px;
+        padding-right: 20px;
+        padding-top: 28px;
+    }
+
+    .lead-side-logo-group {
+        position: static;
+        flex-direction: row;
+        margin-bottom: 16px;
+        transform: none;
+        justify-content: flex-start;
+        gap: 10px;
+    }
+
+    .lead-side-logo {
+        width: 48px;
+        height: 48px;
+    }
+
+    .lead-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .lead-header .lead-logos {
+        margin-left: 0;
+        margin-top: 0;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .lead-logos img {
+        height: 38px;
+        width: 80px;
+    }
+
+    .lead-subsidy h3,
+    .lead-promo h3 {
+        font-size: 1.35rem;
+    }
+
+    .lead-promo {
+        padding: 24px 20px;
+        padding-bottom: 80px;
+    }
+
+    .lead-gift {
+        width: 80px;
+        right: 12px;
+        bottom: 8px;
+    }
+
     .lead-cards {
         grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .lead-card {
+        padding: 16px;
     }
 }
 
@@ -700,7 +760,7 @@ body {
 
 .properties-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
     gap: 30px;
 }
 
@@ -1741,6 +1801,32 @@ body {
     
     .properties-grid {
         grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .properties {
+        padding: 50px 0;
+    }
+
+    .section-header {
+        margin-bottom: 32px;
+    }
+
+    .section-header h2 {
+        font-size: 1.75rem;
+        line-height: 1.3;
+    }
+
+    .page-hero {
+        padding: 100px 16px 40px;
+    }
+
+    .page-hero h1 {
+        font-size: 1.65rem;
+    }
+
+    .page-hero p {
+        font-size: 0.95rem;
     }
     
     .about-content,
@@ -1818,8 +1904,77 @@ body {
     
     .header .brand-logo,
     .header:not(.scrolled) .brand-logo {
-        height: 50px;
-        max-height: 60px;
+        height: 48px;
+        max-height: 56px;
+    }
+
+    .container {
+        padding: 0 16px;
+    }
+
+    .about,
+    .contact {
+        padding: 50px 0;
+    }
+
+    .benefits-strip {
+        padding: 14px 0;
+    }
+
+    .benefits-items {
+        gap: 12px;
+        text-align: center;
+    }
+
+    .benefit-item {
+        min-width: 0;
+    }
+
+    .benefit-highlight {
+        font-size: 0.85rem;
+    }
+
+    .benefit-text {
+        font-size: 0.8rem;
+    }
+
+    .hero-video {
+        background-attachment: scroll;
+    }
+
+    .property-info {
+        padding: 18px;
+    }
+
+    .property-title {
+        font-size: 1.1rem;
+    }
+
+    .property-price {
+        font-size: 1.25rem;
+    }
+
+    .property-actions {
+        flex-direction: column;
+    }
+
+    .property-actions .btn-reserve,
+    .property-actions .btn-details {
+        width: 100%;
+    }
+
+    .game-field {
+        height: 260px;
+    }
+
+    .property-highlight {
+        font-size: 0.65rem;
+        width: 140px;
+        right: -48px;
+    }
+
+    .property-image {
+        height: 200px;
     }
 }
 
@@ -2026,24 +2181,51 @@ body {
 
 @media (max-width: 480px) {
     .container {
-        padding: 0 15px;
+        padding: 0 14px;
+        padding-left: max(14px, env(safe-area-inset-left));
+        padding-right: max(14px, env(safe-area-inset-right));
     }
     
     .hero h1 {
-        font-size: 2rem;
+        font-size: 1.75rem;
+        line-height: 1.25;
+    }
+
+    .hero p {
+        font-size: 1rem;
+    }
+
+    .hero .btn {
+        padding: 14px 24px;
+        min-height: 48px;
     }
     
     .section-header h2 {
-        font-size: 2rem;
+        font-size: 1.5rem;
     }
     
     .modal-content {
-        margin: 10% auto;
-        padding: 20px;
+        margin: 5% 12px;
+        padding: 20px 16px;
+        width: calc(100% - 24px);
     }
     
     .property-actions {
         flex-direction: column;
+    }
+
+    body.mobile-menu-open .nav-wrapper {
+        padding-right: max(16px, env(safe-area-inset-right));
+    }
+
+    .lead-subsidy,
+    .lead-promo {
+        padding: 20px 16px;
+    }
+
+    .btn-login,
+    .btn-client-area {
+        min-height: 44px;
     }
 }
 
@@ -4080,14 +4262,45 @@ html {
     .mcmv-content,
     .calculadora-content {
         grid-template-columns: 1fr;
+        gap: 28px;
+    }
+    
+    .mcmv-section,
+    .calculadora-section,
+    .simulador-section {
+        padding: 50px 16px;
     }
     
     .mcmv-benefits {
         grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .mcmv-banner {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+    
+    .mcmv-banner .btn {
+        align-self: center;
     }
     
     .game-steps {
         grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .step {
+        padding: 14px;
+    }
+    
+    .step-number {
+        font-size: 1.5rem;
+    }
+    
+    .client-page-panel {
+        padding: 20px 16px;
     }
     
     .client-info-header {
@@ -4112,6 +4325,7 @@ html {
         align-items: flex-start;
         gap: 10px;
     }
+    
 }
 
 /* Contact Forms Styles */
