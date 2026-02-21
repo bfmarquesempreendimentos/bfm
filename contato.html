@@ -13,6 +13,22 @@
 </head>
 <body>
     <div class="nav-overlay" onclick="closeMobileMenu()" aria-hidden="true"></div>
+    <aside class="mobile-nav-panel" id="mobileNavPanel">
+        <nav class="mobile-nav-menu">
+            <ul>
+                <li><a href="index.html#properties" onclick="closeMobileMenu()">Imóveis</a></li>
+                <li><a href="index.html#simulador" onclick="closeMobileMenu()">Simulador</a></li>
+                <li><a href="index.html#about" onclick="closeMobileMenu()">Sobre</a></li>
+                <li><a href="calculadora.html" onclick="closeMobileMenu()">Calculadora dos Sonhos✨</a></li>
+                <li><a href="mcmv.html" onclick="closeMobileMenu()">MCMV</a></li>
+                <li><a href="contato.html" onclick="closeMobileMenu()">Fale Conosco</a></li>
+            </ul>
+        </nav>
+        <div class="mobile-nav-actions">
+            <a class="btn btn-client-area" href="client-area.html" onclick="closeMobileMenu()"><i class="fas fa-user-circle"></i> Área do Cliente</a>
+            <button class="btn btn-login" onclick="openLoginModal(); closeMobileMenu();"><i class="fas fa-user"></i> Área do Corretor</button>
+        </div>
+    </aside>
     <header class="header">
         <div class="container">
             <a class="nav-brand" href="index.html#home" aria-label="Início">
