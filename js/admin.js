@@ -166,7 +166,9 @@ function showSection(sectionId) {
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
     });
-    document.querySelector(`[onclick="showSection('${sectionId}')"]`).parentElement.classList.add('active');
+    const navLink = document.querySelector(`.nav-item a[href="#${sectionId}"]`) || 
+                    document.querySelector(`[onclick*="showSection('${sectionId}')"]`);
+    if (navLink) navLink.closest('.nav-item')?.classList.add('active');
     
     // Update sections
     document.querySelectorAll('.admin-section').forEach(section => {
@@ -201,6 +203,12 @@ function showSection(sectionId) {
             break;
         case 'settings':
             loadSettingsData();
+            break;
+        case 'analytics':
+            if (typeof loadAnalytics === 'function') loadAnalytics();
+            break;
+        case 'whatsapp-leads':
+            if (typeof loadWhatsAppLeads === 'function') loadWhatsAppLeads();
             break;
     }
 }

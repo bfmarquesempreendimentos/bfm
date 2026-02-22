@@ -174,48 +174,48 @@ function handleRegister(e) {
     
     // Validate input
     if (!name || !cpf || !email || !phone || !password || !confirmPassword) {
-        showAuthMessage('Por favor, preencha nome, CPF, email, telefone e senha.', 'error');
+        showRegisterFeedback(false, 'Por favor, preencha nome, CPF, email, telefone e senha.');
         return;
     }
     
     if (password !== confirmPassword) {
-        showAuthMessage('As senhas não coincidem.', 'error');
+        showRegisterFeedback(false, 'As senhas não coincidem.');
         return;
     }
     
     if (password.length < 6) {
-        showAuthMessage('A senha deve ter pelo menos 6 caracteres.', 'error');
+        showRegisterFeedback(false, 'A senha deve ter pelo menos 6 caracteres.');
         return;
     }
     
     // Check if email already exists
     if (brokers.find(b => b.email === email)) {
-        showAuthMessage('Este email já está cadastrado.', 'error');
+        showRegisterFeedback(false, 'Este email já está cadastrado.');
         return;
     }
     
     // Check if CRECI already exists
     if (creci && brokers.find(b => b.creci === creci)) {
-        showAuthMessage('Este CRECI já está cadastrado.', 'error');
+        showRegisterFeedback(false, 'Este CRECI já está cadastrado.');
         return;
     }
     
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-        showAuthMessage('Por favor, insira um email válido.', 'error');
+        showRegisterFeedback(false, 'Por favor, insira um email válido.');
         return;
     }
     
     // Validate phone format
     const phoneRegex = /^\(\d{2}\)\s\d{4,5}-\d{4}$/;
     if (!phoneRegex.test(phone)) {
-        showAuthMessage('Por favor, insira um telefone no formato (11) 99999-9999.', 'error');
+        showRegisterFeedback(false, 'Por favor, insira um telefone no formato (11) 99999-9999.');
         return;
     }
 
     if (!isValidCPF(cpf)) {
-        showAuthMessage('CPF inválido. Verifique o número digitado.', 'error');
+        showRegisterFeedback(false, 'CPF inválido. Verifique o número digitado.');
         return;
     }
     
@@ -254,15 +254,10 @@ function handleRegister(e) {
         }
     } catch (e) { console.error('Erro ao enviar notificação:', e); }
 
-    showAuthMessage('Cadastro realizado com sucesso! Aguarde a aprovação do administrador.', 'success');
+    showRegisterFeedback(true, 'Seu cadastro foi enviado com sucesso! Aguarde a aprovação do administrador para acessar o sistema.');
     
     // Clear form
     e.target.reset();
-    
-    // Switch to login form
-    setTimeout(() => {
-        showLoginForm();
-    }, 2000);
 }
 
 // Show login form
@@ -295,9 +290,11 @@ function showRegisterForm() {
     }
 }
 
-// Show authentication messages
+// Show authentication messages (fallback para login form)
 function showAuthMessage(text, type = 'success') {
-    // Remove existing auth messages
+    const loginForm = document.getElementById('loginForm');
+    if (!loginForm || loginForm.style.display !== 'block') return;
+    
     const existingMessages = document.querySelectorAll('.auth-message');
     existingMessages.forEach(msg => msg.remove());
     
@@ -305,14 +302,51 @@ function showAuthMessage(text, type = 'success') {
     message.className = `message auth-message ${type}`;
     message.textContent = text;
     
-    // Insert into modal
-    const modalContent = document.querySelector('.modal-content');
-    modalContent.insertBefore(message, modalContent.firstChild);
+    const modalContent = document.querySelector('#loginModal .modal-content');
+    if (modalContent) modalContent.insertBefore(message, modalContent.firstChild);
     
-    // Remove after 5 seconds
-    setTimeout(() => {
-        message.remove();
-    }, 5000);
+    setTimeout(() => { message.remove(); }, 5000);
+}
+
+// Tela sobreposta de feedback após cadastro (sucesso ou erro)
+function showRegisterFeedback(success, message) {
+    const modal = document.getElementById('loginModal');
+    const modalContent = modal?.querySelector('.modal-content');
+    if (!modalContent) return;
+    
+    let overlay = document.getElementById('authFeedbackOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'authFeedbackOverlay';
+        overlay.className = 'auth-feedback-overlay';
+        modalContent.style.position = 'relative';
+        modalContent.appendChild(overlay);
+    }
+    
+    const icon = success ? 'fa-check-circle' : 'fa-exclamation-circle';
+    const title = success ? 'Cadastro realizado!' : 'Ops! Algo deu errado';
+    
+    overlay.innerHTML = `
+        <div class="auth-feedback-box auth-feedback-${success ? 'success' : 'error'}">
+            <i class="fas ${icon} auth-feedback-icon"></i>
+            <h3>${title}</h3>
+            <p>${message}</p>
+            <button type="button" class="btn btn-primary auth-feedback-btn" onclick="closeRegisterFeedback(${success})">
+                ${success ? 'Entendi' : 'Tentar novamente'}
+            </button>
+        </div>
+    `;
+    overlay.classList.add('auth-feedback-visible');
+}
+
+function closeRegisterFeedback(wasSuccess) {
+    const overlay = document.getElementById('authFeedbackOverlay');
+    if (overlay) {
+        overlay.classList.remove('auth-feedback-visible');
+    }
+    if (wasSuccess) {
+        showLoginForm();
+    }
 }
 
 // Check if user is authenticated
