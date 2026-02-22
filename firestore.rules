@@ -25,6 +25,18 @@ service cloud.firestore {
     match /emailQueue/{docId} {
       allow read, write: if isSignedIn();
     }
+
+    match /chatbot_leads/{docId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /chatbot_conversations/{phone}/{sub=**} {
+      allow read: if isSignedIn();
+    }
+
+    match /chatbot_visits/{docId} {
+      allow read, write: if isSignedIn();
+    }
   }
 }
 

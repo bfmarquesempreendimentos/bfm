@@ -64,6 +64,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a href="#whatsapp-leads" onclick="showSection('whatsapp-leads')">
+                        <i class="fab fa-whatsapp"></i>
+                        <span>Leads WhatsApp</span>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="#reports" onclick="showSection('reports')">
                         <i class="fas fa-chart-bar"></i>
                         <span>Relatórios</span>
@@ -427,6 +433,98 @@
             </div>
         </section>
 
+        <!-- WhatsApp Leads Section -->
+        <section id="whatsapp-leads" class="admin-section">
+            <div class="section-header">
+                <h2><i class="fab fa-whatsapp"></i> Leads WhatsApp</h2>
+                <div class="header-actions">
+                    <button class="btn btn-primary" onclick="loadWhatsAppLeads()">
+                        <i class="fas fa-refresh"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats-grid wa-stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#25d366;">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="waLeadsTotal">0</h3>
+                        <p>Total de Leads</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#3498db;">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="waLeadsNovo">0</h3>
+                        <p>Novos</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#f39c12;">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="waLeadsQualificado">0</h3>
+                        <p>Qualificados</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#e74c3c;">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="waLeadsAgendado">0</h3>
+                        <p>Agendados</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="wa-leads-filters">
+                <select id="waFilterStatus" onchange="filterWALeads()">
+                    <option value="">Todos os status</option>
+                    <option value="novo">Novos</option>
+                    <option value="qualificado">Qualificados</option>
+                    <option value="agendado">Agendados</option>
+                    <option value="convertido">Convertidos</option>
+                    <option value="encaminhado">Encaminhados</option>
+                </select>
+                <input type="text" id="waSearchInput" placeholder="Buscar por nome ou telefone..." oninput="filterWALeads()">
+            </div>
+
+            <div class="wa-leads-table-container">
+                <table class="wa-leads-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Telefone</th>
+                            <th>Renda</th>
+                            <th>Imóveis</th>
+                            <th>Status</th>
+                            <th>Data</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="waLeadsTableBody">
+                        <tr><td colspan="7" class="loading-msg">Carregando leads...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="waLeadDetailModal" class="wa-lead-modal" style="display:none;">
+                <div class="wa-lead-modal-content">
+                    <div class="wa-lead-modal-header">
+                        <h3 id="waLeadDetailTitle">Detalhes do Lead</h3>
+                        <button onclick="closeLeadDetail()" class="close-panel">&times;</button>
+                    </div>
+                    <div id="waLeadDetailBody" class="wa-lead-modal-body"></div>
+                </div>
+            </div>
+        </section>
+
         <!-- Settings Section -->
         <section id="settings" class="admin-section">
             <div class="section-header">
@@ -570,6 +668,7 @@
     <script src="js/documents.js"></script>
     <script src="js/sample-data.js"></script>
     <script src="js/property-sales.js"></script>
+    <script src="js/whatsapp-leads.js"></script>
     <script src="js/admin.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>

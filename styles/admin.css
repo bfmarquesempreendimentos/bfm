@@ -1137,3 +1137,276 @@
     from { opacity: 0; transform: translateX(300px); }
     to { opacity: 1; transform: translateX(0); }
 }
+
+/* ─── WhatsApp Leads Section ─────────────────────────────── */
+.wa-stats-grid {
+    margin-bottom: 20px;
+}
+
+.wa-leads-filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.wa-leads-filters select,
+.wa-leads-filters input {
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    min-width: 200px;
+}
+
+.wa-leads-filters input {
+    flex: 1;
+}
+
+.wa-leads-table-container {
+    overflow-x: auto;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    background: #fff;
+}
+
+.wa-leads-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.wa-leads-table thead {
+    background: #f8f9fa;
+}
+
+.wa-leads-table th,
+.wa-leads-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.wa-leads-table th {
+    font-weight: 600;
+    color: #4a5568;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.wa-leads-table td a {
+    color: #25d366;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.wa-leads-table td a:hover {
+    text-decoration: underline;
+}
+
+.wa-leads-table tbody tr:hover {
+    background: #f7fafc;
+}
+
+.wa-status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    text-transform: capitalize;
+}
+
+.wa-actions-cell {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-small {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #fff;
+    text-decoration: none;
+    transition: transform 0.15s;
+}
+
+.btn-small:hover {
+    transform: scale(1.1);
+}
+
+.btn-info {
+    background: #3498db;
+}
+
+.btn-whatsapp {
+    background: #25d366;
+}
+
+.loading-msg {
+    text-align: center;
+    color: #999;
+    padding: 30px !important;
+}
+
+/* Lead Detail Modal */
+.wa-lead-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.wa-lead-modal-content {
+    background: #fff;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.wa-lead-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #eee;
+}
+
+.wa-lead-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.wa-lead-modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.wa-lead-info {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.wa-lead-info-row {
+    padding: 6px 0;
+    font-size: 14px;
+    border-bottom: 1px solid #eee;
+}
+
+.wa-lead-info-row:last-child {
+    border-bottom: none;
+}
+
+.wa-lead-visit {
+    background: #fff3cd;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.wa-lead-visit h4 {
+    margin: 0 0 8px;
+}
+
+.wa-lead-conversation h4 {
+    margin: 0 0 12px;
+}
+
+.wa-chat-messages {
+    max-height: 300px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    background: #ece5dd;
+    border-radius: 12px;
+}
+
+.wa-chat-bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.wa-bubble-user {
+    align-self: flex-end;
+    background: #dcf8c6;
+    border-bottom-right-radius: 4px;
+}
+
+.wa-bubble-bot {
+    align-self: flex-start;
+    background: #fff;
+    border-bottom-left-radius: 4px;
+}
+
+.wa-bubble-time {
+    font-size: 10px;
+    color: #999;
+    margin-top: 4px;
+    text-align: right;
+}
+
+.no-messages {
+    color: #999;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+.wa-lead-actions-footer {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.wa-lead-actions-footer select {
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .wa-leads-filters {
+        flex-direction: column;
+    }
+    .wa-leads-filters select,
+    .wa-leads-filters input {
+        min-width: 100%;
+    }
+    .wa-lead-modal-content {
+        max-height: 95vh;
+    }
+}

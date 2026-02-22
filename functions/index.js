@@ -1,6 +1,10 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
+const { verifyWebhook, processWebhook } = require('./chatbot/webhook');
+const { getAllLeads, getLeadStats } = require('./chatbot/lead-manager');
+const { sendFollowUp } = require('./chatbot/templates');
+const { getPropertyById } = require('./chatbot/property-data');
 
 admin.initializeApp();
 
@@ -41,5 +45,109 @@ exports.sendQueuedEmail = functions.firestore
     }
   });
 
+// ─── WhatsApp Chatbot Webhook ─────────────────────────────────────
+exports.chatbotWebhook = functions
+  .runWith({
+    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'ANTHROPIC_API_KEY'],
+    timeoutSeconds: 60,
+    memory: '512MB',
+  })
+  .https.onRequest(async (req, res) => {
+    if (req.method === 'GET') {
+      return verifyWebhook(req, res);
+    }
+    if (req.method === 'POST') {
+      return processWebhook(req, res);
+    }
+    return res.sendStatus(405);
+  });
 
+// ─── API de Leads para o painel admin ─────────────────────────────
+exports.chatbotLeads = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token necessário' });
+  }
+
+  try {
+    const token = authHeader.split('Bearer ')[1];
+    await admin.auth().verifyIdToken(token);
+  } catch (err) {
+    return res.status(403).json({ error: 'Token inválido' });
+  }
+
+  try {
+    const action = req.query.action || 'list';
+
+    if (action === 'stats') {
+      const stats = await getLeadStats();
+      return res.json(stats);
+    }
+
+    const filters = {};
+    if (req.query.status) filters.status = req.query.status;
+    filters.limit = parseInt(req.query.limit) || 100;
+
+    const leads = await getAllLeads(filters);
+    return res.json({ leads, total: leads.length });
+  } catch (err) {
+    console.error('Erro ao buscar leads:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Follow-up automático (roda a cada 6 horas) ──────────────────
+exports.chatbotFollowUp = functions
+  .runWith({
+    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
+    timeoutSeconds: 120,
+    memory: '256MB',
+  })
+  .pubsub.schedule('every 6 hours')
+  .timeZone('America/Sao_Paulo')
+  .onRun(async () => {
+    const db = admin.firestore();
+    const now = new Date();
+
+    const leadsSnap = await db.collection('chatbot_leads')
+      .where('status', 'in', ['novo', 'qualificado'])
+      .get();
+
+    for (const doc of leadsSnap.docs) {
+      const lead = doc.data();
+      const created = new Date(lead.createdAt);
+      const hoursElapsed = (now - created) / (1000 * 60 * 60);
+      const lastFollowUp = lead.lastFollowUp ? new Date(lead.lastFollowUp) : null;
+      const hoursSinceFollowUp = lastFollowUp ? (now - lastFollowUp) / (1000 * 60 * 60) : Infinity;
+
+      if (hoursSinceFollowUp < 20) continue;
+
+      try {
+        let propertyTitle = null;
+        if (lead.interestedProperties?.length > 0) {
+          const prop = getPropertyById(lead.interestedProperties[0]);
+          if (prop) propertyTitle = prop.title;
+        }
+
+        if (hoursElapsed >= 20 && hoursElapsed < 48 && !lead.followUp24hSent) {
+          await sendFollowUp(lead.phone, lead.name, propertyTitle, '24h');
+          await doc.ref.update({ followUp24hSent: true, lastFollowUp: now.toISOString() });
+          console.log(`Follow-up 24h enviado para ${lead.phone}`);
+        } else if (hoursElapsed >= 68 && !lead.followUp72hSent) {
+          await sendFollowUp(lead.phone, lead.name, propertyTitle, '72h');
+          await doc.ref.update({ followUp72hSent: true, lastFollowUp: now.toISOString() });
+          console.log(`Follow-up 72h enviado para ${lead.phone}`);
+        }
+      } catch (err) {
+        console.error(`Erro follow-up para ${lead.phone}:`, err.message);
+      }
+    }
+
+    return null;
+  });
