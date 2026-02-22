@@ -37,6 +37,12 @@ service cloud.firestore {
     match /chatbot_visits/{docId} {
       allow read, write: if isSignedIn();
     }
+
+    match /site_visits/{docId} {
+      allow create: if true;
+      allow read: if isSignedIn();
+      allow update, delete: if false;
+    }
   }
 }
 
