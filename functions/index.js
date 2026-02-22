@@ -62,6 +62,78 @@ exports.chatbotWebhook = functions
     return res.sendStatus(405);
   });
 
+// ─── API de Corretores (leitura server-side, bypassa regras cliente) ──
+exports.getBrokers = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+
+  try {
+    const db = admin.firestore();
+    const snapshot = await db.collection('brokers').get();
+    const brokers = snapshot.docs.map(doc => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        name: d.name || '',
+        cpf: d.cpf || '',
+        email: d.email || '',
+        phone: d.phone || '',
+        creci: d.creci || '',
+        password: d.password || '',
+        isActive: d.isActive !== undefined ? d.isActive : false,
+        isAdmin: d.isAdmin || false,
+        createdAt: d.createdAt ? d.createdAt : new Date().toISOString()
+      };
+    });
+    brokers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return res.json(brokers);
+  } catch (err) {
+    console.error('Erro ao buscar corretores:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── API de Cadastro de Corretor (server-side, garantido) ─────────────
+exports.registerBroker = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+
+  try {
+    const body = req.body || {};
+    const { name, cpf, email, phone, creci, password } = body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'nome, email e senha obrigatórios' });
+    }
+    const db = admin.firestore();
+    const existing = await db.collection('brokers').where('email', '==', email).get();
+    if (!existing.empty) {
+      return res.status(409).json({ error: 'Email já cadastrado' });
+    }
+    const docRef = await db.collection('brokers').add({
+      name: name || '',
+      cpf: (cpf || '').replace(/\D/g, ''),
+      email: email,
+      phone: phone || '',
+      creci: creci || '',
+      password: password || '',
+      isActive: false,
+      createdAt: new Date().toISOString()
+    });
+    return res.json({ success: true, id: docRef.id });
+  } catch (err) {
+    console.error('Erro ao cadastrar corretor:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── API de Leads para o painel admin ─────────────────────────────
 exports.chatbotLeads = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');

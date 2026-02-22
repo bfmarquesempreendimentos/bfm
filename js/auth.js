@@ -260,11 +260,18 @@ async function handleRegister(e) {
     brokers.push(newBroker);
     saveBrokersToStorage();
 
-    if (typeof saveBrokerToFirestore === 'function') {
+    let saved = false;
+    if (typeof registerBrokerAPI === 'function') {
+        try {
+            const id = await registerBrokerAPI(newBroker);
+            if (id) { newBroker.id = id; saved = true; }
+        } catch (err) { console.warn('API falhou, tentando Firestore:', err); }
+    }
+    if (!saved && typeof saveBrokerToFirestore === 'function') {
         try {
             const docId = await saveBrokerToFirestore(newBroker);
-            if (docId) newBroker.id = docId;
-        } catch (err) { console.error('Erro ao salvar corretor no Firestore:', err); }
+            if (docId) { newBroker.id = docId; saved = true; }
+        } catch (err) { console.error('Firestore falhou:', err); }
     }
     
     console.log('New broker registered:', newBroker);

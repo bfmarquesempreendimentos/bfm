@@ -111,25 +111,74 @@ async function saveBrokerToFirestore(broker) {
   return docRef.id;
 }
 
+const FUNCTIONS_BASE = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+const GET_BROKERS_API = FUNCTIONS_BASE + '/getBrokers';
+const REGISTER_BROKER_API = FUNCTIONS_BASE + '/registerBroker';
+
+async function registerBrokerAPI(broker) {
+  try {
+    const res = await fetch(REGISTER_BROKER_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: broker.name,
+        cpf: broker.cpf,
+        email: broker.email,
+        phone: broker.phone,
+        creci: broker.creci,
+        password: broker.password
+      })
+    });
+    if (!res.ok) throw new Error('API ' + res.status);
+    const data = await res.json();
+    return data.id || null;
+  } catch (err) {
+    console.warn('registerBrokerAPI:', err);
+    return null;
+  }
+}
+
+async function getBrokersFromAPI() {
+  try {
+    const res = await fetch(GET_BROKERS_API);
+    if (!res.ok) throw new Error('API erro ' + res.status);
+    const list = await res.json();
+    return (list || []).map(b => ({
+      ...b,
+      createdAt: b.createdAt ? new Date(b.createdAt) : new Date()
+    }));
+  } catch (err) {
+    console.warn('getBrokersFromAPI falhou:', err);
+    return null;
+  }
+}
+
 async function getBrokersFromFirestore() {
+  const fromApi = await getBrokersFromAPI();
+  if (fromApi !== null) return fromApi;
   const db = getFirebaseDb();
   if (!db) return [];
-  const snapshot = await db.collection(BROKERS_COLLECTION).get();
-  return snapshot.docs.map(doc => {
-    const d = doc.data();
-    return {
-      id: doc.id,
-      name: d.name,
-      cpf: d.cpf,
-      email: d.email,
-      phone: d.phone,
-      creci: d.creci,
-      password: d.password,
-      isActive: d.isActive !== undefined ? d.isActive : false,
-      isAdmin: d.isAdmin || false,
-      createdAt: d.createdAt ? new Date(d.createdAt) : new Date()
-    };
-  }).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  try {
+    const snapshot = await db.collection(BROKERS_COLLECTION).get();
+    return snapshot.docs.map(doc => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        name: d.name,
+        cpf: d.cpf,
+        email: d.email,
+        phone: d.phone,
+        creci: d.creci,
+        password: d.password,
+        isActive: d.isActive !== undefined ? d.isActive : false,
+        isAdmin: d.isAdmin || false,
+        createdAt: d.createdAt ? new Date(d.createdAt) : new Date()
+      };
+    }).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  } catch (err) {
+    console.warn('getBrokersFromFirestore falhou:', err);
+    return [];
+  }
 }
 
 async function updateBrokerInFirestore(brokerId, updates) {
@@ -164,5 +213,6 @@ if (typeof window !== 'undefined') {
   window.saveBrokerToFirestore = saveBrokerToFirestore;
   window.getBrokersFromFirestore = getBrokersFromFirestore;
   window.updateBrokerInFirestore = updateBrokerInFirestore;
+  window.registerBrokerAPI = registerBrokerAPI;
 }
 
