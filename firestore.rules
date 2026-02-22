@@ -40,8 +40,7 @@ service cloud.firestore {
     }
 
     match /site_visits/{docId} {
-      allow create: if true;
-      allow read: if isSignedIn();
+      allow create, read: if true;
       allow update, delete: if false;
     }
 
