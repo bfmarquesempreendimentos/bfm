@@ -131,24 +131,7 @@ const propertyUnits = {
             { code: "CS 04", price: 150000, bedrooms: 1, status: "disponivel" },
             { code: "CS 09", price: 150000, bedrooms: 1, status: "disponivel" },
             { code: "CS 14", price: 150000, bedrooms: 1, status: "disponivel" }
-        ],
-        engineeringValues: {
-            "CS BASE": "R$ 145.000,00",
-            "CS 01": "R$ 145.000,00",
-            "CS 02": "R$ 145.000,00",
-            "CS 03": "R$ 145.000,00",
-            "CS 04": "R$ 150.000,00",
-            "CS 05": "R$ 145.000,00",
-            "CS 06": "R$ 145.000,00",
-            "CS 07": "R$ 145.000,00",
-            "CS 08": "R$ 145.000,00",
-            "CS 09": "R$ 150.000,00",
-            "CS 10": "R$ 145.000,00",
-            "CS 11": "R$ 145.000,00",
-            "CS 12": "R$ 145.000,00",
-            "CS 13": "R$ 145.000,00",
-            "CS 14": "R$ 150.000,00"
-        }
+        ]
     },
     
     5: { // Apolo
