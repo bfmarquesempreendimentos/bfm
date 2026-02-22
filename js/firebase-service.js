@@ -114,7 +114,7 @@ async function saveBrokerToFirestore(broker) {
 async function getBrokersFromFirestore() {
   const db = getFirebaseDb();
   if (!db) return [];
-  const snapshot = await db.collection(BROKERS_COLLECTION).orderBy('createdAt', 'desc').get();
+  const snapshot = await db.collection(BROKERS_COLLECTION).get();
   return snapshot.docs.map(doc => {
     const d = doc.data();
     return {
@@ -129,7 +129,7 @@ async function getBrokersFromFirestore() {
       isAdmin: d.isAdmin || false,
       createdAt: d.createdAt ? new Date(d.createdAt) : new Date()
     };
-  });
+  }).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 }
 
 async function updateBrokerInFirestore(brokerId, updates) {
