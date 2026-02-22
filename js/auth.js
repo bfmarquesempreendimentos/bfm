@@ -56,13 +56,34 @@ function saveBrokersToStorage() {
     localStorage.setItem('brokers', JSON.stringify(brokers));
 }
 
+async function loadBrokersFromFirestore() {
+    if (typeof getBrokersFromFirestore !== 'function') return false;
+    try {
+        const fromDb = await getBrokersFromFirestore();
+        const local = JSON.parse(localStorage.getItem('brokers') || '[]').map(b => ({
+            ...b,
+            createdAt: b.createdAt ? new Date(b.createdAt) : new Date()
+        }));
+        const byEmail = {};
+        local.forEach(b => { byEmail[b.email] = b; });
+        fromDb.forEach(b => { byEmail[b.email] = b; });
+        brokers = Object.values(byEmail).sort((a, b) =>
+            new Date(b.createdAt) - new Date(a.createdAt));
+        ensureAdminBroker();
+        saveBrokersToStorage();
+        return true;
+    } catch (err) { console.error('Erro ao carregar corretores do Firestore:', err); }
+    return false;
+}
+
 loadBrokersFromStorage();
 ensureAdminBroker();
+setTimeout(function() { loadBrokersFromFirestore(); }, 800);
 
 function ensureAdminBroker() {
     const exists = brokers.some(b => b.email === ADMIN_BROKER.email);
     if (!exists) {
-        brokers.push({
+        const admin = {
             id: brokers.length + 1,
             name: ADMIN_BROKER.name,
             cpf: ADMIN_BROKER.cpf,
@@ -73,8 +94,12 @@ function ensureAdminBroker() {
             isActive: true,
             isAdmin: true,
             createdAt: new Date()
-        });
+        };
+        brokers.push(admin);
         saveBrokersToStorage();
+        if (typeof saveBrokerToFirestore === 'function') {
+            saveBrokerToFirestore(admin).catch(function() {});
+        }
     }
 }
 
@@ -161,7 +186,7 @@ function handleLogin(e) {
 }
 
 // Handle register form submission
-function handleRegister(e) {
+async function handleRegister(e) {
     e.preventDefault();
     
     const name = e.target.name.value;
@@ -219,7 +244,7 @@ function handleRegister(e) {
         return;
     }
     
-    // Create new broker
+    const createdAt = new Date();
     const newBroker = {
         id: brokers.length + 1,
         name: name,
@@ -227,13 +252,20 @@ function handleRegister(e) {
         email,
         phone: phone,
         creci: creci || '',
-        password, // In production, hash this password
-        isActive: false, // Requires admin approval
-        createdAt: new Date()
+        password,
+        isActive: false,
+        createdAt: createdAt
     };
     
     brokers.push(newBroker);
     saveBrokersToStorage();
+
+    if (typeof saveBrokerToFirestore === 'function') {
+        try {
+            const docId = await saveBrokerToFirestore(newBroker);
+            if (docId) newBroker.id = docId;
+        } catch (err) { console.error('Erro ao salvar corretor no Firestore:', err); }
+    }
     
     console.log('New broker registered:', newBroker);
 
@@ -472,21 +504,34 @@ function showForgotPassword() {
 }
 
 // Admin functions (for managing brokers)
-function approveBroker(brokerId) {
-    const broker = brokers.find(b => b.id === brokerId);
+function findBrokerById(id) {
+    const sid = String(id);
+    return brokers.find(b => String(b.id) === sid);
+}
+
+async function approveBroker(brokerId) {
+    const broker = findBrokerById(brokerId);
     if (broker) {
         broker.isActive = true;
-        showMessage(`Corretor ${broker.name} aprovado com sucesso!`, 'success');
+        if (typeof updateBrokerInFirestore === 'function' && typeof brokerId === 'string') {
+            try { await updateBrokerInFirestore(brokerId, { isActive: true }); } catch (e) { console.error(e); }
+        }
         saveBrokersToStorage();
+        if (typeof showMessage === 'function') showMessage(`Corretor ${broker.name} aprovado com sucesso!`, 'success');
+        if (typeof loadBrokersData === 'function') loadBrokersData();
     }
 }
 
-function deactivateBroker(brokerId) {
-    const broker = brokers.find(b => b.id === brokerId);
+async function deactivateBroker(brokerId) {
+    const broker = findBrokerById(brokerId);
     if (broker) {
         broker.isActive = false;
-        showMessage(`Corretor ${broker.name} desativado.`, 'warning');
+        if (typeof updateBrokerInFirestore === 'function' && typeof brokerId === 'string') {
+            try { await updateBrokerInFirestore(brokerId, { isActive: false }); } catch (e) { console.error(e); }
+        }
         saveBrokersToStorage();
+        if (typeof showMessage === 'function') showMessage(`Corretor ${broker.name} desativado.`, 'warning');
+        if (typeof loadBrokersData === 'function') loadBrokersData();
     }
 }
 

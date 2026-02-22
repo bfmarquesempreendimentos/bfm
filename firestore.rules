@@ -44,6 +44,11 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow update, delete: if false;
     }
+
+    match /brokers/{docId} {
+      allow create, read: if true;
+      allow update, delete: if true;
+    }
   }
 }
 

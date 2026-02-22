@@ -692,32 +692,38 @@ function cancelReservationAdmin(reservationId) {
 }
 
 // Load brokers data
-function loadBrokersData() {
+async function loadBrokersData() {
     const tbody = document.getElementById('brokersTableBody');
     if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Carregando corretores...</td></tr>';
+    
+    if (typeof loadBrokersFromFirestore === 'function') {
+        await loadBrokersFromFirestore();
+    }
     
     const allBrokers = getAllBrokers();
     
+    const brokerId = (id) => typeof id === 'string' ? `'${id.replace(/'/g, "\\'")}'` : id;
     tbody.innerHTML = allBrokers.map(broker => `
         <tr>
             <td>${broker.id}</td>
             <td>${broker.name || broker.email}</td>
             <td>${broker.email}</td>
-            <td>${broker.phone}</td>
-            <td>${broker.creci}</td>
+            <td>${broker.phone || ''}</td>
+            <td>${broker.creci || ''}</td>
             <td><span class="status-badge status-${broker.isActive ? 'ativo' : 'inativo'}">${broker.isActive ? 'Ativo' : 'Inativo'}</span></td>
             <td>${formatDate(broker.createdAt)}</td>
             <td>
                 <div class="action-buttons">
-                    <button class="btn-action btn-edit" onclick="editBroker(${broker.id})">
+                    <button class="btn-action btn-edit" onclick="editBroker(${brokerId(broker.id)})">
                         <i class="fas fa-edit"></i>
                     </button>
                     ${!broker.isActive ? `
-                        <button class="btn-action btn-approve" onclick="approveBroker(${broker.id})">
+                        <button class="btn-action btn-approve" onclick="approveBroker(${brokerId(broker.id)})">
                             <i class="fas fa-check"></i>
                         </button>
                     ` : `
-                        <button class="btn-action btn-delete" onclick="deactivateBroker(${broker.id})">
+                        <button class="btn-action btn-delete" onclick="deactivateBroker(${brokerId(broker.id)})">
                             <i class="fas fa-ban"></i>
                         </button>
                     `}
@@ -737,7 +743,7 @@ function showAddBrokerModal() {
 
 // Edit broker
 function editBroker(brokerId) {
-    editingBroker = brokers.find(b => b.id === brokerId);
+    editingBroker = typeof findBrokerById === 'function' ? findBrokerById(brokerId) : brokers.find(b => String(b.id) === String(brokerId));
     if (!editingBroker) return;
     
     document.getElementById('brokerModalTitle').textContent = 'Editar Corretor';
@@ -804,7 +810,7 @@ function createBrokerForm(broker = null) {
 }
 
 // Handle broker form submission
-function handleBrokerFormSubmission(e) {
+async function handleBrokerFormSubmission(e) {
     const formData = new FormData(e.target);
     
     const brokerData = {
@@ -821,7 +827,6 @@ function handleBrokerFormSubmission(e) {
         brokerData.id = brokers.length + 1;
         brokerData.createdAt = new Date();
         
-        // Check if email/creci already exists
         if (brokers.find(b => b.email === brokerData.email)) {
             alert('Este email já está cadastrado.');
             return;
@@ -832,17 +837,24 @@ function handleBrokerFormSubmission(e) {
             return;
         }
         
-        brokers.push(brokerData);
-        if (typeof saveBrokersToStorage === 'function') {
-            saveBrokersToStorage();
+        if (typeof saveBrokerToFirestore === 'function') {
+            try {
+                const docId = await saveBrokerToFirestore(brokerData);
+                if (docId) brokerData.id = docId;
+            } catch (err) { console.error('Erro ao salvar no Firestore:', err); }
         }
+        
+        brokers.push(brokerData);
+        if (typeof saveBrokersToStorage === 'function') saveBrokersToStorage();
         showMessage('Corretor adicionado com sucesso!', 'success');
     } else {
-        // Update existing broker
         Object.assign(editingBroker, brokerData);
-        if (typeof saveBrokersToStorage === 'function') {
-            saveBrokersToStorage();
+        if (typeof updateBrokerInFirestore === 'function' && typeof editingBroker.id === 'string') {
+            try {
+                await updateBrokerInFirestore(editingBroker.id, brokerData);
+            } catch (err) { console.error('Erro ao atualizar no Firestore:', err); }
         }
+        if (typeof saveBrokersToStorage === 'function') saveBrokersToStorage();
         showMessage('Corretor atualizado com sucesso!', 'success');
     }
     

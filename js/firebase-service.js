@@ -92,6 +92,62 @@ async function queueEmailInFirestore(payload) {
   return docRef.id;
 }
 
+const BROKERS_COLLECTION = 'brokers';
+
+async function saveBrokerToFirestore(broker) {
+  const db = getFirebaseDb();
+  if (!db) return null;
+  const data = {
+    name: broker.name,
+    cpf: broker.cpf || '',
+    email: broker.email,
+    phone: broker.phone || '',
+    creci: broker.creci || '',
+    password: broker.password || '',
+    isActive: broker.isActive !== undefined ? broker.isActive : false,
+    createdAt: broker.createdAt ? (broker.createdAt.toISOString ? broker.createdAt.toISOString() : broker.createdAt) : new Date().toISOString()
+  };
+  const docRef = await db.collection(BROKERS_COLLECTION).add(data);
+  return docRef.id;
+}
+
+async function getBrokersFromFirestore() {
+  const db = getFirebaseDb();
+  if (!db) return [];
+  const snapshot = await db.collection(BROKERS_COLLECTION).orderBy('createdAt', 'desc').get();
+  return snapshot.docs.map(doc => {
+    const d = doc.data();
+    return {
+      id: doc.id,
+      name: d.name,
+      cpf: d.cpf,
+      email: d.email,
+      phone: d.phone,
+      creci: d.creci,
+      password: d.password,
+      isActive: d.isActive !== undefined ? d.isActive : false,
+      isAdmin: d.isAdmin || false,
+      createdAt: d.createdAt ? new Date(d.createdAt) : new Date()
+    };
+  });
+}
+
+async function updateBrokerInFirestore(brokerId, updates) {
+  const db = getFirebaseDb();
+  if (!db) return false;
+  const ref = db.collection(BROKERS_COLLECTION).doc(brokerId);
+  const data = {};
+  if (updates.name !== undefined) data.name = updates.name;
+  if (updates.cpf !== undefined) data.cpf = updates.cpf;
+  if (updates.email !== undefined) data.email = updates.email;
+  if (updates.phone !== undefined) data.phone = updates.phone;
+  if (updates.creci !== undefined) data.creci = updates.creci;
+  if (updates.password !== undefined) data.password = updates.password;
+  if (updates.isActive !== undefined) data.isActive = updates.isActive;
+  await ref.update(data);
+  return true;
+}
+
 if (typeof window !== 'undefined') {
   window.firebaseAvailable = firebaseAvailable;
   window.getFirebaseAuth = getFirebaseAuth;
@@ -105,5 +161,8 @@ if (typeof window !== 'undefined') {
   window.saveClientProfile = saveClientProfile;
   window.getClientProfileByUID = getClientProfileByUID;
   window.queueEmailInFirestore = queueEmailInFirestore;
+  window.saveBrokerToFirestore = saveBrokerToFirestore;
+  window.getBrokersFromFirestore = getBrokersFromFirestore;
+  window.updateBrokerInFirestore = updateBrokerInFirestore;
 }
 
