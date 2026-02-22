@@ -220,7 +220,23 @@ async function registerClient(event) {
             if (typeof saveClientProfile === 'function') {
                 await saveClientProfile(uid, profile);
             }
-            
+
+            try {
+                const notifBody = `
+                    <h2>👤 Novo Cliente Cadastrado</h2>
+                    <p><strong>Nome:</strong> ${name}</p>
+                    <p><strong>CPF:</strong> ${cpf}</p>
+                    <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>Telefone:</strong> ${phone}</p>
+                    <p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+                    <hr>
+                    <p>O cliente se cadastrou na Área do Cliente do site.</p>
+                `;
+                if (typeof sendEmail === 'function') {
+                    sendEmail('bfmarquesempreendimentos@gmail.com', 'Novo Cliente Cadastrado - ' + name, notifBody);
+                }
+            } catch (e) { console.error('Erro ao enviar notificação:', e); }
+
             currentClient = { ...profile };
             localStorage.setItem('currentClient', JSON.stringify(currentClient));
             showMessage('Cadastro realizado com sucesso!', 'success');
@@ -278,7 +294,23 @@ async function registerClient(event) {
     
     clients.push(newClient);
     localStorage.setItem('clients', JSON.stringify(clients));
-    
+
+    try {
+        const notifBody = `
+            <h2>👤 Novo Cliente Cadastrado</h2>
+            <p><strong>Nome:</strong> ${name}</p>
+            <p><strong>CPF:</strong> ${cpf}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Telefone:</strong> ${phone}</p>
+            <p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+            <hr>
+            <p>O cliente se cadastrou na Área do Cliente do site.</p>
+        `;
+        if (typeof sendEmail === 'function') {
+            sendEmail('bfmarquesempreendimentos@gmail.com', 'Novo Cliente Cadastrado - ' + name, notifBody);
+        }
+    } catch (e) { console.error('Erro ao enviar notificação:', e); }
+
     currentClient = { ...newClient };
     delete currentClient.password;
     localStorage.setItem('currentClient', JSON.stringify(currentClient));

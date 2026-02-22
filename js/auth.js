@@ -235,9 +235,25 @@ function handleRegister(e) {
     brokers.push(newBroker);
     saveBrokersToStorage();
     
-    // In a real application, you would send this data to your backend
     console.log('New broker registered:', newBroker);
-    
+
+    try {
+        const notifBody = `
+            <h2>🏠 Novo Corretor Solicitou Acesso</h2>
+            <p><strong>Nome:</strong> ${name}</p>
+            <p><strong>CPF:</strong> ${cpf}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Telefone:</strong> ${phone}</p>
+            <p><strong>CRECI:</strong> ${creci || 'Não informado'}</p>
+            <p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+            <hr>
+            <p>⚠️ Este corretor está <strong>aguardando aprovação</strong>. Acesse o painel administrativo para ativar o acesso.</p>
+        `;
+        if (typeof sendEmail === 'function') {
+            sendEmail('bfmarquesempreendimentos@gmail.com', 'Novo Corretor Solicita Acesso - ' + name, notifBody);
+        }
+    } catch (e) { console.error('Erro ao enviar notificação:', e); }
+
     showAuthMessage('Cadastro realizado com sucesso! Aguarde a aprovação do administrador.', 'success');
     
     // Clear form
