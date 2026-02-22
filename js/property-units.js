@@ -72,7 +72,9 @@ const propertyUnits = {
             "Cs base": "R$ 195.000,00",
             "Cs 5": "R$ 193.000,00",
             "Cs 1": "R$ 193.000,00",
+            "Cs 6": "R$ 150.000,00",
             "Cs 2": "R$ 200.000,00",
+            "Cs 3": "R$ 150.000,00",
             "Cs 7": "R$ 193.000,00",
             "Cs 8": "R$ 195.000,00",
             "Cs 4": "R$ 205.000,00",
@@ -129,7 +131,24 @@ const propertyUnits = {
             { code: "CS 04", price: 150000, bedrooms: 1, status: "disponivel" },
             { code: "CS 09", price: 150000, bedrooms: 1, status: "disponivel" },
             { code: "CS 14", price: 150000, bedrooms: 1, status: "disponivel" }
-        ]
+        ],
+        engineeringValues: {
+            "CS BASE": "R$ 145.000,00",
+            "CS 01": "R$ 145.000,00",
+            "CS 02": "R$ 145.000,00",
+            "CS 03": "R$ 145.000,00",
+            "CS 04": "R$ 150.000,00",
+            "CS 05": "R$ 145.000,00",
+            "CS 06": "R$ 145.000,00",
+            "CS 07": "R$ 145.000,00",
+            "CS 08": "R$ 145.000,00",
+            "CS 09": "R$ 150.000,00",
+            "CS 10": "R$ 145.000,00",
+            "CS 11": "R$ 145.000,00",
+            "CS 12": "R$ 145.000,00",
+            "CS 13": "R$ 145.000,00",
+            "CS 14": "R$ 150.000,00"
+        }
     },
     
     5: { // Apolo
@@ -209,9 +228,11 @@ const propertyUnits = {
             { code: "APTO 210", price: 165000, bedrooms: 2, status: "disponivel" }
         ],
         engineeringValues: {
+            "APTO 101": "R$ 159.923,35",
             "APTO 102": "R$ 193.000,00",
-            "APTO 202": "R$ 167.000,00",
             "APTO 104": "R$ 193.000,00",
+            "APTO 110": "R$ 162.000,00",
+            "APTO 202": "R$ 167.000,00",
             "APTO 205": "R$ 160.000,00",
             "APTO 207": "R$ 152.000,00",
             "APTO 210": "R$ 167.000,00"
