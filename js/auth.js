@@ -610,9 +610,9 @@ async function approveBroker(brokerId) {
             const body = `
                 <h2>Olá, ${broker.name}!</h2>
                 <p>Seu cadastro como corretor foi <strong>aprovado</strong> pela administração.</p>
-                <p>Você já pode acessar o sistema e começar a realizar reservas e vendas.</p>
-                <p><a href="${siteUrl}" style="display:inline-block;background:#22c55e;color:white;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;margin:10px 0;">Acessar o Site</a></p>
-                <p><small>Ou acesse: <a href="${siteUrl}">${siteUrl}</a></small></p>
+                <p>Você já pode acessar o sistema e começar a realizar reservas, vendas e visualizar os detalhes dos imóveis.</p>
+                <p><strong>Acesse o site:</strong> <a href="${siteUrl}" style="color:#3498db;text-decoration:none;">${siteUrl}</a></p>
+                <p>Faça login com seu email e senha cadastrados para acessar todas as funcionalidades.</p>
                 <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
             `;
             try { await sendEmail(broker.email, subject, body); } catch (e) { console.error('Erro ao enviar email de aprovação:', e); }
