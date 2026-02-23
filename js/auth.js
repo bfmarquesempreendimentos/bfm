@@ -605,14 +605,13 @@ async function approveBroker(brokerId) {
         if (typeof showMessage === 'function') showMessage(`Corretor ${broker.name} aprovado com sucesso!`, 'success');
         if (typeof loadBrokersData === 'function') loadBrokersData();
         if (broker.email && typeof sendEmail === 'function') {
-            const siteUrl = (typeof CONFIG !== 'undefined' && CONFIG?.company?.siteUrl) || 'https://bfmarquesempreendimentos.github.io/bfm';
             const subject = 'Acesso Aprovado - B F Marques Empreendimentos';
+            const siteUrl = (typeof CONFIG !== 'undefined' && CONFIG?.company?.siteUrl) || 'https://bfmarquesempreendimentos.github.io/bfm';
             const body = `
                 <h2>Olá, ${broker.name}!</h2>
                 <p>Seu cadastro como corretor foi <strong>aprovado</strong> pela administração.</p>
                 <p>Você já pode acessar o sistema e começar a realizar reservas, vendas e visualizar os detalhes dos imóveis.</p>
-                <p><strong>Acesse o site:</strong> <a href="${siteUrl}" style="color:#3498db;text-decoration:none;">${siteUrl}</a></p>
-                <p>Faça login com seu email e senha cadastrados para acessar todas as funcionalidades.</p>
+                <p><strong>Acesse o site:</strong> <a href="${siteUrl}">${siteUrl}</a></p>
                 <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
             `;
             try { await sendEmail(broker.email, subject, body); } catch (e) { console.error('Erro ao enviar email de aprovação:', e); }

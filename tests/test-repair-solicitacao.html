@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Testes Automatizados - Solicitação de Reparo</title>
+    <style>
+        body { font-family: system-ui, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        h1 { color: #2c3e50; }
+        .test-section { margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; }
+        .test-section h2 { margin-top: 0; font-size: 1rem; }
+        .pass { color: #27ae60; }
+        .fail { color: #e74c3c; }
+        .summary { font-size: 1.2rem; font-weight: bold; margin-top: 20px; padding: 15px; }
+        .summary.ok { background: #d4edda; color: #155724; }
+        .summary.err { background: #f8d7da; color: #721c24; }
+        pre { background: #eee; padding: 10px; overflow-x: auto; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Testes Automatizados - Solicitação de Reparo</h1>
+    <p>Estes testes validam as regras de negócio: mínimo 3 fotos, máximo 5 arquivos, suporte a vídeo.</p>
+    <div id="results"></div>
+    <div id="summary" class="summary"></div>
+
+    <!-- DOM necessário para os testes -->
+    <div id="repairRequestModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <form id="repairRequestForm">
+                <select id="repairProperty"><option value="">Selecione</option></select>
+                <div id="repairNoPropertiesAlert" style="display:none;"></div>
+                <textarea id="repairDescription"></textarea>
+                <input type="text" id="repairLocation">
+                <input type="file" id="repairFile" multiple>
+                <div id="repairFileHint"></div>
+                <div id="filePreview" style="display:none;"><div id="filePreviewList"></div></div>
+                <button type="submit">Enviar</button>
+            </form>
+        </div>
+    </div>
+    <div id="clientRepairsList"></div>
+    <div id="clientRepairsTab" class="dashboard-tab-content"></div>
+
+    <script>
+        // Mocks globais necessários
+        window.showMessage = function(msg, type) { window._lastMessage = { msg, type }; };
+        window.formatDate = function(d) { return d ? new Date(d).toLocaleDateString('pt-BR') : ''; };
+        window.addClientHistory = function() {};
+        window.currentClient = { id: 1, uid: null, properties: [{ id: 'p1', title: 'Meu Imóvel' }] };
+
+        if (typeof firebaseAvailable !== 'function') {
+            window.firebaseAvailable = function() { return false; };
+        }
+        if (typeof getFirebaseAuth !== 'function') {
+            window.getFirebaseAuth = function() { return null; };
+        }
+    </script>
+    <script src="../config.js"></script>
+    <script src="../js/storage.js"></script>
+    <script src="../js/repair-requests.js"></script>
+
+    <script>
+        (function runTests() {
+            const results = document.getElementById('results');
+            const summary = document.getElementById('summary');
+            let passed = 0;
+            let failed = 0;
+
+            function log(section, name, ok, detail) {
+                const div = document.createElement('div');
+                div.className = ok ? 'pass' : 'fail';
+                div.innerHTML = (ok ? '✓' : '✗') + ' ' + name + (detail ? ' <small>' + detail + '</small>' : '');
+                section.appendChild(div);
+                if (ok) passed++; else failed++;
+            }
+
+            function createMockFile(name, type, size) {
+                return new File(['x'.repeat(size || 100)], name, { type: type });
+            }
+
+            // ========== TESTES DE VALIDAÇÃO ==========
+            const secValid = document.createElement('div');
+            secValid.className = 'test-section';
+            secValid.innerHTML = '<h2>1. Validação de Arquivos (validateRepairFiles)</h2>';
+            results.appendChild(secValid);
+
+            // 2 fotos - deve falhar
+            let r = validateRepairFiles([
+                createMockFile('a.jpg', 'image/jpeg'),
+                createMockFile('b.png', 'image/png')
+            ]);
+            log(secValid, '2 fotos deve ser rejeitado', !r.valid && r.error.includes('mínimo 3 fotos'), r.error);
+
+            // 3 fotos - deve passar
+            r = validateRepairFiles([
+                createMockFile('a.jpg', 'image/jpeg'),
+                createMockFile('b.png', 'image/png'),
+                createMockFile('c.gif', 'image/gif')
+            ]);
+            log(secValid, '3 fotos deve passar', r.valid, r.error);
+
+            // 3 fotos + 1 vídeo - deve passar
+            r = validateRepairFiles([
+                createMockFile('a.jpg', 'image/jpeg'),
+                createMockFile('b.png', 'image/png'),
+                createMockFile('c.gif', 'image/gif'),
+                createMockFile('v.mp4', 'video/mp4')
+            ]);
+            log(secValid, '3 fotos + 1 vídeo deve passar', r.valid, r.error);
+
+            // 6 arquivos - deve falhar
+            r = validateRepairFiles(Array(6).fill(0).map((_, i) => createMockFile('f' + i + '.jpg', 'image/jpeg')));
+            log(secValid, '6 arquivos deve ser rejeitado', !r.valid && r.error.includes('Máximo'), r.error);
+
+            // 1 vídeo + 2 fotos - deve falhar (só 2 fotos)
+            r = validateRepairFiles([
+                createMockFile('v.mp4', 'video/mp4'),
+                createMockFile('a.jpg', 'image/jpeg'),
+                createMockFile('b.jpg', 'image/jpeg')
+            ]);
+            log(secValid, '2 fotos + 1 vídeo deve ser rejeitado', !r.valid, r.error);
+
+            // 5 fotos - deve passar
+            r = validateRepairFiles(Array(5).fill(0).map((_, i) => createMockFile('f' + i + '.jpg', 'image/jpeg')));
+            log(secValid, '5 fotos deve passar', r.valid, r.error);
+
+            // Imagem > 10MB - deve falhar
+            r = validateRepairFiles([
+                createMockFile('a.jpg', 'image/jpeg', 11 * 1024 * 1024),
+                createMockFile('b.jpg', 'image/jpeg'),
+                createMockFile('c.jpg', 'image/jpeg')
+            ]);
+            log(secValid, 'Imagem > 10MB deve ser rejeitada', !r.valid && r.error.includes('10MB'), r.error);
+
+            // Vídeo > 50MB - deve falhar
+            r = validateRepairFiles([
+                createMockFile('a.jpg', 'image/jpeg'),
+                createMockFile('b.jpg', 'image/jpeg'),
+                createMockFile('c.jpg', 'image/jpeg'),
+                createMockFile('v.mp4', 'video/mp4', 51 * 1024 * 1024)
+            ]);
+            log(secValid, 'Vídeo > 50MB deve ser rejeitado', !r.valid && r.error.includes('50MB'), r.error);
+
+            // Tipo inválido (PDF) - deve falhar
+            r = validateRepairFiles([
+                createMockFile('a.jpg', 'image/jpeg'),
+                createMockFile('b.jpg', 'image/jpeg'),
+                createMockFile('c.pdf', 'application/pdf')
+            ]);
+            log(secValid, 'Arquivo PDF deve ser rejeitado', !r.valid && r.error.includes('fotos'), r.error);
+
+            // ========== TESTES isRepairFormFilled ==========
+            const secForm = document.createElement('div');
+            secForm.className = 'test-section';
+            secForm.innerHTML = '<h2>2. Confirmação ao Fechar (isRepairFormFilled)</h2>';
+            results.appendChild(secForm);
+
+            document.getElementById('repairDescription').value = '';
+            document.getElementById('repairLocation').value = '';
+            selectedFiles = [];
+            log(secForm, 'Formulário vazio retorna false', !isRepairFormFilled(), '');
+
+            document.getElementById('repairDescription').value = 'Problema na parede';
+            log(secForm, 'Com descrição retorna true', isRepairFormFilled(), '');
+
+            document.getElementById('repairDescription').value = '';
+            document.getElementById('repairLocation').value = 'Sala';
+            log(secForm, 'Com localização retorna true', isRepairFormFilled(), '');
+
+            document.getElementById('repairLocation').value = '';
+            selectedFiles = [createMockFile('a.jpg', 'image/jpeg')];
+            log(secForm, 'Com arquivos selecionados retorna true', isRepairFormFilled(), '');
+
+            selectedFiles = [];
+
+            // ========== TESTES loadClientPropertiesForRepair ==========
+            const secProps = document.createElement('div');
+            secProps.className = 'test-section';
+            secProps.innerHTML = '<h2>3. Carregamento de Imóveis (loadClientPropertiesForRepair)</h2>';
+            results.appendChild(secProps);
+
+            currentClient = { id: 1, properties: [] };
+            loadClientPropertiesForRepair();
+            const sel = document.getElementById('repairProperty');
+            const alertEl = document.getElementById('repairNoPropertiesAlert');
+            log(secProps, 'Sem imóveis: select desabilitado', sel.disabled, '');
+            log(secProps, 'Sem imóveis: alerta visível', alertEl && alertEl.style.display !== 'none', '');
+
+            currentClient = { id: 1, properties: [{ id: 'p1', title: 'Apto 101' }] };
+            loadClientPropertiesForRepair();
+            log(secProps, 'Com 1 imóvel: opção selecionada', sel.value === 'p1' && sel.options.length === 1, '');
+
+            currentClient = { id: 1, properties: [
+                { id: 'p1', title: 'Apto 101' },
+                { id: 'p2', title: 'Apto 102' }
+            ] };
+            loadClientPropertiesForRepair();
+            log(secProps, 'Com 2 imóveis: select com opções', sel.options.length >= 2 && !sel.disabled, '');
+
+            // ========== TESTES loadClientRepairs (clientId/clientUid) ==========
+            const secRepairs = document.createElement('div');
+            secRepairs.className = 'test-section';
+            secRepairs.innerHTML = '<h2>4. Listagem de Reparos (clientId/clientUid)</h2>';
+            results.appendChild(secRepairs);
+
+            localStorage.setItem('repairRequests', JSON.stringify([
+                { id: 1, clientId: 100, clientUid: null, propertyId: 'p1', location: 'Sala', description: 'X', status: 'pendente', createdAt: new Date().toISOString(), responses: [] },
+                { id: 2, clientId: null, clientUid: 'uid-firebase', propertyId: 'p1', location: 'Cozinha', description: 'Y', status: 'pendente', createdAt: new Date().toISOString(), responses: [] }
+            ]));
+
+            currentClient = { id: 100, uid: null };
+            loadClientRepairs();
+            const listHtml = document.getElementById('clientRepairsList').innerHTML;
+            log(secRepairs, 'Reparos por clientId são listados', listHtml.includes('Sala') && listHtml.includes('Solicitação'), '');
+
+            currentClient = { id: null, uid: 'uid-firebase' };
+            loadClientRepairs();
+            const listHtml2 = document.getElementById('clientRepairsList').innerHTML;
+            log(secRepairs, 'Reparos por clientUid são listados', listHtml2.includes('Cozinha'), '');
+
+            // ========== RESUMO ==========
+            const total = passed + failed;
+            summary.textContent = `Resultado: ${passed}/${total} testes passaram.`;
+            summary.className = 'summary ' + (failed === 0 ? 'ok' : 'err');
+        })();
+    </script>
+</body>
+</html>
