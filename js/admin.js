@@ -49,6 +49,13 @@ function isAdminAuthenticated() {
     return adminUser !== null;
 }
 
+// Verifica se o usuário logado é super admin (pode excluir cadastros)
+function isSuperAdmin() {
+    const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+    const superEmails = (typeof CONFIG !== 'undefined' && CONFIG?.auth?.superAdminEmails) || ['brunoferreiramarques@gmail.com'];
+    return superEmails.includes(adminUser.email);
+}
+
 // Redirect to login
 function redirectToLogin() {
     window.location.href = 'admin-login.html';
@@ -746,6 +753,11 @@ async function loadBrokersData() {
                             <i class="fas fa-ban"></i>
                         </button>
                     `}
+                    ${typeof isSuperAdmin === 'function' && isSuperAdmin() ? `
+                    <button class="btn-action btn-trash" onclick="deleteBroker(${brokerId(broker.id)})" title="Remover cadastro">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    ` : ''}
                 </div>
             </td>
         </tr>

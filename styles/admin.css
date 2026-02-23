@@ -462,6 +462,15 @@
     background: #7f8c8d;
 }
 
+.btn-trash {
+    background: #922b21;
+    color: white;
+}
+
+.btn-trash:hover {
+    background: #6b1f18;
+}
+
 /* Property Form Modal */
 .property-form-modal {
     max-width: 800px;

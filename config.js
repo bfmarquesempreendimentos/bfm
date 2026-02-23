@@ -28,7 +28,8 @@ const CONFIG = {
         requireEmailVerification: false,
         passwordMinLength: 6,
         sessionTimeoutMinutes: 480, // 8 horas
-        maxLoginAttempts: 5
+        maxLoginAttempts: 5,
+        superAdminEmails: ['brunoferreiramarques@gmail.com'] // Apenas estes podem excluir cadastros
     },
     
     // Configurações de Interface

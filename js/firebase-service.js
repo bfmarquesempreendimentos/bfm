@@ -197,6 +197,18 @@ async function updateBrokerInFirestore(brokerId, updates) {
   return true;
 }
 
+async function deleteBrokerFromFirestore(brokerId) {
+  const db = getFirebaseDb();
+  if (!db) return false;
+  try {
+    await db.collection(BROKERS_COLLECTION).doc(brokerId).delete();
+    return true;
+  } catch (err) {
+    console.warn('deleteBrokerFromFirestore:', err);
+    return false;
+  }
+}
+
 if (typeof window !== 'undefined') {
   window.firebaseAvailable = firebaseAvailable;
   window.getFirebaseAuth = getFirebaseAuth;
@@ -213,6 +225,7 @@ if (typeof window !== 'undefined') {
   window.saveBrokerToFirestore = saveBrokerToFirestore;
   window.getBrokersFromFirestore = getBrokersFromFirestore;
   window.updateBrokerInFirestore = updateBrokerInFirestore;
+  window.deleteBrokerFromFirestore = deleteBrokerFromFirestore;
   window.registerBrokerAPI = registerBrokerAPI;
 }
 

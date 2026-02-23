@@ -539,6 +539,32 @@ async function approveBroker(brokerId) {
     }
 }
 
+async function deleteBroker(brokerId) {
+    if (typeof isSuperAdmin === 'function' && !isSuperAdmin()) {
+        if (typeof showMessage === 'function') showMessage('Você não tem permissão para excluir cadastros.', 'error');
+        return;
+    }
+    const broker = findBrokerById(brokerId);
+    if (!broker) return;
+    if (broker.isAdmin) {
+        if (typeof showMessage === 'function') showMessage('Não é possível remover o administrador.', 'error');
+        return;
+    }
+    const confirmed = confirm(
+        `Tem certeza que deseja REMOVER permanentemente o cadastro do corretor?\n\n` +
+        `Nome: ${broker.name || broker.email}\nEmail: ${broker.email}\n\n` +
+        `Esta ação não pode ser desfeita.`
+    );
+    if (!confirmed) return;
+    brokers = brokers.filter(b => String(b.id) !== String(brokerId));
+    if (typeof saveBrokersToStorage === 'function') saveBrokersToStorage();
+    if (typeof deleteBrokerFromFirestore === 'function' && typeof brokerId === 'string') {
+        try { await deleteBrokerFromFirestore(brokerId); } catch (e) { console.error(e); }
+    }
+    if (typeof showMessage === 'function') showMessage(`Corretor removido com sucesso.`, 'success');
+    if (typeof loadBrokersData === 'function') loadBrokersData();
+}
+
 async function deactivateBroker(brokerId) {
     const broker = findBrokerById(brokerId);
     if (broker) {
