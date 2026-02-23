@@ -5,34 +5,56 @@ let selectedFiles = [];
 // Mostrar formulário de solicitação de reparo
 function showRepairRequestForm() {
     const modal = document.getElementById('repairRequestModal');
+    if (!modal) {
+        showMessage('Formulário de reparo não disponível nesta página. Acesse pela Área do Cliente.', 'error');
+        return;
+    }
     modal.style.display = 'block';
     
     // Carregar imóveis do cliente
     loadClientPropertiesForRepair();
     
     // Resetar formulário
-    document.getElementById('repairRequestForm').reset();
-    document.getElementById('filePreview').style.display = 'none';
-    document.getElementById('filePreviewList').innerHTML = '';
+    const form = document.getElementById('repairRequestForm');
+    if (form) form.reset();
+    const filePreview = document.getElementById('filePreview');
+    if (filePreview) filePreview.style.display = 'none';
+    const filePreviewList = document.getElementById('filePreviewList');
+    if (filePreviewList) filePreviewList.innerHTML = '';
     selectedFiles = [];
+    updateRepairFileHint();
 }
 
-// Fechar modal de solicitação de reparo
+// Verificar se formulário tem conteúdo (para confirmação ao fechar)
+function isRepairFormFilled() {
+    const desc = document.getElementById('repairDescription')?.value?.trim() || '';
+    const loc = document.getElementById('repairLocation')?.value?.trim() || '';
+    return desc.length > 0 || loc.length > 0 || selectedFiles.length > 0;
+}
+
+// Fechar modal de solicitação de reparo (com confirmação se formulário preenchido)
 function closeRepairRequestModal() {
-    document.getElementById('repairRequestModal').style.display = 'none';
+    if (isRepairFormFilled() && !confirm('Tem certeza que deseja sair? As informações preenchidas serão perdidas.')) {
+        return;
+    }
+    const modal = document.getElementById('repairRequestModal');
+    if (modal) modal.style.display = 'none';
     selectedFiles = [];
 }
 
 // Carregar imóveis do cliente para o select
 function loadClientPropertiesForRepair() {
     const select = document.getElementById('repairProperty');
+    const noPropsAlert = document.getElementById('repairNoPropertiesAlert');
     const clientProperties = currentClient?.properties || [];
     
     select.innerHTML = '';
+    if (noPropsAlert) noPropsAlert.style.display = 'none';
     
     if (clientProperties.length === 0) {
         select.innerHTML = '<option value="" disabled>Nenhum imóvel cadastrado</option>';
         select.disabled = true;
+        if (noPropsAlert) noPropsAlert.style.display = 'block';
         return;
     }
     
@@ -53,45 +75,90 @@ function loadClientPropertiesForRepair() {
     });
 }
 
+// Constantes de validação
+const REPAIR_MIN_PHOTOS = 3;
+const REPAIR_MAX_FILES = 5;
+const REPAIR_MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50MB
+const REPAIR_MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB por vídeo
+const REPAIR_MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB por imagem
+
+function isImageFile(file) {
+    return file.type && file.type.startsWith('image/');
+}
+
+function isVideoFile(file) {
+    return file.type && file.type.startsWith('video/');
+}
+
+// Validação de arquivos (exposta para testes)
+function validateRepairFiles(files) {
+    const arr = Array.isArray(files) ? files : Array.from(files || []);
+    const photoCount = arr.filter(isImageFile).length;
+    const total = arr.length;
+    if (total > REPAIR_MAX_FILES) return { valid: false, error: `Máximo de ${REPAIR_MAX_FILES} arquivos. Você selecionou ${total}.` };
+    if (photoCount < REPAIR_MIN_PHOTOS) return { valid: false, error: `É obrigatório enviar no mínimo ${REPAIR_MIN_PHOTOS} fotos. Você selecionou ${photoCount} foto(s).` };
+    const totalSize = arr.reduce((sum, f) => sum + (f.size || 0), 0);
+    if (totalSize > REPAIR_MAX_TOTAL_SIZE) return { valid: false, error: 'O total ultrapassa 50MB. Reduza o tamanho dos arquivos.' };
+    const oversizedImg = arr.find(f => isImageFile(f) && (f.size || 0) > REPAIR_MAX_IMAGE_SIZE);
+    if (oversizedImg) return { valid: false, error: 'Uma das imagens ultrapassa 10MB. Comprima a foto.' };
+    const oversizedVid = arr.find(f => isVideoFile(f) && (f.size || 0) > REPAIR_MAX_VIDEO_SIZE);
+    if (oversizedVid) return { valid: false, error: 'O vídeo ultrapassa 50MB. Grave um vídeo mais curto.' };
+    const invalid = arr.find(f => !isImageFile(f) && !isVideoFile(f));
+    if (invalid) return { valid: false, error: 'Aceito apenas fotos (JPG, PNG, etc.) e vídeos (MP4, etc.).' };
+    return { valid: true };
+}
+
 // Manipular seleção de arquivo
 function handleFileSelect(event) {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
     
-    const maxFiles = 5;
-    const maxTotalSize = 30 * 1024 * 1024; // 30MB
-    const maxSingleSize = 25 * 1024 * 1024; // 25MB
-    
-    if (files.length > maxFiles) {
-        showMessage(`Você pode enviar no máximo ${maxFiles} arquivos.`, 'error');
+    const result = validateRepairFiles(files);
+    if (!result.valid) {
+        showMessage(result.error, 'error');
         event.target.value = '';
-        return;
-    }
-    
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-    if (totalSize > maxTotalSize) {
-        showMessage('O total de arquivos ultrapassa 30MB. Reduza o tamanho.', 'error');
-        event.target.value = '';
-        return;
-    }
-    
-    const hasOversized = files.some(file => file.size > maxSingleSize);
-    if (hasOversized) {
-        showMessage('Um dos arquivos ultrapassa 25MB. Reduza o tamanho.', 'error');
-        event.target.value = '';
+        selectedFiles = [];
+        renderFilePreviews();
+        updateRepairFileHint();
         return;
     }
     
     selectedFiles = files;
     renderFilePreviews();
+    updateRepairFileHint();
+}
+
+function updateRepairFileHint() {
+    const hint = document.getElementById('repairFileHint');
+    if (!hint) return;
+    const photos = selectedFiles.filter(isImageFile).length;
+    const videos = selectedFiles.filter(isVideoFile).length;
+    const total = selectedFiles.length;
+    if (total === 0) {
+        hint.textContent = '';
+        hint.className = 'file-hint';
+        return;
+    }
+    let msg = `${photos} foto(s), ${videos} vídeo(s) • ${total}/${REPAIR_MAX_FILES} arquivos`;
+    if (photos < REPAIR_MIN_PHOTOS) {
+        msg += ` • Adicione mais ${REPAIR_MIN_PHOTOS - photos} foto(s)`;
+        hint.style.color = '#e74c3c';
+    } else {
+        hint.style.color = '#27ae60';
+    }
+    hint.textContent = msg;
 }
 
 // Remover arquivo selecionado
 function removeFile() {
     selectedFiles = [];
-    document.getElementById('repairFile').value = '';
-    document.getElementById('filePreview').style.display = 'none';
-    document.getElementById('filePreviewList').innerHTML = '';
+    const fileInput = document.getElementById('repairFile');
+    if (fileInput) fileInput.value = '';
+    const preview = document.getElementById('filePreview');
+    if (preview) preview.style.display = 'none';
+    const previewList = document.getElementById('filePreviewList');
+    if (previewList) previewList.innerHTML = '';
+    updateRepairFileHint();
 }
 
 function removeSelectedFile(index) {
@@ -101,12 +168,20 @@ function removeSelectedFile(index) {
         return;
     }
     renderFilePreviews();
+    updateRepairFileHint();
 }
 
 function renderFilePreviews() {
     const preview = document.getElementById('filePreview');
     const previewList = document.getElementById('filePreviewList');
+    if (!preview || !previewList) return;
     previewList.innerHTML = '';
+    
+    if (selectedFiles.length === 0) {
+        preview.style.display = 'none';
+        updateRepairFileHint();
+        return;
+    }
     
     selectedFiles.forEach((file, index) => {
         const item = document.createElement('div');
@@ -135,6 +210,7 @@ function renderFilePreviews() {
     });
     
     preview.style.display = 'block';
+    updateRepairFileHint();
 }
 
 // Converter arquivo para base64
@@ -156,8 +232,19 @@ async function submitRepairRequest(event) {
         return;
     }
     
-    if (selectedFiles.length === 0) {
-        showMessage('Por favor, selecione pelo menos uma foto ou vídeo do problema.', 'error');
+    const photoCount = selectedFiles.filter(f => f.type && f.type.startsWith('image/')).length;
+    const totalFiles = selectedFiles.length;
+    
+    if (totalFiles === 0) {
+        showMessage('É obrigatório enviar fotos e/ou vídeos do problema.', 'error');
+        return;
+    }
+    if (photoCount < REPAIR_MIN_PHOTOS) {
+        showMessage(`É obrigatório enviar no mínimo ${REPAIR_MIN_PHOTOS} fotos do problema. Você anexou ${photoCount} foto(s).`, 'error');
+        return;
+    }
+    if (totalFiles > REPAIR_MAX_FILES) {
+        showMessage(`Máximo de ${REPAIR_MAX_FILES} arquivos. Você anexou ${totalFiles}.`, 'error');
         return;
     }
     
@@ -171,7 +258,13 @@ async function submitRepairRequest(event) {
         return;
     }
     
+    const submitBtn = document.querySelector('#repairRequestForm button[type="submit"]');
+    const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
     try {
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+        }
         // Salvar anexos no Firebase Storage (preferencial) ou IndexedDB (fallback)
         let attachments = [];
         if (typeof uploadRepairAttachmentsToFirebase === 'function') {
@@ -197,6 +290,10 @@ async function submitRepairRequest(event) {
             id: Date.now(),
             clientId: currentClient.id,
             clientUid: currentClient.uid || null,
+            clientName: currentClient.name || '',
+            clientEmail: currentClient.email || '',
+            clientPhone: currentClient.phone || '',
+            clientCpf: currentClient.cpf || '',
             propertyId: propertyId,
             propertyTitle: propertyInfo?.title || propertyInfo?.name || 'Meu Imóvel',
             unitCode: propertyInfo?.unitCode || null,
@@ -247,13 +344,19 @@ async function submitRepairRequest(event) {
         closeRepairRequestModal();
         
         // Recarregar lista de reparos
-        if (document.getElementById('clientRepairsTab').classList.contains('active')) {
+        const repairsTab = document.getElementById('clientRepairsTab');
+        if (repairsTab && repairsTab.classList.contains('active')) {
             loadClientRepairs();
         }
         
     } catch (error) {
         console.error('Erro ao enviar solicitação:', error);
         showMessage('Erro ao enviar solicitação. Tente novamente.', 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        }
     }
 }
 
@@ -261,10 +364,13 @@ async function submitRepairRequest(event) {
 function loadClientRepairs() {
     if (!currentClient) return;
     
-    const repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
-    const clientRepairs = repairRequests.filter(r => r.clientId === currentClient.id);
-    
     const repairsList = document.getElementById('clientRepairsList');
+    if (!repairsList) return;
+    
+    const repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
+    const clientRepairs = repairRequests.filter(r =>
+        r.clientId === currentClient.id || r.clientUid === currentClient.uid
+    );
     
     if (clientRepairs.length === 0) {
         repairsList.innerHTML = '<p>Nenhuma solicitação de reparo no momento.</p>';

@@ -1594,3 +1594,14 @@
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     }
 }
+
+/* Mensagens fixas no admin - visíveis acima do conteúdo */
+.admin-body .message {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    min-width: 280px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}

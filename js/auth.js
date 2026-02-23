@@ -541,6 +541,13 @@ async function handleBrokerForgotPasswordSubmit() {
         else alert('Email não encontrado em nossa base de dados.');
         return;
     }
+    if (!broker.isActive) {
+        const tel = (typeof CONFIG !== 'undefined' && CONFIG?.company?.phone) ? CONFIG.company.phone : '(21) 99555-7010';
+        const msg = `Seu cadastro ainda está aguardando aprovação. Não é possível solicitar redefinição de senha neste momento. Aguarde a aprovação do administrador ou entre em contato pelo telefone ${tel}.`;
+        if (typeof showMessage === 'function') showMessage(msg, 'error');
+        else alert(msg);
+        return;
+    }
     const token = 'RESET' + Date.now() + Math.random().toString(36).substr(2, 16).toUpperCase();
     let saved = false;
     if (typeof savePasswordResetToken === 'function') {
@@ -563,9 +570,14 @@ async function handleBrokerForgotPasswordSubmit() {
         <p>Se você não solicitou esta alteração, ignore este email.</p>
         <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
     `;
+    const recipientEmail = (broker.email || '').trim();
+    if (!recipientEmail) {
+        if (typeof showMessage === 'function') showMessage('Email do corretor não encontrado. Entre em contato pelo telefone (21) 99555-7010.', 'error');
+        return;
+    }
     if (typeof sendEmail === 'function') {
         try {
-            await sendEmail(broker.email, subject, body);
+            await sendEmail(recipientEmail, subject, body);
         } catch (e) { console.error('Erro ao enviar email:', e); }
     }
     showLoginForm();

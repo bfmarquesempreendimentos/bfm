@@ -64,7 +64,8 @@ body {
     padding: 10px 0;
     padding-top: max(10px, env(safe-area-inset-top));
     border-bottom: 1px solid transparent;
-    overflow: hidden;
+    overflow: visible;
+    min-height: 60px;
     opacity: 1;
     pointer-events: auto;
     transition: background 0.3s ease, border-color 0.3s ease;
@@ -85,6 +86,7 @@ body {
     gap: 20px;
     position: relative;
     z-index: 1;
+    min-width: 0;
 }
 
 .header:not(.scrolled) .container {
@@ -162,7 +164,8 @@ body {
 
 
 .nav-menu {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
     display: flex;
     justify-content: center;
 }
@@ -171,6 +174,7 @@ body {
     display: flex;
     gap: 10px;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .nav-menu a {
@@ -234,11 +238,13 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    line-height: 1;
+    line-height: 1.2;
     white-space: nowrap;
+    flex-shrink: 0;
     transition: all 0.3s ease;
     -webkit-text-stroke: 0;
     text-shadow: none;
+    min-height: 38px;
 }
 
 .btn-login:hover {
@@ -543,6 +549,38 @@ body {
 
 .page-hero-logo.right {
     justify-self: end;
+}
+
+/* Header: mais espaço para botões em viewports intermediários (ex: Windows 1366px) */
+@media (min-width: 769px) and (max-width: 950px) {
+    .header .container {
+        gap: 12px;
+    }
+
+    .nav-wrapper {
+        gap: 10px;
+    }
+
+    .header:not(.scrolled) .brand-logo {
+        height: 90px;
+        max-width: 180px;
+    }
+
+    .header .brand-logo {
+        height: 64px;
+    }
+
+    .nav-menu a {
+        font-size: 0.75rem;
+        padding: 5px 8px;
+    }
+
+    .btn-login,
+    .btn-client-area {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        min-height: 36px;
+    }
 }
 
 @media (max-width: 900px) {
@@ -1811,6 +1849,8 @@ body {
     display: flex;
     align-items: center;
     gap: 16px;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 /* Mobile overlay - hidden on desktop */
@@ -3519,11 +3559,13 @@ html {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    line-height: 1;
+    line-height: 1.2;
     white-space: nowrap;
+    flex-shrink: 0;
     transition: all 0.3s;
     -webkit-text-stroke: 0;
     text-shadow: none;
+    min-height: 38px;
 }
 
 .btn-client-area:hover {

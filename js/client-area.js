@@ -250,6 +250,9 @@ async function registerClient(event) {
                 if (typeof sendEmail === 'function') {
                     sendEmail('bfmarquesempreendimentos@gmail.com', 'Novo Cliente Cadastrado - ' + name, notifBody);
                 }
+                if (typeof sendClientRegistrationConfirmationEmail === 'function') {
+                    sendClientRegistrationConfirmationEmail(profile).catch(e => console.error('Erro email boas-vindas:', e));
+                }
             } catch (e) { console.error('Erro ao enviar notificação:', e); }
 
             currentClient = { ...profile };
@@ -323,6 +326,10 @@ async function registerClient(event) {
         `;
         if (typeof sendEmail === 'function') {
             sendEmail('bfmarquesempreendimentos@gmail.com', 'Novo Cliente Cadastrado - ' + name, notifBody);
+        }
+        if (typeof sendClientRegistrationConfirmationEmail === 'function') {
+            const clientForEmail = { name, email, cpf, phone };
+            sendClientRegistrationConfirmationEmail(clientForEmail).catch(e => console.error('Erro email boas-vindas:', e));
         }
     } catch (e) { console.error('Erro ao enviar notificação:', e); }
 

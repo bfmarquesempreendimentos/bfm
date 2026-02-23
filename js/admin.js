@@ -79,7 +79,6 @@ function setupAdminEventListeners() {
     // Form listeners
     document.getElementById('generalSettingsForm')?.addEventListener('submit', saveGeneralSettings);
     document.getElementById('reservationSettingsForm')?.addEventListener('submit', saveReservationSettings);
-    document.getElementById('saleForm')?.addEventListener('submit', handleSaleFormSubmission);
 }
 
 // Load sales data
@@ -136,25 +135,26 @@ function renderSalesTable() {
 }
 
 function handleSaleFormSubmission(e) {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     
-    const propertyId = parseInt(document.getElementById('saleProperty').value, 10);
-    const clientCPF = document.getElementById('saleClientCPF').value;
+    const rawValue = document.getElementById('saleProperty')?.value || '';
+    const propertyId = /^\d+$/.test(rawValue) ? parseInt(rawValue, 10) : rawValue;
+    const clientCPF = (document.getElementById('saleClientCPF')?.value || '').trim();
     
-    if (!propertyId) {
+    if (!propertyId && propertyId !== 0) {
         showMessage('Selecione um imóvel.', 'error');
         return;
     }
     
-    if (!isValidCPF(clientCPF)) {
-        showMessage('CPF inválido. Verifique o número digitado.', 'error');
+    if (!clientCPF || !isValidCPF(clientCPF)) {
+        showMessage('CPF inválido. Verifique o número digitado (11 dígitos).', 'error');
         return;
     }
     
-    const property = properties.find(p => p.id === propertyId || p.id === parseInt(propertyId, 10));
+    const property = Array.isArray(properties) && properties.find(p => p.id === propertyId || String(p.id) === String(propertyId));
     
     const saleData = {
-        propertyId: typeof propertyId === 'number' ? propertyId : parseInt(propertyId, 10),
+        propertyId: propertyId,
         propertyTitle: property?.title || 'Imóvel',
         unitCode: document.getElementById('saleUnitCode').value || null,
         clientName: document.getElementById('saleClientName').value,
@@ -172,7 +172,8 @@ function handleSaleFormSubmission(e) {
     const result = addPropertySale(saleData);
     if (result) {
         showMessage('Venda registrada com sucesso!', 'success');
-        e.target.reset();
+        const formEl = (e && e.target) || document.getElementById('saleForm');
+        if (formEl) formEl.reset();
         renderSalesTable();
     } else {
         showMessage('Erro ao registrar venda. Verifique os dados.', 'error');
@@ -233,6 +234,9 @@ function showSection(sectionId) {
             break;
         case 'settings':
             loadSettingsData();
+            break;
+        case 'repairs':
+            if (typeof loadAdminRepairs === 'function') loadAdminRepairs();
             break;
         case 'analytics':
             if (typeof loadAnalytics === 'function') loadAnalytics();

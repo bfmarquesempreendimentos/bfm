@@ -20,7 +20,14 @@ service cloud.firestore {
     }
 
     match /repairRequests/{docId} {
-      allow read, write: if isSignedIn() && request.resource.data.clientUid == request.auth.uid;
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (request.resource.data.clientUid == request.auth.uid || request.resource.data.clientUid == null);
+      allow update, delete: if isSignedIn();
+    }
+
+    match /emailAuditLog/{docId} {
+      allow create: if true;
+      allow read: if isSignedIn();
     }
 
     match /emailQueue/{docId} {

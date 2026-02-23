@@ -46,6 +46,25 @@ async function saveRepairRequestToFirestore(repairRequest) {
   return docRef.id;
 }
 
+async function updateRepairRequestInFirestore(repairId, updates) {
+  const db = getFirebaseDb();
+  if (!db) return null;
+  const snapshot = await db.collection('repairRequests').where('id', '==', Number(repairId)).limit(1).get();
+  if (snapshot.empty) return null;
+  await snapshot.docs[0].ref.update({ ...updates, updatedAt: new Date().toISOString() });
+  return snapshot.docs[0].id;
+}
+
+async function saveEmailAuditToFirestore(email) {
+  const db = getFirebaseDb();
+  if (!db) return null;
+  await db.collection('emailAuditLog').add({
+    ...email,
+    loggedAt: new Date().toISOString()
+  });
+  return true;
+}
+
 async function savePropertySaleToFirestore(sale) {
   const db = getFirebaseDb();
   if (!db) return null;
@@ -263,6 +282,8 @@ if (typeof window !== 'undefined') {
   window.getFirebaseStorage = getFirebaseStorage;
   window.uploadRepairAttachmentsToFirebase = uploadRepairAttachmentsToFirebase;
   window.saveRepairRequestToFirestore = saveRepairRequestToFirestore;
+  window.updateRepairRequestInFirestore = updateRepairRequestInFirestore;
+  window.saveEmailAuditToFirestore = saveEmailAuditToFirestore;
   window.savePropertySaleToFirestore = savePropertySaleToFirestore;
   window.getPropertySalesByCPF = getPropertySalesByCPF;
     window.getPropertySalesByEmail = getPropertySalesByEmail;
