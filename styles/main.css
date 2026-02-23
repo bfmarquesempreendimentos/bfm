@@ -64,8 +64,7 @@ body {
     padding: 10px 0;
     padding-top: max(10px, env(safe-area-inset-top));
     border-bottom: 1px solid transparent;
-    overflow: visible;
-    min-height: 60px;
+    overflow: hidden;
     opacity: 1;
     pointer-events: auto;
     transition: background 0.3s ease, border-color 0.3s ease;
@@ -86,7 +85,6 @@ body {
     gap: 20px;
     position: relative;
     z-index: 1;
-    min-width: 0;
 }
 
 .header:not(.scrolled) .container {
@@ -164,8 +162,7 @@ body {
 
 
 .nav-menu {
-    flex: 1 1 auto;
-    min-width: 0;
+    flex: 1;
     display: flex;
     justify-content: center;
 }
@@ -174,7 +171,6 @@ body {
     display: flex;
     gap: 10px;
     align-items: center;
-    flex-shrink: 0;
 }
 
 .nav-menu a {
@@ -238,13 +234,11 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    line-height: 1.2;
+    line-height: 1;
     white-space: nowrap;
-    flex-shrink: 0;
     transition: all 0.3s ease;
     -webkit-text-stroke: 0;
     text-shadow: none;
-    min-height: 38px;
 }
 
 .btn-login:hover {
@@ -280,8 +274,8 @@ body {
 .lead-capture {
     position: relative;
     margin-top: -70px;
-    padding: 100px 0 40px; /* top: reserva espaço para header fixo ao scrollar - evita botões sob o header */
-    z-index: 2;
+    padding: 0 0 40px;
+    z-index: 3;
 }
 
 .lead-grid {
@@ -549,58 +543,6 @@ body {
 
 .page-hero-logo.right {
     justify-self: end;
-}
-
-/* Header: layout compacto para viewports até 1200px - evita corte do botão em monitores
-   com resolução menor ou DPI scaling (ex: 1366px, 1280px, Windows 125%) */
-@media (min-width: 769px) and (max-width: 1200px) {
-    .header .container {
-        gap: 10px;
-        padding-left: 16px;
-        padding-right: 16px;
-    }
-
-    .nav-wrapper {
-        gap: 8px;
-    }
-
-    .header:not(.scrolled) .brand-logo {
-        height: 85px;
-        max-width: 160px;
-    }
-
-    .header .brand-logo {
-        height: 58px;
-    }
-
-    .header.scrolled .brand-logo {
-        height: 56px;
-    }
-
-    .nav-menu a {
-        font-size: 0.7rem;
-        padding: 4px 6px;
-    }
-
-    .nav-menu ul {
-        gap: 4px;
-    }
-
-    .header:not(.scrolled) .nav-menu ul {
-        gap: 6px;
-    }
-
-    .btn-login,
-    .btn-client-area {
-        padding: 5px 10px;
-        font-size: 0.75rem;
-        min-height: 34px;
-    }
-
-    .header:not(.scrolled) .nav-brand {
-        margin-left: -12px;
-        margin-right: 8px;
-    }
 }
 
 @media (max-width: 900px) {
@@ -1869,22 +1811,11 @@ body {
     display: flex;
     align-items: center;
     gap: 16px;
-    flex: 1 1 auto;
-    min-width: 0;
 }
 
 /* Mobile overlay - hidden on desktop */
 .nav-overlay {
     display: none;
-}
-
-/* Desktop: garante que overlay nunca bloqueie (evita sobreposição de cliques) */
-@media (min-width: 769px) {
-    .nav-overlay {
-        display: none !important;
-        pointer-events: none !important;
-        visibility: hidden !important;
-    }
 }
 
 /* Mobile nav panel - fora do header, evita overflow */
@@ -3588,13 +3519,11 @@ html {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    line-height: 1.2;
+    line-height: 1;
     white-space: nowrap;
-    flex-shrink: 0;
     transition: all 0.3s;
     -webkit-text-stroke: 0;
     text-shadow: none;
-    min-height: 38px;
 }
 
 .btn-client-area:hover {
