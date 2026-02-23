@@ -3836,6 +3836,188 @@ html {
     max-width: 700px;
 }
 
+/* Repair Overlay - tela menor com layout da página principal */
+.repair-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(6px);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: repairOverlayFadeIn 0.25s ease;
+}
+
+.repair-overlay.repair-overlay-open {
+    display: flex !important;
+}
+
+@keyframes repairOverlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.repair-overlay-backdrop {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+}
+
+.repair-overlay-panel {
+    position: relative;
+    width: 100%;
+    max-width: 1100px;
+    max-height: calc(100vh - 48px);
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: repairPanelSlideIn 0.3s ease;
+}
+
+@keyframes repairPanelSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(-16px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.repair-overlay-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 12px 0;
+    flex-shrink: 0;
+}
+
+.repair-overlay-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+.repair-overlay-header .repair-overlay-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.repair-overlay-brand {
+    display: flex;
+    align-items: center;
+}
+
+.repair-overlay-logo {
+    height: 52px;
+    width: auto;
+    object-fit: contain;
+}
+
+.repair-overlay-close {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    color: #374151;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.repair-overlay-close:hover {
+    background: #e5e7eb;
+    color: #1f2937;
+}
+
+.repair-overlay-hero {
+    background: linear-gradient(120deg, #0b1f3a, #1f4e79);
+    color: #ffffff;
+    padding: 32px 0;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.repair-overlay-hero h1 {
+    font-size: 1.75rem;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.repair-overlay-hero h1 i {
+    margin-right: 10px;
+}
+
+.repair-overlay-hero p {
+    font-size: 1rem;
+    opacity: 0.92;
+}
+
+.repair-overlay-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 0 40px;
+    background: #f8fafc;
+}
+
+.repair-overlay-form {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.repair-overlay-form .form-group {
+    margin-bottom: 20px;
+}
+
+.repair-overlay-form .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.repair-overlay-form .form-group input,
+.repair-overlay-form .form-group select,
+.repair-overlay-form .form-group textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.repair-overlay-form .form-group input:focus,
+.repair-overlay-form .form-group select:focus,
+.repair-overlay-form .form-group textarea:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+@media (max-width: 768px) {
+    .repair-overlay {
+        padding: 12px;
+    }
+    .repair-overlay-panel {
+        max-height: calc(100vh - 24px);
+    }
+    .repair-overlay-hero h1 {
+        font-size: 1.4rem;
+    }
+}
+
 .file-upload-area {
     border: 2px dashed #3498db;
     border-radius: 10px;

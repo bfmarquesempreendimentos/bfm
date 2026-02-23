@@ -385,62 +385,81 @@
         </div>
     </div>
 
-    <!-- Repair Request Modal -->
-    <div id="repairRequestModal" class="modal">
-        <div class="modal-content repair-modal">
-            <span class="close" onclick="closeRepairRequestModal()">&times;</span>
-            <h2><i class="fas fa-tools"></i> Nova Solicitação de Reparo</h2>
-            <form id="repairRequestForm" onsubmit="submitRepairRequest(event)">
-                <div class="form-group">
-                    <label>Selecione o Imóvel *</label>
-                    <select id="repairProperty" required>
-                        <option value="">Selecione um imóvel</option>
-                    </select>
-                    <div id="repairNoPropertiesAlert" class="repair-no-properties-alert" style="display:none;margin-top:8px;padding:12px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;color:#856404;">
-                        <i class="fas fa-exclamation-triangle"></i> Você não possui imóveis cadastrados. Entre em contato com a empresa para cadastrar seu imóvel antes de solicitar reparos.
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Descrição do Problema *</label>
-                    <textarea id="repairDescription" rows="4" required placeholder="Descreva detalhadamente o problema que precisa ser reparado..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Localização do Problema *</label>
-                    <input type="text" id="repairLocation" required placeholder="Ex: Sala, Cozinha, Banheiro, Quarto, etc.">
-                </div>
-                <div class="form-group">
-                    <label>Foto e/ou Vídeo do Problema *</label>
-                    <div class="file-upload-area" id="fileUploadArea">
-                        <input type="file" id="repairFile" accept="image/*,video/mp4,video/webm" multiple onchange="handleFileSelect(event)">
-                        <div class="upload-placeholder">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            <p>Clique para selecionar arquivos</p>
-                            <small><strong>Mínimo 3 fotos, máximo 5 arquivos</strong> (fotos + vídeo). Imagens até 10MB, vídeo até 50MB.</small>
-                        </div>
-                        <div id="repairFileHint" class="file-hint" style="margin-top:8px;font-size:0.85rem;color:#666;"></div>
-                        <div class="file-preview" id="filePreview" style="display:none;">
-                            <div id="filePreviewList" class="file-preview-grid"></div>
-                            <button type="button" class="btn-remove-file" onclick="removeFile()">
-                                <i class="fas fa-times"></i> Remover Tudo
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Prioridade</label>
-                    <select id="repairPriority">
-                        <option value="normal">Normal</option>
-                        <option value="alta">Alta</option>
-                        <option value="urgente">Urgente</option>
-                    </select>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeRepairRequestModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-paper-plane"></i> Enviar Solicitação
+    <!-- Repair Request Overlay (tela menor com layout da página principal) -->
+    <div id="repairRequestModal" class="repair-overlay">
+        <div class="repair-overlay-backdrop" onclick="closeRepairRequestModal()"></div>
+        <div class="repair-overlay-panel">
+            <header class="repair-overlay-header">
+                <div class="repair-overlay-container">
+                    <a class="repair-overlay-brand" href="index.html" aria-label="Início">
+                        <img src="assets/images/logo-bf-marques.png" alt="B F Marques" class="repair-overlay-logo">
+                    </a>
+                    <button type="button" class="repair-overlay-close" onclick="closeRepairRequestModal()" aria-label="Fechar">
+                        <i class="fas fa-times"></i> Fechar
                     </button>
                 </div>
-            </form>
+            </header>
+            <section class="repair-overlay-hero">
+                <div class="repair-overlay-container">
+                    <h1><i class="fas fa-tools"></i> Nova Solicitação de Reparo</h1>
+                    <p>Descreva o problema e envie fotos ou vídeos para nossa equipe técnica</p>
+                </div>
+            </section>
+            <section class="repair-overlay-content">
+                <div class="repair-overlay-container">
+                    <form id="repairRequestForm" onsubmit="submitRepairRequest(event)" class="repair-overlay-form">
+                        <div class="form-group">
+                            <label>Selecione o Imóvel *</label>
+                            <select id="repairProperty" required>
+                                <option value="">Selecione um imóvel</option>
+                            </select>
+                            <div id="repairNoPropertiesAlert" class="repair-no-properties-alert" style="display:none;margin-top:8px;padding:12px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;color:#856404;">
+                                <i class="fas fa-exclamation-triangle"></i> Você não possui imóveis cadastrados. Entre em contato com a empresa para cadastrar seu imóvel antes de solicitar reparos.
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Descrição do Problema *</label>
+                            <textarea id="repairDescription" rows="4" required placeholder="Descreva detalhadamente o problema que precisa ser reparado..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Localização do Problema *</label>
+                            <input type="text" id="repairLocation" required placeholder="Ex: Sala, Cozinha, Banheiro, Quarto, etc.">
+                        </div>
+                        <div class="form-group">
+                            <label>Foto e/ou Vídeo do Problema *</label>
+                            <div class="file-upload-area" id="fileUploadArea">
+                                <input type="file" id="repairFile" accept="image/*,video/mp4,video/webm" multiple onchange="handleFileSelect(event)">
+                                <div class="upload-placeholder">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <p>Clique para selecionar arquivos</p>
+                                    <small><strong>Mínimo 3 fotos, máximo 5 arquivos</strong> (fotos + vídeo). Imagens até 10MB, vídeo até 50MB.</small>
+                                </div>
+                                <div id="repairFileHint" class="file-hint" style="margin-top:8px;font-size:0.85rem;color:#666;"></div>
+                                <div class="file-preview" id="filePreview" style="display:none;">
+                                    <div id="filePreviewList" class="file-preview-grid"></div>
+                                    <button type="button" class="btn-remove-file" onclick="removeFile()">
+                                        <i class="fas fa-times"></i> Remover Tudo
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Prioridade</label>
+                            <select id="repairPriority">
+                                <option value="normal">Normal</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeRepairRequestModal()">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Enviar Solicitação
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
         </div>
     </div>
 

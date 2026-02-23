@@ -9,7 +9,8 @@ function showRepairRequestForm() {
         showMessage('Formulário de reparo não disponível nesta página. Acesse pela Área do Cliente.', 'error');
         return;
     }
-    modal.style.display = 'block';
+    modal.classList.add('repair-overlay-open');
+    document.body.style.overflow = 'hidden';
     
     // Carregar imóveis do cliente
     loadClientPropertiesForRepair();
@@ -38,7 +39,8 @@ function closeRepairRequestModal() {
         return;
     }
     const modal = document.getElementById('repairRequestModal');
-    if (modal) modal.style.display = 'none';
+    if (modal) { modal.classList.remove('repair-overlay-open'); }
+    document.body.style.overflow = '';
     selectedFiles = [];
 }
 
