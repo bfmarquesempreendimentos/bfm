@@ -87,6 +87,20 @@ async function getPropertySalesByEmail(email) {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
+async function deletePropertySaleFromFirestore(saleId) {
+  const db = getFirebaseDb();
+  if (!db) return;
+  try {
+    const idNum = Number(saleId);
+    const snapshot = await db.collection('propertySales').where('id', '==', idNum).get();
+    await Promise.all(snapshot.docs.map(doc => doc.ref.delete()));
+    const snapshotStr = await db.collection('propertySales').where('id', '==', String(saleId)).get();
+    await Promise.all(snapshotStr.docs.map(doc => doc.ref.delete()));
+  } catch (e) {
+    console.warn('Erro ao remover venda do Firestore:', e);
+  }
+}
+
 /** Busca todas as vendas no Firestore - para sync entre dispositivos (Mac/Desktop) */
 async function getAllPropertySalesFromFirestore() {
   const db = getFirebaseDb();
@@ -304,6 +318,7 @@ if (typeof window !== 'undefined') {
   window.getPropertySalesByCPF = getPropertySalesByCPF;
   window.getPropertySalesByEmail = getPropertySalesByEmail;
   window.getAllPropertySalesFromFirestore = getAllPropertySalesFromFirestore;
+  window.deletePropertySaleFromFirestore = deletePropertySaleFromFirestore;
   window.saveClientProfile = saveClientProfile;
   window.getClientProfileByUID = getClientProfileByUID;
   window.queueEmailInFirestore = queueEmailInFirestore;

@@ -4,8 +4,8 @@
 // Em produção, isso viria de um banco de dados
 let propertySales = JSON.parse(localStorage.getItem('propertySales') || '[]');
 
-// Adicionar propriedade vendida
-function addPropertySale(saleData) {
+// Adicionar propriedade vendida (salva no localStorage e Firestore para sync entre dispositivos)
+async function addPropertySale(saleData) {
     if (!saleData) return null;
     const cpf = (saleData.clientCPF || '').toString().replace(/\D/g, '');
     if (cpf.length !== 11) {
@@ -24,6 +24,7 @@ function addPropertySale(saleData) {
         saleDate: saleData.saleDate || new Date().toISOString(),
         salePrice: saleData.salePrice || 0,
         contractNumber: saleData.contractNumber || null,
+        contractPhotos: saleData.contractPhotos || null,
         status: 'vendido',
         createdAt: new Date().toISOString()
     };
@@ -32,9 +33,11 @@ function addPropertySale(saleData) {
     savePropertySales();
 
     if (typeof savePropertySaleToFirestore === 'function') {
-        savePropertySaleToFirestore(sale).catch(error => {
-            console.error('Erro ao salvar venda no Firestore:', error);
-        });
+        try {
+            await savePropertySaleToFirestore(sale);
+        } catch (error) {
+            console.error('Erro ao salvar venda no Firestore (sync entre dispositivos):', error);
+        }
     }
     
     return sale;
