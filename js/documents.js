@@ -73,7 +73,7 @@ function getPropertyDocuments(propertyId, brokerId = null) {
 }
 
 // Request document access
-function requestDocumentAccess(propertyId, brokerId) {
+async function requestDocumentAccess(propertyId, brokerId) {
     if (!currentUser || !isBroker()) {
         showMessage('Acesso negado. Faça login como corretor.', 'error');
         return false;
@@ -106,6 +106,19 @@ function requestDocumentAccess(propertyId, brokerId) {
     
     // Create notification for admin
     createDocumentRequestNotification(propertyId, brokerId, currentUser.name, property.title);
+    
+    // Enviar email para o admin (B F Marques) quando chega a solicitação
+    if (typeof sendEmail === 'function') {
+        const subject = 'Nova Solicitação de Acesso a Documentos - ' + property.title;
+        const body = `
+            <h2>Nova Solicitação de Acesso a Documentos</h2>
+            <p><strong>Imóvel:</strong> ${property.title}</p>
+            <p><strong>Corretor:</strong> ${currentUser.name} (${currentUser.email || ''})</p>
+            <p>Acesse o painel administrativo para aprovar ou rejeitar.</p>
+            <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
+        `;
+        try { await sendEmail('bfmarquesempreendimentos@gmail.com', subject, body); } catch (err) { console.error('Erro ao enviar email:', err); }
+    }
     
     showMessage('Solicitação de acesso aos documentos enviada para aprovação.', 'success');
     return true;

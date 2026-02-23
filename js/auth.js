@@ -526,6 +526,16 @@ async function approveBroker(brokerId) {
         saveBrokersToStorage();
         if (typeof showMessage === 'function') showMessage(`Corretor ${broker.name} aprovado com sucesso!`, 'success');
         if (typeof loadBrokersData === 'function') loadBrokersData();
+        if (broker.email && typeof sendEmail === 'function') {
+            const subject = 'Acesso Aprovado - B F Marques Empreendimentos';
+            const body = `
+                <h2>Olá, ${broker.name}!</h2>
+                <p>Seu cadastro como corretor foi <strong>aprovado</strong> pela administração.</p>
+                <p>Você já pode acessar o sistema e começar a realizar reservas e vendas.</p>
+                <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
+            `;
+            try { await sendEmail(broker.email, subject, body); } catch (e) { console.error('Erro ao enviar email de aprovação:', e); }
+        }
     }
 }
 

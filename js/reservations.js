@@ -166,7 +166,7 @@ function showReservationForm(property, reservation) {
 }
 
 // Handle reservation form submission
-function handleReservationSubmission(e, property, reservation) {
+async function handleReservationSubmission(e, property, reservation) {
     e.preventDefault();
     
     const formData = new FormData(e.target);
@@ -205,6 +205,23 @@ function handleReservationSubmission(e, property, reservation) {
     
     // Create notification for admin approval
     createReservationRequestNotification(reservation, property, currentUser);
+    
+    // Enviar email para o admin (B F Marques) quando chega a solicitação
+    if (typeof sendEmail === 'function') {
+        const subject = 'Nova Solicitação de Reserva - ' + property.title;
+        const body = `
+            <h2>Nova Solicitação de Reserva</h2>
+            <p><strong>Imóvel:</strong> ${property.title}</p>
+            <p><strong>Corretor:</strong> ${currentUser.name} (${currentUser.email || ''})</p>
+            <p><strong>Cliente:</strong> ${reservation.clientInfo.name}</p>
+            <p><strong>CPF:</strong> ${reservation.clientInfo.cpf}</p>
+            <p><strong>Telefone:</strong> ${reservation.clientInfo.phone}</p>
+            <p><strong>Email do cliente:</strong> ${reservation.clientInfo.email}</p>
+            <p>Acesse o painel administrativo para aprovar ou rejeitar.</p>
+            <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
+        `;
+        try { await sendEmail('bfmarquesempreendimentos@gmail.com', subject, body); } catch (e) { console.error('Erro ao enviar email:', e); }
+    }
     
     // Show success message
     showMessage('Solicitação de reserva enviada! Aguarde aprovação do administrador.', 'success');

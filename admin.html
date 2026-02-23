@@ -10,9 +10,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="admin-body">
+    <div class="admin-sidebar-overlay" id="adminSidebarOverlay" onclick="closeAdminSidebar()"></div>
     <!-- Admin Header -->
     <header class="admin-header">
         <div class="admin-nav">
+            <button class="admin-menu-toggle" id="adminMenuToggle" onclick="toggleAdminSidebar()" aria-label="Menu">
+                <i class="fas fa-bars"></i>
+            </button>
             <div class="admin-brand">
                 <h1><i class="fas fa-building"></i> Admin Panel</h1>
             </div>
@@ -34,61 +38,61 @@
         <nav class="sidebar-nav">
             <ul>
                 <li class="nav-item active">
-                    <a href="#dashboard" onclick="showSection('dashboard')">
+                    <a href="#dashboard" onclick="showSection('dashboard'); closeAdminSidebar();">
                         <i class="fas fa-chart-dashboard"></i>
                         <span>Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#properties" onclick="showSection('properties')">
+                    <a href="#properties" onclick="showSection('properties'); closeAdminSidebar();">
                         <i class="fas fa-home"></i>
                         <span>Imóveis</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#reservations" onclick="showSection('reservations')">
+                    <a href="#reservations" onclick="showSection('reservations'); closeAdminSidebar();">
                         <i class="fas fa-calendar-check"></i>
                         <span>Reservas</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#sales" onclick="showSection('sales')">
+                    <a href="#sales" onclick="showSection('sales'); closeAdminSidebar();">
                         <i class="fas fa-handshake"></i>
                         <span>Vendas</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#brokers" onclick="showSection('brokers')">
+                    <a href="#brokers" onclick="showSection('brokers'); closeAdminSidebar();">
                         <i class="fas fa-users"></i>
                         <span>Corretores</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#whatsapp-leads" onclick="showSection('whatsapp-leads')">
+                    <a href="#whatsapp-leads" onclick="showSection('whatsapp-leads'); closeAdminSidebar();">
                         <i class="fab fa-whatsapp"></i>
                         <span>Leads WhatsApp</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#analytics" onclick="showSection('analytics')">
+                    <a href="#analytics" onclick="showSection('analytics'); closeAdminSidebar();">
                         <i class="fas fa-chart-line"></i>
                         <span>Analytics do Site</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#reports" onclick="showSection('reports')">
+                    <a href="#reports" onclick="showSection('reports'); closeAdminSidebar();">
                         <i class="fas fa-chart-bar"></i>
                         <span>Relatórios</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#notifications" onclick="showSection('notifications')">
+                    <a href="#notifications" onclick="showSection('notifications'); closeAdminSidebar();">
                         <i class="fas fa-bell"></i>
                         <span>Notificações</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#settings" onclick="showSection('settings')">
+                    <a href="#settings" onclick="showSection('settings'); closeAdminSidebar();">
                         <i class="fas fa-cog"></i>
                         <span>Configurações</span>
                     </a>
@@ -797,6 +801,7 @@
 
     <!-- Scripts -->
     <script src="config.js"></script>
+    <script src="js/email-service.js"></script>
     <!-- Firebase (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>

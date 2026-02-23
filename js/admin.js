@@ -10,6 +10,25 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeAdminPanel();
 });
 
+// Mobile sidebar toggle
+function toggleAdminSidebar() {
+    const sidebar = document.querySelector('.admin-sidebar');
+    const overlay = document.getElementById('adminSidebarOverlay');
+    if (sidebar && overlay) {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('visible', sidebar.classList.contains('open'));
+    }
+}
+
+function closeAdminSidebar() {
+    const sidebar = document.querySelector('.admin-sidebar');
+    const overlay = document.getElementById('adminSidebarOverlay');
+    if (sidebar && overlay) {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('visible');
+    }
+}
+
 function initializeAdminPanel() {
     // Check admin authentication
     if (!isAdminAuthenticated()) {
