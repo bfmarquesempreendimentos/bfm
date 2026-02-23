@@ -86,6 +86,7 @@ function setupAdminEventListeners() {
 // Load sales data - Firestore como fonte única (base de dados única para Mac/Desktop)
 async function loadSalesData() {
     loadSalesPropertyOptions();
+    setupSaleFormMasks();
     const photosGroup = document.getElementById('saleContractPhotosGroup');
     if (photosGroup) photosGroup.style.display = (typeof isSuperAdmin === 'function' && isSuperAdmin()) ? 'none' : 'block';
     if (typeof getAllPropertySalesFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
@@ -98,6 +99,47 @@ async function loadSalesData() {
         }
     }
     renderSalesTable();
+}
+
+// Máscaras do formulário de vendas: CPF/CNPJ, telefone e valor
+function setupSaleFormMasks() {
+    const cpfInput = document.getElementById('saleClientCPF');
+    const phoneInput = document.getElementById('saleClientPhone');
+    const priceInput = document.getElementById('salePrice');
+    if (cpfInput && !cpfInput.dataset.maskAttached) {
+        cpfInput.dataset.maskAttached = '1';
+        cpfInput.addEventListener('input', function() {
+            let v = this.value.replace(/\D/g, '');
+            if (v.length > 14) v = v.slice(0, 14);
+            if (v.length <= 11) {
+                this.value = v.replace(/(\d{3})(\d{3})(\d{3})(\d*)/, (_, a, b, c, d) => a + '.' + b + '.' + c + (d ? '-' + d : ''));
+            } else {
+                this.value = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d*)/, (_, a, b, c, d, e) => a + '.' + b + '.' + c + '/' + d + (e ? '-' + e : ''));
+            }
+        });
+    }
+    if (phoneInput && !phoneInput.dataset.maskAttached) {
+        phoneInput.dataset.maskAttached = '1';
+        phoneInput.addEventListener('input', function() {
+            let v = this.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.slice(0, 11);
+            this.value = v.replace(/^(\d{2})(\d)/g, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2');
+        });
+    }
+    if (priceInput && !priceInput.dataset.maskAttached) {
+        priceInput.dataset.maskAttached = '1';
+        priceInput.addEventListener('input', function() {
+            let v = this.value.replace(/\D/g, '');
+            if (v.length > 15) v = v.slice(0, 15);
+            if (v.length <= 2) {
+                this.value = v ? '0,' + v.padStart(2, '0') : '';
+                return;
+            }
+            const intPart = v.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            const decPart = v.slice(-2);
+            this.value = intPart + ',' + decPart;
+        });
+    }
 }
 
 function loadSalesPropertyOptions() {
@@ -162,8 +204,10 @@ async function handleSaleFormSubmission(e) {
         return;
     }
     
-    if (!clientCPF || !isValidCPF(clientCPF)) {
-        showMessage('CPF inválido. Verifique o número digitado (11 dígitos).', 'error');
+    const cpfClean = clientCPF.replace(/\D/g, '');
+    const validDoc = cpfClean.length === 11 ? (typeof isValidCPF === 'function' && isValidCPF(clientCPF)) : (cpfClean.length === 14 && typeof isValidCNPJ === 'function' && isValidCNPJ(clientCPF));
+    if (!clientCPF || !validDoc) {
+        showMessage('CPF/CNPJ inválido. CPF: 11 dígitos. CNPJ: 14 dígitos.', 'error');
         return;
     }
     
@@ -201,6 +245,9 @@ async function handleSaleFormSubmission(e) {
         return;
     }
     
+    const priceEl = document.getElementById('salePrice');
+    const priceRaw = (priceEl?.value || '').replace(/\./g, '').replace(',', '.');
+    const salePrice = parseFloat(priceRaw) || 0;
     const saleData = {
         propertyId: propertyId,
         propertyTitle: property?.title || 'Imóvel',
@@ -209,7 +256,7 @@ async function handleSaleFormSubmission(e) {
         clientCPF: clientCPF,
         clientEmail: document.getElementById('saleClientEmail')?.value || '',
         clientPhone: document.getElementById('saleClientPhone')?.value || '',
-        salePrice: document.getElementById('salePrice').value,
+        salePrice: salePrice,
         contractNumber: document.getElementById('saleContractNumber').value,
         contractPhotos: contractPhotos.length > 0 ? contractPhotos : undefined
     };

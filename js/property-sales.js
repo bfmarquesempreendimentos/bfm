@@ -8,8 +8,8 @@ let propertySales = JSON.parse(localStorage.getItem('propertySales') || '[]');
 async function addPropertySale(saleData) {
     if (!saleData) return null;
     const cpf = (saleData.clientCPF || '').toString().replace(/\D/g, '');
-    if (cpf.length !== 11) {
-        console.error('addPropertySale: CPF inválido', saleData.clientCPF);
+    if (cpf.length !== 11 && cpf.length !== 14) {
+        console.error('addPropertySale: CPF/CNPJ inválido (11 ou 14 dígitos)', saleData.clientCPF);
         return null;
     }
     const sale = {

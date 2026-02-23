@@ -492,6 +492,25 @@ function isValidCPF(cpf) {
     return check === parseInt(clean.charAt(10), 10);
 }
 
+// Validar CNPJ
+function isValidCNPJ(cnpj) {
+    let clean = cnpj.replace(/\D/g, '');
+    if (clean.length !== 14) return false;
+    if (/^(\d)\1+$/.test(clean)) return false;
+    const weights1 = [5,4,3,2,9,8,7,6,5,4,3,2];
+    const weights2 = [6,5,4,3,2,9,8,7,6,5,4,3,2];
+    let sum = 0;
+    for (let i = 0; i < 12; i++) sum += parseInt(clean.charAt(i), 10) * weights1[i];
+    let check = sum % 11;
+    check = check < 2 ? 0 : 11 - check;
+    if (check !== parseInt(clean.charAt(12), 10)) return false;
+    sum = 0;
+    for (let i = 0; i < 13; i++) sum += parseInt(clean.charAt(i), 10) * weights2[i];
+    check = sum % 11;
+    check = check < 2 ? 0 : 11 - check;
+    return check === parseInt(clean.charAt(13), 10);
+}
+
 // Initialize auth system
 document.addEventListener('DOMContentLoaded', function() {
     // Add password strength indicators after a short delay
