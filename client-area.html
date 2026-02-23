@@ -386,7 +386,7 @@
     </div>
 
     <!-- Repair Request Overlay (tela menor com layout da página principal) -->
-    <div id="repairRequestModal" class="repair-overlay">
+    <div id="repairRequestModal" class="repair-overlay" style="display:none">
         <div class="repair-overlay-backdrop" onclick="closeRepairRequestModal()"></div>
         <div class="repair-overlay-panel">
             <header class="repair-overlay-header">
@@ -407,7 +407,7 @@
             </section>
             <section class="repair-overlay-content">
                 <div class="repair-overlay-container">
-                    <form id="repairRequestForm" onsubmit="submitRepairRequest(event)" class="repair-overlay-form">
+                    <form id="repairRequestForm" onsubmit="submitRepairRequest(event); return false;" class="repair-overlay-form">
                         <div class="form-group">
                             <label>Selecione o Imóvel *</label>
                             <select id="repairProperty" required>
@@ -427,13 +427,15 @@
                         </div>
                         <div class="form-group">
                             <label>Foto e/ou Vídeo do Problema *</label>
-                            <div class="file-upload-area" id="fileUploadArea">
-                                <input type="file" id="repairFile" accept="image/*,video/mp4,video/webm" multiple onchange="handleFileSelect(event)">
-                                <div class="upload-placeholder">
-                                    <i class="fas fa-cloud-upload-alt"></i>
-                                    <p>Clique para selecionar arquivos</p>
-                                    <small><strong>Mínimo 3 fotos, máximo 5 arquivos</strong> (fotos + vídeo). Imagens até 10MB, vídeo até 50MB.</small>
-                                </div>
+                            <div class="file-upload-wrapper">
+                                <label class="file-upload-area" id="fileUploadArea" for="repairFile">
+                                    <input type="file" id="repairFile" accept="image/*,video/mp4,video/webm" multiple onchange="handleFileSelect(event)">
+                                    <span class="upload-placeholder">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        <p>Clique para selecionar arquivos</p>
+                                        <small><strong>Mínimo 3 fotos, máximo 5 arquivos</strong> (fotos + vídeo). Imagens até 10MB, vídeo até 50MB.</small>
+                                    </span>
+                                </label>
                                 <div id="repairFileHint" class="file-hint" style="margin-top:8px;font-size:0.85rem;color:#666;"></div>
                                 <div class="file-preview" id="filePreview" style="display:none;">
                                     <div id="filePreviewList" class="file-preview-grid"></div>

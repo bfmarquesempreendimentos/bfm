@@ -10,6 +10,7 @@ function showRepairRequestForm() {
         return;
     }
     modal.classList.add('repair-overlay-open');
+    modal.style.display = modal.classList.contains('repair-overlay') ? 'flex' : 'block';
     document.body.style.overflow = 'hidden';
     
     // Carregar imóveis do cliente
@@ -39,7 +40,10 @@ function closeRepairRequestModal() {
         return;
     }
     const modal = document.getElementById('repairRequestModal');
-    if (modal) { modal.classList.remove('repair-overlay-open'); }
+    if (modal) {
+        modal.classList.remove('repair-overlay-open');
+        modal.style.display = 'none';
+    }
     document.body.style.overflow = '';
     selectedFiles = [];
 }
