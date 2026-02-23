@@ -64,7 +64,7 @@ body {
     padding: 10px 0;
     padding-top: max(10px, env(safe-area-inset-top));
     border-bottom: 1px solid transparent;
-    overflow: visible;
+    overflow: hidden;
     opacity: 1;
     pointer-events: auto;
     transition: background 0.3s ease, border-color 0.3s ease;
@@ -82,35 +82,37 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
+    padding-left: 12px;
+    padding-right: 12px;
     position: relative;
     z-index: 1;
 }
 
 .header:not(.scrolled) .container {
-    gap: 16px;
+    gap: 10px;
 }
 
 .header:not(.scrolled) .nav-menu {
-    margin-left: 10px;
+    margin-left: 6px;
     justify-content: flex-start;
 }
 
 .nav-brand {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     min-width: 0;
 }
 
 .header:not(.scrolled) .nav-brand {
-    margin-left: -24px;
-    margin-right: 16px;
+    margin-left: -8px;
+    margin-right: 10px;
     flex: 0 0 auto;
 }
 
 .brand-logo {
-    height: 76px;
+    height: 68px;
     width: auto;
     object-fit: contain;
     background: transparent;
@@ -122,8 +124,8 @@ body {
 }
 
 .header:not(.scrolled) .brand-logo {
-    height: 115px;
-    max-width: 220px;
+    height: 90px;
+    max-width: 180px;
 }
 
 .nav-brand h1 {
@@ -143,21 +145,21 @@ body {
 .nav-menu ul {
     display: flex;
     list-style: none;
-    gap: 10px;
+    gap: 6px;
     flex-wrap: nowrap;
 }
 
 .header:not(.scrolled) .nav-menu ul {
-    gap: 18px;
+    gap: 10px;
     padding-left: 0;
 }
 
 .header:not(.scrolled) .nav-actions {
-    gap: 8px;
+    gap: 6px;
 }
 
 .header:not(.scrolled) .nav-menu a {
-    padding: 4px 8px;
+    padding: 4px 6px;
 }
 
 
@@ -169,7 +171,7 @@ body {
 
 .nav-actions {
     display: flex;
-    gap: 10px;
+    gap: 6px;
     align-items: center;
 }
 
@@ -178,10 +180,10 @@ body {
     color: #ffffff;
     font-weight: 900;
     transition: color 0.3s ease;
-    padding: 6px 10px;
+    padding: 5px 8px;
     border-radius: 999px;
-    letter-spacing: 0.3px;
-    font-size: 0.78rem;
+    letter-spacing: 0.2px;
+    font-size: 0.75rem;
     white-space: nowrap;
     -webkit-text-stroke: 0.35px #0b1f3a;
 }
@@ -197,11 +199,11 @@ body {
 }
 
 .header.scrolled .container {
-    gap: 20px;
+    gap: 12px;
 }
 
 .header.scrolled .nav-brand {
-    margin-right: 18px;
+    margin-right: 10px;
     flex: 0 0 auto;
 }
 
@@ -210,30 +212,30 @@ body {
 }
 
 .header.scrolled .nav-menu ul {
-    gap: 22px;
+    gap: 12px;
 }
 
 .header.scrolled .nav-menu a {
-    padding: 6px 10px;
-    font-size: 0.8rem;
+    padding: 5px 8px;
+    font-size: 0.78rem;
 }
 
 .header.scrolled .nav-actions {
-    gap: 10px;
+    gap: 6px;
 }
 
 .btn-login {
     background: #22c55e;
     color: white;
     border: none;
-    padding: 8px 14px;
+    padding: 6px 12px;
     border-radius: 18px;
     font-weight: 900;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     line-height: 1;
     white-space: nowrap;
     transition: all 0.3s ease;
@@ -1837,133 +1839,7 @@ body {
     touch-action: manipulation;
 }
 
-/* Header compacto em resoluções intermediárias (ex: 1024x768) - evita corte do botão Área do Corretor */
-@media (max-width: 1024px) {
-    .header {
-        background: #0b1f3a;
-    }
-
-    .nav-hamburger {
-        display: block;
-    }
-
-    .nav-wrapper {
-        display: none !important;
-    }
-
-    .nav-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.5);
-        z-index: 998;
-    }
-
-    body.mobile-menu-open .nav-overlay {
-        display: block;
-        z-index: 1099;
-    }
-
-    .mobile-nav-panel {
-        display: flex !important;
-        flex-direction: column;
-        position: fixed;
-        top: 0;
-        right: 0;
-        width: 300px;
-        max-width: 90vw;
-        height: 100vh;
-        height: 100dvh;
-        background: #0b1f3a;
-        padding: max(60px, env(safe-area-inset-top)) 24px 24px;
-        padding-bottom: max(24px, env(safe-area-inset-bottom));
-        transform: translateX(100%);
-        transition: transform 0.25s ease-out;
-        z-index: 1100;
-        box-shadow: -8px 0 30px rgba(0,0,0,0.3);
-        overflow-y: auto;
-    }
-
-    body.mobile-menu-open .mobile-nav-panel {
-        transform: translateX(0);
-    }
-
-    body.mobile-menu-open .nav-hamburger {
-        position: relative;
-        z-index: 1102;
-    }
-
-    body.mobile-menu-open {
-        overflow: hidden;
-    }
-
-    .mobile-nav-menu {
-        flex: 0 0 auto;
-        margin-bottom: 20px;
-    }
-
-    .mobile-nav-menu ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .mobile-nav-menu li {
-        border-bottom: 1px solid rgba(255,255,255,0.12);
-    }
-
-    .mobile-nav-menu a {
-        display: block;
-        padding: 16px 0;
-        font-size: 1.05rem;
-        color: #fff;
-        text-decoration: none;
-        font-weight: 600;
-    }
-
-    .mobile-nav-menu a:hover {
-        color: #f59e0b;
-    }
-
-    .mobile-nav-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        margin-top: auto;
-        padding-top: 24px;
-        border-top: 1px solid rgba(255,255,255,0.2);
-    }
-
-    .mobile-nav-actions .btn,
-    .mobile-nav-actions a.btn {
-        width: 100%;
-        justify-content: center;
-        padding: 14px 20px;
-        font-size: 1rem;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-height: 48px;
-        text-decoration: none;
-        border: none;
-        font-weight: 700;
-        cursor: pointer;
-    }
-
-    .mobile-nav-actions .btn-client-area,
-    .mobile-nav-actions a.btn-client-area {
-        background: #f59e0b;
-        color: #0b1f3a;
-    }
-
-    .mobile-nav-actions .btn-login {
-        background: #22c55e;
-        color: #fff;
-    }
-}
-
-/* Responsive Design - Mobile */
+/* Responsive Design */
 @media (max-width: 768px) {
     .header {
         background: #0b1f3a;
@@ -1974,24 +1850,14 @@ body {
         padding-top: max(8px, env(safe-area-inset-top));
     }
 
-    .hero h1 {
-        font-size: 2.5rem;
-    }
-    
-    .hero p {
-        font-size: 1.1rem;
-    }
-    
     .nav-hamburger {
         display: block;
     }
 
-    /* No mobile, esconder nav-wrapper do header (usamos mobile-nav-panel) */
     .nav-wrapper {
         display: none !important;
     }
 
-    /* Painel mobile - irmão do body, sem overflow do header */
     .mobile-nav-panel {
         display: flex !important;
         flex-direction: column;
@@ -2012,21 +1878,9 @@ body {
         overflow-y: auto;
     }
 
-    .mobile-nav-menu {
-        flex: 0 0 auto;
-        margin-bottom: 20px;
-    }
-
-    .mobile-nav-menu ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .mobile-nav-menu li {
-        border-bottom: 1px solid rgba(255,255,255,0.12);
-    }
-
+    .mobile-nav-menu { flex: 0 0 auto; margin-bottom: 20px; }
+    .mobile-nav-menu ul { list-style: none; padding: 0; margin: 0; }
+    .mobile-nav-menu li { border-bottom: 1px solid rgba(255,255,255,0.12); }
     .mobile-nav-menu a {
         display: block;
         padding: 16px 0;
@@ -2036,11 +1890,8 @@ body {
         font-weight: 600;
         -webkit-tap-highlight-color: transparent;
     }
-
     .mobile-nav-menu a:hover,
-    .mobile-nav-menu a:active {
-        color: #f59e0b;
-    }
+    .mobile-nav-menu a:active { color: #f59e0b; }
 
     .mobile-nav-actions {
         display: flex;
@@ -2050,7 +1901,6 @@ body {
         padding-top: 24px;
         border-top: 1px solid rgba(255,255,255,0.2);
     }
-
     .mobile-nav-actions .btn,
     .mobile-nav-actions a.btn {
         width: 100%;
@@ -2064,39 +1914,18 @@ body {
         display: flex;
         align-items: center;
         gap: 10px;
-        -webkit-tap-highlight-color: transparent;
         min-height: 48px;
         text-decoration: none;
     }
-
     .mobile-nav-actions .btn-client-area,
-    .mobile-nav-actions a.btn-client-area {
-        background: #f59e0b;
-        color: #fff !important;
-    }
+    .mobile-nav-actions a.btn-client-area { background: #f59e0b; color: #fff !important; }
+    .mobile-nav-actions .btn-login { background: #22c55e; color: #fff; }
 
-    .mobile-nav-actions .btn-login {
-        background: #22c55e;
-        color: #fff;
-    }
+    body.mobile-menu-open .mobile-nav-panel { transform: translateX(0); }
+    body.mobile-menu-open .nav-overlay { z-index: 1099; }
+    body.mobile-menu-open .nav-hamburger { position: relative; z-index: 1102; }
+    body.mobile-menu-open { overflow: hidden; }
 
-    body.mobile-menu-open .mobile-nav-panel {
-        transform: translateX(0);
-    }
-
-    body.mobile-menu-open .nav-overlay {
-        z-index: 1099;
-    }
-    
-    body.mobile-menu-open .nav-hamburger {
-        position: relative;
-        z-index: 1102;
-    }
-    
-    body.mobile-menu-open {
-        overflow: hidden;
-    }
-    
     .nav-overlay {
         position: fixed;
         inset: 0;
@@ -2105,11 +1934,15 @@ body {
         display: none;
         -webkit-tap-highlight-color: transparent;
         cursor: pointer;
-        touch-action: manipulation;
+    }
+    body.mobile-menu-open .nav-overlay { display: block; }
+
+    .hero h1 {
+        font-size: 2.5rem;
     }
     
-    body.mobile-menu-open .nav-overlay {
-        display: block;
+    .hero p {
+        font-size: 1.1rem;
     }
     
     .properties-grid {
@@ -3637,14 +3470,14 @@ html {
     background: #f59e0b;
     color: white;
     border: none;
-    padding: 8px 14px;
+    padding: 6px 12px;
     border-radius: 18px;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 900;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     line-height: 1;
     white-space: nowrap;
     transition: all 0.3s;
