@@ -1502,6 +1502,28 @@ body {
     text-decoration: underline;
 }
 
+.forgot-password {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 0.9rem;
+}
+
+.forgot-password a {
+    color: #7f8c8d;
+    text-decoration: none;
+}
+
+.forgot-password a:hover {
+    color: #3498db;
+    text-decoration: underline;
+}
+
+.form-hint {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+}
+
 .admin-link {
     text-align: center;
     margin-top: 16px;

@@ -182,6 +182,7 @@
                     <input type="password" id="password" name="password" required>
                 </div>
                 <button type="submit" class="btn btn-primary">Entrar</button>
+                <p class="forgot-password"><a href="#" onclick="showBrokerForgotPassword(); return false;">Esqueci minha senha</a></p>
                 <p class="register-link">
                     Não tem conta? <a href="#" onclick="showRegisterForm()">Cadastre-se aqui</a>
                 </p>
@@ -223,6 +224,19 @@
                 <button type="submit" class="btn btn-primary">Cadastrar</button>
                 <p class="register-link">
                     Já tem conta? <a href="#" onclick="showLoginForm()">Entre aqui</a>
+                </p>
+            </form>
+            
+            <form id="forgotPasswordForm" style="display: none;">
+                <h2>Redefinir Senha</h2>
+                <p class="form-hint">Digite o email cadastrado. Enviaremos um link para redefinir sua senha.</p>
+                <div class="form-group">
+                    <label for="forgotEmail">Email:</label>
+                    <input type="email" id="forgotEmail" name="email" required placeholder="Seu email cadastrado">
+                </div>
+                <button type="submit" class="btn btn-primary">Enviar link de recuperação</button>
+                <p class="register-link">
+                    <a href="#" onclick="showLoginForm(); return false;">← Voltar ao login</a>
                 </p>
             </form>
         </div>

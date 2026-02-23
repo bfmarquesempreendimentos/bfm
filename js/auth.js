@@ -303,19 +303,21 @@ async function handleRegister(e) {
 function showLoginForm() {
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
-    
-    loginForm.style.display = 'block';
-    registerForm.style.display = 'none';
+    const forgotForm = document.getElementById('forgotPasswordForm');
+    if (loginForm) loginForm.style.display = 'block';
+    if (registerForm) registerForm.style.display = 'none';
+    if (forgotForm) forgotForm.style.display = 'none';
 }
 
 // Show register form
 function showRegisterForm() {
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
-    
-    loginForm.style.display = 'none';
-    registerForm.style.display = 'block';
-    
+    const forgotForm = document.getElementById('forgotPasswordForm');
+    if (loginForm) loginForm.style.display = 'none';
+    if (registerForm) registerForm.style.display = 'block';
+    if (forgotForm) forgotForm.style.display = 'none';
+
     // Setup phone mask
     const phoneInput = document.getElementById('regPhone');
     if (phoneInput) {
@@ -496,17 +498,81 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(addPasswordStrengthIndicator, 100);
 });
 
-// Forgot password functionality
+// Forgot password - Área do Cliente (usa prompt simples)
 function showForgotPassword() {
     const email = prompt('Digite seu email para recuperação de senha:');
     if (email) {
         const broker = brokers.find(b => b.email === email);
         if (broker) {
-            // In a real application, send recovery email
             alert('Um link de recuperação foi enviado para seu email.');
         } else {
             alert('Email não encontrado em nossa base de dados.');
         }
+    }
+}
+
+// Esqueci minha senha - Área do Corretor (fluxo completo com email)
+function showBrokerForgotPassword() {
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const forgotForm = document.getElementById('forgotPasswordForm');
+    if (loginForm) loginForm.style.display = 'none';
+    if (registerForm) registerForm.style.display = 'none';
+    if (forgotForm) {
+        forgotForm.style.display = 'block';
+        forgotForm.reset();
+        const emailInput = document.getElementById('forgotEmail');
+        const loginEmail = document.getElementById('email');
+        if (emailInput && loginEmail && loginEmail.value) emailInput.value = loginEmail.value;
+        forgotForm.onsubmit = (e) => { e.preventDefault(); handleBrokerForgotPasswordSubmit(); return false; };
+    }
+}
+
+async function handleBrokerForgotPasswordSubmit() {
+    const emailInput = document.getElementById('forgotEmail');
+    const email = emailInput?.value?.trim();
+    if (!email) {
+        if (typeof showMessage === 'function') showMessage('Digite seu email.', 'error');
+        return;
+    }
+    const broker = brokers.find(b => String(b.email).toLowerCase() === String(email).toLowerCase());
+    if (!broker) {
+        if (typeof showMessage === 'function') showMessage('Email não encontrado em nossa base de dados.', 'error');
+        else alert('Email não encontrado em nossa base de dados.');
+        return;
+    }
+    const token = 'RESET' + Date.now() + Math.random().toString(36).substr(2, 16).toUpperCase();
+    let saved = false;
+    if (typeof savePasswordResetToken === 'function') {
+        try {
+            await savePasswordResetToken(String(broker.id), broker.email, token);
+            saved = true;
+        } catch (e) { console.error(e); }
+    }
+    const basePath = window.location.pathname.replace(/\/[^/]*$/, '') || '';
+    const baseUrl = window.location.origin + basePath;
+    const resetUrl = baseUrl + '/reset-password.html?token=' + encodeURIComponent(token);
+    const subject = 'Redefinir senha - B F Marques Empreendimentos';
+    const body = `
+        <h2>Olá, ${broker.name || broker.email}!</h2>
+        <p>Você solicitou a redefinição da sua senha na Área do Corretor.</p>
+        <p>Clique no link abaixo para criar uma nova senha (válido por 1 hora):</p>
+        <p><a href="${resetUrl}" style="display:inline-block;background:#3498db;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;margin:10px 0;">Redefinir minha senha</a></p>
+        <p>Ou copie e cole no navegador:</p>
+        <p style="word-break:break-all;color:#666;">${resetUrl}</p>
+        <p>Se você não solicitou esta alteração, ignore este email.</p>
+        <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
+    `;
+    if (typeof sendEmail === 'function') {
+        try {
+            await sendEmail(broker.email, subject, body);
+        } catch (e) { console.error('Erro ao enviar email:', e); }
+    }
+    showLoginForm();
+    if (typeof showMessage === 'function') {
+        showMessage('Se o email estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também a pasta de spam.', 'success');
+    } else {
+        alert('Se o email estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também a pasta de spam.');
     }
 }
 

@@ -48,6 +48,11 @@ service cloud.firestore {
       allow create, read: if true;
       allow update, delete: if true;
     }
+
+    match /passwordResetTokens/{docId} {
+      allow create, read: if true;
+      allow update: if true;
+    }
   }
 }
 

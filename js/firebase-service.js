@@ -209,6 +209,50 @@ async function deleteBrokerFromFirestore(brokerId) {
   }
 }
 
+const PASSWORD_RESET_COLLECTION = 'passwordResetTokens';
+
+async function savePasswordResetToken(brokerId, email, token) {
+  const db = getFirebaseDb();
+  if (!db) return null;
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora
+  const docRef = await db.collection(PASSWORD_RESET_COLLECTION).add({
+    brokerId,
+    email,
+    token,
+    expiresAt,
+    used: false,
+    createdAt: new Date().toISOString()
+  });
+  return docRef.id;
+}
+
+async function getPasswordResetToken(token) {
+  const db = getFirebaseDb();
+  if (!db) return null;
+  const snapshot = await db.collection(PASSWORD_RESET_COLLECTION)
+    .where('token', '==', token)
+    .where('used', '==', false)
+    .limit(1)
+    .get();
+  if (snapshot.empty) return null;
+  const doc = snapshot.docs[0];
+  const data = doc.data();
+  if (new Date(data.expiresAt) < new Date()) return null;
+  return { id: doc.id, ...data };
+}
+
+async function markPasswordResetTokenUsed(tokenDocId) {
+  const db = getFirebaseDb();
+  if (!db) return false;
+  try {
+    await db.collection(PASSWORD_RESET_COLLECTION).doc(tokenDocId).update({ used: true });
+    return true;
+  } catch (err) {
+    console.warn('markPasswordResetTokenUsed:', err);
+    return false;
+  }
+}
+
 if (typeof window !== 'undefined') {
   window.firebaseAvailable = firebaseAvailable;
   window.getFirebaseAuth = getFirebaseAuth;
@@ -226,6 +270,9 @@ if (typeof window !== 'undefined') {
   window.getBrokersFromFirestore = getBrokersFromFirestore;
   window.updateBrokerInFirestore = updateBrokerInFirestore;
   window.deleteBrokerFromFirestore = deleteBrokerFromFirestore;
+  window.savePasswordResetToken = savePasswordResetToken;
+  window.getPasswordResetToken = getPasswordResetToken;
+  window.markPasswordResetTokenUsed = markPasswordResetTokenUsed;
   window.registerBrokerAPI = registerBrokerAPI;
 }
 
