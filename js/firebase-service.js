@@ -87,6 +87,22 @@ async function getPropertySalesByEmail(email) {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
+/** Busca todas as vendas no Firestore - para sync entre dispositivos (Mac/Desktop) */
+async function getAllPropertySalesFromFirestore() {
+  const db = getFirebaseDb();
+  if (!db) return [];
+  const snapshot = await db.collection('propertySales').get();
+  return snapshot.docs.map(doc => {
+    const d = doc.data();
+    const id = (d && d.id) || doc.id;
+    return { id, ...d };
+  }).sort((a, b) => {
+    const ta = (a.createdAt || a.saleDate || 0);
+    const tb = (b.createdAt || b.saleDate || 0);
+    return new Date(tb) - new Date(ta);
+  });
+}
+
 async function saveClientProfile(uid, profile) {
   const db = getFirebaseDb();
   if (!db) return null;
@@ -286,7 +302,8 @@ if (typeof window !== 'undefined') {
   window.saveEmailAuditToFirestore = saveEmailAuditToFirestore;
   window.savePropertySaleToFirestore = savePropertySaleToFirestore;
   window.getPropertySalesByCPF = getPropertySalesByCPF;
-    window.getPropertySalesByEmail = getPropertySalesByEmail;
+  window.getPropertySalesByEmail = getPropertySalesByEmail;
+  window.getAllPropertySalesFromFirestore = getAllPropertySalesFromFirestore;
   window.saveClientProfile = saveClientProfile;
   window.getClientProfileByUID = getClientProfileByUID;
   window.queueEmailInFirestore = queueEmailInFirestore;

@@ -81,9 +81,38 @@ function setupAdminEventListeners() {
     document.getElementById('reservationSettingsForm')?.addEventListener('submit', saveReservationSettings);
 }
 
-// Load sales data
-function loadSalesData() {
+// Load sales data - busca do Firestore para sync entre dispositivos (Mac/Desktop)
+async function loadSalesData() {
     loadSalesPropertyOptions();
+    if (typeof getAllPropertySalesFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        try {
+            const firestoreSales = await getAllPropertySalesFromFirestore();
+            if (firestoreSales.length > 0) {
+                const local = JSON.parse(localStorage.getItem('propertySales') || '[]');
+                const merged = [];
+                const seen = new Set();
+                for (const s of firestoreSales) {
+                    const id = s.id;
+                    if (!seen.has(String(id))) {
+                        seen.add(String(id));
+                        merged.push(s);
+                    }
+                }
+                for (const s of local) {
+                    const id = s.id;
+                    if (!seen.has(String(id))) {
+                        seen.add(String(id));
+                        merged.push(s);
+                    }
+                }
+                merged.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+                localStorage.setItem('propertySales', JSON.stringify(merged));
+                if (typeof loadPropertySales === 'function') loadPropertySales();
+            }
+        } catch (e) {
+            console.warn('Erro ao carregar vendas do Firestore:', e);
+        }
+    }
     renderSalesTable();
 }
 
