@@ -187,11 +187,14 @@ async function approveReservationRequest(notificationId) {
         // Enviar email ao corretor (solicitante)
         const broker = typeof findBrokerById === 'function' ? findBrokerById(notification.data.brokerId) : null;
         if (broker && broker.email && typeof sendEmail === 'function') {
+            const siteUrl = (typeof CONFIG !== 'undefined' && CONFIG?.company?.siteUrl) || 'https://bfmarquesempreendimentos.github.io/bfm';
             const subject = 'Reserva Aprovada - B F Marques Empreendimentos';
             const body = `
                 <h2>Olá, ${broker.name}!</h2>
                 <p>Sua solicitação de reserva do imóvel <strong>"${property.title}"</strong> para o cliente ${reservation.clientInfo.name} foi <strong>aprovada</strong>.</p>
                 <p>A reserva está ativa. Atenção ao prazo de validade.</p>
+                <p><a href="${siteUrl}" style="display:inline-block;background:#22c55e;color:white;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;margin:10px 0;">Acessar o Site</a></p>
+                <p><small>Ou acesse: <a href="${siteUrl}">${siteUrl}</a></small></p>
                 <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
             `;
             try { await sendEmail(broker.email, subject, body); } catch (e) { console.error('Erro ao enviar email de aprovação:', e); }
@@ -336,11 +339,14 @@ async function approveDocumentAccess(notificationId) {
     const broker = typeof findBrokerById === 'function' ? findBrokerById(notification.data.brokerId) : null;
     const propertyTitle = notification.data.propertyTitle || 'imóvel';
     if (broker && broker.email && typeof sendEmail === 'function') {
+        const siteUrl = (typeof CONFIG !== 'undefined' && CONFIG?.company?.siteUrl) || 'https://bfmarquesempreendimentos.github.io/bfm';
         const subject = 'Acesso a Documentos Aprovado - B F Marques Empreendimentos';
         const body = `
             <h2>Olá, ${broker.name}!</h2>
             <p>Sua solicitação de acesso aos documentos do imóvel <strong>"${propertyTitle}"</strong> foi <strong>aprovada</strong>.</p>
             <p>O acesso está liberado por 7 dias.</p>
+            <p><a href="${siteUrl}" style="display:inline-block;background:#22c55e;color:white;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;margin:10px 0;">Acessar o Site</a></p>
+            <p><small>Ou acesse: <a href="${siteUrl}">${siteUrl}</a></small></p>
             <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
         `;
         try { await sendEmail(broker.email, subject, body); } catch (e) { console.error('Erro ao enviar email de aprovação:', e); }

@@ -11,7 +11,8 @@ const CONFIG = {
         address: 'Rio de Janeiro - RJ',
         foundedYear: 2010,
         experience: '15 anos de experiência',
-        website: 'www.bfmarquesempreendimentos.com.br'
+        website: 'www.bfmarquesempreendimentos.com.br',
+        siteUrl: 'https://bfmarquesempreendimentos.github.io/bfm'
     },
     
     // Configurações de Reserva
