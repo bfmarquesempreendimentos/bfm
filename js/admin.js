@@ -101,7 +101,43 @@ async function loadSalesData() {
     renderSalesTable();
 }
 
-// Máscaras do formulário de vendas: CPF/CNPJ, telefone e valor
+// Formata CPF progressivamente ao digitar: 000.000.000-00
+function formatCPFMask(v) {
+    if (!v) return '';
+    if (v.length <= 3) return v;
+    if (v.length <= 6) return v.slice(0, 3) + '.' + v.slice(3);
+    if (v.length <= 9) return v.slice(0, 3) + '.' + v.slice(3, 6) + '.' + v.slice(6);
+    return v.slice(0, 3) + '.' + v.slice(3, 6) + '.' + v.slice(6, 9) + '-' + v.slice(9, 11);
+}
+
+// Formata CNPJ progressivamente: 00.000.000/0001-00
+function formatCNPJMask(v) {
+    if (!v) return '';
+    if (v.length <= 2) return v;
+    if (v.length <= 5) return v.slice(0, 2) + '.' + v.slice(2);
+    if (v.length <= 8) return v.slice(0, 2) + '.' + v.slice(2, 5) + '.' + v.slice(5);
+    if (v.length <= 12) return v.slice(0, 2) + '.' + v.slice(2, 5) + '.' + v.slice(5, 8) + '/' + v.slice(8);
+    return v.slice(0, 2) + '.' + v.slice(2, 5) + '.' + v.slice(5, 8) + '/' + v.slice(8, 12) + '-' + v.slice(12, 14);
+}
+
+// Formata telefone progressivamente: (00) 00000-0000 ou (00) 0000-0000
+function formatPhoneMask(v) {
+    if (!v) return '';
+    if (v.length <= 2) return v.length === 2 ? '(' + v + ') ' : '(' + v;
+    if (v.length <= 7) return '(' + v.slice(0, 2) + ') ' + v.slice(2);
+    return '(' + v.slice(0, 2) + ') ' + v.slice(2, 7) + '-' + v.slice(7, 11);
+}
+
+// Formata valor em reais: 1.234.567,89 (últimos 2 dígitos = centavos)
+function formatPriceMask(v) {
+    if (!v) return '';
+    if (v.length === 1) return '0,0' + v;
+    if (v.length === 2) return '0,' + v;
+    const intPart = v.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return intPart + ',' + v.slice(-2);
+}
+
+// Máscaras do formulário de vendas: CPF/CNPJ, telefone e valor - formatação ao digitar
 function setupSaleFormMasks() {
     const cpfInput = document.getElementById('saleClientCPF');
     const phoneInput = document.getElementById('saleClientPhone');
@@ -111,11 +147,12 @@ function setupSaleFormMasks() {
         cpfInput.addEventListener('input', function() {
             let v = this.value.replace(/\D/g, '');
             if (v.length > 14) v = v.slice(0, 14);
-            if (v.length <= 11) {
-                this.value = v.replace(/(\d{3})(\d{3})(\d{3})(\d*)/, (_, a, b, c, d) => a + '.' + b + '.' + c + (d ? '-' + d : ''));
-            } else {
-                this.value = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d*)/, (_, a, b, c, d, e) => a + '.' + b + '.' + c + '/' + d + (e ? '-' + e : ''));
-            }
+            this.value = v.length <= 11 ? formatCPFMask(v) : formatCNPJMask(v);
+        });
+        cpfInput.addEventListener('paste', function(e) {
+            e.preventDefault();
+            let v = (e.clipboardData?.getData('text') || '').replace(/\D/g, '').slice(0, 14);
+            this.value = v.length <= 11 ? formatCPFMask(v) : formatCNPJMask(v);
         });
     }
     if (phoneInput && !phoneInput.dataset.maskAttached) {
@@ -123,7 +160,12 @@ function setupSaleFormMasks() {
         phoneInput.addEventListener('input', function() {
             let v = this.value.replace(/\D/g, '');
             if (v.length > 11) v = v.slice(0, 11);
-            this.value = v.replace(/^(\d{2})(\d)/g, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2');
+            this.value = formatPhoneMask(v);
+        });
+        phoneInput.addEventListener('paste', function(e) {
+            e.preventDefault();
+            let v = (e.clipboardData?.getData('text') || '').replace(/\D/g, '').slice(0, 11);
+            this.value = formatPhoneMask(v);
         });
     }
     if (priceInput && !priceInput.dataset.maskAttached) {
@@ -131,13 +173,12 @@ function setupSaleFormMasks() {
         priceInput.addEventListener('input', function() {
             let v = this.value.replace(/\D/g, '');
             if (v.length > 15) v = v.slice(0, 15);
-            if (v.length <= 2) {
-                this.value = v ? '0,' + v.padStart(2, '0') : '';
-                return;
-            }
-            const intPart = v.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-            const decPart = v.slice(-2);
-            this.value = intPart + ',' + decPart;
+            this.value = formatPriceMask(v);
+        });
+        priceInput.addEventListener('paste', function(e) {
+            e.preventDefault();
+            let v = (e.clipboardData?.getData('text') || '').replace(/\D/g, '').slice(0, 15);
+            this.value = formatPriceMask(v);
         });
     }
 }
@@ -238,6 +279,16 @@ async function handleSaleFormSubmission(e) {
     
     const property = Array.isArray(properties) && properties.find(p => p.id === propertyId || String(p.id) === String(propertyId));
     
+    // Re-fetch vendas do Firestore antes de checar duplicidade (evitar duplicatas entre dispositivos)
+    if (typeof getAllPropertySalesFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        try {
+            const freshSales = await getAllPropertySalesFromFirestore();
+            localStorage.setItem('propertySales', JSON.stringify(freshSales));
+            if (typeof loadPropertySales === 'function') loadPropertySales();
+        } catch (err) {
+            console.warn('Erro ao verificar duplicatas:', err);
+        }
+    }
     const sales = getSalesData();
     const dupProp = sales.some(s => String(s.propertyId) === String(propertyId));
     if (dupProp) {
@@ -246,8 +297,12 @@ async function handleSaleFormSubmission(e) {
     }
     
     const priceEl = document.getElementById('salePrice');
-    const priceRaw = (priceEl?.value || '').replace(/\./g, '').replace(',', '.');
-    const salePrice = parseFloat(priceRaw) || 0;
+    const priceStr = (priceEl?.value || '').trim().replace(/\./g, '').replace(',', '.');
+    const salePrice = parseFloat(priceStr) || 0;
+    if (salePrice <= 0) {
+        showMessage('Informe um valor de venda válido.', 'error');
+        return;
+    }
     const saleData = {
         propertyId: propertyId,
         propertyTitle: property?.title || 'Imóvel',
@@ -284,7 +339,7 @@ async function deleteSale(saleId) {
     if (!confirm('Deseja remover esta venda?')) return;
     
     const sales = getSalesData();
-    const updated = sales.filter(sale => sale.id !== saleId);
+    const updated = sales.filter(sale => String(sale.id) !== String(saleId));
     localStorage.setItem('propertySales', JSON.stringify(updated));
     if (typeof loadPropertySales === 'function') loadPropertySales();
     if (typeof deletePropertySaleFromFirestore === 'function') {

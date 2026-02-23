@@ -12,6 +12,13 @@ async function addPropertySale(saleData) {
         console.error('addPropertySale: CPF/CNPJ inválido (11 ou 14 dígitos)', saleData.clientCPF);
         return null;
     }
+    // Bloqueio duplicata: 1 imóvel = 1 venda
+    if (typeof loadPropertySales === 'function') loadPropertySales();
+    const dup = propertySales.some(s => String(s.propertyId) === String(saleData.propertyId));
+    if (dup) {
+        console.error('addPropertySale: Imóvel já possui venda registrada', saleData.propertyId);
+        return null;
+    }
     const sale = {
         id: Date.now(),
         propertyId: saleData.propertyId,
