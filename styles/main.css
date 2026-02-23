@@ -280,8 +280,8 @@ body {
 .lead-capture {
     position: relative;
     margin-top: -70px;
-    padding: 0 0 40px;
-    z-index: 3;
+    padding: 100px 0 40px; /* top: reserva espaço para header fixo ao scrollar - evita botões sob o header */
+    z-index: 2;
 }
 
 .lead-grid {
@@ -1876,6 +1876,15 @@ body {
 /* Mobile overlay - hidden on desktop */
 .nav-overlay {
     display: none;
+}
+
+/* Desktop: garante que overlay nunca bloqueie (evita sobreposição de cliques) */
+@media (min-width: 769px) {
+    .nav-overlay {
+        display: none !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
+    }
 }
 
 /* Mobile nav panel - fora do header, evita overflow */
