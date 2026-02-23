@@ -151,10 +151,10 @@ function handleSaleFormSubmission(e) {
         return;
     }
     
-    const property = properties.find(p => p.id === propertyId);
+    const property = properties.find(p => p.id === propertyId || p.id === parseInt(propertyId, 10));
     
     const saleData = {
-        propertyId,
+        propertyId: typeof propertyId === 'number' ? propertyId : parseInt(propertyId, 10),
         propertyTitle: property?.title || 'Imóvel',
         unitCode: document.getElementById('saleUnitCode').value || null,
         clientName: document.getElementById('saleClientName').value,
@@ -165,13 +165,17 @@ function handleSaleFormSubmission(e) {
         contractNumber: document.getElementById('saleContractNumber').value
     };
     
-    if (typeof addPropertySale === 'function') {
-        addPropertySale(saleData);
+    if (typeof addPropertySale !== 'function') {
+        showMessage('Erro ao registrar venda. Verifique o sistema.', 'error');
+        return;
+    }
+    const result = addPropertySale(saleData);
+    if (result) {
         showMessage('Venda registrada com sucesso!', 'success');
         e.target.reset();
         renderSalesTable();
     } else {
-        showMessage('Erro ao registrar venda. Verifique o sistema.', 'error');
+        showMessage('Erro ao registrar venda. Verifique os dados.', 'error');
     }
 }
 

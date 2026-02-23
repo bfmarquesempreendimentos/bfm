@@ -6,17 +6,23 @@ let propertySales = JSON.parse(localStorage.getItem('propertySales') || '[]');
 
 // Adicionar propriedade vendida
 function addPropertySale(saleData) {
+    if (!saleData) return null;
+    const cpf = (saleData.clientCPF || '').toString().replace(/\D/g, '');
+    if (cpf.length !== 11) {
+        console.error('addPropertySale: CPF inválido', saleData.clientCPF);
+        return null;
+    }
     const sale = {
         id: Date.now(),
         propertyId: saleData.propertyId,
-        propertyTitle: saleData.propertyTitle,
+        propertyTitle: saleData.propertyTitle || 'Imóvel',
         unitCode: saleData.unitCode || null,
-        clientCPF: saleData.clientCPF.replace(/\D/g, ''),
-        clientName: saleData.clientName,
-        clientEmail: saleData.clientEmail,
-        clientPhone: saleData.clientPhone,
+        clientCPF: cpf,
+        clientName: saleData.clientName || '',
+        clientEmail: saleData.clientEmail || '',
+        clientPhone: saleData.clientPhone || '',
         saleDate: saleData.saleDate || new Date().toISOString(),
-        salePrice: saleData.salePrice,
+        salePrice: saleData.salePrice || 0,
         contractNumber: saleData.contractNumber || null,
         status: 'vendido',
         createdAt: new Date().toISOString()
@@ -40,16 +46,18 @@ function getPropertyByCPF(cpf) {
     return propertySales.find(sale => sale.clientCPF === cleanCPF);
 }
 
-// Buscar todas as propriedades de um CPF
+// Buscar todas as propriedades de um CPF (sempre lê dados atualizados)
 function getPropertiesByCPF(cpf) {
-    const cleanCPF = cpf.replace(/\D/g, '');
-    return propertySales.filter(sale => sale.clientCPF === cleanCPF);
+    loadPropertySales();
+    const cleanCPF = (cpf || '').toString().replace(/\D/g, '');
+    return propertySales.filter(sale => String(sale.clientCPF || '').replace(/\D/g, '') === cleanCPF);
 }
 
-// Verificar se CPF tem propriedade vendida
+// Verificar se CPF tem propriedade vendida (sempre lê dados atualizados do localStorage)
 function hasPropertySale(cpf) {
-    const cleanCPF = cpf.replace(/\D/g, '');
-    return propertySales.some(sale => sale.clientCPF === cleanCPF);
+    loadPropertySales();
+    const cleanCPF = (cpf || '').toString().replace(/\D/g, '');
+    return propertySales.some(sale => String(sale.clientCPF || '').replace(/\D/g, '') === cleanCPF);
 }
 
 // Salvar vendas
@@ -96,5 +104,6 @@ if (typeof window !== 'undefined') {
     window.getPropertyByCPF = getPropertyByCPF;
     window.getPropertiesByCPF = getPropertiesByCPF;
     window.hasPropertySale = hasPropertySale;
+    window.loadPropertySales = loadPropertySales;
 }
 

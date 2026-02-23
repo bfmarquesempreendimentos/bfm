@@ -180,15 +180,17 @@ async function registerClient(event) {
         return;
     }
     
-    // Verificar se CPF tem propriedade vendida (Firebase ou local)
-    if (typeof getPropertySalesByEmail === 'function' && firebaseAvailable()) {
-        const sales = await getPropertySalesByEmail(email);
-        if (!sales || sales.length === 0) {
-            showMessage('CPF não encontrado em nossas vendas. Verifique o CPF ou entre em contato conosco.', 'error');
-            return;
-        }
-    } else if (typeof hasPropertySale !== 'undefined' && !hasPropertySale(cpf)) {
-        showMessage('CPF não encontrado em nossas vendas. Verifique o CPF ou entre em contato conosco.', 'error');
+    // Verificar se CPF/email tem propriedade vendida (sempre verifica localStorage como fallback)
+    let hasSale = false;
+    if (typeof hasPropertySale === 'function') {
+        hasSale = hasPropertySale(cpf);
+    }
+    if (!hasSale && typeof getPropertySalesByEmail === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        const salesByEmail = await getPropertySalesByEmail(email);
+        hasSale = salesByEmail && salesByEmail.length > 0;
+    }
+    if (!hasSale) {
+        showMessage('CPF/Email não encontrado em nossas vendas. Registre a venda no painel admin primeiro ou entre em contato conosco.', 'error');
         return;
     }
     

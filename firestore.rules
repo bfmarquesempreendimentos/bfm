@@ -14,8 +14,9 @@ service cloud.firestore {
     }
 
     match /propertySales/{docId} {
-      allow read: if isSignedIn() && resource.data.clientEmail == request.auth.token.email;
-      allow write: if isSignedIn(); // use regras mais restritas quando tiver admin auth
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isSignedIn();
     }
 
     match /repairRequests/{docId} {
