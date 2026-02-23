@@ -83,7 +83,7 @@ function setupAdminEventListeners() {
     document.getElementById('reservationSettingsForm')?.addEventListener('submit', saveReservationSettings);
 }
 
-// Load sales data - Firestore como fonte única para sync entre dispositivos (Mac/Desktop)
+// Load sales data - Firestore como fonte única (base de dados única para Mac/Desktop)
 async function loadSalesData() {
     loadSalesPropertyOptions();
     const photosGroup = document.getElementById('saleContractPhotosGroup');
@@ -91,25 +91,7 @@ async function loadSalesData() {
     if (typeof getAllPropertySalesFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
         try {
             const firestoreSales = await getAllPropertySalesFromFirestore();
-            const local = JSON.parse(localStorage.getItem('propertySales') || '[]');
-            const merged = [];
-            const seen = new Set();
-            for (const s of firestoreSales) {
-                const id = s.id;
-                if (!seen.has(String(id))) {
-                    seen.add(String(id));
-                    merged.push(s);
-                }
-            }
-            for (const s of local) {
-                const id = s.id;
-                if (!seen.has(String(id))) {
-                    seen.add(String(id));
-                    merged.push(s);
-                }
-            }
-            merged.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
-            localStorage.setItem('propertySales', JSON.stringify(merged));
+            localStorage.setItem('propertySales', JSON.stringify(firestoreSales));
             if (typeof loadPropertySales === 'function') loadPropertySales();
         } catch (e) {
             console.warn('Erro ao carregar vendas do Firestore:', e);
@@ -147,9 +129,12 @@ function renderSalesTable() {
         return;
     }
     
-    tbody.innerHTML = sales.map(sale => `
+    tbody.innerHTML = sales.map(sale => {
+        const id = sale.id;
+        const idAttr = typeof id === 'string' ? `'${id.replace(/'/g, "\\'")}'` : id;
+        return `
         <tr>
-            <td>${sale.id}</td>
+            <td>${id}</td>
             <td>${sale.propertyTitle || 'Imóvel'}</td>
             <td>${sale.clientName}</td>
             <td>${sale.clientCPF}</td>
@@ -157,12 +142,12 @@ function renderSalesTable() {
             <td>R$ ${Number(sale.salePrice || 0).toLocaleString('pt-BR')}</td>
             <td>${formatDate(sale.saleDate)}</td>
             <td>
-                <button class="btn-action btn-delete" onclick="deleteSale(${sale.id})">
+                <button class="btn-action btn-delete" onclick="deleteSale(${idAttr})">
                     <i class="fas fa-trash"></i>
                 </button>
             </td>
         </tr>
-    `).join('');
+    `}).join('');
 }
 
 async function handleSaleFormSubmission(e) {
@@ -209,14 +194,21 @@ async function handleSaleFormSubmission(e) {
     
     const property = Array.isArray(properties) && properties.find(p => p.id === propertyId || String(p.id) === String(propertyId));
     
+    const sales = getSalesData();
+    const dupProp = sales.some(s => String(s.propertyId) === String(propertyId));
+    if (dupProp) {
+        showMessage('Este imóvel já possui venda registrada. Um imóvel só pode ter uma venda.', 'error');
+        return;
+    }
+    
     const saleData = {
         propertyId: propertyId,
         propertyTitle: property?.title || 'Imóvel',
         unitCode: document.getElementById('saleUnitCode').value || null,
         clientName: document.getElementById('saleClientName').value,
         clientCPF: clientCPF,
-        clientEmail: document.getElementById('saleClientEmail').value,
-        clientPhone: document.getElementById('saleClientPhone').value,
+        clientEmail: document.getElementById('saleClientEmail')?.value || '',
+        clientPhone: document.getElementById('saleClientPhone')?.value || '',
         salePrice: document.getElementById('salePrice').value,
         contractNumber: document.getElementById('saleContractNumber').value,
         contractPhotos: contractPhotos.length > 0 ? contractPhotos : undefined

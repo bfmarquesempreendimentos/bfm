@@ -91,25 +91,30 @@ async function deletePropertySaleFromFirestore(saleId) {
   const db = getFirebaseDb();
   if (!db) return;
   try {
+    const docRef = db.collection('propertySales').doc(String(saleId));
+    const snap = await docRef.get();
+    if (snap.exists) {
+      await docRef.delete();
+      return;
+    }
     const idNum = Number(saleId);
-    const snapshot = await db.collection('propertySales').where('id', '==', idNum).get();
-    await Promise.all(snapshot.docs.map(doc => doc.ref.delete()));
-    const snapshotStr = await db.collection('propertySales').where('id', '==', String(saleId)).get();
-    await Promise.all(snapshotStr.docs.map(doc => doc.ref.delete()));
+    if (!isNaN(idNum)) {
+      const snapshot = await db.collection('propertySales').where('id', '==', idNum).get();
+      await Promise.all(snapshot.docs.map(doc => doc.ref.delete()));
+    }
   } catch (e) {
     console.warn('Erro ao remover venda do Firestore:', e);
   }
 }
 
-/** Busca todas as vendas no Firestore - para sync entre dispositivos (Mac/Desktop) */
+/** Busca todas as vendas no Firestore - id = doc.id para delete consistente */
 async function getAllPropertySalesFromFirestore() {
   const db = getFirebaseDb();
   if (!db) return [];
   const snapshot = await db.collection('propertySales').get();
   return snapshot.docs.map(doc => {
     const d = doc.data();
-    const id = (d && d.id) || doc.id;
-    return { id, ...d };
+    return { id: doc.id, ...d };
   }).sort((a, b) => {
     const ta = (a.createdAt || a.saleDate || 0);
     const tb = (b.createdAt || b.saleDate || 0);
