@@ -1839,6 +1839,40 @@ body {
     touch-action: manipulation;
 }
 
+/* Telas ≤1400px: margens menores, logo mais à esquerda e mais próxima do Imóveis */
+@media (max-width: 1400px) {
+    .container {
+        padding: 0 14px;
+    }
+
+    .header .container {
+        padding-left: 8px;
+        padding-right: 8px;
+        gap: 8px;
+    }
+
+    .header:not(.scrolled) .container {
+        gap: 6px;
+    }
+
+    .header:not(.scrolled) .nav-brand {
+        margin-left: -4px;
+        margin-right: 6px;
+    }
+
+    .header:not(.scrolled) .nav-menu {
+        margin-left: 2px;
+    }
+
+    .header.scrolled .nav-brand {
+        margin-right: 6px;
+    }
+
+    .header.scrolled .container {
+        gap: 8px;
+    }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .header {
