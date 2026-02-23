@@ -23,15 +23,28 @@ function showClientTab(tab) {
     document.querySelectorAll('.client-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     
+    const tabsEl = document.querySelector('.client-area-tabs');
+    const loginTab = document.getElementById('clientLoginTab');
+    const registerTab = document.getElementById('clientRegisterTab');
+    const forgotTab = document.getElementById('clientForgotTab');
+    
     if (tab === 'login') {
-        document.getElementById('clientLoginTab').classList.add('active');
-        document.querySelectorAll('.tab-btn')[0].classList.add('active');
-    } else {
-        document.getElementById('clientRegisterTab').classList.add('active');
-        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        if (loginTab) loginTab.classList.add('active');
+        if (tabsEl) tabsEl.style.display = '';
+        const btns = document.querySelectorAll('.client-area-tabs .tab-btn');
+        if (btns[0]) btns[0].classList.add('active');
+    } else if (tab === 'register') {
+        if (registerTab) registerTab.classList.add('active');
+        if (tabsEl) tabsEl.style.display = '';
+        const btns = document.querySelectorAll('.client-area-tabs .tab-btn');
+        if (btns[1]) btns[1].classList.add('active');
+    } else if (tab === 'forgot') {
+        if (forgotTab) forgotTab.classList.add('active');
+        if (tabsEl) tabsEl.style.display = 'none';
     }
     
-    document.getElementById('clientDashboard').style.display = 'none';
+    const dash = document.getElementById('clientDashboard');
+    if (dash) dash.style.display = 'none';
 }
 
 // Login do cliente
@@ -557,9 +570,77 @@ function formatPhone(phone) {
     return phone;
 }
 
-// Mostrar esqueci senha
-function showForgotPassword() {
-    showMessage('Entre em contato conosco para recuperar sua senha: (21) 99555-7010', 'info');
+// Esqueci minha senha - Área do Cliente (fluxo completo com email)
+function showClientForgotPassword() {
+    showClientTab('forgot');
+    const form = document.getElementById('clientForgotPasswordForm');
+    if (form) {
+        form.reset();
+        const emailInput = document.getElementById('clientForgotEmail');
+        const loginEmail = document.getElementById('clientLogin');
+        if (emailInput && loginEmail && loginEmail.value) emailInput.value = loginEmail.value;
+        form.onsubmit = (e) => { e.preventDefault(); handleClientForgotPasswordSubmit(); return false; };
+    }
+}
+
+async function handleClientForgotPasswordSubmit() {
+    const emailInput = document.getElementById('clientForgotEmail');
+    const email = emailInput?.value?.trim();
+    if (!email) {
+        showMessage('Digite seu email.', 'error');
+        return;
+    }
+    const basePath = window.location.pathname.replace(/\/[^/]*$/, '') || '';
+    const baseUrl = window.location.origin + basePath;
+    
+    // 1. Tentar Firebase Auth (clientes que se cadastraram com Firebase)
+    if (typeof getFirebaseAuth === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        try {
+            const auth = getFirebaseAuth();
+            await auth.sendPasswordResetEmail(email);
+            showClientTab('login');
+            showMessage('Se o email estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também a pasta de spam.', 'success');
+            return;
+        } catch (err) {
+            if (err.code !== 'auth/user-not-found') {
+                console.warn('Firebase sendPasswordResetEmail:', err);
+            }
+        }
+    }
+    
+    // 2. Clientes em localStorage
+    const clients = JSON.parse(localStorage.getItem('clients') || '[]');
+    const client = clients.find(c => String(c.email).toLowerCase() === String(email).toLowerCase());
+    if (!client) {
+        showMessage('Email não encontrado. Se você se cadastrou com Firebase, verifique sua caixa de entrada.', 'error');
+        return;
+    }
+    
+    const token = 'RESET' + Date.now() + Math.random().toString(36).substr(2, 16).toUpperCase();
+    if (typeof savePasswordResetToken === 'function') {
+        try {
+            await savePasswordResetToken(String(client.id), client.email, token, 'client');
+        } catch (e) { console.error(e); }
+    }
+    
+    const resetUrl = baseUrl + '/reset-password.html?token=' + encodeURIComponent(token) + '&type=client';
+    const subject = 'Redefinir senha - B F Marques Empreendimentos';
+    const body = `
+        <h2>Olá, ${client.name || client.email}!</h2>
+        <p>Você solicitou a redefinição da sua senha na Área do Cliente.</p>
+        <p>Clique no link abaixo para criar uma nova senha (válido por 1 hora):</p>
+        <p><a href="${resetUrl}" style="display:inline-block;background:#3498db;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;margin:10px 0;">Redefinir minha senha</a></p>
+        <p>Ou copie e cole no navegador:</p>
+        <p style="word-break:break-all;color:#666;">${resetUrl}</p>
+        <p>Se você não solicitou esta alteração, ignore este email.</p>
+        <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
+    `;
+    if (typeof sendEmail === 'function') {
+        try { await sendEmail(client.email, subject, body); } catch (e) { console.error('Erro ao enviar email:', e); }
+    }
+    
+    showClientTab('login');
+    showMessage('Se o email estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também a pasta de spam.', 'success');
 }
 
 // Inicializar máscaras

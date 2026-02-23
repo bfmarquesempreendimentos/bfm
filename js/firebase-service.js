@@ -211,18 +211,21 @@ async function deleteBrokerFromFirestore(brokerId) {
 
 const PASSWORD_RESET_COLLECTION = 'passwordResetTokens';
 
-async function savePasswordResetToken(brokerId, email, token) {
+async function savePasswordResetToken(brokerId, email, token, type = 'broker') {
   const db = getFirebaseDb();
   if (!db) return null;
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora
-  const docRef = await db.collection(PASSWORD_RESET_COLLECTION).add({
-    brokerId,
+  const data = {
+    type: type || 'broker',
     email,
     token,
     expiresAt,
     used: false,
     createdAt: new Date().toISOString()
-  });
+  };
+  if (type === 'broker') data.brokerId = brokerId;
+  else data.clientId = brokerId;
+  const docRef = await db.collection(PASSWORD_RESET_COLLECTION).add(data);
   return docRef.id;
 }
 
@@ -238,7 +241,7 @@ async function getPasswordResetToken(token) {
   const doc = snapshot.docs[0];
   const data = doc.data();
   if (new Date(data.expiresAt) < new Date()) return null;
-  return { id: doc.id, ...data };
+  return { id: doc.id, ...data, type: data.type || 'broker' };
 }
 
 async function markPasswordResetTokenUsed(tokenDocId) {
