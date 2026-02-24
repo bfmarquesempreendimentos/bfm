@@ -4,11 +4,30 @@ function getAdminRepairs() {
     return JSON.parse(localStorage.getItem('repairRequests') || '[]');
 }
 
-function loadAdminRepairs() {
+async function loadAdminRepairs() {
     const section = document.getElementById('repairs');
     if (!section) return;
     const tbody = document.getElementById('adminRepairsTableBody');
     if (!tbody) return;
+
+    // Sincronizar com Firestore ao carregar (mesclar por id)
+    if (typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        try {
+            const fromFirestore = await getAllRepairRequestsFromFirestore();
+            let local = getAdminRepairs();
+            const byId = new Map(local.map(r => [r.id, r]));
+            fromFirestore.forEach(f => {
+                const existing = byId.get(f.id);
+                if (!existing || (f.updatedAt && (!existing.updatedAt || new Date(f.updatedAt) > new Date(existing.updatedAt)))) {
+                    byId.set(f.id, f);
+                }
+            });
+            local = Array.from(byId.values());
+            localStorage.setItem('repairRequests', JSON.stringify(local));
+        } catch (e) {
+            console.warn('Erro ao sincronizar reparos do Firestore:', e);
+        }
+    }
 
     const repairs = getAdminRepairs();
     if (repairs.length === 0) {
@@ -127,6 +146,16 @@ async function saveRepairStatus() {
         showMessage('Status atualizado com sucesso.', 'success');
     }
 
+    // Sempre que houver resposta da empresa, avisar o cliente por email (exceto em_andamento/concluido que já têm email próprio)
+    const skipGenericEmail = newStatus === 'em_andamento' || newStatus === 'concluido';
+    if (!skipGenericEmail && typeof sendRepairNewResponseEmailToClient === 'function' && repair.clientEmail) {
+        try {
+            await sendRepairNewResponseEmailToClient(repair, newResponse.message);
+        } catch (e) {
+            console.error('Erro ao enviar notificação de nova mensagem ao cliente:', e);
+        }
+    }
+
     closeRepairEditModal();
     loadAdminRepairs();
 }
@@ -168,5 +197,36 @@ function viewAdminRepairDetails(repairId) {
 function showSectionRepairs(sectionId) {
     if (sectionId === 'repairs') {
         loadAdminRepairs();
+    }
+}
+
+// Abrir reparo via link (admin.html?openRepair=123) - carrega do Firestore se necessário
+async function openRepairFromLink(repairId) {
+    const id = Number(repairId);
+    if (!id) return;
+    let repairs = getAdminRepairs();
+    let repair = repairs.find(r => r.id === id);
+    if (!repair && typeof getRepairRequestFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        try {
+            const fromFirestore = await getRepairRequestFromFirestore(id);
+            if (fromFirestore) {
+                const { firestoreId, ...data } = fromFirestore;
+                repair = data;
+                repairs.push(repair);
+                localStorage.setItem('repairRequests', JSON.stringify(repairs));
+            }
+        } catch (e) {
+            console.warn('Erro ao carregar reparo do Firestore:', e);
+        }
+    }
+    if (repair) {
+        loadAdminRepairs();
+        openRepairEditModal(id);
+    }
+    // Limpar parâmetro da URL sem recarregar
+    if (window.history && window.history.replaceState) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('openRepair');
+        window.history.replaceState({}, '', url.toString());
     }
 }

@@ -4239,6 +4239,41 @@ html {
     border-left-color: #28a745;
 }
 
+.timeline-client .timeline-marker {
+    background: #6c757d;
+    box-shadow: 0 0 0 2px #6c757d;
+}
+
+.timeline-client .timeline-content {
+    border-left-color: #6c757d;
+}
+
+.repair-respond-area {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.repair-response-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.repair-response-form textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.repair-response-form button {
+    align-self: flex-start;
+}
+
 .timeline-content p {
     margin-bottom: 5px;
     color: #333;

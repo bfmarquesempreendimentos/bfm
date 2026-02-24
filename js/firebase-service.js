@@ -55,6 +55,22 @@ async function updateRepairRequestInFirestore(repairId, updates) {
   return snapshot.docs[0].id;
 }
 
+async function getRepairRequestFromFirestore(repairId) {
+  const db = getFirebaseDb();
+  if (!db) return null;
+  const snapshot = await db.collection('repairRequests').where('id', '==', Number(repairId)).limit(1).get();
+  if (snapshot.empty) return null;
+  const data = snapshot.docs[0].data();
+  return { firestoreId: snapshot.docs[0].id, ...data };
+}
+
+async function getAllRepairRequestsFromFirestore() {
+  const db = getFirebaseDb();
+  if (!db) return [];
+  const snapshot = await db.collection('repairRequests').get();
+  return snapshot.docs.map(doc => ({ firestoreId: doc.id, ...doc.data() }));
+}
+
 async function saveEmailAuditToFirestore(email) {
   const db = getFirebaseDb();
   if (!db) return null;
@@ -367,6 +383,8 @@ if (typeof window !== 'undefined') {
   window.uploadRepairAttachmentsToFirebase = uploadRepairAttachmentsToFirebase;
   window.saveRepairRequestToFirestore = saveRepairRequestToFirestore;
   window.updateRepairRequestInFirestore = updateRepairRequestInFirestore;
+  window.getRepairRequestFromFirestore = getRepairRequestFromFirestore;
+  window.getAllRepairRequestsFromFirestore = getAllRepairRequestsFromFirestore;
   window.saveEmailAuditToFirestore = saveEmailAuditToFirestore;
   window.savePropertySaleToFirestore = savePropertySaleToFirestore;
   window.getPropertySalesByCPF = getPropertySalesByCPF;

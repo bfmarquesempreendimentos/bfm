@@ -71,30 +71,35 @@ async function sendEmail(to, subject, body, attachments = []) {
     return email;
 }
 
+const SITE_URL = (typeof CONFIG !== 'undefined' && CONFIG?.company?.siteUrl) || 'https://bfmarquesempreendimentos.github.io/bfm';
+const ADMIN_REPAIR_LINK = (repairId) => `${SITE_URL}/admin.html?openRepair=${repairId}`;
+const CLIENT_AREA_LINK = `${SITE_URL}/client-area.html`;
+
 // Enviar email de notificação de solicitação de reparo
 async function sendRepairRequestEmail(repairRequest, client) {
     const subject = `Nova Solicitação de Reparo - Protocolo #${repairRequest.id}`;
-    
-    // Email para a empresa
+    const adminLink = ADMIN_REPAIR_LINK(repairRequest.id);
+
+    // Email para a empresa - com link para responder
     const companyBody = `
         <h2>Nova Solicitação de Reparo</h2>
         <p><strong>Protocolo:</strong> #${repairRequest.id}</p>
         <p><strong>Cliente:</strong> ${client.name}</p>
-        <p><strong>CPF:</strong> ${formatCPF(client.cpf)}</p>
+        <p><strong>CPF:</strong> ${formatCPF(client.cpf || '')}</p>
         <p><strong>Email:</strong> ${client.email}</p>
-        <p><strong>Telefone:</strong> ${formatPhone(client.phone)}</p>
+        <p><strong>Telefone:</strong> ${formatPhone(client.phone || '')}</p>
         <p><strong>Imóvel:</strong> ${repairRequest.propertyTitle || 'N/A'}</p>
         <p><strong>Localização do Problema:</strong> ${repairRequest.location}</p>
         <p><strong>Descrição:</strong> ${repairRequest.description}</p>
         <p><strong>Prioridade:</strong> ${repairRequest.priority}</p>
         <p><strong>Data:</strong> ${formatDate(repairRequest.createdAt)}</p>
         <p><strong>Status:</strong> ${repairRequest.status}</p>
-        ${repairRequest.file ? `<p><strong>Arquivo anexado:</strong> ${repairRequest.file.name}</p>` : ''}
+        ${repairRequest.attachments?.length ? `<p><strong>Anexos:</strong> ${repairRequest.attachments.length} arquivo(s)</p>` : ''}
         <hr>
-        <p>Acesse a área administrativa para gerenciar esta solicitação.</p>
+        <p><a href="${adminLink}" style="display:inline-block;background:#3498db;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;">Responder esta solicitação</a></p>
     `;
-    
-    // Email para o cliente
+
+    // Email para o cliente - SEM link, deve acessar site e fazer login
     const clientBody = `
         <h2>Solicitação de Reparo Recebida</h2>
         <p>Olá ${client.name},</p>
@@ -107,15 +112,52 @@ async function sendRepairRequestEmail(repairRequest, client) {
         <p><strong>Data:</strong> ${formatDate(repairRequest.createdAt)}</p>
         <hr>
         <p>Nossa equipe técnica irá analisar sua solicitação e entrar em contato em breve.</p>
-        <p>Você pode acompanhar o status da sua solicitação na Área do Cliente.</p>
+        <p><strong>Para acompanhar e responder às mensagens</strong>, acesse o site e faça login na Área do Cliente.</p>
         <p>Atenciosamente,<br>B F Marques Empreendimentos</p>
     `;
-    
-    // Enviar para empresa
+
     await sendEmail(COMPANY_EMAIL, subject, companyBody);
-    
-    // Enviar para cliente
     await sendEmail(client.email, subject, clientBody);
+}
+
+// Email ao cliente quando a empresa responde (nova mensagem no sistema)
+async function sendRepairNewResponseEmailToClient(repair, responseMessage) {
+    const clientEmail = repair.clientEmail || repair.client?.email;
+    const clientName = repair.clientName || repair.client?.name || 'Cliente';
+    if (!clientEmail) return;
+    const subject = `Nova mensagem - Solicitação de Reparo #${repair.id}`;
+    const body = `
+        <h2>Você tem uma nova mensagem</h2>
+        <p>Olá ${clientName},</p>
+        <p>Há uma nova mensagem na sua solicitação de reparo <strong>#${repair.id}</strong>.</p>
+        <p><strong>Imóvel:</strong> ${repair.propertyTitle || 'N/A'}</p>
+        <p><strong>Protocolo:</strong> #${repair.id}</p>
+        <hr>
+        <p>Para visualizar e responder, acesse o site e faça login na Área do Cliente.</p>
+        <p>Atenciosamente,<br>B F Marques Empreendimentos</p>
+    `;
+    await sendEmail(clientEmail, subject, body);
+}
+
+// Email à empresa quando o cliente responde - inclui o questionamento e link para responder
+async function sendRepairClientResponseEmailToCompany(repair, clientMessage) {
+    const subject = `Cliente respondeu - Reparo #${repair.id} - ${repair.clientName || 'Cliente'}`;
+    const adminLink = ADMIN_REPAIR_LINK(repair.id);
+    const body = `
+        <h2>Cliente respondeu na Solicitação de Reparo</h2>
+        <p><strong>Protocolo:</strong> #${repair.id}</p>
+        <p><strong>Cliente:</strong> ${repair.clientName || '-'} (${repair.clientEmail || '-'})</p>
+        <p><strong>Imóvel:</strong> ${repair.propertyTitle || 'N/A'}</p>
+        <p><strong>Localização:</strong> ${repair.location || '-'}</p>
+        <hr>
+        <p><strong>Pergunta/Mensagem do cliente:</strong></p>
+        <blockquote style="background:#f5f5f5;padding:15px;border-left:4px solid #3498db;margin:15px 0;">
+            ${clientMessage}
+        </blockquote>
+        <hr>
+        <p><a href="${adminLink}" style="display:inline-block;background:#3498db;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;">Responder no painel</a></p>
+    `;
+    await sendEmail(COMPANY_EMAIL, subject, body);
 }
 
 // Enviar email de contato
@@ -314,6 +356,8 @@ function formatDate(date) {
 if (typeof window !== 'undefined') {
     window.sendEmail = sendEmail;
     window.sendRepairRequestEmail = sendRepairRequestEmail;
+    window.sendRepairNewResponseEmailToClient = sendRepairNewResponseEmailToClient;
+    window.sendRepairClientResponseEmailToCompany = sendRepairClientResponseEmailToCompany;
     window.sendClientRegistrationConfirmationEmail = sendClientRegistrationConfirmationEmail;
     window.sendRepairVisitScheduledEmail = sendRepairVisitScheduledEmail;
     window.sendRepairCompletedEmail = sendRepairCompletedEmail;

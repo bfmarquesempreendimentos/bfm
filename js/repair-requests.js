@@ -367,15 +367,37 @@ async function submitRepairRequest(event) {
 }
 
 // Carregar solicitações de reparo do cliente
-function loadClientRepairs() {
+async function loadClientRepairs() {
     if (!currentClient) return;
     
     const repairsList = document.getElementById('clientRepairsList');
     if (!repairsList) return;
     
-    const repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
+    let repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
+    if (typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        try {
+            const fromFirestore = await getAllRepairRequestsFromFirestore();
+            const isClientRepair = (r) =>
+                r.clientId === currentClient.id || r.clientUid === currentClient.uid ||
+                (r.clientEmail && currentClient.email && r.clientEmail.toLowerCase() === currentClient.email.toLowerCase());
+            const clientFromFirestore = fromFirestore.filter(isClientRepair);
+            const byId = new Map(repairRequests.filter(isClientRepair).map(r => [r.id, r]));
+            clientFromFirestore.forEach(f => {
+                const existing = byId.get(f.id);
+                if (!existing || (f.updatedAt && (!existing.updatedAt || new Date(f.updatedAt) > new Date(existing.updatedAt)))) {
+                    byId.set(f.id, f);
+                }
+            });
+            const others = repairRequests.filter(r => !isClientRepair(r));
+            repairRequests = others.concat(Array.from(byId.values()));
+            localStorage.setItem('repairRequests', JSON.stringify(repairRequests));
+        } catch (e) {
+            console.warn('Erro ao sincronizar reparos:', e);
+        }
+    }
     const clientRepairs = repairRequests.filter(r =>
-        r.clientId === currentClient.id || r.clientUid === currentClient.uid
+        r.clientId === currentClient.id || r.clientUid === currentClient.uid ||
+        (r.clientEmail && currentClient.email && r.clientEmail.toLowerCase() === currentClient.email.toLowerCase())
     );
     
     if (clientRepairs.length === 0) {
@@ -479,6 +501,56 @@ function loadClientRepairs() {
     setTimeout(() => hydrateAttachmentPreviews(), 0);
 }
 
+// Enviar resposta do cliente na solicitação de reparo
+async function submitClientRepairResponse(event, repairId) {
+    event.preventDefault();
+    const textarea = document.getElementById('repairClientResponseMsg');
+    const message = (textarea?.value || '').trim();
+    if (!message || !currentClient) {
+        showMessage('Digite sua mensagem ou faça login.', 'error');
+        return;
+    }
+    const repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
+    const index = repairRequests.findIndex(r => r.id === repairId);
+    if (index === -1) {
+        showMessage('Solicitação não encontrada.', 'error');
+        return;
+    }
+    const repair = repairRequests[index];
+    const newResponse = {
+        type: 'client',
+        message: message,
+        date: new Date().toISOString(),
+        updatedBy: 'client'
+    };
+    if (!repair.responses) repair.responses = [];
+    repair.responses.push(newResponse);
+    repair.updatedAt = new Date().toISOString();
+    repairRequests[index] = repair;
+    localStorage.setItem('repairRequests', JSON.stringify(repairRequests));
+
+    if (typeof updateRepairRequestInFirestore === 'function') {
+        updateRepairRequestInFirestore(repairId, {
+            responses: repair.responses,
+            updatedAt: repair.updatedAt
+        }).catch(e => console.error('Erro ao atualizar Firestore:', e));
+    }
+
+    if (typeof sendRepairClientResponseEmailToCompany === 'function') {
+        sendRepairClientResponseEmailToCompany(repair, message).catch(e =>
+            console.error('Erro ao enviar email:', e)
+        );
+    }
+
+    showMessage('Mensagem enviada! A empresa será notificada por email.', 'success');
+    if (textarea) textarea.value = '';
+    const modal = document.querySelector('.modal');
+    if (modal) {
+        modal.remove();
+        viewRepairDetails(repairId);
+    }
+}
+
 // Ver detalhes da solicitação
 function viewRepairDetails(repairId) {
     const repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
@@ -536,17 +608,26 @@ function viewRepairDetails(repairId) {
                     <div class="responses-timeline">
                         ${repair.responses && repair.responses.length > 0 
                             ? repair.responses.map(response => `
-                                <div class="timeline-item ${response.type === 'automatic' ? 'timeline-automatic' : 'timeline-manual'}">
+                                <div class="timeline-item ${response.type === 'automatic' ? 'timeline-automatic' : response.type === 'client' ? 'timeline-client' : 'timeline-manual'}">
                                     <div class="timeline-marker"></div>
                                     <div class="timeline-content">
                                         <p>${response.message}</p>
-                                        <small>${formatDate(response.date)} ${response.type === 'automatic' ? '(Automático)' : '(Equipe)'}</small>
+                                        <small>${formatDate(response.date)} ${response.type === 'automatic' ? '(Automático)' : response.type === 'client' ? '(Você)' : '(Equipe)'}</small>
                                     </div>
                                 </div>
                             `).join('')
                             : '<p>Nenhuma resposta ainda.</p>'
                         }
                     </div>
+                </div>
+                <div class="detail-item repair-respond-area">
+                    <strong>Responder ou enviar dúvida:</strong>
+                    <form class="repair-response-form" onsubmit="submitClientRepairResponse(event, ${repair.id})">
+                        <textarea id="repairClientResponseMsg" rows="3" placeholder="Digite sua mensagem, dúvida ou resposta..." required></textarea>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-paper-plane"></i> Enviar
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

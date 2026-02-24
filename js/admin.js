@@ -40,8 +40,13 @@ function initializeAdminPanel() {
     loadDashboardData();
     setupAdminEventListeners();
     const hash = (window.location.hash || '').replace('#', '');
-    const section = hash && document.getElementById(hash) ? hash : 'dashboard';
+    const urlParams = new URLSearchParams(window.location.search);
+    const openRepairId = urlParams.get('openRepair');
+    const section = hash && document.getElementById(hash) ? hash : (openRepairId ? 'repairs' : 'dashboard');
     showSection(section);
+    if (openRepairId && typeof openRepairFromLink === 'function') {
+        setTimeout(() => openRepairFromLink(openRepairId), 300);
+    }
 }
 
 // Check admin authentication
