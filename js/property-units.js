@@ -135,7 +135,7 @@ const propertyUnits = {
     },
     
     5: { // Apolo
-        name: "APOLO - ITABORAÍ",
+        name: "APOLO - RUA MARIA JOSÉ ARRUDA BARBOSA LT 02 QD 18 - ITABORAÍ",
         units: [
             { code: "casa base", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "casa 05", price: 130000, bedrooms: 1, status: "reservado" },

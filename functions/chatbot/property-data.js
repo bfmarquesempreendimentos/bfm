@@ -78,7 +78,7 @@ const properties = [
     title: 'Residencial Apolo',
     type: 'casa',
     location: 'Apolo, Itaboraí - RJ',
-    address: 'Apolo, Itaboraí',
+    address: 'Rua Maria José Arruda Barbosa, LT 02 QD 18, Apolo, Itaboraí - RJ',
     price: 135000,
     bedrooms: '1 quarto',
     bathrooms: 1,
