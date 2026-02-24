@@ -135,6 +135,55 @@ async function getClientProfileByUID(uid) {
   return doc.exists ? doc.data() : null;
 }
 
+async function getClientProfileByEmail(email) {
+  const db = getFirebaseDb();
+  if (!db || !email) return null;
+  const snapshot = await db.collection('clients').where('email', '==', email.trim().toLowerCase()).limit(1).get();
+  if (snapshot.empty) return null;
+  return { uid: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+}
+
+/** Cria conta Firebase Auth para cliente e salva perfil. Faz signOut após. Retorna { uid, created, password } ou { created: false, error } */
+async function createClientAccountFromSale(clientEmail, clientName, clientCpf, clientPhone, generatedPassword, propertyFromSale) {
+  const auth = getFirebaseAuth();
+  if (!auth) return { created: false, error: 'Firebase indisponível' };
+  const email = (clientEmail || '').trim().toLowerCase();
+  if (!email) return { created: false, error: 'Email é obrigatório' };
+
+  try {
+    const userCredential = await auth.createUserWithEmailAndPassword(email, generatedPassword);
+    const uid = userCredential.user.uid;
+
+    const profile = {
+      uid,
+      name: clientName || 'Cliente',
+      cpf: (clientCpf || '').replace(/\D/g, ''),
+      email,
+      phone: (clientPhone || '').replace(/\D/g, ''),
+      address: '',
+      properties: propertyFromSale ? [propertyFromSale] : [],
+      documents: [],
+      history: [],
+      mustChangePassword: true,
+      createdAt: new Date().toISOString()
+    };
+
+    await saveClientProfile(uid, profile);
+    await auth.signOut();
+    return { uid, created: true, password: generatedPassword };
+  } catch (err) {
+    if (auth.currentUser) await auth.signOut();
+    return { created: false, error: err.code || err.message };
+  }
+}
+
+function generateRandomPassword(length = 10) {
+  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let pwd = '';
+  for (let i = 0; i < length; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+  return pwd;
+}
+
 async function queueEmailInFirestore(payload) {
   const db = getFirebaseDb();
   if (!db) return null;
@@ -326,6 +375,9 @@ if (typeof window !== 'undefined') {
   window.deletePropertySaleFromFirestore = deletePropertySaleFromFirestore;
   window.saveClientProfile = saveClientProfile;
   window.getClientProfileByUID = getClientProfileByUID;
+  window.getClientProfileByEmail = getClientProfileByEmail;
+  window.createClientAccountFromSale = createClientAccountFromSale;
+  window.generateRandomPassword = generateRandomPassword;
   window.queueEmailInFirestore = queueEmailInFirestore;
   window.saveBrokerToFirestore = saveBrokerToFirestore;
   window.getBrokersFromFirestore = getBrokersFromFirestore;

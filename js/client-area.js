@@ -20,26 +20,24 @@ function closeClientArea() {
 
 // Mostrar tab do cliente
 function showClientTab(tab) {
-    document.querySelectorAll('.client-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.client-tab').forEach(t => { t.classList.remove('active'); t.style.display = 'none'; });
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     
     const tabsEl = document.querySelector('.client-area-tabs');
     const loginTab = document.getElementById('clientLoginTab');
-    const registerTab = document.getElementById('clientRegisterTab');
     const forgotTab = document.getElementById('clientForgotTab');
+    const changePwdTab = document.getElementById('clientChangePasswordTab');
     
     if (tab === 'login') {
-        if (loginTab) loginTab.classList.add('active');
+        if (loginTab) { loginTab.classList.add('active'); loginTab.style.display = 'block'; }
         if (tabsEl) tabsEl.style.display = '';
         const btns = document.querySelectorAll('.client-area-tabs .tab-btn');
         if (btns[0]) btns[0].classList.add('active');
-    } else if (tab === 'register') {
-        if (registerTab) registerTab.classList.add('active');
-        if (tabsEl) tabsEl.style.display = '';
-        const btns = document.querySelectorAll('.client-area-tabs .tab-btn');
-        if (btns[1]) btns[1].classList.add('active');
     } else if (tab === 'forgot') {
-        if (forgotTab) forgotTab.classList.add('active');
+        if (forgotTab) { forgotTab.classList.add('active'); forgotTab.style.display = 'block'; }
+        if (tabsEl) tabsEl.style.display = 'none';
+    } else if (tab === 'changePassword' && changePwdTab) {
+        if (changePwdTab) { changePwdTab.classList.add('active'); changePwdTab.style.display = 'block'; }
         if (tabsEl) tabsEl.style.display = 'none';
     }
     
@@ -111,8 +109,13 @@ async function loginClient(event) {
             
             currentClient = { ...profile, uid };
             localStorage.setItem('currentClient', JSON.stringify(currentClient));
-            showMessage('Login realizado com sucesso!', 'success');
-            showClientDashboard();
+            if (profile.mustChangePassword) {
+                showMessage('Altere sua senha para continuar.', 'info');
+                showClientTab('changePassword');
+            } else {
+                showMessage('Login realizado com sucesso!', 'success');
+                showClientDashboard();
+            }
             return;
         } catch (error) {
             console.error('Erro no login Firebase:', error);
@@ -342,6 +345,46 @@ async function registerClient(event) {
     
     // Adicionar evento ao histórico
     addClientHistory('Cadastro realizado no sistema', 'system');
+}
+
+// Alterar senha no primeiro acesso
+async function handleFirstLoginChangePassword(event) {
+    event.preventDefault();
+    const newPwd = document.getElementById('newPassword')?.value || '';
+    const confirmPwd = document.getElementById('confirmNewPassword')?.value || '';
+    if (newPwd.length < 6) {
+        showMessage('A senha deve ter no mínimo 6 caracteres.', 'error');
+        return;
+    }
+    if (newPwd !== confirmPwd) {
+        showMessage('As senhas não coincidem.', 'error');
+        return;
+    }
+    if (!getFirebaseAuth || !firebaseAvailable()) {
+        showMessage('Erro ao alterar senha. Tente novamente.', 'error');
+        return;
+    }
+    const auth = getFirebaseAuth();
+    const user = auth.currentUser;
+    if (!user) {
+        showMessage('Sessão expirada. Faça login novamente.', 'error');
+        showClientTab('login');
+        return;
+    }
+    try {
+        await user.updatePassword(newPwd);
+        if (currentClient?.uid && typeof saveClientProfile === 'function') {
+            await saveClientProfile(currentClient.uid, { mustChangePassword: false });
+        }
+        currentClient = currentClient ? { ...currentClient, mustChangePassword: false } : currentClient;
+        localStorage.setItem('currentClient', JSON.stringify(currentClient));
+        showMessage('Senha alterada com sucesso!', 'success');
+        document.getElementById('clientChangePasswordForm')?.reset();
+        showClientDashboard();
+    } catch (err) {
+        console.error('Erro ao alterar senha:', err);
+        showMessage(err.message || 'Erro ao alterar senha. Tente novamente.', 'error');
+    }
 }
 
 // Mostrar dashboard do cliente

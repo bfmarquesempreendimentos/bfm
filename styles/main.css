@@ -2461,6 +2461,12 @@ body {
     border: 1px solid #ffeaa7;
 }
 
+.message.info {
+    background: #cce5ff;
+    color: #004085;
+    border: 1px solid #b8daff;
+}
+
 /* Units Table Styles */
 .units-section {
     background: #f8f9fa;

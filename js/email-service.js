@@ -248,6 +248,40 @@ async function sendNewsletter(clientEmail, clientName, newsletterContent) {
     await sendEmail(clientEmail, subject, body);
 }
 
+// Enviar credenciais do cliente ao registrar venda
+async function sendClientCredentialsEmail(clientName, clientEmail, generatedPassword, isNewAccount = true) {
+  const siteUrl = (typeof CONFIG !== 'undefined' && CONFIG?.company?.siteUrl) || 'https://bfmarquesempreendimentos.github.io/bfm';
+  const clientAreaUrl = `${siteUrl}/client-area.html`;
+
+  const subject = isNewAccount
+    ? 'Bem-vindo à Área do Cliente - B F Marques Empreendimentos'
+    : 'Sua compra foi registrada - B F Marques Empreendimentos';
+
+  const body = isNewAccount
+    ? `
+    <h2>Olá ${clientName},</h2>
+    <p>Sua compra foi registrada e você já está cadastrado em nossa Área do Cliente!</p>
+    <p><strong>Use as credenciais abaixo para acessar:</strong></p>
+    <p style="background:#f5f5f5;padding:15px;border-radius:8px;font-family:monospace;">
+      Email: ${clientEmail}<br>
+      Senha temporária: <strong>${generatedPassword}</strong>
+    </p>
+    <p><strong>⚠️ Importante:</strong> No primeiro acesso, você precisará alterar esta senha por uma de sua preferência.</p>
+    <p><a href="${clientAreaUrl}" style="display:inline-block;background:#3498db;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;margin-top:10px;">Acessar Área do Cliente</a></p>
+    <p>Atenciosamente,<br>B F Marques Empreendimentos</p>
+  `
+    : `
+    <h2>Olá ${clientName},</h2>
+    <p>Sua compra foi registrada com sucesso!</p>
+    <p>Você já possui cadastro em nossa Área do Cliente. Use o email <strong>${clientEmail}</strong> e sua senha para acessar.</p>
+    <p>Se você esqueceu sua senha, use a opção "Esqueci minha senha" na tela de login.</p>
+    <p><a href="${clientAreaUrl}" style="display:inline-block;background:#3498db;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;margin-top:10px;">Acessar Área do Cliente</a></p>
+    <p>Atenciosamente,<br>B F Marques Empreendimentos</p>
+  `;
+
+  await sendEmail(clientEmail, subject, body);
+}
+
 // Formatar CPF
 function formatCPF(cpf) {
     cpf = cpf.replace(/\D/g, '');
@@ -285,5 +319,6 @@ if (typeof window !== 'undefined') {
     window.sendRepairCompletedEmail = sendRepairCompletedEmail;
     window.sendContactEmail = sendContactEmail;
     window.sendNewsletter = sendNewsletter;
+    window.sendClientCredentialsEmail = sendClientCredentialsEmail;
 }
 

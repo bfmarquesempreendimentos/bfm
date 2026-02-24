@@ -309,7 +309,7 @@ async function handleSaleFormSubmission(e) {
         unitCode: document.getElementById('saleUnitCode').value || null,
         clientName: document.getElementById('saleClientName').value,
         clientCPF: clientCPF,
-        clientEmail: document.getElementById('saleClientEmail')?.value || '',
+        clientEmail: ((document.getElementById('saleClientEmail')?.value || '').trim()).toLowerCase(),
         clientPhone: document.getElementById('saleClientPhone')?.value || '',
         salePrice: salePrice,
         contractNumber: document.getElementById('saleContractNumber').value,
@@ -330,8 +330,42 @@ async function handleSaleFormSubmission(e) {
             if (fp) fp.value = '';
         }
         renderSalesTable();
+        await registerClientFromSaleAndSendCredentials(saleData, result);
     } else {
         showMessage('Erro ao registrar venda. Verifique os dados.', 'error');
+    }
+}
+
+async function registerClientFromSaleAndSendCredentials(saleData, saleResult) {
+    const email = (saleData.clientEmail || '').trim();
+    if (!email) return;
+    if (!firebaseAvailable() || typeof createClientAccountFromSale !== 'function') return;
+
+    const propertyFromSale = typeof saleToClientProperty === 'function' ? saleToClientProperty(saleResult) : {
+        id: saleResult.id,
+        propertyId: saleResult.propertyId,
+        title: saleResult.propertyTitle || 'Imóvel',
+        price: saleResult.salePrice,
+        purchaseDate: saleResult.saleDate,
+        status: 'vendido',
+        unitCode: saleResult.unitCode
+    };
+
+    const generatedPassword = typeof generateRandomPassword === 'function' ? generateRandomPassword() : Math.random().toString(36).slice(-10);
+    const clientName = saleData.clientName || 'Cliente';
+    const clientCpf = (saleData.clientCPF || '').replace(/\D/g, '');
+    const clientPhone = (saleData.clientPhone || '').replace(/\D/g, '');
+
+    const r = await createClientAccountFromSale(email, clientName, clientCpf, clientPhone, generatedPassword, propertyFromSale);
+
+    if (typeof sendClientCredentialsEmail !== 'function') return;
+
+    if (r.created) {
+        await sendClientCredentialsEmail(clientName, email, generatedPassword, true);
+        showMessage('Credenciais enviadas por email ao cliente. Ele precisará alterar a senha no primeiro acesso.', 'success');
+    } else if (r.error && r.error.includes('email-already-in-use')) {
+        await sendClientCredentialsEmail(clientName, email, null, false);
+        showMessage('Cliente já cadastrado. Email enviado informando que pode acessar com suas credenciais.', 'success');
     }
 }
 

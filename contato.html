@@ -303,8 +303,8 @@
             </div>
             <div class="client-area-tabs">
                 <button class="tab-btn active" onclick="showClientTab('login')">Entrar</button>
-                <button class="tab-btn" onclick="showClientTab('register')">Cadastrar</button>
             </div>
+            <p class="client-area-hint" style="margin-top:10px;color:#666;font-size:0.9rem;">Use o email e a senha enviados quando a venda foi registrada.</p>
             <div id="clientForgotTab" class="client-tab" style="display:none">
                 <form id="clientForgotPasswordForm">
                     <h3><i class="fas fa-key"></i> Redefinir Senha</h3>
@@ -323,8 +323,8 @@
                 <form id="clientLoginForm" onsubmit="loginClient(event)">
                     <div class="form-group">
                         <label>Email</label>
-                        <input type="email" id="clientLogin" required placeholder="Digite seu email cadastrado">
-                        <small style="display: block; margin-top: 5px; color: #666;">Use o mesmo email cadastrado no momento da compra</small>
+                        <input type="email" id="clientLogin" required placeholder="Email recebido no momento da compra">
+                        <small style="display: block; margin-top: 5px; color: #666;">Email e senha são enviados quando a venda é registrada</small>
                     </div>
                     <div class="form-group">
                         <label>Senha</label>
@@ -337,29 +337,19 @@
                     </p>
                 </form>
             </div>
-            <div id="clientRegisterTab" class="client-tab">
-                <form id="clientRegisterForm" onsubmit="registerClient(event)">
+            <div id="clientChangePasswordTab" class="client-tab" style="display:none">
+                <form id="clientChangePasswordForm" onsubmit="handleFirstLoginChangePassword(event)">
+                    <h3><i class="fas fa-key"></i> Alterar Senha (Primeiro Acesso)</h3>
+                    <p class="form-hint">Por questões de segurança, defina uma nova senha.</p>
                     <div class="form-group">
-                        <label>Nome Completo</label>
-                        <input type="text" id="clientName" required>
+                        <label>Nova Senha</label>
+                        <input type="password" id="newPassword" required minlength="6" placeholder="Mínimo 6 caracteres">
                     </div>
                     <div class="form-group">
-                        <label>CPF</label>
-                        <input type="text" id="clientCPF" required placeholder="000.000.000-00">
+                        <label>Confirmar Nova Senha</label>
+                        <input type="password" id="confirmNewPassword" required minlength="6" placeholder="Repita a senha">
                     </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="clientEmail" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Telefone</label>
-                        <input type="tel" id="clientPhone" required placeholder="(00) 00000-0000">
-                    </div>
-                    <div class="form-group">
-                        <label>Senha</label>
-                        <input type="password" id="clientRegPassword" required minlength="6">
-                    </div>
-                    <button type="submit" class="btn btn-primary">Cadastrar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Alterar e Continuar</button>
                 </form>
             </div>
             <div id="clientDashboard" class="client-dashboard" style="display:none;">
