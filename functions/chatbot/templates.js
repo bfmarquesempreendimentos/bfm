@@ -64,7 +64,7 @@ _Estou à disposição!_`;
 
 Ótima notícia! Sua documentação está pronta para análise.
 
-O José (nosso gerente) entrará em contato para combinar os próximos passos.
+O Davi (nosso gerente) entrará em contato para combinar os próximos passos.
 
 Se tiver qualquer dúvida, pode falar comigo! 😊`;
   },

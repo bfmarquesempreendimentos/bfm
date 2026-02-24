@@ -25,7 +25,7 @@ async function getOrCreateLead(phone, profileName) {
     interestedProperties: [],
     status: 'novo',
     source: 'whatsapp_chatbot',
-    assignedTo: 'José',
+    assignedTo: 'Davi',
     notes: '',
     scheduledVisit: null,
     createdAt: new Date().toISOString(),

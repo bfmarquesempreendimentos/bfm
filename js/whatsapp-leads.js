@@ -130,7 +130,7 @@ async function showLeadDetail(phone) {
       <div class="wa-lead-info-row"><strong>CPF:</strong> ${lead.cpf || '—'}</div>
       <div class="wa-lead-info-row"><strong>Email:</strong> ${lead.email || '—'}</div>
       <div class="wa-lead-info-row"><strong>Status:</strong> ${lead.status || 'novo'}</div>
-      <div class="wa-lead-info-row"><strong>Responsável:</strong> ${lead.assignedTo || 'José'}</div>
+      <div class="wa-lead-info-row"><strong>Responsável:</strong> ${lead.assignedTo || 'Davi'}</div>
       <div class="wa-lead-info-row"><strong>Data de criação:</strong> ${lead.createdAt ? new Date(lead.createdAt).toLocaleString('pt-BR') : '—'}</div>
     </div>
   `;

@@ -40,7 +40,7 @@ Este documento descreve textualmente o que seria visualizado em testes com naveg
 │  [Logo MCMV]  [Logo Caixa]                                 │
 │                                                            │
 │  Descubra quanto você pode ganhar                          │
-│  Veja sua faixa de renda e fale agora com o time do José  │
+│  Veja sua faixa de renda e fale agora com o time do Davi  │
 │                                                            │
 │  ┌──────────────────┐  ┌──────────────────┐              │
 │  │ Faixa 1          │  │ Faixa 2          │              │

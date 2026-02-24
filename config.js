@@ -5,9 +5,9 @@ const CONFIG = {
     company: {
         name: 'B F Marques Empreendimentos',
         email: 'bfmarquesempreendimentos@gmail.com',
-        phone: '(21) 99555-7010',
-        whatsappSales: '5521998035142', // Ex: 5521995557010
-        whatsappSalesManager: 'José',
+        phone: '(21) 99759-0814',
+        whatsappSales: '5521997590814',
+        whatsappSalesManager: 'Davi',
         address: 'Rio de Janeiro - RJ',
         foundedYear: 2010,
         experience: '15 anos de experiência',

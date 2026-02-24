@@ -138,7 +138,7 @@ B F Marques Sistema/
 ### **Dados Atualizados:**
 - **Nome**: B F Marques Empreendimentos
 - **Fundação**: 05/04/2010 (15 anos)
-- **Telefone**: (21) 99555-7010
+- **Telefone**: (21) 99759-0814
 - **Email**: bfmarquesempreendimentos@gmail.com
 - **Localização**: Rio de Janeiro - RJ
 

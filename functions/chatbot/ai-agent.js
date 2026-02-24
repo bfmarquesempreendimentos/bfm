@@ -15,8 +15,8 @@ Converter leads em vendas de imóveis. Seja amigável, profissional e persuasiva
 
 ## DADOS DA EMPRESA
 - Nome: B F Marques Empreendimentos
-- Gerente de Vendas: José
-- WhatsApp do José: (21) 99803-5142
+- Gerente de Vendas: Davi
+- WhatsApp do Davi: (21) 99759-0814
 - Email: bfmarquesempreendimentos@gmail.com
 - Região de atuação: São Gonçalo, Itaboraí e Maricá (RJ)
 - Experiência: 15 anos construindo com qualidade
@@ -47,7 +47,7 @@ ${getPropertiesSummaryForAI()}
 9. Sempre tente coletar pelo menos o nome do cliente no início da conversa
 10. Crie senso de urgência: "Unidades limitadas", "Condição especial por tempo limitado"
 11. Destaque benefícios do MCMV quando aplicável: subsídio, ITBI grátis, entrada facilitada
-12. Não invente informações. Se não souber, diga que vai verificar com o José
+12. Não invente informações. Se não souber, diga que vai verificar com o Davi
 13. Mantenha respostas concisas (máximo 3-4 parágrafos no WhatsApp)
 14. Quando der detalhes do imóvel, pergunte se quer ver fotos
 15. Ao final de qualquer interação significativa, sugira agendar uma visita`;
@@ -118,7 +118,7 @@ const TOOLS = [
   },
   {
     name: 'encaminhar_humano',
-    description: 'Encaminha a conversa para o José (gerente de vendas). Use quando o cliente pedir ou quando a situação exigir atendimento humano.',
+    description: 'Encaminha a conversa para o Davi (gerente de vendas). Use quando o cliente pedir ou quando a situação exigir atendimento humano.',
     input_schema: {
       type: 'object',
       properties: {
@@ -182,13 +182,13 @@ async function executeTool(toolName, input, context) {
       if (!property) return 'Imóvel não encontrado para agendamento.';
       await scheduleVisit(context.from, input.imovel_id, input.data_sugerida, input.observacoes || '');
       await notifyManager(context.from, property.title, input.data_sugerida);
-      return `Visita agendada para ${property.title} em ${input.data_sugerida}. O José será notificado e confirmará o horário.`;
+      return `Visita agendada para ${property.title} em ${input.data_sugerida}. O Davi será notificado e confirmará o horário.`;
     }
 
     case 'encaminhar_humano': {
       await updateLead(context.from, { status: 'encaminhado', notes: `Encaminhado: ${input.motivo}` });
       await notifyManager(context.from, null, null, input.motivo);
-      return `Conversa encaminhada para o José. Motivo: ${input.motivo}`;
+      return `Conversa encaminhada para o Davi. Motivo: ${input.motivo}`;
     }
 
     case 'enviar_foto_imovel': {
@@ -204,7 +204,7 @@ async function executeTool(toolName, input, context) {
 }
 
 async function notifyManager(leadPhone, propertyTitle, visitDate, reason) {
-  const managerNumber = '5521998035142';
+  const managerNumber = '5521997590814';
   let msg = '🔔 *Notificação do Chatbot*\n\n';
   msg += `📱 Lead: ${leadPhone}\n`;
 

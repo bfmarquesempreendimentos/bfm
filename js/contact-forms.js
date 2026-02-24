@@ -35,7 +35,7 @@ async function handleGeneralContact(event) {
             document.getElementById('generalContactForm').reset();
         } catch (error) {
             console.error('Erro ao enviar email:', error);
-            showMessage('Erro ao enviar mensagem. Tente novamente ou ligue para (21) 99555-7010', 'error');
+            showMessage('Erro ao enviar mensagem. Tente novamente ou ligue para (21) 99759-0814', 'error');
         }
     } else {
         showMessage('Mensagem enviada com sucesso! Entraremos em contato em breve.', 'success');
@@ -71,7 +71,7 @@ async function handleLandOffer(event) {
             document.getElementById('landOfferForm').reset();
         } catch (error) {
             console.error('Erro ao enviar email:', error);
-            showMessage('Erro ao enviar proposta. Tente novamente ou ligue para (21) 99555-7010', 'error');
+            showMessage('Erro ao enviar proposta. Tente novamente ou ligue para (21) 99759-0814', 'error');
         }
     } else {
         showMessage('Proposta de terreno enviada com sucesso! Nossa equipe entrará em contato em breve.', 'success');

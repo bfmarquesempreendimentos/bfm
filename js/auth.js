@@ -561,7 +561,7 @@ async function handleBrokerForgotPasswordSubmit() {
         return;
     }
     if (!broker.isActive) {
-        const tel = (typeof CONFIG !== 'undefined' && CONFIG?.company?.phone) ? CONFIG.company.phone : '(21) 99555-7010';
+        const tel = (typeof CONFIG !== 'undefined' && CONFIG?.company?.phone) ? CONFIG.company.phone : '(21) 99759-0814';
         const msg = `Seu cadastro ainda está aguardando aprovação. Não é possível solicitar redefinição de senha neste momento. Aguarde a aprovação do administrador ou entre em contato pelo telefone ${tel}.`;
         if (typeof showMessage === 'function') showMessage(msg, 'error');
         else alert(msg);
@@ -591,7 +591,7 @@ async function handleBrokerForgotPasswordSubmit() {
     `;
     const recipientEmail = (broker.email || '').trim();
     if (!recipientEmail) {
-        if (typeof showMessage === 'function') showMessage('Email do corretor não encontrado. Entre em contato pelo telefone (21) 99555-7010.', 'error');
+        if (typeof showMessage === 'function') showMessage('Email do corretor não encontrado. Entre em contato pelo telefone (21) 99759-0814.', 'error');
         return;
     }
     if (typeof sendEmail === 'function') {
