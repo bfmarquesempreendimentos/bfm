@@ -54,6 +54,23 @@ exports.chatbotWebhook = functions
   })
   .https.onRequest(async (req, res) => {
     if (req.method === 'GET') {
+      const q = req.query;
+      if (q.diagnostic === '1' || q.health === '1') {
+        const hasToken = !!process.env.WHATSAPP_TOKEN;
+        const hasVerify = !!process.env.WHATSAPP_VERIFY_TOKEN;
+        const hasPhoneId = !!process.env.WHATSAPP_PHONE_NUMBER_ID;
+        const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+        return res.status(200).json({
+          ok: hasToken && hasVerify && hasPhoneId && hasAnthropic,
+          secrets: {
+            WHATSAPP_TOKEN: hasToken ? 'definido' : 'FALTANDO',
+            WHATSAPP_VERIFY_TOKEN: hasVerify ? 'definido' : 'FALTANDO',
+            WHATSAPP_PHONE_NUMBER_ID: hasPhoneId ? 'definido' : 'FALTANDO (use o do payload ou Embedded Signup)',
+            ANTHROPIC_API_KEY: hasAnthropic ? 'definido' : 'FALTANDO',
+          },
+          webhook: 'Para Meta verificar, use hub.mode=subscribe e hub.verify_token igual ao secret',
+        });
+      }
       return verifyWebhook(req, res);
     }
     if (req.method === 'POST') {

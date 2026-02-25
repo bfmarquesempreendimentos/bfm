@@ -181,20 +181,20 @@ async function executeTool(toolName, input, context) {
       const property = getPropertyById(input.imovel_id);
       if (!property) return 'Imóvel não encontrado para agendamento.';
       await scheduleVisit(context.from, input.imovel_id, input.data_sugerida, input.observacoes || '');
-      await notifyManager(context.from, property.title, input.data_sugerida);
+      await notifyManager(context.from, property.title, input.data_sugerida, null, { phoneNumberId: context.phoneNumberId });
       return `Visita agendada para ${property.title} em ${input.data_sugerida}. O Davi será notificado e confirmará o horário.`;
     }
 
     case 'encaminhar_humano': {
       await updateLead(context.from, { status: 'encaminhado', notes: `Encaminhado: ${input.motivo}` });
-      await notifyManager(context.from, null, null, input.motivo);
+      await notifyManager(context.from, null, null, input.motivo, { phoneNumberId: context.phoneNumberId });
       return `Conversa encaminhada para o Davi. Motivo: ${input.motivo}`;
     }
 
     case 'enviar_foto_imovel': {
       const property = getPropertyById(input.imovel_id);
       if (!property || !property.image) return 'Foto não disponível.';
-      await sendImageMessage(context.from, property.image, `📸 ${property.title}`);
+      await sendImageMessage(context.from, property.image, `📸 ${property.title}`, { phoneNumberId: context.phoneNumberId });
       return `Foto de ${property.title} enviada.`;
     }
 
@@ -203,7 +203,7 @@ async function executeTool(toolName, input, context) {
   }
 }
 
-async function notifyManager(leadPhone, propertyTitle, visitDate, reason) {
+async function notifyManager(leadPhone, propertyTitle, visitDate, reason, waOptions = {}) {
   const managerNumber = '5521997590814';
   let msg = '🔔 *Notificação do Chatbot*\n\n';
   msg += `📱 Lead: ${leadPhone}\n`;
@@ -218,7 +218,7 @@ async function notifyManager(leadPhone, propertyTitle, visitDate, reason) {
   }
 
   try {
-    await sendTextMessage(managerNumber, msg);
+    await sendTextMessage(managerNumber, msg, waOptions);
   } catch (err) {
     console.error('Erro ao notificar gerente:', err.message);
   }
@@ -287,7 +287,7 @@ async function handleIncomingMessage(messageData) {
 
     const toolResults = [];
     for (const tool of toolBlocks) {
-      const result = await executeTool(tool.name, tool.input, { from });
+      const result = await executeTool(tool.name, tool.input, { from, phoneNumberId: messageData.phoneNumberId });
       toolResults.push({
         type: 'tool_result',
         tool_use_id: tool.id,
@@ -320,9 +320,10 @@ async function handleIncomingMessage(messageData) {
 
   await saveMessage(from, 'assistant', finalText);
 
+  const waOpts = { phoneNumberId: messageData.phoneNumberId };
   try {
-    await sendTextMessage(from, finalText);
-    console.log(`Mensagem enviada com sucesso para ${from}`);
+    await sendTextMessage(from, finalText, waOpts);
+    console.log(`Mensagem enviada com sucesso para ${from} (phoneNumberId=${waOpts.phoneNumberId || 'env'})`);
   } catch (sendErr) {
     console.error(`ERRO ao enviar mensagem para ${from}:`, JSON.stringify(sendErr.response?.data || sendErr.message));
     throw sendErr;

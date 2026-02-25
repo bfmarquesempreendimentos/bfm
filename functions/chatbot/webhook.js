@@ -57,10 +57,11 @@ async function processWebhook(req, res) {
     return res.sendStatus(200);
   }
 
+  const waOptions = { phoneNumberId: messagesToProcess[0]?.phoneNumberId };
   try {
     for (const msg of messagesToProcess) {
-      try { await markAsRead(msg.messageId); } catch (_) {}
-      console.log(`Processando mensagem de ${msg.from}: "${msg.text}"`);
+      try { await markAsRead(msg.messageId, waOptions); } catch (_) {}
+      console.log(`Processando mensagem de ${msg.from}: "${msg.text}" (phoneNumberId=${msg.phoneNumberId || 'env'})`);
       await handleIncomingMessage(msg);
     }
     return res.sendStatus(200);

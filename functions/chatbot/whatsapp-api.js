@@ -2,15 +2,17 @@ const axios = require('axios');
 
 const GRAPH_API = 'https://graph.facebook.com/v22.0';
 
-function getConfig() {
-  return {
-    token: process.env.WHATSAPP_TOKEN,
-    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
-  };
+function getConfig(overridePhoneNumberId) {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneNumberId = overridePhoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+  return { token, phoneNumberId };
 }
 
-async function sendTextMessage(to, text) {
-  const { token, phoneNumberId } = getConfig();
+async function sendTextMessage(to, text, options = {}) {
+  const { token, phoneNumberId } = getConfig(options.phoneNumberId);
+  if (!phoneNumberId) {
+    throw new Error('WHATSAPP_PHONE_NUMBER_ID não configurado. Defina o secret ou use número cadastrado no Meta.');
+  }
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
 
   console.log(`[WA-API] Enviando para ${to}, phoneNumberId=${phoneNumberId}, token=${token ? token.substring(0, 20) + '...' : 'VAZIO'}`);
@@ -29,8 +31,8 @@ async function sendTextMessage(to, text) {
   }
 }
 
-async function sendImageMessage(to, imageUrl, caption = '') {
-  const { token, phoneNumberId } = getConfig();
+async function sendImageMessage(to, imageUrl, caption = '', options = {}) {
+  const { token, phoneNumberId } = getConfig(options.phoneNumberId);
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
 
   await axios.post(url, {
@@ -43,8 +45,8 @@ async function sendImageMessage(to, imageUrl, caption = '') {
   });
 }
 
-async function sendInteractiveList(to, bodyText, buttonText, sections) {
-  const { token, phoneNumberId } = getConfig();
+async function sendInteractiveList(to, bodyText, buttonText, sections, options = {}) {
+  const { token, phoneNumberId } = getConfig(options.phoneNumberId);
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
 
   await axios.post(url, {
@@ -64,8 +66,8 @@ async function sendInteractiveList(to, bodyText, buttonText, sections) {
   });
 }
 
-async function sendInteractiveButtons(to, bodyText, buttons) {
-  const { token, phoneNumberId } = getConfig();
+async function sendInteractiveButtons(to, bodyText, buttons, options = {}) {
+  const { token, phoneNumberId } = getConfig(options.phoneNumberId);
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
 
   await axios.post(url, {
@@ -87,8 +89,8 @@ async function sendInteractiveButtons(to, bodyText, buttons) {
   });
 }
 
-async function markAsRead(messageId) {
-  const { token, phoneNumberId } = getConfig();
+async function markAsRead(messageId, options = {}) {
+  const { token, phoneNumberId } = getConfig(options.phoneNumberId);
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
 
   await axios.post(url, {

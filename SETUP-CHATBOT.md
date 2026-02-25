@@ -1,89 +1,117 @@
 # Setup do Chatbot WhatsApp - B F Marques
 
-## Passo 1: Conta Meta Business
+## ⚠️ IMPORTANTE: Erro "wabalD" ao adicionar número
 
-1. Acesse [business.facebook.com]()https://business.facebook.com
-2. Crie ou use sua conta Meta Business existente
-3. Verifique seu negócio (pode levar 1-3 dias)
+Se você recebe **"Unexpected null value for wabalD"** ao tentar cadastrar um número no Meta, isso é um bug conhecido do fluxo antigo. Use o **Embedded Signup** abaixo.
 
-## Passo 2: App no Meta for Developers
+---
+
+## Fluxo correto: Embedded Signup (recomendado)
+
+O Embedded Signup é o fluxo oficial que gera automaticamente o WABA e Phone Number ID, sem o erro wabalD.
+
+### Passo 1: Acessar Embedded Signup
 
 1. Acesse [developers.facebook.com](https://developers.facebook.com)
-2. Clique em "Meus Apps" → "Criar App"
-3. Escolha tipo "Business" → Preencha nome: "BF Marques Chatbot"
-4. No painel do app, clique em "Adicionar produto" → "WhatsApp" → "Configurar"
-5. Vincule sua conta Meta Business
+2. Abra o app **BF Marques Chatbot**
+3. Menu lateral: **WhatsApp** → **Configuração**
+4. Procure **"ES Integration"** ou **"Embedded Signup"**
+5. Ou acesse: App Dashboard → WhatsApp → Configuração da API
+6. Se houver opção **"Usar Embedded Signup"**, prefira essa
 
-## Passo 3: Número de teste (para desenvolvimento)
+### Passo 2: Completar o cadastro
 
-1. No painel WhatsApp do app, vá em "Primeiros passos"
-2. Você receberá um número de teste e um token temporário
-3. Adicione seu número pessoal como destinatário de teste
+1. Siga o wizard (negócio, perfil, número)
+2. O Meta vai gerar automaticamente: **WABA ID**, **Phone Number ID**, **Token**
+3. Copie o **Phone Number ID** (número longo, ex: 123456789012345)
+4. O número de teste do Meta já vem configurado – adicione seu celular como destinatário de teste
 
-## Passo 4: Token permanente (System User)
-
-1. Em business.facebook.com → Configurações → Usuários do sistema
-2. Crie um "Usuário do sistema" com permissão de admin
-3. Gere um token com as permissões:
-   - `whatsapp_business_management`
-   - `whatsapp_business_messaging`
-4. Copie e guarde o token gerado
-
-## Passo 5: Chave API Anthropic (Claude)
-
-1. Acesse [console.anthropic.com](https://console.anthropic.com)
-2. Crie uma conta e adicione créditos (mínimo US$5)
-3. Vá em "API Keys" → "Create Key"
-4. Copie a chave gerada (formato: `sk-ant-...`)
-
-## Passo 6: Firebase Blaze Plan
-
-1. Acesse [console.firebase.google.com](https://console.firebase.google.com)
-2. Selecione o projeto `site-interativo-b-f-marques`
-3. Vá em Configurações → Uso e faturamento → Mudar plano
-4. Selecione "Blaze (pague pelo uso)"
-5. Necessário para Functions fazerem chamadas HTTP externas
-
-## Passo 7: Configurar secrets no Firebase
-
-Execute no terminal:
+### Passo 3: Configurar secrets no Firebase
 
 ```bash
 cd functions
 
-# Token do WhatsApp Business API
 firebase functions:secrets:set WHATSAPP_TOKEN
-# Cole o token do passo 4
+# Cole o token do Embedded Signup
 
-# Verify Token (crie uma string aleatória)
 firebase functions:secrets:set WHATSAPP_VERIFY_TOKEN
-# Ex: bfmarques_chatbot_2024_xyz
+# Crie uma string (ex: bfmarques_chatbot_2024_xyz)
 
-# Phone Number ID (encontre no painel do app Meta)
 firebase functions:secrets:set WHATSAPP_PHONE_NUMBER_ID
-# Ex: 123456789012345
+# Cole o Phone Number ID do passo 2
 
-# Chave API Anthropic
 firebase functions:secrets:set ANTHROPIC_API_KEY
-# Cole a chave do passo 5
+# Sua chave da Anthropic (sk-ant-...)
 ```
+
+---
+
+## Fluxo alternativo (se Embedded Signup não estiver disponível)
+
+### Passo 1: Conta Meta Business
+
+1. [business.facebook.com](https://business.facebook.com)
+2. Verifique seu negócio (pode levar 1-3 dias)
+
+### Passo 2: App no Meta for Developers
+
+1. [developers.facebook.com](https://developers.facebook.com) → Meus Apps → BF Marques Chatbot
+2. WhatsApp → Configurar
+3. Vincule a conta Meta Business
+
+### Passo 3: Número de teste
+
+1. Em **Primeiros passos** ou **API Setup**, o Meta exibe um **número de teste**
+2. Copie o **Phone Number ID** (ao lado do número)
+3. Adicione seu celular como destinatário de teste
+4. **Não use** "Adicionar número" se aparecer o erro wabalD – use apenas o número de teste
+
+### Passo 4: Token permanente
+
+1. business.facebook.com → Configurações → Usuários do sistema
+2. Crie usuário do sistema com permissão admin
+3. Gere token com: `whatsapp_business_management`, `whatsapp_business_messaging`
+
+### Passo 5-7: Chave Anthropic, plano Blaze, secrets
+
+(Conforme seção anterior)
+
+---
 
 ## Passo 8: Configurar webhook no Meta
 
-1. Deploy das functions: `firebase deploy --only functions`
-2. Copie a URL do webhook: `https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/chatbotWebhook`
-3. No painel do app Meta → WhatsApp → Configuração
-4. Em "Webhook", clique "Editar"
-5. URL de callback: cole a URL acima
-6. Token de verificação: o mesmo valor que definiu em `WHATSAPP_VERIFY_TOKEN`
-7. Clique "Verificar e salvar"
-8. Inscreva-se no campo: `messages`
+1. Deploy: `firebase deploy --only functions`
+2. URL do webhook: `https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/chatbotWebhook`
+3. Meta → WhatsApp → Configuração → Webhook → Editar
+4. URL de callback: cole a URL acima
+5. Token de verificação: **igual** ao `WHATSAPP_VERIFY_TOKEN`
+6. Inscreva-se em: **messages**
+7. Clique em **Verificar e salvar**
 
-## Passo 9: Testar
+---
 
-1. Envie uma mensagem para o número de teste do WhatsApp
-2. O chatbot deve responder com a saudação inicial
-3. Verifique os logs: `firebase functions:log`
+## Diagnóstico (verificar se está tudo configurado)
+
+Após o deploy, acesse no navegador:
+
+```
+https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/chatbotWebhook?diagnostic=1
+```
+
+A resposta mostrará se os secrets estão definidos. Se **WHATSAPP_PHONE_NUMBER_ID** estiver "FALTANDO", o chatbot usa o `phone_number_id` do payload (número que recebeu a mensagem), mas o ideal é configurar o secret.
+
+---
+
+## Troubleshooting
+
+| Problema | Solução |
+|----------|---------|
+| Erro wabalD ao adicionar número | Use Embedded Signup ou apenas o número de teste do Meta |
+| Webhook não verifica | Confirme que `hub.verify_token` é igual ao secret WHATSAPP_VERIFY_TOKEN |
+| Bot não responde | Verifique os logs: `firebase functions:log` e a URL `?diagnostic=1` |
+| Número de teste não funciona | Confirme que seu celular está como destinatário de teste no painel Meta |
+
+---
 
 ## Custos estimados
 

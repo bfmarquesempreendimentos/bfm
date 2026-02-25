@@ -435,20 +435,74 @@ function loadProperties() {
 }
 
 function startHeroSlideshow(list) {
-    const hero = document.querySelector('.hero');
-    if (!hero) return;
-    const images = (list || [])
-        .map(item => Array.isArray(item.images) ? item.images[0] : null)
-        .filter(Boolean);
+    const container = document.getElementById('heroSlideshow');
+    const dotsContainer = document.getElementById('heroDots');
+    if (!container) return;
     
-    if (images.length === 0) return;
+    const images = [];
+    (list || []).forEach(item => {
+        if (Array.isArray(item.images)) {
+            item.images.slice(0, 2).forEach(img => images.push(img));
+        }
+    });
+    if (images.length > 12) images.length = 12;
+    if (images.length === 0) {
+        images.push('assets/images/hero/hero-house.jpg.jpeg');
+    }
+    
+    container.innerHTML = '';
+    images.forEach((src, i) => {
+        const slide = document.createElement('div');
+        slide.className = 'hero-slide' + (i === 0 ? ' active' : '');
+        slide.setAttribute('data-index', i);
+        slide.innerHTML = `<img src="${src}" alt="Empreendimento ${i + 1}" loading="${i < 2 ? 'eager' : 'lazy'}">`;
+        container.appendChild(slide);
+    });
+    
+    if (dotsContainer && images.length > 1) {
+        dotsContainer.innerHTML = '';
+        images.forEach((_, i) => {
+            const dot = document.createElement('button');
+            dot.type = 'button';
+            dot.className = 'hero-dot' + (i === 0 ? ' active' : '');
+            dot.setAttribute('aria-label', `Foto ${i + 1} de ${images.length}`);
+            dot.onclick = () => goToSlide(i);
+            dotsContainer.appendChild(dot);
+        });
+    }
     
     let index = 0;
-    hero.style.backgroundImage = `url('${images[index]}')`;
+    let touchStartX = 0;
+    let touchEndX = 0;
     
+    function goToSlide(i) {
+        index = ((i % images.length) + images.length) % images.length;
+        container.querySelectorAll('.hero-slide').forEach((s, j) => s.classList.toggle('active', j === index));
+        dotsContainer?.querySelectorAll('.hero-dot').forEach((d, j) => d.classList.toggle('active', j === index));
+    }
+    
+    container.addEventListener('touchstart', e => { touchStartX = e.changedTouches?.[0]?.screenX ?? 0; }, { passive: true });
+    container.addEventListener('touchend', e => {
+        touchEndX = e.changedTouches?.[0]?.screenX ?? 0;
+        const diff = touchStartX - touchEndX;
+        if (Math.abs(diff) > 50) goToSlide(index + (diff > 0 ? 1 : -1));
+    }, { passive: true });
+
+    function onKeyDown(e) {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+        e.preventDefault();
+        if (e.key === 'ArrowLeft') goToSlide(index - 1);
+        else goToSlide(index + 1);
+    }
+    document.addEventListener('keydown', onKeyDown);
+    window._heroSlideshowCleanup = () => document.removeEventListener('keydown', onKeyDown);
+
+    window.goToSlide = goToSlide;
+
     setInterval(() => {
-        index = (index + 1) % images.length;
-        hero.style.backgroundImage = `url('${images[index]}')`;
+        goToSlide(index + 1);
     }, 6000);
 }
 
