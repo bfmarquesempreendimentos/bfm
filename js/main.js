@@ -801,13 +801,16 @@ function showPropertyDetails(propertyId) {
     }, 900);
     
     modal.style.display = 'block';
-    
+
     // Add smooth scroll behavior and scroll to top
     const modalContent = modal.querySelector('.modal-content');
     modalContent.scrollTop = 0;
-    
+
     // Add scroll indicator
     addScrollIndicator(modalContent);
+
+    // Setas do teclado e swipe na galeria (antes de abrir lightbox)
+    setTimeout(setupGalleryNavigation, 150);
 }
 
 function handleRestrictedAction(action, propertyId) {
@@ -1041,7 +1044,47 @@ function renderGalleryThumbs() {
 
 // Close property modal
 function closePropertyModal() {
-    document.getElementById('propertyModal').style.display = 'none';
+    removeGalleryNavigation();
+    const el = document.getElementById('propertyModal');
+    if (el) el.style.display = 'none';
+}
+
+// Galeria: navegação por setas (desktop) e swipe (mobile)
+let galleryKeyHandler = null;
+
+function setupGalleryNavigation() {
+    removeGalleryNavigation();
+    const galleryMain = document.getElementById('galleryMain');
+    if (!galleryMain) return;
+
+    galleryKeyHandler = function(e) {
+        if (document.getElementById('imageLightbox')) return;
+        const gm = document.getElementById('galleryMain');
+        if (!gm || !currentGalleryMedia?.length) return;
+        if (e.key === 'ArrowLeft') { e.preventDefault(); changeGalleryByOffset(-1); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); changeGalleryByOffset(1); }
+    };
+    document.addEventListener('keydown', galleryKeyHandler, true);
+
+    let touchStartX = 0;
+    galleryMain.style.touchAction = 'pan-y';
+    galleryMain.addEventListener('touchstart', e => {
+        touchStartX = e.touches?.[0]?.clientX ?? e.changedTouches?.[0]?.clientX ?? 0;
+    }, { passive: true });
+    galleryMain.addEventListener('touchend', e => {
+        const t = e.changedTouches?.[0];
+        if (!t) return;
+        const touchEndX = t.clientX;
+        if (touchStartX - touchEndX > 50) changeGalleryByOffset(1);
+        else if (touchEndX - touchStartX > 50) changeGalleryByOffset(-1);
+    }, { passive: true });
+}
+
+function removeGalleryNavigation() {
+    if (galleryKeyHandler) {
+        document.removeEventListener('keydown', galleryKeyHandler, true);
+        galleryKeyHandler = null;
+    }
 }
 
 // Handle contact form submission (mantido para compatibilidade, mas agora usa contact-forms.js)
@@ -1181,15 +1224,17 @@ function addScrollIndicator(container) {
 function enhanceImageGallery() {
     const galleryMain = document.getElementById('galleryMain');
     if (!galleryMain) return;
-    
-    // Add zoom functionality
+
     galleryMain.style.cursor = 'zoom-in';
-    
-    galleryMain.addEventListener('click', function() {
+
+    if (galleryMain.dataset.clickEnhanced) return;
+    galleryMain.dataset.clickEnhanced = '1';
+    galleryMain.addEventListener('click', function(e) {
+        if (e.target.closest('.gallery-nav')) return;
         const img = this.querySelector('img');
-        if (img) {
-            showImageLightbox(img.src, img.alt);
-        }
+        const video = this.querySelector('video');
+        if (img) showImageLightbox(img.src, img.alt);
+        else if (video) showImageLightbox(video.src, 'Vídeo');
     });
 }
 
@@ -1209,17 +1254,18 @@ function showImageLightbox(src, alt) {
     const lightbox = document.createElement('div');
     lightbox.className = 'image-lightbox';
     lightbox.id = 'imageLightbox';
+    lightbox.setAttribute('tabindex', '-1');
     lightbox.innerHTML = `
         <div class="lightbox-content">
             <span class="lightbox-close" onclick="closeLightbox()" aria-label="Fechar">&times;</span>
             <button class="lightbox-nav lightbox-prev" onclick="lightboxNav(-1)" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
             <button class="lightbox-nav lightbox-next" onclick="lightboxNav(1)" aria-label="Próxima"><i class="fas fa-chevron-right"></i></button>
             <div class="lightbox-media" id="lightboxMedia"></div>
-            <div class="lightbox-caption" id="lightboxCaption">${alt}</div>
         </div>
     `;
 
     document.body.appendChild(lightbox);
+    lightbox.focus();
     renderLightboxMedia();
 
     lightbox.addEventListener('click', function(e) {
@@ -1231,7 +1277,7 @@ function showImageLightbox(src, alt) {
         else if (e.key === 'ArrowLeft') { e.preventDefault(); lightboxNav(-1); }
         else if (e.key === 'ArrowRight') { e.preventDefault(); lightboxNav(1); }
     };
-    document.addEventListener('keydown', lightboxKeyHandler);
+    document.addEventListener('keydown', lightboxKeyHandler, true);
 
     let touchStartX = 0;
     const content = lightbox.querySelector('.lightbox-content');
@@ -1251,24 +1297,19 @@ function lightboxNav(delta) {
 
 function renderLightboxMedia() {
     const container = document.getElementById('lightboxMedia');
-    const caption = document.getElementById('lightboxCaption');
     if (!container || lightboxMedia.length === 0) return;
     const item = lightboxMedia[lightboxIndex];
-    const baseTitle = document.querySelector('.property-detail-title')?.textContent || '';
-    const suffix = lightboxMedia.length > 1 ? ` - Foto ${lightboxIndex + 1} de ${lightboxMedia.length}` : '';
     if (item.type === 'video') {
         container.innerHTML = `<video src="${item.src}" controls autoplay playsinline preload="metadata"></video>`;
-        caption.textContent = baseTitle ? baseTitle + ' - Vídeo' + (lightboxMedia.length > 1 ? ` ${lightboxIndex + 1}/${lightboxMedia.length}` : '') : 'Vídeo';
     } else {
         container.innerHTML = `<img src="${item.src}" alt="Foto do imóvel">`;
-        caption.textContent = baseTitle + suffix || `Foto ${lightboxIndex + 1} de ${lightboxMedia.length}`;
     }
 }
 
 // Close lightbox
 function closeLightbox() {
     if (lightboxKeyHandler) {
-        document.removeEventListener('keydown', lightboxKeyHandler);
+        document.removeEventListener('keydown', lightboxKeyHandler, true);
         lightboxKeyHandler = null;
     }
     const lightbox = document.getElementById('imageLightbox');
