@@ -54,7 +54,7 @@ const propertyUnits = {
         }
     },
     
-    2: { // Residencial Itaúna
+    2: { // Residencial Itaúna - PDF PRONTOS A VENDA
         name: "RESIDENCIAL ITAÚNA - RUA ALCIO SOUTO",
         units: [
             { code: "casa base", price: 155000, bedrooms: 1, status: "disponivel" },
@@ -64,9 +64,9 @@ const propertyUnits = {
             { code: "casa 02", price: 155000, bedrooms: 1, status: "disponivel" },
             { code: "casa 07", price: 155000, bedrooms: 1, status: "disponivel" },
             { code: "casa 03", price: 155000, bedrooms: 1, status: "disponivel" },
-            { code: "cassa 08", price: 155000, bedrooms: 1, status: "reservado" },
-            { code: "casa 04", price: 160000, bedrooms: 1, status: "disponivel" },
-            { code: "casa 09", price: 160000, bedrooms: 1, status: "reservado" }
+            { code: "cassa 08", price: 155000, bedrooms: 1, status: "assinado" },
+            { code: "casa 04", price: 160000, bedrooms: 1, status: "reservado" },
+            { code: "casa 09", price: 160000, bedrooms: 1, status: "disponivel" }
         ],
         engineeringValues: {
             "Cs base": "R$ 195.000,00",
@@ -134,18 +134,18 @@ const propertyUnits = {
         ]
     },
     
-    5: { // Apolo
+    5: { // Apolo - PDF: Cs 9 Eduardo (sac1consultoria@gmail.com), casa 04 assinado
         name: "APOLO - RUA MARIA JOSÉ ARRUDA BARBOSA LT 02 QD 18 - ITABORAÍ",
         units: [
             { code: "casa base", price: 135000, bedrooms: 1, status: "disponivel" },
-            { code: "casa 05", price: 130000, bedrooms: 1, status: "reservado" },
+            { code: "casa 05", price: 130000, bedrooms: 1, status: "disponivel" },
             { code: "casa 01", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "casa 06", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "casa 02", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "casa 07", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "casa 03", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "cassa 08", price: 135000, bedrooms: 1, status: "disponivel" },
-            { code: "casa 04", price: 140000, bedrooms: 1, status: "reservado" },
+            { code: "casa 04", price: 140000, bedrooms: 1, status: "assinado" },
             { code: "casa 09", price: 140000, bedrooms: 1, status: "reservado" }
         ],
         engineeringValues: {
@@ -159,18 +159,18 @@ const propertyUnits = {
         }
     },
     
-    6: { // Coelho
+    6: { // Coelho - PDF: cs base Eduardo Neves; cs 4 Click (não cadastrado) = reservado amarelo
         name: "RESIDENCIAL COELHO - RUA DR LOPES DA CRUZ",
         units: [
             { code: "casa base", price: 145000, bedrooms: 1, status: "reservado" },
             { code: "casa 05", price: 145000, bedrooms: 1, status: "disponivel" },
-            { code: "casa 01", price: 145000, bedrooms: 1, status: "reservado" },
+            { code: "casa 01", price: 145000, bedrooms: 1, status: "assinado" },
             { code: "casa 06", price: 150000, bedrooms: 1, status: "assinado" },
             { code: "casa 02", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 07", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 03", price: 150000, bedrooms: 1, status: "assinado" },
             { code: "cassa 08", price: 150000, bedrooms: 1, status: "assinado" },
-            { code: "casa 04", price: 160000, bedrooms: 1, status: "assinado" },
+            { code: "casa 04", price: 160000, bedrooms: 1, status: "reservado" },
             { code: "casa 09", price: 160000, bedrooms: 1, status: "assinado" }
         ],
         engineeringValues: {
@@ -186,7 +186,7 @@ const propertyUnits = {
         }
     },
     
-    7: { // Edifício Caçador
+    7: { // Edifício Caçador - PDF: APTO 207 assinado
         name: "EDIFÍCIO CAÇADOR - RUA ALCIO SOUTO, 576",
         units: [
             { code: "APTO 101", price: 160000, bedrooms: 2, status: "disponivel" },
@@ -202,7 +202,7 @@ const propertyUnits = {
             { code: "APTO 106", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 206", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 107", price: 165000, bedrooms: 2, status: "disponivel" },
-            { code: "APTO 207", price: 160000, bedrooms: 2, status: "disponivel" },
+            { code: "APTO 207", price: 160000, bedrooms: 2, status: "assinado" },
             { code: "APTO 108", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 208", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 109", price: 165000, bedrooms: 2, status: "disponivel" },
