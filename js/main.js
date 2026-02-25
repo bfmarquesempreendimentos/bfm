@@ -1193,41 +1193,86 @@ function enhanceImageGallery() {
     });
 }
 
-// Show image lightbox
+// Lightbox state for navigation
+let lightboxMedia = [];
+let lightboxIndex = 0;
+let lightboxKeyHandler = null;
+
+// Show image lightbox (usa currentGalleryMedia se disponível para navegação)
 function showImageLightbox(src, alt) {
+    lightboxMedia = Array.isArray(currentGalleryMedia) && currentGalleryMedia.length > 0
+        ? currentGalleryMedia
+        : [{ type: 'image', src }];
+    const startIdx = lightboxMedia.findIndex(m => m.src === src);
+    lightboxIndex = startIdx >= 0 ? startIdx : 0;
+
     const lightbox = document.createElement('div');
     lightbox.className = 'image-lightbox';
+    lightbox.id = 'imageLightbox';
     lightbox.innerHTML = `
         <div class="lightbox-content">
-            <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
-            <img src="${src}" alt="${alt}">
-            <div class="lightbox-caption">${alt}</div>
+            <span class="lightbox-close" onclick="closeLightbox()" aria-label="Fechar">&times;</span>
+            <button class="lightbox-nav lightbox-prev" onclick="lightboxNav(-1)" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
+            <button class="lightbox-nav lightbox-next" onclick="lightboxNav(1)" aria-label="Próxima"><i class="fas fa-chevron-right"></i></button>
+            <div class="lightbox-media" id="lightboxMedia"></div>
+            <div class="lightbox-caption" id="lightboxCaption">${alt}</div>
         </div>
     `;
-    
+
     document.body.appendChild(lightbox);
-    
-    // Close on background click
+    renderLightboxMedia();
+
     lightbox.addEventListener('click', function(e) {
-        if (e.target === lightbox) {
-            closeLightbox();
-        }
+        if (e.target === lightbox) closeLightbox();
     });
-    
-    // Close on ESC key
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeLightbox();
-        }
-    });
+
+    lightboxKeyHandler = function(e) {
+        if (e.key === 'Escape') closeLightbox();
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); lightboxNav(-1); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); lightboxNav(1); }
+    };
+    document.addEventListener('keydown', lightboxKeyHandler);
+
+    let touchStartX = 0;
+    const content = lightbox.querySelector('.lightbox-content');
+    content.addEventListener('touchstart', e => { touchStartX = e.changedTouches?.[0]?.screenX ?? 0; }, { passive: true });
+    content.addEventListener('touchend', e => {
+        const touchEndX = e.changedTouches?.[0]?.screenX ?? 0;
+        if (touchStartX - touchEndX > 50) lightboxNav(1);
+        else if (touchEndX - touchStartX > 50) lightboxNav(-1);
+    }, { passive: true });
+}
+
+function lightboxNav(delta) {
+    if (lightboxMedia.length === 0) return;
+    lightboxIndex = (lightboxIndex + delta + lightboxMedia.length) % lightboxMedia.length;
+    renderLightboxMedia();
+}
+
+function renderLightboxMedia() {
+    const container = document.getElementById('lightboxMedia');
+    const caption = document.getElementById('lightboxCaption');
+    if (!container || lightboxMedia.length === 0) return;
+    const item = lightboxMedia[lightboxIndex];
+    const baseTitle = document.querySelector('.property-detail-title')?.textContent || '';
+    const suffix = lightboxMedia.length > 1 ? ` - Foto ${lightboxIndex + 1} de ${lightboxMedia.length}` : '';
+    if (item.type === 'video') {
+        container.innerHTML = `<video src="${item.src}" controls autoplay playsinline preload="metadata"></video>`;
+        caption.textContent = baseTitle ? baseTitle + ' - Vídeo' + (lightboxMedia.length > 1 ? ` ${lightboxIndex + 1}/${lightboxMedia.length}` : '') : 'Vídeo';
+    } else {
+        container.innerHTML = `<img src="${item.src}" alt="Foto do imóvel">`;
+        caption.textContent = baseTitle + suffix || `Foto ${lightboxIndex + 1} de ${lightboxMedia.length}`;
+    }
 }
 
 // Close lightbox
 function closeLightbox() {
-    const lightbox = document.querySelector('.image-lightbox');
-    if (lightbox) {
-        lightbox.remove();
+    if (lightboxKeyHandler) {
+        document.removeEventListener('keydown', lightboxKeyHandler);
+        lightboxKeyHandler = null;
     }
+    const lightbox = document.getElementById('imageLightbox');
+    if (lightbox) lightbox.remove();
 }
 
 // Scroll to bottom of modal
