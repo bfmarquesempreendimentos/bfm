@@ -1,0 +1,18 @@
+{
+  "_instrucoes": "Importado do PDF PRONTOS A VENDA. Cs 4 Click (Itaúna) NÃO incluído - corretor não cadastrado.",
+  "_propertyIds": "1=Porto Novo, 2=Itaúna, 3=Amendoeiras, 4=Laranjal, 5=Apolo, 6=Coelho, 7=Caçador",
+  "reservas": [
+    {
+      "propertyId": 6,
+      "unitCode": "casa base",
+      "corretorEmail": "sac1consultoria@gmail.com",
+      "status": "reservado"
+    },
+    {
+      "propertyId": 5,
+      "unitCode": "casa 09",
+      "corretorEmail": "sac1consultoria@gmail.com",
+      "status": "reservado"
+    }
+  ]
+}

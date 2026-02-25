@@ -162,7 +162,7 @@ const propertyUnits = {
     6: { // Coelho
         name: "RESIDENCIAL COELHO - RUA DR LOPES DA CRUZ",
         units: [
-            { code: "casa base", price: 145000, bedrooms: 1, status: "disponivel" },
+            { code: "casa base", price: 145000, bedrooms: 1, status: "reservado" },
             { code: "casa 05", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 01", price: 145000, bedrooms: 1, status: "reservado" },
             { code: "casa 06", price: 150000, bedrooms: 1, status: "assinado" },
@@ -223,9 +223,38 @@ const propertyUnits = {
     }
 };
 
-// Get units for a property
-function getPropertyUnits(propertyId) {
+// Unit status overrides (ex: importação do PDF) - persiste em localStorage
+function getUnitStatusOverrides() {
+    try {
+        const s = localStorage.getItem('unitStatusOverrides');
+        return s ? JSON.parse(s) : {};
+    } catch { return {}; }
+}
+function setUnitStatusOverride(propertyId, unitCode, status) {
+    const ov = getUnitStatusOverrides();
+    if (!ov[propertyId]) ov[propertyId] = {};
+    ov[propertyId][unitCode] = status;
+    localStorage.setItem('unitStatusOverrides', JSON.stringify(ov));
+}
+
+// Raw units (sem overrides) - para import/scripts
+function getPropertyUnitsRaw(propertyId) {
     return propertyUnits[propertyId] || null;
+}
+
+// Get units for a property (aplica overrides de status)
+function getPropertyUnits(propertyId) {
+    const data = propertyUnits[propertyId];
+    if (!data) return null;
+    const overrides = getUnitStatusOverrides()[propertyId] || {};
+    if (Object.keys(overrides).length === 0) return data;
+    return {
+        ...data,
+        units: data.units.map(u => ({
+            ...u,
+            status: overrides[u.code] || u.status
+        }))
+    };
 }
 
 // Get unit status color class

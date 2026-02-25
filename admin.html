@@ -262,6 +262,9 @@
             <div class="section-header">
                 <h2>Gerenciar Reservas</h2>
                 <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="importReservasFromPdf()" title="Importar reservas do data/pdf-prontos-a-venda-import.json (só corretores cadastrados)">
+                        <i class="fas fa-file-import"></i> Importar do PDF
+                    </button>
                     <button class="btn btn-secondary" onclick="exportReservations()">
                         <i class="fas fa-download"></i> Exportar
                     </button>
@@ -888,6 +891,7 @@
     <script src="js/properties.js"></script>
     <script src="js/reservations.js"></script>
     <script src="js/property-units.js"></script>
+    <script src="js/pdf-import.js"></script>
     <script src="js/notifications.js"></script>
     <script src="js/documents.js"></script>
     <script src="js/sample-data.js"></script>

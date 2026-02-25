@@ -21,6 +21,16 @@ let brokers = [
         password: '123456',
         isActive: true,
         createdAt: new Date('2024-02-10')
+    },
+    {
+        id: 3,
+        name: 'Eduardo',
+        email: 'sac1consultoria@gmail.com',
+        phone: '',
+        creci: '',
+        password: '123456',
+        isActive: true,
+        createdAt: new Date('2024-01-01')
     }
 ];
 
