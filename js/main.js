@@ -801,6 +801,12 @@ function showPropertyDetails(propertyId) {
     }, 900);
     
     modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+
+    modal.setAttribute('tabindex', '-1');
+    setTimeout(() => {
+        modal.focus();
+    }, 100);
 
     // Add smooth scroll behavior and scroll to top
     const modalContent = modal.querySelector('.modal-content');
@@ -1045,6 +1051,7 @@ function renderGalleryThumbs() {
 // Close property modal
 function closePropertyModal() {
     removeGalleryNavigation();
+    document.body.style.overflow = '';
     const el = document.getElementById('propertyModal');
     if (el) el.style.display = 'none';
 }
@@ -1056,6 +1063,9 @@ function setupGalleryNavigation() {
     removeGalleryNavigation();
     const galleryMain = document.getElementById('galleryMain');
     if (!galleryMain) return;
+
+    galleryMain.setAttribute('tabindex', '-1');
+    galleryMain.focus();
 
     galleryKeyHandler = function(e) {
         if (document.getElementById('imageLightbox')) return;
@@ -1265,6 +1275,7 @@ function showImageLightbox(src, alt) {
     `;
 
     document.body.appendChild(lightbox);
+    document.body.style.overflow = 'hidden';
     lightbox.focus();
     renderLightboxMedia();
 
@@ -1295,14 +1306,23 @@ function lightboxNav(delta) {
     renderLightboxMedia();
 }
 
+function toAbsoluteUrl(src) {
+    if (!src) return src;
+    if (src.startsWith('http') || src.startsWith('//') || src.startsWith('data:')) return src;
+    try {
+        return new URL(src, window.location.href).href;
+    } catch { return src; }
+}
+
 function renderLightboxMedia() {
     const container = document.getElementById('lightboxMedia');
     if (!container || lightboxMedia.length === 0) return;
     const item = lightboxMedia[lightboxIndex];
+    const absSrc = toAbsoluteUrl(item.src);
     if (item.type === 'video') {
-        container.innerHTML = `<video src="${item.src}" controls autoplay playsinline preload="metadata"></video>`;
+        container.innerHTML = `<video src="${absSrc}" controls autoplay playsinline preload="metadata"></video>`;
     } else {
-        container.innerHTML = `<img src="${item.src}" alt="Foto do imóvel">`;
+        container.innerHTML = `<img src="${absSrc}" alt="Foto do imóvel">`;
     }
 }
 
@@ -1311,6 +1331,10 @@ function closeLightbox() {
     if (lightboxKeyHandler) {
         document.removeEventListener('keydown', lightboxKeyHandler, true);
         lightboxKeyHandler = null;
+    }
+    const propModal = document.getElementById('propertyModal');
+    if (!propModal || propModal.style.display === 'none') {
+        document.body.style.overflow = '';
     }
     const lightbox = document.getElementById('imageLightbox');
     if (lightbox) lightbox.remove();

@@ -2879,6 +2879,8 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: 200px;
+    min-height: 200px;
 }
 
 .lightbox-content img,
@@ -2920,8 +2922,8 @@ html {
     transform: translateY(-50%) scale(1.1);
 }
 
-.lightbox-prev { left: -70px; }
-.lightbox-next { right: -70px; }
+.lightbox-prev { left: 15px; }
+.lightbox-next { right: 15px; }
 
 @media (max-width: 768px) {
     .lightbox-prev { left: 10px; }
