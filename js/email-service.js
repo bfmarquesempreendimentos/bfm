@@ -160,23 +160,22 @@ async function sendRepairNewResponseEmailToClient(repair, responseMessage) {
 }
 
 // Email à empresa quando o cliente responde - inclui o questionamento e link para responder
-async function sendRepairClientResponseEmailToCompany(repair, clientMessage) {
-    const subject = `Cliente respondeu - Reparo #${repair.id} - ${repair.clientName || 'Cliente'}`;
-    const adminLink = ADMIN_REPAIR_LINK(repair.id);
-    const body = `
-        <h2>Cliente respondeu na Solicitação de Reparo</h2>
-        <p><strong>Protocolo:</strong> #${repair.id}</p>
-        <p><strong>Cliente:</strong> ${repair.clientName || '-'} (${repair.clientEmail || '-'})</p>
-        <p><strong>Imóvel:</strong> ${repair.propertyTitle || 'N/A'}</p>
-        <p><strong>Localização:</strong> ${repair.location || '-'}</p>
-        <hr>
-        <p><strong>Pergunta/Mensagem do cliente:</strong></p>
-        <blockquote style="background:#f5f5f5;padding:15px;border-left:4px solid #3498db;margin:15px 0;">
-            ${clientMessage}
-        </blockquote>
-        <hr>
-        <p><a href="${adminLink}" style="display:inline-block;background:#3498db;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;">Responder no painel</a></p>
-    `;
+async function sendRepairClientResponseEmailToCompany(repair, clientMessage, attachments) {
+    var subject = 'Cliente respondeu - Reparo #' + repair.id + ' - ' + (repair.clientName || 'Cliente');
+    var adminLink = ADMIN_REPAIR_LINK(repair.id);
+    var attNote = (attachments && attachments.length > 0)
+        ? '<p><strong>O cliente anexou ' + attachments.length + ' arquivo(s):</strong> ' + attachments.map(function(a) { return a.name; }).join(', ') + '</p><p>Acesse o painel para visualizar as fotos/vídeos.</p><hr>'
+        : '';
+    var body = '<h2>Cliente respondeu na Solicitação de Reparo</h2>' +
+        '<p><strong>Protocolo:</strong> #' + repair.id + '</p>' +
+        '<p><strong>Cliente:</strong> ' + (repair.clientName || '-') + ' (' + (repair.clientEmail || '-') + ')</p>' +
+        '<p><strong>Imóvel:</strong> ' + (repair.propertyTitle || 'N/A') + '</p>' +
+        '<p><strong>Localização:</strong> ' + (repair.location || '-') + '</p>' +
+        '<hr>' + attNote +
+        '<p><strong>Pergunta/Mensagem do cliente:</strong></p>' +
+        '<blockquote style="background:#f5f5f5;padding:15px;border-left:4px solid #3498db;margin:15px 0;">' + clientMessage + '</blockquote>' +
+        '<hr>' +
+        '<p><a href="' + adminLink + '" style="display:inline-block;background:#3498db;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;">Responder no painel</a></p>';
     await sendEmail(COMPANY_EMAIL, subject, body);
 }
 

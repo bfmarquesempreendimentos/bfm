@@ -507,47 +507,79 @@ async function loadClientRepairs() {
 // Enviar resposta do cliente na solicitação de reparo
 async function submitClientRepairResponse(event, repairId) {
     event.preventDefault();
-    const textarea = document.getElementById('repairClientResponseMsg');
-    const message = (textarea?.value || '').trim();
+    var textarea = document.getElementById('repairClientResponseMsg');
+    var message = (textarea && textarea.value ? textarea.value : '').trim();
     if (!message || !currentClient) {
         showMessage('Digite sua mensagem ou faça login.', 'error');
         return;
     }
-    const repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
-    const index = repairRequests.findIndex(r => r.id === repairId);
+    var repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
+    var index = repairRequests.findIndex(function(r) { return r.id === repairId; });
     if (index === -1) {
         showMessage('Solicitação não encontrada.', 'error');
         return;
     }
-    const repair = repairRequests[index];
-    const newResponse = {
+    var repair = repairRequests[index];
+    var attachments = [];
+    var fileInput = document.getElementById('repairResponseFileInput');
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+        var files = Array.from(fileInput.files);
+        var v = validateRepairResponseFiles(files);
+        if (!v.valid) {
+            showMessage(v.error, 'error');
+            return;
+        }
+        if (typeof uploadRepairAttachmentsToFirebase === 'function') {
+            try {
+                attachments = await uploadRepairAttachmentsToFirebase(files, 'repair-response-attachments/' + repairId);
+            } catch (e) {
+                console.error('Erro ao enviar anexos:', e);
+                showMessage('Erro ao enviar anexos. Tente sem arquivos ou tente novamente.', 'error');
+                return;
+            }
+        } else if (typeof saveAttachment === 'function') {
+            for (var i = 0; i < files.length; i++) {
+                var saved = await saveAttachment(files[i]);
+                attachments.push({ name: saved.name, type: saved.type, size: saved.size, id: saved.id });
+            }
+        }
+    }
+    var newResponse = {
         type: 'client',
         message: message,
         date: new Date().toISOString(),
-        updatedBy: 'client'
+        updatedBy: 'client',
+        attachments: attachments.length > 0 ? attachments : undefined
     };
     if (!repair.responses) repair.responses = [];
     repair.responses.push(newResponse);
     repair.updatedAt = new Date().toISOString();
+    if (attachments.length > 0 && repair.attachments) {
+        repair.attachments = repair.attachments.concat(attachments);
+    } else if (attachments.length > 0) {
+        repair.attachments = attachments;
+    }
     repairRequests[index] = repair;
     localStorage.setItem('repairRequests', JSON.stringify(repairRequests));
 
     if (typeof updateRepairRequestInFirestore === 'function') {
         updateRepairRequestInFirestore(repairId, {
             responses: repair.responses,
-            updatedAt: repair.updatedAt
-        }).catch(e => console.error('Erro ao atualizar Firestore:', e));
+            updatedAt: repair.updatedAt,
+            attachments: repair.attachments
+        }).catch(function(e) { console.error('Erro ao atualizar Firestore:', e); });
     }
 
     if (typeof sendRepairClientResponseEmailToCompany === 'function') {
-        sendRepairClientResponseEmailToCompany(repair, message).catch(e =>
-            console.error('Erro ao enviar email:', e)
-        );
+        sendRepairClientResponseEmailToCompany(repair, message, attachments).catch(function(e) {
+            console.error('Erro ao enviar email:', e);
+        });
     }
 
     showMessage('Mensagem enviada! A empresa será notificada por email.', 'success');
     if (textarea) textarea.value = '';
-    const modal = document.querySelector('.modal');
+    if (fileInput) { fileInput.value = ''; fileInput.dispatchEvent(new Event('change')); }
+    var modal = document.querySelector('.modal');
     if (modal) {
         modal.remove();
         viewRepairDetails(repairId);
@@ -610,15 +642,26 @@ function viewRepairDetails(repairId) {
                     <strong>Histórico de Respostas:</strong>
                     <div class="responses-timeline">
                         ${repair.responses && repair.responses.length > 0 
-                            ? repair.responses.map(response => `
-                                <div class="timeline-item ${response.type === 'automatic' ? 'timeline-automatic' : response.type === 'client' ? 'timeline-client' : 'timeline-manual'}">
-                                    <div class="timeline-marker"></div>
-                                    <div class="timeline-content">
-                                        <p>${response.message}</p>
-                                        <small>${formatDate(response.date)} ${response.type === 'automatic' ? '(Automático)' : response.type === 'client' ? '(Você)' : '(Equipe)'}</small>
-                                    </div>
-                                </div>
-                            `).join('')
+                            ? repair.responses.map(function(response) {
+                                var attHtml = '';
+                                if (response.attachments && response.attachments.length > 0) {
+                                    attHtml = '<div class="response-attachments" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">' +
+                                        response.attachments.map(function(att) {
+                                            var url = att.url || '';
+                                            var isImg = att.type && att.type.indexOf('image/') === 0;
+                                            if (isImg && url) {
+                                                return '<a href="' + url + '" target="_blank" class="repair-attachment-preview" data-attachment-url="' + url + '" data-attachment-type="' + (att.type || '') + '">' + (att.name || 'Anexo') + '</a>';
+                                            }
+                                            return '<a href="' + url + '" target="_blank" style="padding:4px 8px;background:#f0f0f0;border-radius:4px;font-size:0.85rem;">' + (att.name || 'Anexo') + '</a>';
+                                        }).join('') + '</div>';
+                                }
+                                return '<div class="timeline-item ' + (response.type === 'automatic' ? 'timeline-automatic' : response.type === 'client' ? 'timeline-client' : 'timeline-manual') + '">' +
+                                    '<div class="timeline-marker"></div>' +
+                                    '<div class="timeline-content">' +
+                                    '<p>' + response.message + '</p>' + attHtml +
+                                    '<small>' + formatDate(response.date) + ' ' + (response.type === 'automatic' ? '(Automático)' : response.type === 'client' ? '(Você)' : '(Equipe)') + '</small>' +
+                                    '</div></div>';
+                            }).join('')
                             : '<p>Nenhuma resposta ainda.</p>'
                         }
                     </div>
@@ -627,6 +670,14 @@ function viewRepairDetails(repairId) {
                     <strong>Responder ou enviar dúvida:</strong>
                     <form class="repair-response-form" onsubmit="submitClientRepairResponse(event, ${repair.id})">
                         <textarea id="repairClientResponseMsg" rows="3" placeholder="Digite sua mensagem, dúvida ou resposta..." required></textarea>
+                        <div class="repair-response-attachments">
+                            <label class="btn btn-outline btn-sm" for="repairResponseFileInput" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                                <i class="fas fa-paperclip"></i> Anexar fotos ou vídeos
+                            </label>
+                            <input type="file" id="repairResponseFileInput" accept="image/*,video/*" multiple style="display:none;">
+                            <span id="repairResponseFileHint" class="file-hint" style="font-size:0.85rem;color:#666;"></span>
+                            <div id="repairResponseFilePreview" style="display:none;margin-top:8px;"></div>
+                        </div>
                         <button type="submit" class="btn btn-primary btn-sm">
                             <i class="fas fa-paper-plane"></i> Enviar
                         </button>
@@ -637,13 +688,62 @@ function viewRepairDetails(repairId) {
     `;
     
     document.body.appendChild(modal);
-    setTimeout(() => hydrateAttachmentPreviews(modal), 0);
-    
+    setTimeout(function() { hydrateAttachmentPreviews(modal); }, 0);
+    var fileInput = modal.querySelector('#repairResponseFileInput');
+    var previewEl = modal.querySelector('#repairResponseFilePreview');
+    var hintEl = modal.querySelector('#repairResponseFileHint');
+    if (fileInput) {
+        fileInput.value = '';
+        fileInput.onchange = function() {
+            var files = Array.from(fileInput.files || []);
+            if (files.length === 0) {
+                if (previewEl) { previewEl.style.display = 'none'; previewEl.innerHTML = ''; }
+                if (hintEl) hintEl.textContent = '';
+                return;
+            }
+            var v = validateRepairResponseFiles(files);
+            if (!v.valid) {
+                showMessage(v.error, 'error');
+                fileInput.value = '';
+                if (previewEl) previewEl.innerHTML = '';
+                if (hintEl) hintEl.textContent = '';
+                return;
+            }
+            var photos = files.filter(isImageFile).length;
+            var videos = files.filter(isVideoFile).length;
+            if (hintEl) hintEl.textContent = photos + ' foto(s), ' + videos + ' vídeo(s) • ' + files.length + ' arquivo(s)';
+            if (previewEl) {
+                previewEl.style.display = 'block';
+                previewEl.innerHTML = files.map(function(f, i) {
+                    return '<span class="repair-response-file-tag">' + f.name + ' <button type="button" onclick="removeRepairResponseFile(' + i + ')" aria-label="Remover">&times;</button></span>';
+                }).join('');
+            }
+        };
+    }
     modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
+        if (e.target === modal) modal.remove();
     });
+}
+
+function validateRepairResponseFiles(files) {
+    var arr = Array.isArray(files) ? files : Array.from(files || []);
+    if (arr.length > 5) return { valid: false, error: 'Máximo 5 arquivos.' };
+    var totalSize = arr.reduce(function(s, f) { return s + (f.size || 0); }, 0);
+    if (totalSize > 50 * 1024 * 1024) return { valid: false, error: 'Total máximo 50MB.' };
+    var invalid = arr.find(function(f) { return !isImageFile(f) && !isVideoFile(f); });
+    if (invalid) return { valid: false, error: 'Aceito apenas fotos e vídeos.' };
+    return { valid: true };
+}
+
+function removeRepairResponseFile(index) {
+    var input = document.getElementById('repairResponseFileInput');
+    if (!input) return;
+    var dt = new DataTransfer();
+    for (var i = 0; i < input.files.length; i++) {
+        if (i !== index) dt.items.add(input.files[i]);
+    }
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change'));
 }
 
 // Funções auxiliares
