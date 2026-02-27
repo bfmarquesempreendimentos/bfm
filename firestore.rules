@@ -18,9 +18,9 @@ service cloud.firestore {
     }
 
     match /repairRequests/{docId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && (request.resource.data.clientUid == request.auth.uid || request.resource.data.clientUid == null);
-      allow update, delete: if isSignedIn();
+      allow read, update: if true;
+      allow create: if isSignedIn();
+      allow delete: if true;
     }
 
     match /emailAuditLog/{docId} {

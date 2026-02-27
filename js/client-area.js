@@ -299,20 +299,20 @@ async function registerClient(event) {
         }
     }
     
-    const newClient = {
+    var newClient = {
         id: Date.now(),
-        name,
-        cpf,
-        email,
-        phone,
-        password,
+        name: name,
+        cpf: cpf,
+        email: email,
+        phone: phone,
+        password: password,
         address: '',
         properties: clientProperties,
         documents: [],
         history: [],
         createdAt: new Date().toISOString()
     };
-    
+    newClient.createdBy = { type: 'Cliente', email: email, name: name, at: new Date().toISOString() };
     clients.push(newClient);
     localStorage.setItem('clients', JSON.stringify(clients));
 

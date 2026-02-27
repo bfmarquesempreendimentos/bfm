@@ -545,7 +545,7 @@ function handleUnitReservationSubmission(e, property, selectedUnit, reservation)
     reservation.unitCode = selectedUnit.unitCode;
     reservation.unitPrice = selectedUnit.price;
     reservation.unitBedrooms = selectedUnit.bedrooms;
-    
+    if (typeof addCreatedBy === 'function') addCreatedBy(reservation);
     // Add reservation to list
     reservations.push(reservation);
     

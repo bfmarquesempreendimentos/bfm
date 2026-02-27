@@ -39,8 +39,9 @@ function saveNotifications() {
 }
 
 // Create notification
-function createNotification(type, title, message, data = {}) {
-    const notification = {
+function createNotification(type, title, message, data) {
+    if (!data) data = {};
+    var notification = {
         id: generateNotificationId(),
         type: type, // 'reservation_request', 'reservation_expiring', 'document_request', 'broker_access'
         title: title,
@@ -54,7 +55,7 @@ function createNotification(type, title, message, data = {}) {
     if (type === 'reservation_expiring') {
         notification.expiresAt = data.expiresAt;
     }
-    
+    if (typeof addCreatedBy === 'function') addCreatedBy(notification);
     // Add to admin notifications
     adminNotifications.push(notification);
     saveNotifications();
@@ -165,7 +166,9 @@ async function approveReservationRequest(notificationId) {
         // Approve reservation
         reservation.status = 'active';
         reservation.approvedAt = new Date();
-        reservation.approvedBy = 'admin';
+        reservation.approvedBy = (typeof getCurrentActor === 'function' && getCurrentActor())
+            ? { type: getCurrentActor().type, email: getCurrentActor().email, name: getCurrentActor().name, at: new Date().toISOString() }
+            : 'admin';
         
         // Update property status
         property.status = 'reservado';
@@ -222,7 +225,9 @@ function rejectReservationRequest(notificationId, reason = '') {
         // Reject reservation
         reservation.status = 'rejected';
         reservation.rejectedAt = new Date();
-        reservation.rejectedBy = 'admin';
+        reservation.rejectedBy = (typeof getCurrentActor === 'function' && getCurrentActor())
+            ? { type: getCurrentActor().type, email: getCurrentActor().email, name: getCurrentActor().name, at: new Date().toISOString() }
+            : 'admin';
         reservation.rejectionReason = reason;
         
         // Keep property available
@@ -316,12 +321,13 @@ async function approveDocumentAccess(notificationId) {
     }
     
     // Grant document access
-    const documentAccess = {
+    var actor = (typeof getCurrentActor === 'function' && getCurrentActor()) || null;
+    var documentAccess = {
         id: generateDocumentAccessId(),
         propertyId: notification.data.propertyId,
         brokerId: notification.data.brokerId,
         grantedAt: new Date(),
-        grantedBy: 'admin',
+        grantedBy: actor ? { type: actor.type, email: actor.email, name: actor.name, at: new Date().toISOString() } : 'admin',
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days access
     };
     

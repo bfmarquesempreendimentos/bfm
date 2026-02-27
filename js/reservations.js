@@ -186,7 +186,7 @@ async function handleReservationSubmission(e, property, reservation) {
         cpf: cpf,
         notes: formData.get('reservationNotes') || ''
     };
-    
+    if (typeof addCreatedBy === 'function') addCreatedBy(reservation);
     // Add reservation to list
     reservations.push(reservation);
     

@@ -19,7 +19,7 @@ async function addPropertySale(saleData) {
         console.error('addPropertySale: Imóvel já possui venda registrada', saleData.propertyId);
         return null;
     }
-    const sale = {
+    var sale = {
         id: Date.now(),
         propertyId: saleData.propertyId,
         propertyTitle: saleData.propertyTitle || 'Imóvel',
@@ -35,6 +35,7 @@ async function addPropertySale(saleData) {
         status: 'vendido',
         createdAt: new Date().toISOString()
     };
+    if (typeof addCreatedBy === 'function') addCreatedBy(sale);
     if (typeof savePropertySaleToFirestore === 'function') {
         try {
             const docId = await savePropertySaleToFirestore(sale);

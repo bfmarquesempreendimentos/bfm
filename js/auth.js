@@ -263,18 +263,18 @@ async function handleRegister(e) {
     }
     
     const createdAt = new Date();
-    const newBroker = {
+    var newBroker = {
         id: brokers.length + 1,
         name: name,
         cpf: cpf.replace(/\D/g, ''),
-        email,
+        email: email,
         phone: phone,
         creci: creci || '',
-        password,
+        password: password,
         isActive: false,
         createdAt: createdAt
     };
-    
+    newBroker.createdBy = { type: 'Corretor', email: email, name: name, at: new Date().toISOString() };
     brokers.push(newBroker);
     saveBrokersToStorage();
 

@@ -13,25 +13,34 @@ async function loadAdminRepairs() {
     // Sincronizar com Firestore ao carregar (mesclar por id)
     if (typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
         try {
-            const fromFirestore = await getAllRepairRequestsFromFirestore();
-            let local = getAdminRepairs();
-            const byId = new Map(local.map(r => [r.id, r]));
-            fromFirestore.forEach(f => {
-                const existing = byId.get(f.id);
+            var fromFirestore = await getAllRepairRequestsFromFirestore();
+            var local = getAdminRepairs();
+            var byId = {};
+            for (var i = 0; i < local.length; i++) {
+                byId[local[i].id] = local[i];
+            }
+            for (var j = 0; j < fromFirestore.length; j++) {
+                var f = fromFirestore[j];
+                var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id);
+                var existing = byId[fid];
                 if (!existing || (f.updatedAt && (!existing.updatedAt || new Date(f.updatedAt) > new Date(existing.updatedAt)))) {
-                    byId.set(f.id, f);
+                    byId[fid] = f;
                 }
-            });
-            local = Array.from(byId.values());
+            }
+            local = [];
+            for (var k in byId) { local.push(byId[k]); }
             localStorage.setItem('repairRequests', JSON.stringify(local));
         } catch (e) {
             console.warn('Erro ao sincronizar reparos do Firestore:', e);
+            if (typeof showMessage === 'function') {
+                showMessage('Erro ao buscar reparos do Firestore: ' + (e.message || e.code || 'verifique a conexão'), 'error');
+            }
         }
     }
 
-    const repairs = getAdminRepairs();
+    var repairs = getAdminRepairs();
     if (repairs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9">Nenhuma solicitação de reparo cadastrada.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8">Nenhuma solicitação de reparo cadastrada.</td></tr>';
         return;
     }
 
@@ -45,25 +54,12 @@ async function loadAdminRepairs() {
         cancelado: 'Cancelado'
     };
 
-    tbody.innerHTML = repairs.map(r => `
-        <tr>
-            <td>#${r.id}</td>
-            <td>${r.clientName || '-'}</td>
-            <td>${r.clientEmail || '-'}</td>
-            <td>${r.propertyTitle || r.propertyId || '-'}</td>
-            <td>${r.location || '-'}</td>
-            <td><span class="status-badge status-${r.status}">${statusLabels[r.status] || r.status}</span></td>
-            <td>${typeof formatDate === 'function' ? formatDate(r.createdAt) : r.createdAt}</td>
-            <td>
-                <button class="btn-action btn-edit" onclick="openRepairEditModal(${r.id})" title="Editar status">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn-action btn-view" onclick="viewAdminRepairDetails(${r.id})" title="Ver detalhes">
-                    <i class="fas fa-eye"></i>
-                </button>
-            </td>
-        </tr>
-    `).join('');
+    var canDelete = typeof isSuperAdmin === 'function' && isSuperAdmin();
+    tbody.innerHTML = repairs.map(function(r) {
+        var idVal = typeof r.id === 'string' ? "'" + String(r.id).replace(/'/g, "\\'") + "'" : r.id;
+        var deleteBtn = canDelete ? ' <button class="btn-action btn-delete" onclick="deleteRepairAdmin(' + idVal + ')" title="Excluir (apenas Super Admin)"><i class="fas fa-trash"></i></button>' : '';
+        return '<tr><td>#' + r.id + '</td><td>' + (r.clientName || '-') + '</td><td>' + (r.clientEmail || '-') + '</td><td>' + (r.propertyTitle || r.propertyId || '-') + '</td><td>' + (r.location || '-') + '</td><td><span class="status-badge status-' + r.status + '">' + (statusLabels[r.status] || r.status) + '</span></td><td>' + (typeof formatDate === 'function' ? formatDate(r.createdAt) : r.createdAt) + '</td><td><button class="btn-action btn-edit" onclick="openRepairEditModal(' + idVal + ')" title="Editar status"><i class="fas fa-edit"></i></button> <button class="btn-action btn-view" onclick="viewAdminRepairDetails(' + idVal + ')" title="Ver detalhes"><i class="fas fa-eye"></i></button>' + deleteBtn + '</td></tr>';
+    }).join('');
 }
 
 function openRepairEditModal(repairId) {
@@ -101,14 +97,15 @@ async function saveRepairStatus() {
     const repair = repairs[index];
     const oldStatus = repair.status;
 
-    const newResponse = {
+    var newResponse = {
         type: 'manual',
-        message: responseText || `Status alterado para ${newStatus}` + (visitDate ? ` - Visita agendada para ${visitDate}` : ''),
-        date: new Date().toISOString(),
-        updatedBy: 'admin'
+        message: responseText || 'Status alterado para ' + newStatus + (visitDate ? ' - Visita agendada para ' + visitDate : ''),
+        date: new Date().toISOString()
     };
+    if (typeof addUpdatedBy === 'function') addUpdatedBy(newResponse);
     repair.status = newStatus;
     repair.updatedAt = new Date().toISOString();
+    if (typeof addUpdatedBy === 'function') addUpdatedBy(repair);
     if (visitDate) repair.visitDate = visitDate;
     if (!repair.responses) repair.responses = [];
     repair.responses.push(newResponse);
@@ -126,9 +123,9 @@ async function saveRepairStatus() {
         updateRepairRequestInFirestore(repairId, updates).catch(e => console.error('Erro ao atualizar Firestore:', e));
     }
 
-    if (typeof sendRepairVisitScheduledEmail === 'function' && newStatus === 'em_andamento') {
+    if (typeof sendRepairVisitScheduledEmail === 'function' && newStatus === 'em_andamento' && visitDate) {
         try {
-            await sendRepairVisitScheduledEmail(repair, visitDate || new Date());
+            await sendRepairVisitScheduledEmail(repair, visitDate);
             showMessage('Status atualizado. Email de visita agendada enviado ao cliente.', 'success');
         } catch (e) {
             console.error('Erro ao enviar email visita:', e);
@@ -146,8 +143,8 @@ async function saveRepairStatus() {
         showMessage('Status atualizado com sucesso.', 'success');
     }
 
-    // Sempre que houver resposta da empresa, avisar o cliente por email (exceto em_andamento/concluido que já têm email próprio)
-    const skipGenericEmail = newStatus === 'em_andamento' || newStatus === 'concluido';
+    // Sempre que houver resposta da empresa, avisar o cliente por email (exceto em_andamento+visitDate e concluido que já têm email próprio)
+    var skipGenericEmail = (newStatus === 'em_andamento' && visitDate) || newStatus === 'concluido';
     if (!skipGenericEmail && typeof sendRepairNewResponseEmailToClient === 'function' && repair.clientEmail) {
         try {
             await sendRepairNewResponseEmailToClient(repair, newResponse.message);
@@ -192,6 +189,36 @@ function viewAdminRepairDetails(repairId) {
     `;
     document.body.appendChild(modal);
     modal.onclick = e => { if (e.target === modal) modal.remove(); };
+}
+
+function deleteRepairAdmin(repairId) {
+    if (typeof isSuperAdmin !== 'function' || !isSuperAdmin()) {
+        if (typeof showMessage === 'function') showMessage('Apenas Super Admin pode excluir reparos.', 'error');
+        return;
+    }
+    if (!confirm('Tem certeza que deseja excluir esta solicitação de reparo? Esta ação não pode ser desfeita.')) return;
+    var repairs = getAdminRepairs();
+    var index = -1;
+    for (var i = 0; i < repairs.length; i++) {
+        if (repairs[i].id === repairId || String(repairs[i].id) === String(repairId)) {
+            index = i;
+            break;
+        }
+    }
+    if (index === -1) {
+        if (typeof showMessage === 'function') showMessage('Solicitação não encontrada.', 'error');
+        return;
+    }
+    repairs.splice(index, 1);
+    localStorage.setItem('repairRequests', JSON.stringify(repairs));
+    if (typeof deleteRepairRequestFromFirestore === 'function') {
+        deleteRepairRequestFromFirestore(repairId).catch(function(e) {
+            console.error('Erro ao excluir do Firestore:', e);
+            if (typeof showMessage === 'function') showMessage('Reparo removido localmente. Erro ao sincronizar com servidor.', 'warning');
+        });
+    }
+    if (typeof showMessage === 'function') showMessage('Solicitação de reparo excluída.', 'success');
+    loadAdminRepairs();
 }
 
 function showSectionRepairs(sectionId) {

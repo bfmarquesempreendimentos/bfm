@@ -320,16 +320,19 @@ async function submitRepairRequest(event) {
                 }
             ]
         };
-        
+        if (typeof addCreatedBy === 'function') addCreatedBy(repairRequest);
         // Salvar no localStorage
         const repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
         repairRequests.push(repairRequest);
         localStorage.setItem('repairRequests', JSON.stringify(repairRequests));
 
-        if (typeof saveRepairRequestToFirestore === 'function') {
-            saveRepairRequestToFirestore(repairRequest).catch(error => {
-                console.error('Erro ao salvar reparo no Firestore:', error);
-            });
+        if (typeof saveRepairRequestToFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+            try {
+                await saveRepairRequestToFirestore(repairRequest);
+            } catch (firestoreError) {
+                console.error('Erro ao salvar reparo no Firestore:', firestoreError);
+                showMessage('Aviso: reparo salvo localmente, mas não chegou ao servidor. O administrador pode não visualizá-lo. Tente novamente mais tarde.', 'warning');
+            }
         }
         
         // Adicionar ao histórico do cliente

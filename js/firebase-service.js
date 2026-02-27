@@ -39,10 +39,23 @@ async function uploadRepairAttachmentsToFirebase(files, folder = 'repair-attachm
   return uploaded;
 }
 
+function sanitizeForFirestore(obj) {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
+  var out = {};
+  for (var k in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, k) && obj[k] !== undefined) {
+      out[k] = sanitizeForFirestore(obj[k]);
+    }
+  }
+  return out;
+}
+
 async function saveRepairRequestToFirestore(repairRequest) {
   const db = getFirebaseDb();
   if (!db) return null;
-  const docRef = await db.collection('repairRequests').add(repairRequest);
+  var clean = sanitizeForFirestore(repairRequest);
+  const docRef = await db.collection('repairRequests').add(clean);
   return docRef.id;
 }
 
@@ -69,6 +82,15 @@ async function getAllRepairRequestsFromFirestore() {
   if (!db) return [];
   const snapshot = await db.collection('repairRequests').get();
   return snapshot.docs.map(doc => ({ firestoreId: doc.id, ...doc.data() }));
+}
+
+async function deleteRepairRequestFromFirestore(repairId) {
+  const db = getFirebaseDb();
+  if (!db) return null;
+  const snapshot = await db.collection('repairRequests').where('id', '==', Number(repairId)).limit(1).get();
+  if (snapshot.empty) return null;
+  await snapshot.docs[0].ref.delete();
+  return true;
 }
 
 async function saveEmailAuditToFirestore(email) {
@@ -386,6 +408,7 @@ if (typeof window !== 'undefined') {
   window.updateRepairRequestInFirestore = updateRepairRequestInFirestore;
   window.getRepairRequestFromFirestore = getRepairRequestFromFirestore;
   window.getAllRepairRequestsFromFirestore = getAllRepairRequestsFromFirestore;
+  window.deleteRepairRequestFromFirestore = deleteRepairRequestFromFirestore;
   window.saveEmailAuditToFirestore = saveEmailAuditToFirestore;
   window.savePropertySaleToFirestore = savePropertySaleToFirestore;
   window.getPropertySalesByCPF = getPropertySalesByCPF;

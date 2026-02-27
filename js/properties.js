@@ -22,7 +22,7 @@ function addProperty(propertyData) {
         createdAt: new Date(),
         updatedAt: new Date()
     };
-    
+    if (typeof addCreatedBy === 'function') addCreatedBy(newProperty);
     properties.push(newProperty);
     saveProperties();
     displayProperties(properties);
@@ -38,11 +38,9 @@ function updateProperty(propertyId, updateData) {
         return null;
     }
     
-    properties[propertyIndex] = {
-        ...properties[propertyIndex],
-        ...updateData,
-        updatedAt: new Date()
-    };
+    var merged = Object.assign({}, properties[propertyIndex], updateData, { updatedAt: new Date() });
+    if (typeof addUpdatedBy === 'function') addUpdatedBy(merged);
+    properties[propertyIndex] = merged;
     
     saveProperties();
     displayProperties(properties);

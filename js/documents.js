@@ -42,7 +42,7 @@ function addPropertyDocument(propertyId, documentData) {
         isPublic: documentData.isPublic || false, // If true, visible to all brokers
         requiresApproval: documentData.requiresApproval !== false // Default true
     };
-    
+    if (typeof addCreatedBy === 'function') addCreatedBy(document);
     propertyDocuments.push(document);
     savePropertyDocuments();
     
