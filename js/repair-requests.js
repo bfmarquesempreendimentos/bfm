@@ -369,6 +369,9 @@ async function submitRepairRequest(event) {
     }
 }
 
+// Cloud Function getRepairs - fonte confiável no Mac (Firestore client falha às vezes)
+var GET_REPAIRS_URL = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs';
+
 // Carregar solicitações de reparo do cliente
 async function loadClientRepairs() {
     if (!currentClient) return;
@@ -377,26 +380,35 @@ async function loadClientRepairs() {
     if (!repairsList) return;
     
     let repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
-    if (typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+    let fromServer = [];
+    if (typeof fetch === 'function') {
         try {
-            const fromFirestore = await getAllRepairRequestsFromFirestore();
-            const isClientRepair = (r) =>
-                r.clientId === currentClient.id || r.clientUid === currentClient.uid ||
-                (r.clientEmail && currentClient.email && r.clientEmail.toLowerCase() === currentClient.email.toLowerCase());
-            const clientFromFirestore = fromFirestore.filter(isClientRepair);
-            const byId = new Map(repairRequests.filter(isClientRepair).map(r => [r.id, r]));
-            clientFromFirestore.forEach(f => {
-                const existing = byId.get(f.id);
-                if (!existing || (f.updatedAt && (!existing.updatedAt || new Date(f.updatedAt) > new Date(existing.updatedAt)))) {
-                    byId.set(f.id, f);
-                }
-            });
-            const others = repairRequests.filter(r => !isClientRepair(r));
-            repairRequests = others.concat(Array.from(byId.values()));
-            localStorage.setItem('repairRequests', JSON.stringify(repairRequests));
-        } catch (e) {
-            console.warn('Erro ao sincronizar reparos:', e);
-        }
+            var resp = await fetch(GET_REPAIRS_URL + '?t=' + Date.now());
+            if (resp.ok) {
+                var data = await resp.json();
+                if (data && Array.isArray(data) && data.length > 0) fromServer = data;
+            }
+        } catch (e1) { console.warn('getRepairs falhou:', e1); }
+    }
+    if (fromServer.length === 0 && typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        try {
+            fromServer = await getAllRepairRequestsFromFirestore();
+        } catch (e2) { console.warn('Firestore reparos falhou:', e2); }
+    }
+    if (fromServer.length > 0) {
+        const isClientRepair = (r) =>
+            r.clientId === currentClient.id || r.clientUid === currentClient.uid ||
+            (r.clientEmail && currentClient.email && r.clientEmail.toLowerCase() === currentClient.email.toLowerCase());
+        const byId = new Map(repairRequests.filter(isClientRepair).map(r => [r.id, r]));
+        fromServer.filter(isClientRepair).forEach(f => {
+            const existing = byId.get(f.id);
+            if (!existing || (f.updatedAt && (!existing.updatedAt || new Date(f.updatedAt) > new Date(existing.updatedAt)))) {
+                byId.set(f.id, f);
+            }
+        });
+        const others = repairRequests.filter(r => !isClientRepair(r));
+        repairRequests = others.concat(Array.from(byId.values()));
+        localStorage.setItem('repairRequests', JSON.stringify(repairRequests));
     }
     const clientRepairs = repairRequests.filter(r =>
         r.clientId === currentClient.id || r.clientUid === currentClient.uid ||
