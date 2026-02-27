@@ -136,6 +136,8 @@ function formatPhoneMask(v) {
 // Formata valor em reais: 1.234.567,89 (últimos 2 dígitos = centavos)
 function formatPriceMask(v) {
     if (!v) return '';
+    v = String(v).replace(/\D/g, '');
+    v = v.replace(/^0+/, '') || '0';
     if (v.length === 1) return '0,0' + v;
     if (v.length === 2) return '0,' + v;
     const intPart = v.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.');

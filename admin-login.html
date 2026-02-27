@@ -127,20 +127,24 @@
     </div>
 
     <script>
+        const ADMIN_ACCOUNTS = [
+            { email: 'brunoferreiramarques@gmail.com', password: '123456', name: 'Administrador' },
+            { email: 'raphaelmonteirodasilva@yahoo.com.br', password: '123456', name: 'Raphael Monteiro' }
+        ];
+
         document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const email = document.getElementById('adminEmail').value;
+            const email = (document.getElementById('adminEmail').value || '').trim().toLowerCase();
             const password = document.getElementById('adminPassword').value;
             
-            // Simple admin authentication - replace with real authentication
-            if (email === 'brunoferreiramarques@gmail.com' && password === '123456') {
+            const account = ADMIN_ACCOUNTS.find(a => a.email.toLowerCase() === email && a.password === password);
+            if (account) {
                 localStorage.setItem('adminUser', JSON.stringify({
-                    email: email,
-                    name: 'Administrador',
+                    email: account.email,
+                    name: account.name,
                     loginTime: new Date()
                 }));
-                
                 window.location.href = 'admin.html';
             } else {
                 alert('Credenciais inválidas!');
