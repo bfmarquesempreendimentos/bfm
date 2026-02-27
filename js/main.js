@@ -528,17 +528,9 @@ function propertyCardNext(btn) {
     propertyCardShowSlide(container, idx);
 }
 
-function propertyCardGoTo(btn, index) {
-    const container = btn.closest('.property-carousel-container');
-    if (!container) return;
-    propertyCardShowSlide(container, index);
-}
-
 function propertyCardShowSlide(container, index) {
     const slides = container.querySelectorAll('.property-carousel-slide');
-    const thumbs = container.querySelectorAll('.property-thumb');
     slides.forEach((s, i) => s.classList.toggle('active', i === index));
-    thumbs.forEach((t, i) => t.classList.toggle('active', i === index));
 }
 
 // Display properties in the grid
@@ -599,17 +591,6 @@ function createPropertyCard(property) {
                 <i class="fas fa-chevron-right"></i>
             </button>
         ` : '';
-    const thumbnailsHtml = hasMultipleImages ? `
-            <div class="property-carousel-thumbs">
-                ${imageList.map((img, i) => `
-                    <button type="button" class="property-thumb ${i === 0 ? 'active' : ''}" 
-                            onclick="event.stopPropagation(); propertyCardGoTo(this, ${i})" 
-                            aria-label="Ver foto ${i + 1}">
-                        <img src="${img}" alt="" onerror="this.src='assets/images/placeholder.jpg'">
-                    </button>
-                `).join('')}
-            </div>
-        ` : '';
     card.innerHTML = `
         <div class="property-image property-carousel-container" data-property-id="${property.id}">
             <div class="property-carousel-slides">
@@ -620,7 +601,6 @@ function createPropertyCard(property) {
                 `).join('')}
             </div>
             ${carouselArrows}
-            ${thumbnailsHtml}
             ${brokerView ? `<div class="property-status ${statusClass}">${statusText[property.status]}</div>` : ''}
             ${highlight ? `<div class="property-highlight ${highlight.className}">${highlight.text}</div>` : ''}
         </div>

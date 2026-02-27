@@ -946,13 +946,18 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 3;
-    opacity: 0.85;
+    opacity: 0;
     transition: opacity 0.2s, background 0.2s;
+}
+
+.property-card:hover .property-carousel-prev,
+.property-card:hover .property-carousel-next {
+    opacity: 0.85;
 }
 
 .property-carousel-prev:hover,
 .property-carousel-next:hover {
-    opacity: 1;
+    opacity: 1 !important;
     background: #fff;
 }
 
@@ -964,46 +969,12 @@ body {
     right: 8px;
 }
 
-.property-carousel-thumbs {
-    position: absolute;
-    bottom: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 6px;
-    z-index: 3;
-    padding: 4px 8px;
-    background: rgba(0,0,0,0.35);
-    border-radius: 20px;
-}
-
-.property-thumb {
-    width: 36px;
-    height: 28px;
-    padding: 0;
-    border: 2px solid transparent;
-    border-radius: 6px;
-    overflow: hidden;
-    cursor: pointer;
-    background: transparent;
-    transition: border-color 0.2s, opacity 0.2s;
-}
-
-.property-thumb:hover,
-.property-thumb.active {
-    border-color: #fff;
-    opacity: 1;
-}
-
-.property-thumb:not(.active) {
-    opacity: 0.7;
-}
-
-.property-thumb img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+/* Em dispositivos touch (sem hover), setas ficam visíveis */
+@media (hover: none) {
+    .property-carousel-prev,
+    .property-carousel-next {
+        opacity: 0.8;
+    }
 }
 
 .property-card--amendoeiras .property-image {
