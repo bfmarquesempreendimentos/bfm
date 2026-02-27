@@ -30,12 +30,13 @@ function closeAdminSidebar() {
 }
 
 function initializeAdminPanel() {
+    if (typeof repairLocalStorage === 'function') repairLocalStorage();
     // Check admin authentication
     if (!isAdminAuthenticated()) {
         redirectToLogin();
         return;
     }
-    var adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+    var adminUser = (typeof safeGetObject === 'function' ? safeGetObject('adminUser') : JSON.parse(localStorage.getItem('adminUser') || '{}')) || {};
     var nameEl = document.getElementById('adminUserName');
     if (nameEl) {
         nameEl.textContent = adminUser.name || 'Administrador';
@@ -52,7 +53,7 @@ function initializeAdminPanel() {
     (function preloadRepairs() {
         function mergeAndSave(fromServer) {
             if (!fromServer || !fromServer.length) return;
-            var local = JSON.parse(localStorage.getItem('repairRequests') || '[]');
+            var local = (typeof safeGetArray === 'function' ? safeGetArray('repairRequests') : JSON.parse(localStorage.getItem('repairRequests') || '[]')) || [];
             var byId = {};
             for (var j = 0; j < fromServer.length; j++) {
                 var f = fromServer[j];
@@ -101,7 +102,7 @@ function isAdminAuthenticated() {
 
 // Verifica se o usuário logado é super admin (pode excluir cadastros)
 function isSuperAdmin() {
-    const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+    const adminUser = (typeof safeGetObject === 'function' ? safeGetObject('adminUser') : JSON.parse(localStorage.getItem('adminUser') || '{}')) || {};
     const superEmails = (typeof CONFIG !== 'undefined' && CONFIG?.auth?.superAdminEmails) || ['brunoferreiramarques@gmail.com'];
     return superEmails.includes(adminUser.email);
 }

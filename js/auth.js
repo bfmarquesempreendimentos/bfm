@@ -70,7 +70,7 @@ async function loadBrokersFromFirestore() {
     if (typeof getBrokersFromFirestore !== 'function') return false;
     try {
         const fromDb = await getBrokersFromFirestore();
-        const local = JSON.parse(localStorage.getItem('brokers') || '[]').map(b => ({
+        const local = ((typeof safeGetArray === 'function' ? safeGetArray('brokers') : JSON.parse(localStorage.getItem('brokers') || '[]')) || []).map(b => ({
             ...b,
             createdAt: b.createdAt ? new Date(b.createdAt) : new Date()
         }));

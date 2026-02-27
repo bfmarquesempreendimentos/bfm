@@ -1,7 +1,7 @@
 // Admin - Gestão de Solicitações de Reparo
 
 function getAdminRepairs() {
-    return JSON.parse(localStorage.getItem('repairRequests') || '[]');
+    return (typeof safeGetArray === 'function' ? safeGetArray('repairRequests') : JSON.parse(localStorage.getItem('repairRequests') || '[]')) || [];
 }
 
 async function loadAdminRepairs() {

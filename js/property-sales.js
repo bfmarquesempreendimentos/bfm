@@ -1,8 +1,7 @@
 // Sistema de Propriedades Vendidas - Vinculação com CPF
 
-// Estrutura de propriedades vendidas
-// Em produção, isso viria de um banco de dados
-let propertySales = JSON.parse(localStorage.getItem('propertySales') || '[]');
+// Estrutura de propriedades vendidas (usa safeGetArray para evitar JSON corrompido)
+let propertySales = (typeof safeGetArray === 'function' ? safeGetArray('propertySales') : JSON.parse(localStorage.getItem('propertySales') || '[]')) || [];
 
 // Adicionar propriedade vendida (Firestore = base única, sync Mac/Desktop)
 async function addPropertySale(saleData) {
@@ -79,7 +78,7 @@ function savePropertySales() {
 
 // Carregar vendas
 function loadPropertySales() {
-    propertySales = JSON.parse(localStorage.getItem('propertySales') || '[]');
+    propertySales = (typeof safeGetArray === 'function' ? safeGetArray('propertySales') : JSON.parse(localStorage.getItem('propertySales') || '[]')) || [];
 }
 
 // Converter venda em propriedade do cliente

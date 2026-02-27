@@ -125,7 +125,7 @@ async function loginClient(event) {
     }
     
     // Buscar cliente no localStorage (apenas por email)
-    const clients = JSON.parse(localStorage.getItem('clients') || '[]');
+    const clients = (typeof safeGetArray === 'function' ? safeGetArray('clients') : JSON.parse(localStorage.getItem('clients') || '[]')) || [];
     const client = clients.find(c => 
         c.email.toLowerCase() === login.toLowerCase() && c.password === password
     );
@@ -272,7 +272,7 @@ async function registerClient(event) {
     }
     
     // Verificar se já existe (local)
-    const clients = JSON.parse(localStorage.getItem('clients') || '[]');
+    const clients = (typeof safeGetArray === 'function' ? safeGetArray('clients') : JSON.parse(localStorage.getItem('clients') || '[]')) || [];
     if (clients.find(c => c.cpf === cpf || c.email.toLowerCase() === email.toLowerCase())) {
         showMessage('CPF ou Email já cadastrado.', 'error');
         return;
@@ -538,7 +538,7 @@ function getHistoryIcon(type) {
 function addClientHistory(title, type, description = '') {
     if (!currentClient) return;
     
-    const clients = JSON.parse(localStorage.getItem('clients') || '[]');
+    const clients = (typeof safeGetArray === 'function' ? safeGetArray('clients') : JSON.parse(localStorage.getItem('clients') || '[]')) || [];
     const clientIndex = clients.findIndex(c => c.id === currentClient.id);
     
     if (clientIndex === -1) return;
@@ -577,7 +577,7 @@ function loadClientProfile() {
 function updateClientProfile(event) {
     event.preventDefault();
     
-    const clients = JSON.parse(localStorage.getItem('clients') || '[]');
+    const clients = (typeof safeGetArray === 'function' ? safeGetArray('clients') : JSON.parse(localStorage.getItem('clients') || '[]')) || [];
     const clientIndex = clients.findIndex(c => c.id === currentClient.id);
     
     if (clientIndex === -1) return;
@@ -661,7 +661,7 @@ async function handleClientForgotPasswordSubmit() {
     }
     
     // 2. Clientes em localStorage
-    const clients = JSON.parse(localStorage.getItem('clients') || '[]');
+    const clients = (typeof safeGetArray === 'function' ? safeGetArray('clients') : JSON.parse(localStorage.getItem('clients') || '[]')) || [];
     const client = clients.find(c => String(c.email).toLowerCase() === String(email).toLowerCase());
     if (!client) {
         showMessage('Email não encontrado. Se você se cadastrou com Firebase, verifique sua caixa de entrada.', 'error');
@@ -716,6 +716,7 @@ function preloadClientDataFromServer() {
 
 // Inicializar máscaras e restaurar sessão
 document.addEventListener('DOMContentLoaded', function() {
+    if (typeof repairLocalStorage === 'function') repairLocalStorage();
     preloadClientDataFromServer();
     var saved = localStorage.getItem('currentClient');
     if (saved && document.getElementById('clientDashboard')) {
