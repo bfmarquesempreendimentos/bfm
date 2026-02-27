@@ -174,6 +174,30 @@ exports.registerBroker = functions.https.onRequest(async (req, res) => {
   }
 });
 
+// ─── API de Reparos (fallback quando cliente Firestore retorna vazio) ──
+exports.getRepairs = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+
+  try {
+    const db = admin.firestore();
+    const snapshot = await db.collection('repairRequests').get();
+    const repairs = snapshot.docs.map(doc => {
+      const d = doc.data();
+      return { firestoreId: doc.id, ...d };
+    });
+    repairs.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    return res.json(repairs);
+  } catch (err) {
+    console.error('Erro ao buscar reparos:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── API de Leads para o painel admin ─────────────────────────────
 exports.chatbotLeads = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');

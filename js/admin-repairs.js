@@ -12,11 +12,28 @@ async function loadAdminRepairs() {
     var statusEl = document.getElementById('repairSyncStatus');
     if (statusEl) { statusEl.style.display = 'none'; statusEl.className = 'repair-sync-status'; statusEl.textContent = ''; }
 
-    // Sincronizar com Firestore ao carregar - Firestore é fonte primária
+    // Sincronizar com Firestore ao carregar - Firestore é fonte primária; fallback via Cloud Function
+    var fromFirestore = [];
     if (typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
         try {
-            var fromFirestore = await getAllRepairRequestsFromFirestore();
-            var local = getAdminRepairs();
+            fromFirestore = await getAllRepairRequestsFromFirestore();
+        } catch (e) {
+            console.warn('Firestore direto falhou:', e);
+        }
+    }
+    if (fromFirestore.length === 0 && typeof fetch === 'function') {
+        try {
+            var resp = await fetch('https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs');
+            if (resp.ok) {
+                var data = await resp.json();
+                if (data && data.length > 0) fromFirestore = data;
+            }
+        } catch (e2) {
+            console.warn('Fallback getRepairs falhou:', e2);
+        }
+    }
+    try {
+        var local = getAdminRepairs();
             var byId = {};
             for (var j = 0; j < fromFirestore.length; j++) {
                 var f = fromFirestore[j];
@@ -50,17 +67,16 @@ async function loadAdminRepairs() {
                     statusEl.textContent = local.length + ' reparo(s) carregado(s).';
                 }
             }
-        } catch (e) {
-            console.warn('Erro ao sincronizar reparos do Firestore:', e);
-            if (statusEl) {
-                statusEl.style.display = 'block';
-                statusEl.style.background = '#ffebee';
-                statusEl.style.color = '#c62828';
-                statusEl.innerHTML = '<strong>Erro ao conectar com o servidor.</strong> O Safari pode estar bloqueando. <a href="#" onclick="loadAdminRepairs();return false;">Clique aqui para tentar novamente</a> ou use o Chrome.';
-            }
-            if (typeof showMessage === 'function') {
-                showMessage('Erro ao buscar reparos. Clique em Atualizar para tentar novamente.', 'error');
-            }
+    } catch (e) {
+        console.warn('Erro ao sincronizar reparos:', e);
+        if (statusEl) {
+            statusEl.style.display = 'block';
+            statusEl.style.background = '#ffebee';
+            statusEl.style.color = '#c62828';
+            statusEl.innerHTML = '<strong>Erro ao conectar.</strong> <a href="#" onclick="loadAdminRepairs();return false;">Clique aqui para tentar novamente</a>.';
+        }
+        if (typeof showMessage === 'function') {
+            showMessage('Erro ao buscar reparos. Clique em Atualizar para tentar novamente.', 'error');
         }
     }
 
