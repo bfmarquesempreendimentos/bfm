@@ -36,11 +36,19 @@ async function loadAdminRepairs() {
             local = [];
             for (var k in byId) { if (byId.hasOwnProperty(k)) local.push(byId[k]); }
             localStorage.setItem('repairRequests', JSON.stringify(local));
-            if (statusEl && local.length === 0 && fromFirestore.length === 0) {
+            if (statusEl) {
                 statusEl.style.display = 'block';
-                statusEl.style.background = '#e8f5e9';
-                statusEl.style.color = '#2e7d32';
-                statusEl.textContent = 'Conectado. Nenhum reparo no sistema.';
+                if (local.length === 0 && fromFirestore.length === 0) {
+                    statusEl.style.background = '#fff3e0';
+                    statusEl.style.color = '#e65100';
+                    var isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || (navigator.vendor && navigator.vendor.indexOf('Apple') > -1);
+                    statusEl.innerHTML = 'Conectado. Nenhum reparo no sistema.' +
+                        (isSafari ? ' <strong>No Mac/Safari os reparos podem não carregar. Use o Chrome para ver os dados.</strong>' : '');
+                } else {
+                    statusEl.style.background = '#e8f5e9';
+                    statusEl.style.color = '#2e7d32';
+                    statusEl.textContent = local.length + ' reparo(s) carregado(s).';
+                }
             }
         } catch (e) {
             console.warn('Erro ao sincronizar reparos do Firestore:', e);

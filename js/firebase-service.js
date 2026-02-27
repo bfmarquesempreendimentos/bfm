@@ -80,8 +80,15 @@ async function getRepairRequestFromFirestore(repairId) {
 async function getAllRepairRequestsFromFirestore() {
   const db = getFirebaseDb();
   if (!db) return [];
-  const snapshot = await db.collection('repairRequests').get();
-  return snapshot.docs.map(doc => ({ firestoreId: doc.id, ...doc.data() }));
+  var opts = { source: 'server' };
+  var snapshot = await db.collection('repairRequests').get(opts);
+  return snapshot.docs.map(function(doc) {
+    var d = doc.data();
+    var out = {};
+    for (var k in d) { if (Object.prototype.hasOwnProperty.call(d, k)) out[k] = d[k]; }
+    out.firestoreId = doc.id;
+    return out;
+  });
 }
 
 async function deleteRepairRequestFromFirestore(repairId) {
