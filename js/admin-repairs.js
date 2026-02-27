@@ -22,11 +22,18 @@ async function loadAdminRepairs() {
     var fromFirestore = [];
     var getRepairsUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?t=' + Date.now();
     if (typeof fetch === 'function') {
-        var fetchOpts = { cache: 'no-store', credentials: 'omit', mode: 'cors' };
         var maxAttempts = 3;
         for (var attempt = 0; attempt < maxAttempts; attempt++) {
             try {
+                var fetchOpts = { cache: 'no-store', credentials: 'omit', mode: 'cors' };
+                var timeoutId = null;
+                if (typeof AbortController !== 'undefined') {
+                    var controller = new AbortController();
+                    timeoutId = setTimeout(function() { controller.abort(); }, 15000);
+                    fetchOpts.signal = controller.signal;
+                }
                 var resp = await fetch(getRepairsUrl, fetchOpts);
+                if (timeoutId) clearTimeout(timeoutId);
                 if (resp.ok) {
                     var data = await resp.json();
                     if (data && Array.isArray(data)) {
@@ -35,7 +42,7 @@ async function loadAdminRepairs() {
                     }
                 }
             } catch (e1) {
-                console.warn('getRepairs tentativa', attempt + 1, 'falhou:', e1);
+                if (typeof console !== 'undefined' && console.warn) console.warn('getRepairs tentativa', attempt + 1, 'falhou:', e1);
             }
             if (attempt < maxAttempts - 1) {
                 getRepairsUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?_=' + Date.now() + '&n=' + attempt;
@@ -47,12 +54,25 @@ async function loadAdminRepairs() {
         try {
             fromFirestore = await getAllRepairRequestsFromFirestore();
         } catch (e2) {
-            console.warn('Firestore direto falhou:', e2);
+            if (typeof console !== 'undefined' && console.warn) console.warn('Firestore direto falhou:', e2);
         }
+    }
+    // Mac: quando Cloud Function retornou dados mas Firestore pode ter mais, tenta complementar
+    var localCount = (JSON.parse(localStorage.getItem('repairRequests') || '[]')).length;
+    if (fromFirestore.length > 0 && fromFirestore.length < localCount && typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        try {
+            var fromFs = await getAllRepairRequestsFromFirestore();
+            var byId = {};
+            for (var j = 0; j < fromFirestore.length; j++) { var f = fromFirestore[j]; var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id); if (fid != null) byId[fid] = f; }
+            for (var j = 0; j < fromFs.length; j++) { var f = fromFs[j]; var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id); if (fid != null && !byId[fid]) byId[fid] = f; }
+            fromFirestore = [];
+            for (var k in byId) { if (byId.hasOwnProperty(k)) fromFirestore.push(byId[k]); }
+        } catch (e3) {}
     }
     try {
         var local = getAdminRepairs();
         var byId = {};
+        // 1) Inserir do servidor primeiro (fonte de verdade)
         for (var j = 0; j < fromFirestore.length; j++) {
             var f = fromFirestore[j];
             var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id);
@@ -62,11 +82,11 @@ async function loadAdminRepairs() {
                 byId[fid] = f;
             }
         }
-        if (fromFirestore.length === 0) {
-            for (var i = 0; i < local.length; i++) {
-                var lid = local[i].id;
-                if (lid !== undefined && lid !== null && !byId[lid]) byId[lid] = local[i];
-            }
+        // 2) SEMPRE complementar com itens do localStorage que o servidor não retornou
+        //    Corrige Mac/Windows: quando fetch retorna parcial ou falha, preserva dados locais
+        for (var i = 0; i < local.length; i++) {
+            var lid = local[i].id;
+            if (lid !== undefined && lid !== null && !byId[lid]) byId[lid] = local[i];
         }
         local = [];
         for (var k in byId) { if (byId.hasOwnProperty(k)) local.push(byId[k]); }
