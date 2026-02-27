@@ -1,7 +1,7 @@
 // Admin - Gestão de Solicitações de Reparo
 
 function getAdminRepairs() {
-    return (typeof safeGetArray === 'function' ? safeGetArray('repairRequests') : JSON.parse(localStorage.getItem('repairRequests') || '[]')) || [];
+    return JSON.parse(localStorage.getItem('repairRequests') || '[]');
 }
 
 async function loadAdminRepairs() {
@@ -12,18 +12,28 @@ async function loadAdminRepairs() {
     var statusEl = document.getElementById('repairSyncStatus');
     if (statusEl) { statusEl.style.display = 'none'; statusEl.className = 'repair-sync-status'; statusEl.textContent = ''; }
 
-    // Cloud Function como FONTE PRIMÁRIA (evita falhas do Firestore SDK no Mac/Safari); Firestore como fallback
+    // Cloud Function como FONTE PRIMÁRIA - cache:no-store evita resposta em cache no Mac
     var fromFirestore = [];
     var getRepairsUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?t=' + Date.now();
     if (typeof fetch === 'function') {
-        try {
-            var resp = await fetch(getRepairsUrl);
-            if (resp.ok) {
-                var data = await resp.json();
-                if (data && Array.isArray(data) && data.length > 0) fromFirestore = data;
+        var fetchOpts = { cache: 'no-store', credentials: 'omit' };
+        for (var attempt = 0; attempt < 2; attempt++) {
+            try {
+                var resp = await fetch(getRepairsUrl, fetchOpts);
+                if (resp.ok) {
+                    var data = await resp.json();
+                    if (data && Array.isArray(data)) {
+                        fromFirestore = data;
+                        if (fromFirestore.length > 0) break;
+                    }
+                }
+            } catch (e1) {
+                console.warn('getRepairs tentativa', attempt + 1, 'falhou:', e1);
             }
-        } catch (e1) {
-            console.warn('Cloud Function getRepairs falhou:', e1);
+            if (fromFirestore.length === 0 && attempt === 0) {
+                getRepairsUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?r=' + Date.now();
+                await new Promise(function(r) { setTimeout(r, 800); });
+            }
         }
     }
     if (fromFirestore.length === 0 && typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
@@ -35,25 +45,25 @@ async function loadAdminRepairs() {
     }
     try {
         var local = getAdminRepairs();
-            var byId = {};
-            for (var j = 0; j < fromFirestore.length; j++) {
-                var f = fromFirestore[j];
-                var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id);
-                if (fid === undefined || fid === null) continue;
-                var existing = byId[fid];
-                if (!existing || (f.updatedAt && (!existing.updatedAt || new Date(f.updatedAt) > new Date(existing.updatedAt)))) {
-                    byId[fid] = f;
-                }
+        var byId = {};
+        for (var j = 0; j < fromFirestore.length; j++) {
+            var f = fromFirestore[j];
+            var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id);
+            if (fid === undefined || fid === null) continue;
+            var existing = byId[fid];
+            if (!existing || (f.updatedAt && (!existing.updatedAt || new Date(f.updatedAt) > new Date(existing.updatedAt)))) {
+                byId[fid] = f;
             }
+        }
+        if (fromFirestore.length === 0) {
             for (var i = 0; i < local.length; i++) {
                 var lid = local[i].id;
-                if (lid !== undefined && lid !== null && !byId[lid]) {
-                    byId[lid] = local[i];
-                }
+                if (lid !== undefined && lid !== null && !byId[lid]) byId[lid] = local[i];
             }
-            local = [];
-            for (var k in byId) { if (byId.hasOwnProperty(k)) local.push(byId[k]); }
-            localStorage.setItem('repairRequests', JSON.stringify(local));
+        }
+        local = [];
+        for (var k in byId) { if (byId.hasOwnProperty(k)) local.push(byId[k]); }
+        localStorage.setItem('repairRequests', JSON.stringify(local));
             if (statusEl) {
                 statusEl.style.display = 'block';
                 if (local.length === 0 && fromFirestore.length === 0) {

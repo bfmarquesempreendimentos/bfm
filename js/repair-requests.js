@@ -322,7 +322,7 @@ async function submitRepairRequest(event) {
         };
         if (typeof addCreatedBy === 'function') addCreatedBy(repairRequest);
         // Salvar no localStorage (feedback imediato)
-        const repairRequests = (typeof safeGetArray === 'function' ? safeGetArray('repairRequests') : JSON.parse(localStorage.getItem('repairRequests') || '[]')) || [];
+        const repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
         repairRequests.push(repairRequest);
         localStorage.setItem('repairRequests', JSON.stringify(repairRequests));
 
@@ -396,11 +396,11 @@ async function loadClientRepairs() {
     const repairsList = document.getElementById('clientRepairsList');
     if (!repairsList) return;
     
-    let repairRequests = (typeof safeGetArray === 'function' ? safeGetArray('repairRequests') : JSON.parse(localStorage.getItem('repairRequests') || '[]')) || [];
+    let repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
     let fromServer = [];
     if (typeof fetch === 'function') {
         try {
-            var resp = await fetch(GET_REPAIRS_URL + '?t=' + Date.now());
+            var resp = await fetch(GET_REPAIRS_URL + '?t=' + Date.now(), { cache: 'no-store', credentials: 'omit' });
             if (resp.ok) {
                 var data = await resp.json();
                 if (data && Array.isArray(data) && data.length > 0) fromServer = data;
@@ -545,7 +545,7 @@ async function submitClientRepairResponse(event, repairId) {
         showMessage('Digite sua mensagem ou faça login.', 'error');
         return;
     }
-    var repairRequests = (typeof safeGetArray === 'function' ? safeGetArray('repairRequests') : JSON.parse(localStorage.getItem('repairRequests') || '[]')) || [];
+    var repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
     var index = repairRequests.findIndex(function(r) { return r.id === repairId; });
     if (index === -1) {
         showMessage('Solicitação não encontrada.', 'error');
@@ -623,7 +623,7 @@ async function submitClientRepairResponse(event, repairId) {
 
 // Ver detalhes da solicitação
 function viewRepairDetails(repairId) {
-    const repairRequests = (typeof safeGetArray === 'function' ? safeGetArray('repairRequests') : JSON.parse(localStorage.getItem('repairRequests') || '[]')) || [];
+    const repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
     const repair = repairRequests.find(r => r.id === repairId);
     
     if (!repair) {

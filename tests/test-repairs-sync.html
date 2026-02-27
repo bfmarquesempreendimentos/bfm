@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Sincronização de Reparos</title>
+</head>
+<body>
+    <h1>Teste de Sync Reparos (Mac/Windows)</h1>
+    <div id="log" style="font-family:monospace;white-space:pre-wrap;background:#f5f5f5;padding:12px;margin:10px 0;"></div>
+    <button onclick="runTests()">Executar Testes</button>
+    <script>
+        var GET_URL = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs';
+        var CREATE_URL = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/createRepair';
+        var logEl = document.getElementById('log');
+
+        function log(msg, type) {
+            var p = type === 'error' ? '<span style="color:red">' : (type === 'ok' ? '<span style="color:green">' : '');
+            var pe = p ? '</span>' : '';
+            logEl.innerHTML += (new Date().toISOString().slice(11,19)) + ' ' + p + msg + pe + '\n';
+        }
+
+        async function fetchRepairs() {
+            var url = GET_URL + '?t=' + Date.now();
+            var resp = await fetch(url, { cache: 'no-store', credentials: 'omit' });
+            if (!resp.ok) throw new Error('getRepairs ' + resp.status);
+            var data = await resp.json();
+            return Array.isArray(data) ? data : [];
+        }
+
+        async function runTests() {
+            logEl.innerHTML = '';
+            log('=== Iniciando testes de sincronização ===');
+            var ok = 0, fail = 0;
+
+            try {
+                log('1. Testando getRepairs...');
+                var repairs = await fetchRepairs();
+                log('   Reparos retornados: ' + repairs.length, repairs.length >= 0 ? 'ok' : '');
+                ok++;
+            } catch (e) {
+                log('   ERRO: ' + e.message, 'error');
+                fail++;
+            }
+
+            try {
+                log('2. Testando createRepair...');
+                var testRepair = {
+                    id: Date.now(),
+                    clientName: 'Teste Sync',
+                    clientEmail: 'teste@teste.local',
+                    propertyId: '999',
+                    propertyTitle: 'Teste',
+                    location: 'Teste automático',
+                    description: 'Reparo criado pelo teste em ' + new Date().toISOString(),
+                    priority: 'normal',
+                    attachments: [],
+                    status: 'pendente',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    responses: [{ type: 'automatic', message: 'Teste', date: new Date().toISOString() }]
+                };
+                var resp = await fetch(CREATE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testRepair)
+                });
+                if (!resp.ok) throw new Error('createRepair ' + resp.status + ' ' + (await resp.text()));
+                var created = await resp.json();
+                log('   Criado: id=' + testRepair.id, 'ok');
+                ok++;
+
+                log('3. Aguardando 2s e verificando se aparece em getRepairs...');
+                await new Promise(r => setTimeout(r, 2000));
+                var after = await fetchRepairs();
+                var found = after.find(function(r) { return r.id === testRepair.id || String(r.id) === String(testRepair.id); });
+                if (found) {
+                    log('   Reparo encontrado no servidor. Sync OK!', 'ok');
+                    ok++;
+                } else {
+                    log('   Reparo NÃO encontrado. Possível problema de sync.', 'error');
+                    fail++;
+                }
+            } catch (e) {
+                log('   ERRO: ' + e.message, 'error');
+                fail++;
+            }
+
+            log('');
+            log('=== Resultado: ' + ok + ' ok, ' + fail + ' falha(s) ===');
+        }
+    </script>
+</body>
+</html>

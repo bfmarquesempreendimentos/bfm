@@ -30,13 +30,12 @@ function closeAdminSidebar() {
 }
 
 function initializeAdminPanel() {
-    if (typeof repairLocalStorage === 'function') repairLocalStorage();
     // Check admin authentication
     if (!isAdminAuthenticated()) {
         redirectToLogin();
         return;
     }
-    var adminUser = (typeof safeGetObject === 'function' ? safeGetObject('adminUser') : JSON.parse(localStorage.getItem('adminUser') || '{}')) || {};
+    var adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
     var nameEl = document.getElementById('adminUserName');
     if (nameEl) {
         nameEl.textContent = adminUser.name || 'Administrador';
@@ -53,7 +52,7 @@ function initializeAdminPanel() {
     (function preloadRepairs() {
         function mergeAndSave(fromServer) {
             if (!fromServer || !fromServer.length) return;
-            var local = (typeof safeGetArray === 'function' ? safeGetArray('repairRequests') : JSON.parse(localStorage.getItem('repairRequests') || '[]')) || [];
+            var local = JSON.parse(localStorage.getItem('repairRequests') || '[]');
             var byId = {};
             for (var j = 0; j < fromServer.length; j++) {
                 var f = fromServer[j];
@@ -69,7 +68,7 @@ function initializeAdminPanel() {
             localStorage.setItem('repairRequests', JSON.stringify(local));
         }
         var url = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?t=' + Date.now();
-        fetch(url).then(function(res) { return res.ok ? res.json() : []; }).then(function(data) {
+        fetch(url, { cache: 'no-store', credentials: 'omit' }).then(function(res) { return res.ok ? res.json() : []; }).then(function(data) {
             if (data && Array.isArray(data) && data.length > 0) {
                 mergeAndSave(data);
                 return;
@@ -102,7 +101,7 @@ function isAdminAuthenticated() {
 
 // Verifica se o usuário logado é super admin (pode excluir cadastros)
 function isSuperAdmin() {
-    const adminUser = (typeof safeGetObject === 'function' ? safeGetObject('adminUser') : JSON.parse(localStorage.getItem('adminUser') || '{}')) || {};
+    const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
     const superEmails = (typeof CONFIG !== 'undefined' && CONFIG?.auth?.superAdminEmails) || ['brunoferreiramarques@gmail.com'];
     return superEmails.includes(adminUser.email);
 }
