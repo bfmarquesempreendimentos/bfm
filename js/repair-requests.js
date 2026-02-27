@@ -321,18 +321,35 @@ async function submitRepairRequest(event) {
             ]
         };
         if (typeof addCreatedBy === 'function') addCreatedBy(repairRequest);
-        // Salvar no localStorage
+        // Salvar no localStorage (feedback imediato)
         const repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
         repairRequests.push(repairRequest);
         localStorage.setItem('repairRequests', JSON.stringify(repairRequests));
 
-        if (typeof saveRepairRequestToFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        // PRIMÁRIO: Cloud Function createRepair - garante sync Mac/Windows (não depende do Firestore client)
+        var createRepairUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/createRepair';
+        var savedToServer = false;
+        if (typeof fetch === 'function') {
+            try {
+                var resp = await fetch(createRepairUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(repairRequest)
+                });
+                if (resp.ok) savedToServer = true;
+                else console.warn('createRepair:', resp.status, await resp.text());
+            } catch (e) { console.warn('createRepair falhou:', e); }
+        }
+        if (!savedToServer && typeof saveRepairRequestToFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
             try {
                 await saveRepairRequestToFirestore(repairRequest);
+                savedToServer = true;
             } catch (firestoreError) {
                 console.error('Erro ao salvar reparo no Firestore:', firestoreError);
-                showMessage('Aviso: reparo salvo localmente, mas não chegou ao servidor. O administrador pode não visualizá-lo. Tente novamente mais tarde.', 'warning');
             }
+        }
+        if (!savedToServer) {
+            showMessage('Aviso: reparo salvo localmente, mas não chegou ao servidor. Outros dispositivos podem não visualizá-lo. Tente novamente.', 'warning');
         }
         
         // Adicionar ao histórico do cliente

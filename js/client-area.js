@@ -695,8 +695,35 @@ async function handleClientForgotPasswordSubmit() {
     showMessage('Se o email estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também a pasta de spam.', 'success');
 }
 
-// Inicializar máscaras
+// Pré-carregar propertySales do servidor (Mac/fresh device - localStorage vazio)
+function preloadClientDataFromServer() {
+    var url = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getPropertySales?t=' + Date.now();
+    if (typeof fetch === 'function') {
+        fetch(url).then(function(r) { return r.ok ? r.json() : []; }).then(function(sales) {
+            if (sales && Array.isArray(sales) && sales.length > 0) {
+                localStorage.setItem('propertySales', JSON.stringify(sales));
+                if (typeof loadPropertySales === 'function') loadPropertySales();
+            }
+        }).catch(function() {
+            if (typeof getAllPropertySalesFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+                getAllPropertySalesFromFirestore().then(function(s) {
+                    if (s && s.length > 0) { localStorage.setItem('propertySales', JSON.stringify(s)); if (typeof loadPropertySales === 'function') loadPropertySales(); }
+                }).catch(function() {});
+            }
+        });
+    }
+}
+
+// Inicializar máscaras e restaurar sessão
 document.addEventListener('DOMContentLoaded', function() {
+    preloadClientDataFromServer();
+    var saved = localStorage.getItem('currentClient');
+    if (saved && document.getElementById('clientDashboard')) {
+        try {
+            currentClient = JSON.parse(saved);
+            if (currentClient && currentClient.email) showClientDashboard();
+        } catch (e) {}
+    }
     const cpfInput = document.getElementById('clientCPF');
     if (cpfInput) {
         cpfInput.addEventListener('input', function(e) {

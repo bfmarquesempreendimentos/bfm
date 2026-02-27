@@ -18,9 +18,7 @@ service cloud.firestore {
     }
 
     match /repairRequests/{docId} {
-      allow read, update: if true;
-      allow create: if isSignedIn();
-      allow delete: if true;
+      allow read, create, update, delete: if true;
     }
 
     match /emailAuditLog/{docId} {

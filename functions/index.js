@@ -174,7 +174,66 @@ exports.registerBroker = functions.https.onRequest(async (req, res) => {
   }
 });
 
-// ─── API de Reparos (fallback quando cliente Firestore retorna vazio) ──
+// ─── API de Vendas (fallback quando Firestore client falha no Mac) ────
+exports.getPropertySales = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const db = admin.firestore();
+    const snapshot = await db.collection('propertySales').get();
+    const sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return res.json(sales);
+  } catch (err) {
+    console.error('Erro ao buscar vendas:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── API de Reparos: CRIAR (garante sync Mac/Windows - não depende do Firestore client) ──
+exports.createRepair = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const body = req.body;
+    if (!body || typeof body !== 'object') return res.status(400).json({ error: 'Payload inválido' });
+    const repair = {
+      id: body.id || Date.now(),
+      clientId: body.clientId || null,
+      clientUid: body.clientUid || null,
+      clientName: body.clientName || '',
+      clientEmail: body.clientEmail || '',
+      clientPhone: body.clientPhone || '',
+      clientCpf: body.clientCpf || '',
+      propertyId: body.propertyId || '',
+      propertyTitle: body.propertyTitle || '',
+      unitCode: body.unitCode || null,
+      description: body.description || '',
+      location: body.location || '',
+      priority: body.priority || 'normal',
+      attachments: Array.isArray(body.attachments) ? body.attachments : [],
+      attachmentsCount: body.attachmentsCount || 0,
+      attachmentsTotalSize: body.attachmentsTotalSize || 0,
+      status: body.status || 'pendente',
+      createdAt: body.createdAt || new Date().toISOString(),
+      updatedAt: body.updatedAt || new Date().toISOString(),
+      responses: Array.isArray(body.responses) ? body.responses : []
+    };
+    const db = admin.firestore();
+    const docRef = await db.collection('repairRequests').add(repair);
+    return res.status(201).json({ success: true, id: repair.id, firestoreId: docRef.id });
+  } catch (err) {
+    console.error('Erro ao criar reparo:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── API de Reparos: LISTAR (fallback quando cliente Firestore retorna vazio) ──
 exports.getRepairs = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
