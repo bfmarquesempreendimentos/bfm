@@ -10,22 +10,25 @@ document.addEventListener('DOMContentLoaded', function() {
     setupNotificationListeners();
 });
 
-// Load notifications from localStorage (protegido contra JSON corrompido)
+// Load notifications from localStorage
 function loadNotifications() {
-    var notif = typeof safeGetArray === 'function' ? safeGetArray('notifications') : null;
-    if (!notif && localStorage) { try { notif = JSON.parse(localStorage.getItem('notifications') || '[]'); } catch(e) { notif = []; } }
-    if (Array.isArray(notif) && notif.length > 0) {
-        notifications = notif;
-        notifications.forEach(function(n) {
-            n.createdAt = n.createdAt ? new Date(n.createdAt) : new Date();
-            if (n.expiresAt) n.expiresAt = new Date(n.expiresAt);
+    const savedNotifications = localStorage.getItem('notifications');
+    if (savedNotifications) {
+        notifications = JSON.parse(savedNotifications);
+        notifications.forEach(notification => {
+            notification.createdAt = new Date(notification.createdAt);
+            if (notification.expiresAt) {
+                notification.expiresAt = new Date(notification.expiresAt);
+            }
         });
     }
-    var adminNotif = typeof safeGetArray === 'function' ? safeGetArray('adminNotifications') : null;
-    if (!adminNotif && localStorage) { try { adminNotif = JSON.parse(localStorage.getItem('adminNotifications') || '[]'); } catch(e) { adminNotif = []; } }
-    if (Array.isArray(adminNotif) && adminNotif.length > 0) {
-        adminNotifications = adminNotif;
-        adminNotifications.forEach(function(n) { n.createdAt = n.createdAt ? new Date(n.createdAt) : new Date(); });
+    
+    const savedAdminNotifications = localStorage.getItem('adminNotifications');
+    if (savedAdminNotifications) {
+        adminNotifications = JSON.parse(savedAdminNotifications);
+        adminNotifications.forEach(notification => {
+            notification.createdAt = new Date(notification.createdAt);
+        });
     }
 }
 

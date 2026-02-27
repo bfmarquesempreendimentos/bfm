@@ -51,7 +51,7 @@ function initializeAdminPanel() {
     // Pré-carregar reparos (Cloud Function primeiro - evita falhas do Firestore no Mac)
     (function preloadRepairs() {
         function mergeAndSave(fromServer) {
-            if (!fromServer) fromServer = [];
+            if (!fromServer || !fromServer.length) return;
             var local = JSON.parse(localStorage.getItem('repairRequests') || '[]');
             var byId = {};
             for (var j = 0; j < fromServer.length; j++) {

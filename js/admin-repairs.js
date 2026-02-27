@@ -6,8 +6,14 @@ function getAdminRepairs() {
 
 function forceRepairsSync() {
     localStorage.removeItem('repairRequests');
-    if (typeof showMessage === 'function') showMessage('Cache limpo. Buscando do servidor...', 'info');
+    if (typeof showMessage === 'function') showMessage('Cache limpo. Buscando dados atualizados...', 'info');
     loadAdminRepairs();
+}
+
+function isSafariOrMac() {
+    var ua = navigator.userAgent || '';
+    var vendor = navigator.vendor || '';
+    return (/Safari/i.test(ua) && !/Chrome/i.test(ua)) || vendor.indexOf('Apple') > -1 || /iPhone|iPad|iPod/.test(ua);
 }
 
 async function loadAdminRepairs() {
@@ -18,38 +24,47 @@ async function loadAdminRepairs() {
     var statusEl = document.getElementById('repairSyncStatus');
     if (statusEl) { statusEl.style.display = 'none'; statusEl.className = 'repair-sync-status'; statusEl.textContent = ''; }
 
-    // Cloud Function como FONTE PRIMÁRIA - cache:no-store evita resposta em cache no Mac
     var fromFirestore = [];
-    var getRepairsUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?t=' + Date.now();
+
+    // No Mac/Safari/iOS: Firestore direto PRIMEIRO (evita cache HTTP do fetch)
+    if (isSafariOrMac() && typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        try {
+            fromFirestore = await getAllRepairRequestsFromFirestore();
+        } catch (e2) {
+            if (typeof console !== 'undefined' && console.warn) console.warn('Firestore direto falhou:', e2);
+        }
+    }
+
+    // Cloud Function: sempre executar todas as tentativas e manter o resultado com MAIS itens (evita cache parcial)
     if (typeof fetch === 'function') {
+        var fetchOpts = { cache: 'no-store', credentials: 'omit', mode: 'cors' };
+        var bestResult = fromFirestore;
         var maxAttempts = 3;
         for (var attempt = 0; attempt < maxAttempts; attempt++) {
             try {
-                var fetchOpts = { cache: 'no-store', credentials: 'omit', mode: 'cors' };
-                var timeoutId = null;
-                if (typeof AbortController !== 'undefined') {
-                    var controller = new AbortController();
-                    timeoutId = setTimeout(function() { controller.abort(); }, 15000);
-                    fetchOpts.signal = controller.signal;
-                }
+                var ts = Date.now();
+                var rand = Math.random().toString(36).slice(2, 8);
+                var getRepairsUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?t=' + ts + '&r=' + rand + '&a=' + attempt;
                 var resp = await fetch(getRepairsUrl, fetchOpts);
-                if (timeoutId) clearTimeout(timeoutId);
                 if (resp.ok) {
                     var data = await resp.json();
-                    if (data && Array.isArray(data)) {
+                    if (data && Array.isArray(data) && data.length > bestResult.length) {
+                        bestResult = data;
                         fromFirestore = data;
-                        if (fromFirestore.length > 0) break;
+                    } else if (data && Array.isArray(data) && fromFirestore.length === 0) {
+                        fromFirestore = data;
                     }
                 }
             } catch (e1) {
                 if (typeof console !== 'undefined' && console.warn) console.warn('getRepairs tentativa', attempt + 1, 'falhou:', e1);
             }
             if (attempt < maxAttempts - 1) {
-                getRepairsUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?_=' + Date.now() + '&n=' + attempt;
-                await new Promise(function(r) { setTimeout(r, 500 + attempt * 400); });
+                await new Promise(function(r) { setTimeout(r, 400 + attempt * 300); });
             }
         }
+        if (bestResult.length > fromFirestore.length) fromFirestore = bestResult;
     }
+
     if (fromFirestore.length === 0 && typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
         try {
             fromFirestore = await getAllRepairRequestsFromFirestore();
@@ -57,22 +72,10 @@ async function loadAdminRepairs() {
             if (typeof console !== 'undefined' && console.warn) console.warn('Firestore direto falhou:', e2);
         }
     }
-    // Mac: quando Cloud Function retornou dados mas Firestore pode ter mais, tenta complementar
-    var localCount = (JSON.parse(localStorage.getItem('repairRequests') || '[]')).length;
-    if (fromFirestore.length > 0 && fromFirestore.length < localCount && typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
-        try {
-            var fromFs = await getAllRepairRequestsFromFirestore();
-            var byId = {};
-            for (var j = 0; j < fromFirestore.length; j++) { var f = fromFirestore[j]; var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id); if (fid != null) byId[fid] = f; }
-            for (var j = 0; j < fromFs.length; j++) { var f = fromFs[j]; var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id); if (fid != null && !byId[fid]) byId[fid] = f; }
-            fromFirestore = [];
-            for (var k in byId) { if (byId.hasOwnProperty(k)) fromFirestore.push(byId[k]); }
-        } catch (e3) {}
-    }
+
     try {
         var local = getAdminRepairs();
         var byId = {};
-        // 1) Inserir do servidor primeiro (fonte de verdade)
         for (var j = 0; j < fromFirestore.length; j++) {
             var f = fromFirestore[j];
             var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id);
@@ -82,8 +85,7 @@ async function loadAdminRepairs() {
                 byId[fid] = f;
             }
         }
-        // 2) SEMPRE complementar com itens do localStorage que o servidor não retornou
-        //    Corrige Mac/Windows: quando fetch retorna parcial ou falha, preserva dados locais
+        // Mesmo com dados do servidor, incluir itens locais que não vieram (evita perda por resposta parcial)
         for (var i = 0; i < local.length; i++) {
             var lid = local[i].id;
             if (lid !== undefined && lid !== null && !byId[lid]) byId[lid] = local[i];
@@ -96,9 +98,7 @@ async function loadAdminRepairs() {
                 if (local.length === 0 && fromFirestore.length === 0) {
                     statusEl.style.background = '#fff3e0';
                     statusEl.style.color = '#e65100';
-                    var isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || (navigator.vendor && navigator.vendor.indexOf('Apple') > -1);
-                    statusEl.innerHTML = 'Conectado. Nenhum reparo no sistema.' +
-                        (isSafari ? ' <strong>No Mac/Safari os reparos podem não carregar. Use o Chrome para ver os dados.</strong>' : '');
+                    statusEl.innerHTML = 'Conectado. Nenhum reparo no sistema.';
                 } else {
                     statusEl.style.background = '#e8f5e9';
                     statusEl.style.color = '#2e7d32';

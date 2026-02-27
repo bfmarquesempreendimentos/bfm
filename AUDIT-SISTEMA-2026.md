@@ -92,23 +92,7 @@ firebase deploy --only functions:getPropertySales
 
 ---
 
-## 5. PENTE FINO - localStorage (v2)
-
-### Proteção contra JSON corrompido
-- **storage-utils.js**: Utilitário com `safeGetArray`, `safeGetObject`, `repairLocalStorage`, `clearRepairRequestsLocal`
-- **repairLocalStorage()**: Executado no init do Admin e Área do Cliente; remove chaves que falham no parse
-- **safeGetArray/safeGetObject**: Usados em property-sales, admin-repairs, repair-requests, client-area, notifications, admin.js, auth.js
-
-### Botão "Forçar sync" (Admin > Reparos)
-- Limpa `repairRequests` do localStorage e recarrega apenas do servidor (getRepairs)
-- Útil quando há dados presos/corrompidos localmente
-
-### Chaves monitoradas
-repairRequests, propertySales, clients, brokers, reservations, properties, notifications, adminNotifications, documentAccesses, emailHistory, propertyDocuments
-
----
-
-## 6. FLUXOS VALIDADOS
+## 5. FLUXOS VALIDADOS
 
 | Fluxo | Admin | Cliente | Corretor |
 |-------|-------|---------|----------|
