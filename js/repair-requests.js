@@ -35,8 +35,9 @@ function isRepairFormFilled() {
 }
 
 // Fechar modal de solicitação de reparo (com confirmação se formulário preenchido)
-function closeRepairRequestModal() {
-    if (isRepairFormFilled() && !confirm('Tem certeza que deseja sair? As informações preenchidas serão perdidas.')) {
+// skipConfirm: true quando o envio foi bem-sucedido - não perguntar se deseja sair
+function closeRepairRequestModal(skipConfirm) {
+    if (!skipConfirm && isRepairFormFilled() && !confirm('Tem certeza que deseja sair? As informações preenchidas serão perdidas.')) {
         return;
     }
     const modal = document.getElementById('repairRequestModal');
@@ -367,7 +368,10 @@ async function submitRepairRequest(event) {
         }
         
         showMessage('Solicitação enviada com sucesso! Você receberá uma resposta em breve.', 'success');
-        closeRepairRequestModal();
+        selectedFiles = [];
+        var f = document.getElementById('repairRequestForm');
+        if (f) f.reset();
+        closeRepairRequestModal(true);
         
         // Recarregar lista de reparos
         const repairsTab = document.getElementById('clientRepairsTab');
