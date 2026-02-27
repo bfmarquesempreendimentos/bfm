@@ -377,6 +377,9 @@
                     <button class="btn btn-secondary" onclick="forceRepairsSync()" title="Limpar cache e buscar do servidor">
                         <i class="fas fa-sync-alt"></i> Forçar sync
                     </button>
+                    <button class="btn btn-secondary" onclick="pushLocalRepairsToServer()" title="Enviar reparos que estão só neste navegador para o servidor">
+                        <i class="fas fa-cloud-upload-alt"></i> Enviar locais ao servidor
+                    </button>
                     <button class="btn btn-primary" onclick="loadAdminRepairs()">
                         <i class="fas fa-refresh"></i> Atualizar
                     </button>
@@ -907,7 +910,7 @@
     <script src="js/property-sales.js"></script>
     <script src="js/whatsapp-leads.js"></script>
     <script src="js/admin-analytics.js"></script>
-    <script src="js/admin-repairs.js?v=6"></script>
+    <script src="js/admin-repairs.js?v=7"></script>
     <script src="js/admin.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>

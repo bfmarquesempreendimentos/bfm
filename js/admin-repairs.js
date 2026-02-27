@@ -10,6 +10,43 @@ function forceRepairsSync() {
     loadAdminRepairs();
 }
 
+async function pushLocalRepairsToServer() {
+    var local = getAdminRepairs();
+    if (local.length === 0) {
+        if (typeof showMessage === 'function') showMessage('Nenhum reparo local para enviar.', 'info');
+        return;
+    }
+    var serverIds = {};
+    var fromApi = await fetchRepairsFromCloudFunction();
+    var fromFs = await fetchRepairsFromFirestore();
+    for (var i = 0; i < fromApi.length; i++) { var id = fromApi[i].id; if (id != null) serverIds[id] = 1; }
+    for (var i = 0; i < fromFs.length; i++) { var id = fromFs[i].id; if (id != null) serverIds[id] = 1; }
+    var toPush = [];
+    for (var j = 0; j < local.length; j++) {
+        var lid = local[j].id;
+        if (lid != null && !serverIds[lid]) toPush.push(local[j]);
+    }
+    if (toPush.length === 0) {
+        if (typeof showMessage === 'function') showMessage('Todos os reparos locais já estão no servidor.', 'info');
+        return;
+    }
+    if (typeof showMessage === 'function') showMessage('Enviando ' + toPush.length + ' reparo(s) para o servidor...', 'info');
+    var url = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/createRepair';
+    var ok = 0;
+    for (var k = 0; k < toPush.length; k++) {
+        try {
+            var r = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(toPush[k])
+            });
+            if (r.ok) ok++;
+        } catch (e) {}
+    }
+    if (typeof showMessage === 'function') showMessage(ok + ' de ' + toPush.length + ' reparo(s) enviados. Atualizando...', ok === toPush.length ? 'success' : 'warning');
+    loadAdminRepairs();
+}
+
 async function fetchRepairsFromCloudFunction() {
     var fetchOpts = { cache: 'no-store', credentials: 'omit', mode: 'cors' };
     var bestResult = [];
@@ -49,6 +86,8 @@ async function loadAdminRepairs() {
     var promiseFirestore = fetchRepairsFromFirestore();
     var promiseFetch = typeof fetch === 'function' ? fetchRepairsFromCloudFunction() : Promise.resolve([]);
     var results = await Promise.all([promiseFirestore, promiseFetch]);
+    var countFirestore = (results[0] && results[0].length) || 0;
+    var countApi = (results[1] && results[1].length) || 0;
 
     var byFid = {};
     function addToMap(arr) {
@@ -98,7 +137,7 @@ async function loadAdminRepairs() {
                 } else {
                     statusEl.style.background = '#e8f5e9';
                     statusEl.style.color = '#2e7d32';
-                    statusEl.textContent = local.length + ' reparo(s) carregado(s).';
+                    statusEl.textContent = local.length + ' reparo(s) carregado(s). Firestore: ' + countFirestore + ' | API: ' + countApi;
                 }
             }
     } catch (e) {
