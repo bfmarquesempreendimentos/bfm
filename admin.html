@@ -374,7 +374,7 @@
             <div class="section-header">
                 <h2><i class="fas fa-tools"></i> Solicitações de Reparo</h2>
                 <div class="header-actions">
-                    <button class="btn btn-outline btn-sm" onclick="if(typeof clearRepairRequestsLocal==='function')clearRepairRequestsLocal();loadAdminRepairs();" title="Limpar cache local e buscar só do servidor">
+                    <button class="btn btn-secondary" onclick="forceRepairsSync()" title="Limpar cache e buscar do servidor">
                         <i class="fas fa-sync-alt"></i> Forçar sync
                     </button>
                     <button class="btn btn-primary" onclick="loadAdminRepairs()">
@@ -884,7 +884,6 @@
 
     <!-- Scripts -->
     <script src="config.js"></script>
-    <script src="js/storage-utils.js"></script>
     <script src="js/audit.js"></script>
     <script src="js/email-service.js"></script>
     <!-- Firebase (Compat) -->
@@ -907,7 +906,7 @@
     <script src="js/property-sales.js"></script>
     <script src="js/whatsapp-leads.js"></script>
     <script src="js/admin-analytics.js"></script>
-    <script src="js/admin-repairs.js?v=3"></script>
+    <script src="js/admin-repairs.js?v=4"></script>
     <script src="js/admin.js?v=2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>

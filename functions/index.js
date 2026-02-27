@@ -238,6 +238,8 @@ exports.getRepairs = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.set('Pragma', 'no-cache');
 
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });

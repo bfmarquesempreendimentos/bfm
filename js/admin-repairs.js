@@ -4,6 +4,12 @@ function getAdminRepairs() {
     return JSON.parse(localStorage.getItem('repairRequests') || '[]');
 }
 
+function forceRepairsSync() {
+    localStorage.removeItem('repairRequests');
+    if (typeof showMessage === 'function') showMessage('Cache limpo. Buscando do servidor...', 'info');
+    loadAdminRepairs();
+}
+
 async function loadAdminRepairs() {
     var section = document.getElementById('repairs');
     if (!section) return;
@@ -16,8 +22,9 @@ async function loadAdminRepairs() {
     var fromFirestore = [];
     var getRepairsUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?t=' + Date.now();
     if (typeof fetch === 'function') {
-        var fetchOpts = { cache: 'no-store', credentials: 'omit' };
-        for (var attempt = 0; attempt < 2; attempt++) {
+        var fetchOpts = { cache: 'no-store', credentials: 'omit', mode: 'cors' };
+        var maxAttempts = 3;
+        for (var attempt = 0; attempt < maxAttempts; attempt++) {
             try {
                 var resp = await fetch(getRepairsUrl, fetchOpts);
                 if (resp.ok) {
@@ -30,9 +37,9 @@ async function loadAdminRepairs() {
             } catch (e1) {
                 console.warn('getRepairs tentativa', attempt + 1, 'falhou:', e1);
             }
-            if (fromFirestore.length === 0 && attempt === 0) {
-                getRepairsUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?r=' + Date.now();
-                await new Promise(function(r) { setTimeout(r, 800); });
+            if (attempt < maxAttempts - 1) {
+                getRepairsUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?_=' + Date.now() + '&n=' + attempt;
+                await new Promise(function(r) { setTimeout(r, 500 + attempt * 400); });
             }
         }
     }
