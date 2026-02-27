@@ -5,10 +5,12 @@ function getAdminRepairs() {
 }
 
 async function loadAdminRepairs() {
-    const section = document.getElementById('repairs');
+    var section = document.getElementById('repairs');
     if (!section) return;
-    const tbody = document.getElementById('adminRepairsTableBody');
+    var tbody = document.getElementById('adminRepairsTableBody');
     if (!tbody) return;
+    var statusEl = document.getElementById('repairSyncStatus');
+    if (statusEl) { statusEl.style.display = 'none'; statusEl.className = 'repair-sync-status'; statusEl.textContent = ''; }
 
     // Sincronizar com Firestore ao carregar - Firestore é fonte primária
     if (typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
@@ -34,8 +36,20 @@ async function loadAdminRepairs() {
             local = [];
             for (var k in byId) { if (byId.hasOwnProperty(k)) local.push(byId[k]); }
             localStorage.setItem('repairRequests', JSON.stringify(local));
+            if (statusEl && local.length === 0 && fromFirestore.length === 0) {
+                statusEl.style.display = 'block';
+                statusEl.style.background = '#e8f5e9';
+                statusEl.style.color = '#2e7d32';
+                statusEl.textContent = 'Conectado. Nenhum reparo no sistema.';
+            }
         } catch (e) {
             console.warn('Erro ao sincronizar reparos do Firestore:', e);
+            if (statusEl) {
+                statusEl.style.display = 'block';
+                statusEl.style.background = '#ffebee';
+                statusEl.style.color = '#c62828';
+                statusEl.innerHTML = '<strong>Erro ao conectar com o servidor.</strong> O Safari pode estar bloqueando. <a href="#" onclick="loadAdminRepairs();return false;">Clique aqui para tentar novamente</a> ou use o Chrome.';
+            }
             if (typeof showMessage === 'function') {
                 showMessage('Erro ao buscar reparos. Clique em Atualizar para tentar novamente.', 'error');
             }
