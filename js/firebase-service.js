@@ -78,10 +78,9 @@ async function getRepairRequestFromFirestore(repairId) {
 }
 
 async function getAllRepairRequestsFromFirestore() {
-  const db = getFirebaseDb();
+  var db = getFirebaseDb();
   if (!db) return [];
-  var opts = { source: 'server' };
-  var snapshot = await db.collection('repairRequests').get(opts);
+  var snapshot = await db.collection('repairRequests').get();
   return snapshot.docs.map(function(doc) {
     var d = doc.data();
     var out = {};

@@ -10,10 +10,30 @@ function forceRepairsSync() {
     loadAdminRepairs();
 }
 
-function isSafariOrMac() {
-    var ua = navigator.userAgent || '';
-    var vendor = navigator.vendor || '';
-    return (/Safari/i.test(ua) && !/Chrome/i.test(ua)) || vendor.indexOf('Apple') > -1 || /iPhone|iPad|iPod/.test(ua);
+async function fetchRepairsFromCloudFunction() {
+    var fetchOpts = { cache: 'no-store', credentials: 'omit', mode: 'cors' };
+    var bestResult = [];
+    var url = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs';
+    for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+            var ts = Date.now();
+            var rand = Math.random().toString(36).slice(2, 10);
+            var resp = await fetch(url + '?t=' + ts + '&r=' + rand + '&a=' + attempt, fetchOpts);
+            if (resp.ok) {
+                var data = await resp.json();
+                if (data && Array.isArray(data) && data.length > bestResult.length) bestResult = data;
+            }
+        } catch (e) {}
+        if (attempt < 2) await new Promise(function(r) { setTimeout(r, 500); });
+    }
+    return bestResult;
+}
+
+async function fetchRepairsFromFirestore() {
+    if (typeof getAllRepairRequestsFromFirestore !== 'function' || typeof firebaseAvailable !== 'function' || !firebaseAvailable()) return [];
+    try {
+        return await getAllRepairRequestsFromFirestore();
+    } catch (e) { return []; }
 }
 
 async function loadAdminRepairs() {
@@ -24,54 +44,30 @@ async function loadAdminRepairs() {
     var statusEl = document.getElementById('repairSyncStatus');
     if (statusEl) { statusEl.style.display = 'none'; statusEl.className = 'repair-sync-status'; statusEl.textContent = ''; }
 
+    // Executar Firestore E Cloud Function EM PARALELO - unir resultados (evita cache parcial em qualquer plataforma)
     var fromFirestore = [];
+    var promiseFirestore = fetchRepairsFromFirestore();
+    var promiseFetch = typeof fetch === 'function' ? fetchRepairsFromCloudFunction() : Promise.resolve([]);
+    var results = await Promise.all([promiseFirestore, promiseFetch]);
 
-    // No Mac/Safari/iOS: Firestore direto PRIMEIRO (evita cache HTTP do fetch)
-    if (isSafariOrMac() && typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
-        try {
-            fromFirestore = await getAllRepairRequestsFromFirestore();
-        } catch (e2) {
-            if (typeof console !== 'undefined' && console.warn) console.warn('Firestore direto falhou:', e2);
-        }
-    }
-
-    // Cloud Function: sempre executar todas as tentativas e manter o resultado com MAIS itens (evita cache parcial)
-    if (typeof fetch === 'function') {
-        var fetchOpts = { cache: 'no-store', credentials: 'omit', mode: 'cors' };
-        var bestResult = fromFirestore;
-        var maxAttempts = 3;
-        for (var attempt = 0; attempt < maxAttempts; attempt++) {
-            try {
-                var ts = Date.now();
-                var rand = Math.random().toString(36).slice(2, 8);
-                var getRepairsUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?t=' + ts + '&r=' + rand + '&a=' + attempt;
-                var resp = await fetch(getRepairsUrl, fetchOpts);
-                if (resp.ok) {
-                    var data = await resp.json();
-                    if (data && Array.isArray(data) && data.length > bestResult.length) {
-                        bestResult = data;
-                        fromFirestore = data;
-                    } else if (data && Array.isArray(data) && fromFirestore.length === 0) {
-                        fromFirestore = data;
-                    }
-                }
-            } catch (e1) {
-                if (typeof console !== 'undefined' && console.warn) console.warn('getRepairs tentativa', attempt + 1, 'falhou:', e1);
-            }
-            if (attempt < maxAttempts - 1) {
-                await new Promise(function(r) { setTimeout(r, 400 + attempt * 300); });
+    var byFid = {};
+    function addToMap(arr) {
+        if (!arr || !Array.isArray(arr)) return;
+        for (var i = 0; i < arr.length; i++) {
+            var f = arr[i];
+            var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id);
+            if (fid == null) continue;
+            var existing = byFid[fid];
+            if (!existing || (f.updatedAt && (!existing.updatedAt || new Date(f.updatedAt) > new Date(existing.updatedAt)))) {
+                byFid[fid] = f;
             }
         }
-        if (bestResult.length > fromFirestore.length) fromFirestore = bestResult;
     }
+    addToMap(results[0]);
+    addToMap(results[1]);
 
-    if (fromFirestore.length === 0 && typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
-        try {
-            fromFirestore = await getAllRepairRequestsFromFirestore();
-        } catch (e2) {
-            if (typeof console !== 'undefined' && console.warn) console.warn('Firestore direto falhou:', e2);
-        }
-    }
+    var fromFirestore = [];
+    for (var k in byFid) { if (byFid.hasOwnProperty(k)) fromFirestore.push(byFid[k]); }
 
     try {
         var local = getAdminRepairs();
