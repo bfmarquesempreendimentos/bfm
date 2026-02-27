@@ -10,30 +10,34 @@ async function loadAdminRepairs() {
     const tbody = document.getElementById('adminRepairsTableBody');
     if (!tbody) return;
 
-    // Sincronizar com Firestore ao carregar (mesclar por id)
+    // Sincronizar com Firestore ao carregar - Firestore é fonte primária
     if (typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
         try {
             var fromFirestore = await getAllRepairRequestsFromFirestore();
             var local = getAdminRepairs();
             var byId = {};
-            for (var i = 0; i < local.length; i++) {
-                byId[local[i].id] = local[i];
-            }
             for (var j = 0; j < fromFirestore.length; j++) {
                 var f = fromFirestore[j];
                 var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id);
+                if (fid === undefined || fid === null) continue;
                 var existing = byId[fid];
                 if (!existing || (f.updatedAt && (!existing.updatedAt || new Date(f.updatedAt) > new Date(existing.updatedAt)))) {
                     byId[fid] = f;
                 }
             }
+            for (var i = 0; i < local.length; i++) {
+                var lid = local[i].id;
+                if (lid !== undefined && lid !== null && !byId[lid]) {
+                    byId[lid] = local[i];
+                }
+            }
             local = [];
-            for (var k in byId) { local.push(byId[k]); }
+            for (var k in byId) { if (byId.hasOwnProperty(k)) local.push(byId[k]); }
             localStorage.setItem('repairRequests', JSON.stringify(local));
         } catch (e) {
             console.warn('Erro ao sincronizar reparos do Firestore:', e);
             if (typeof showMessage === 'function') {
-                showMessage('Erro ao buscar reparos do Firestore: ' + (e.message || e.code || 'verifique a conexão'), 'error');
+                showMessage('Erro ao buscar reparos. Clique em Atualizar para tentar novamente.', 'error');
             }
         }
     }

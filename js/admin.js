@@ -48,6 +48,26 @@ function initializeAdminPanel() {
     // Load initial data
     loadDashboardData();
     setupAdminEventListeners();
+    if (typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        getAllRepairRequestsFromFirestore().then(function(fromFirestore) {
+            if (fromFirestore && fromFirestore.length > 0) {
+                var local = JSON.parse(localStorage.getItem('repairRequests') || '[]');
+                var byId = {};
+                for (var j = 0; j < fromFirestore.length; j++) {
+                    var f = fromFirestore[j];
+                    var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id);
+                    if (fid !== undefined && fid !== null) byId[fid] = f;
+                }
+                for (var i = 0; i < local.length; i++) {
+                    var lid = local[i].id;
+                    if (lid !== undefined && lid !== null && !byId[lid]) byId[lid] = local[i];
+                }
+                local = [];
+                for (var k in byId) { if (byId.hasOwnProperty(k)) local.push(byId[k]); }
+                localStorage.setItem('repairRequests', JSON.stringify(local));
+            }
+        }).catch(function() {});
+    }
     const hash = (window.location.hash || '').replace('#', '');
     const urlParams = new URLSearchParams(window.location.search);
     const openRepairId = urlParams.get('openRepair');
