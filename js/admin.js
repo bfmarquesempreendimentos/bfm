@@ -35,7 +35,16 @@ function initializeAdminPanel() {
         redirectToLogin();
         return;
     }
-    
+    var adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+    var nameEl = document.getElementById('adminUserName');
+    if (nameEl) {
+        nameEl.textContent = adminUser.name || 'Administrador';
+        if (typeof isSuperAdmin === 'function' && isSuperAdmin()) {
+            nameEl.title = adminUser.email + ' (Super Admin)';
+        } else {
+            nameEl.title = adminUser.email + ' (Admin)';
+        }
+    }
     // Load initial data
     loadDashboardData();
     setupAdminEventListeners();
@@ -72,7 +81,7 @@ function redirectToLogin() {
 function adminLogout() {
     if (confirm('Tem certeza que deseja sair?')) {
         localStorage.removeItem('adminUser');
-        redirectToLogin();
+        window.location.href = 'admin-login.html?logout=1&t=' + Date.now();
     }
 }
 
@@ -1071,8 +1080,8 @@ async function handleBrokerFormSubmission(e) {
         brokerData.password = formData.get('password');
         brokerData.id = brokers.length + 1;
         brokerData.createdAt = new Date();
-        
-        if (brokers.find(b => (b.email || '').toLowerCase() === brokerData.email)) {
+        if (typeof addCreatedBy === 'function') addCreatedBy(brokerData);
+        if (brokers.find(function(b){ return (b.email || '').toLowerCase() === brokerData.email; })) {
             alert('Este email já está cadastrado.');
             return;
         }
@@ -1093,11 +1102,12 @@ async function handleBrokerFormSubmission(e) {
         if (typeof saveBrokersToStorage === 'function') saveBrokersToStorage();
         showMessage('Corretor adicionado com sucesso!', 'success');
     } else {
-        if (brokers.find(b => (b.email || '').toLowerCase() === brokerData.email && String(b.id) !== String(editingBroker.id))) {
+        if (brokers.find(function(b){ return (b.email || '').toLowerCase() === brokerData.email && String(b.id) !== String(editingBroker.id); })) {
             alert('Este email já está cadastrado para outro corretor.');
             return;
         }
         Object.assign(editingBroker, brokerData);
+        if (typeof addUpdatedBy === 'function') addUpdatedBy(editingBroker);
         if (typeof updateBrokerInFirestore === 'function' && typeof editingBroker.id === 'string') {
             try {
                 await updateBrokerInFirestore(editingBroker.id, brokerData);

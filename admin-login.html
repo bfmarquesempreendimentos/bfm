@@ -127,8 +127,8 @@
     </div>
 
     <script>
-        const ADMIN_ACCOUNTS = [
-            { email: 'brunoferreiramarques@gmail.com', password: '123456', name: 'Administrador' },
+        var ADMIN_ACCOUNTS = [
+            { email: 'brunoferreiramarques@gmail.com', password: '123456', name: 'Bruno Marques' },
             { email: 'raphaelmonteirodasilva@yahoo.com.br', password: '123456', name: 'Raphael Monteiro' }
         ];
 
@@ -138,22 +138,34 @@
             const email = (document.getElementById('adminEmail').value || '').trim().toLowerCase();
             const password = document.getElementById('adminPassword').value;
             
-            const account = ADMIN_ACCOUNTS.find(a => a.email.toLowerCase() === email && a.password === password);
+            const account = ADMIN_ACCOUNTS.find(function(a) { return a.email.toLowerCase() === email && a.password === password; });
             if (account) {
+                localStorage.removeItem('adminUser');
                 localStorage.setItem('adminUser', JSON.stringify({
                     email: account.email,
                     name: account.name,
-                    loginTime: new Date()
+                    loginTime: new Date().toISOString()
                 }));
-                window.location.href = 'admin.html';
+                window.location.href = 'admin.html?t=' + Date.now();
             } else {
                 alert('Credenciais inválidas!');
             }
         });
-        
-        // Check if already logged in
-        if (localStorage.getItem('adminUser')) {
-            window.location.href = 'admin.html';
+
+        if (/[?&]logout=1/.test(window.location.search)) {
+            localStorage.removeItem('adminUser');
+        }
+        var stored = localStorage.getItem('adminUser');
+        if (stored) {
+            var loginLink = document.createElement('p');
+            loginLink.style.cssText = 'text-align:center;margin-top:12px;font-size:0.9rem;';
+            loginLink.innerHTML = 'Já logado. <a href="admin.html">Entrar no painel</a> &nbsp;|&nbsp; <a href="#" id="switchUser">Trocar de conta</a>';
+            document.querySelector('.back-link').parentNode.insertBefore(loginLink, document.querySelector('.back-link'));
+            document.getElementById('switchUser').onclick = function(e) {
+                e.preventDefault();
+                localStorage.removeItem('adminUser');
+                window.location.reload();
+            };
         }
     </script>
 </body>
