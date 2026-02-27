@@ -504,6 +504,9 @@ async function loadClientRepairs() {
     setTimeout(() => hydrateAttachmentPreviews(), 0);
 }
 
+// Arquivos acumulados na resposta do reparo (para aceitar múltiplas seleções sem substituir)
+var _repairResponseFilesAccumulated = [];
+
 // Enviar resposta do cliente na solicitação de reparo
 async function submitClientRepairResponse(event, repairId) {
     event.preventDefault();
@@ -522,8 +525,10 @@ async function submitClientRepairResponse(event, repairId) {
     var repair = repairRequests[index];
     var attachments = [];
     var fileInput = document.getElementById('repairResponseFileInput');
-    if (fileInput && fileInput.files && fileInput.files.length > 0) {
-        var files = Array.from(fileInput.files);
+    var files = (_repairResponseFilesAccumulated && _repairResponseFilesAccumulated.length > 0)
+        ? _repairResponseFilesAccumulated
+        : (fileInput && fileInput.files ? Array.from(fileInput.files) : []);
+    if (files.length > 0) {
         var v = validateRepairResponseFiles(files);
         if (!v.valid) {
             showMessage(v.error, 'error');
@@ -578,7 +583,8 @@ async function submitClientRepairResponse(event, repairId) {
 
     showMessage('Mensagem enviada! A empresa será notificada por email.', 'success');
     if (textarea) textarea.value = '';
-    if (fileInput) { fileInput.value = ''; fileInput.dispatchEvent(new Event('change')); }
+    _repairResponseFilesAccumulated = [];
+    if (fileInput) { fileInput.value = ''; }
     var modal = document.querySelector('.modal');
     if (modal) {
         modal.remove();
@@ -694,27 +700,25 @@ function viewRepairDetails(repairId) {
     var hintEl = modal.querySelector('#repairResponseFileHint');
     if (fileInput) {
         fileInput.value = '';
+        _repairResponseFilesAccumulated = [];
         fileInput.onchange = function() {
-            var files = Array.from(fileInput.files || []);
-            if (files.length === 0) {
-                if (previewEl) { previewEl.style.display = 'none'; previewEl.innerHTML = ''; }
-                if (hintEl) hintEl.textContent = '';
-                return;
-            }
-            var v = validateRepairResponseFiles(files);
+            var newFiles = Array.from(fileInput.files || []);
+            if (newFiles.length === 0) return;
+            var combined = _repairResponseFilesAccumulated.concat(newFiles);
+            var v = validateRepairResponseFiles(combined);
             if (!v.valid) {
                 showMessage(v.error, 'error');
                 fileInput.value = '';
-                if (previewEl) previewEl.innerHTML = '';
-                if (hintEl) hintEl.textContent = '';
                 return;
             }
-            var photos = files.filter(isImageFile).length;
-            var videos = files.filter(isVideoFile).length;
-            if (hintEl) hintEl.textContent = photos + ' foto(s), ' + videos + ' vídeo(s) • ' + files.length + ' arquivo(s)';
+            _repairResponseFilesAccumulated = combined;
+            fileInput.value = '';
+            var photos = combined.filter(isImageFile).length;
+            var videos = combined.filter(isVideoFile).length;
+            if (hintEl) hintEl.textContent = photos + ' foto(s), ' + videos + ' vídeo(s) • ' + combined.length + ' arquivo(s)';
             if (previewEl) {
                 previewEl.style.display = 'block';
-                previewEl.innerHTML = files.map(function(f, i) {
+                previewEl.innerHTML = combined.map(function(f, i) {
                     return '<span class="repair-response-file-tag">' + f.name + ' <button type="button" onclick="removeRepairResponseFile(' + i + ')" aria-label="Remover">&times;</button></span>';
                 }).join('');
             }
@@ -736,14 +740,23 @@ function validateRepairResponseFiles(files) {
 }
 
 function removeRepairResponseFile(index) {
-    var input = document.getElementById('repairResponseFileInput');
-    if (!input) return;
-    var dt = new DataTransfer();
-    for (var i = 0; i < input.files.length; i++) {
-        if (i !== index) dt.items.add(input.files[i]);
+    if (!_repairResponseFilesAccumulated || _repairResponseFilesAccumulated.length === 0) return;
+    _repairResponseFilesAccumulated.splice(index, 1);
+    var previewEl = document.getElementById('repairResponseFilePreview');
+    var hintEl = document.getElementById('repairResponseFileHint');
+    if (_repairResponseFilesAccumulated.length === 0) {
+        if (previewEl) { previewEl.style.display = 'none'; previewEl.innerHTML = ''; }
+        if (hintEl) hintEl.textContent = '';
+        return;
     }
-    input.files = dt.files;
-    input.dispatchEvent(new Event('change'));
+    var photos = _repairResponseFilesAccumulated.filter(isImageFile).length;
+    var videos = _repairResponseFilesAccumulated.filter(isVideoFile).length;
+    if (hintEl) hintEl.textContent = photos + ' foto(s), ' + videos + ' vídeo(s) • ' + _repairResponseFilesAccumulated.length + ' arquivo(s)';
+    if (previewEl) {
+        previewEl.innerHTML = _repairResponseFilesAccumulated.map(function(f, i) {
+            return '<span class="repair-response-file-tag">' + f.name + ' <button type="button" onclick="removeRepairResponseFile(' + i + ')" aria-label="Remover">&times;</button></span>';
+        }).join('');
+    }
 }
 
 // Funções auxiliares

@@ -12,24 +12,25 @@ async function loadAdminRepairs() {
     var statusEl = document.getElementById('repairSyncStatus');
     if (statusEl) { statusEl.style.display = 'none'; statusEl.className = 'repair-sync-status'; statusEl.textContent = ''; }
 
-    // Sincronizar com Firestore ao carregar - Firestore é fonte primária; fallback via Cloud Function
+    // Cloud Function como FONTE PRIMÁRIA (evita falhas do Firestore SDK no Mac/Safari); Firestore como fallback
     var fromFirestore = [];
-    if (typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+    var getRepairsUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?t=' + Date.now();
+    if (typeof fetch === 'function') {
         try {
-            fromFirestore = await getAllRepairRequestsFromFirestore();
-        } catch (e) {
-            console.warn('Firestore direto falhou:', e);
-        }
-    }
-    if (fromFirestore.length === 0 && typeof fetch === 'function') {
-        try {
-            var resp = await fetch('https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs');
+            var resp = await fetch(getRepairsUrl);
             if (resp.ok) {
                 var data = await resp.json();
-                if (data && data.length > 0) fromFirestore = data;
+                if (data && Array.isArray(data) && data.length > 0) fromFirestore = data;
             }
+        } catch (e1) {
+            console.warn('Cloud Function getRepairs falhou:', e1);
+        }
+    }
+    if (fromFirestore.length === 0 && typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+        try {
+            fromFirestore = await getAllRepairRequestsFromFirestore();
         } catch (e2) {
-            console.warn('Fallback getRepairs falhou:', e2);
+            console.warn('Firestore direto falhou:', e2);
         }
     }
     try {

@@ -48,26 +48,40 @@ function initializeAdminPanel() {
     // Load initial data
     loadDashboardData();
     setupAdminEventListeners();
-    if (typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
-        getAllRepairRequestsFromFirestore().then(function(fromFirestore) {
-            if (fromFirestore && fromFirestore.length > 0) {
-                var local = JSON.parse(localStorage.getItem('repairRequests') || '[]');
-                var byId = {};
-                for (var j = 0; j < fromFirestore.length; j++) {
-                    var f = fromFirestore[j];
-                    var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id);
-                    if (fid !== undefined && fid !== null) byId[fid] = f;
-                }
-                for (var i = 0; i < local.length; i++) {
-                    var lid = local[i].id;
-                    if (lid !== undefined && lid !== null && !byId[lid]) byId[lid] = local[i];
-                }
-                local = [];
-                for (var k in byId) { if (byId.hasOwnProperty(k)) local.push(byId[k]); }
-                localStorage.setItem('repairRequests', JSON.stringify(local));
+    // Pré-carregar reparos (Cloud Function primeiro - evita falhas do Firestore no Mac)
+    (function preloadRepairs() {
+        function mergeAndSave(fromServer) {
+            if (!fromServer || !fromServer.length) return;
+            var local = JSON.parse(localStorage.getItem('repairRequests') || '[]');
+            var byId = {};
+            for (var j = 0; j < fromServer.length; j++) {
+                var f = fromServer[j];
+                var fid = f.id !== undefined ? f.id : (f.firestoreId || f.id);
+                if (fid !== undefined && fid !== null) byId[fid] = f;
             }
-        }).catch(function() {});
-    }
+            for (var i = 0; i < local.length; i++) {
+                var lid = local[i].id;
+                if (lid !== undefined && lid !== null && !byId[lid]) byId[lid] = local[i];
+            }
+            local = [];
+            for (var k in byId) { if (byId.hasOwnProperty(k)) local.push(byId[k]); }
+            localStorage.setItem('repairRequests', JSON.stringify(local));
+        }
+        var url = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?t=' + Date.now();
+        fetch(url).then(function(res) { return res.ok ? res.json() : []; }).then(function(data) {
+            if (data && Array.isArray(data) && data.length > 0) {
+                mergeAndSave(data);
+                return;
+            }
+            if (typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+                return getAllRepairRequestsFromFirestore().then(mergeAndSave).catch(function() {});
+            }
+        }).catch(function() {
+            if (typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+                getAllRepairRequestsFromFirestore().then(mergeAndSave).catch(function() {});
+            }
+        });
+    })();
     const hash = (window.location.hash || '').replace('#', '');
     const urlParams = new URLSearchParams(window.location.search);
     const openRepairId = urlParams.get('openRepair');
