@@ -75,8 +75,8 @@ async function loadBrokersFromFirestore() {
             createdAt: b.createdAt ? new Date(b.createdAt) : new Date()
         }));
         const byEmail = {};
-        local.forEach(b => { byEmail[b.email] = b; });
-        fromDb.forEach(b => { byEmail[b.email] = b; });
+        local.forEach(b => { byEmail[(b.email || '').toLowerCase()] = b; });
+        fromDb.forEach(b => { byEmail[(b.email || '').toLowerCase()] = b; });
         brokers = Object.values(byEmail).sort((a, b) =>
             new Date(b.createdAt) - new Date(a.createdAt));
         ensureAdminBroker();
@@ -149,13 +149,21 @@ function setupAuthForms() {
     // Add new event listeners
     newLoginForm.addEventListener('submit', handleLogin);
     newRegisterForm.addEventListener('submit', handleRegister);
+    // Email sempre minúsculo no login
+    const loginEmail = newLoginForm.querySelector('#email');
+    if (loginEmail) {
+        loginEmail.addEventListener('blur', function() {
+            const v = (this.value || '').trim().toLowerCase();
+            if (v) this.value = v;
+        });
+    }
 }
 
 // Handle login form submission
 function handleLogin(e) {
     e.preventDefault();
     
-    const email = e.target.email.value;
+    const email = (e.target.email.value || '').trim().toLowerCase();
     const password = e.target.password.value;
     
     // Validate input
@@ -164,8 +172,8 @@ function handleLogin(e) {
         return;
     }
     
-    // Find broker
-    const broker = brokers.find(b => b.email === email && b.password === password && b.isActive);
+    // Find broker (email comparado sem diferenciar maiúsculas/minúsculas)
+    const broker = brokers.find(b => (b.email || '').toLowerCase() === email && b.password === password && b.isActive);
     
     if (broker) {
         // Login successful
@@ -201,7 +209,7 @@ async function handleRegister(e) {
     
     const name = e.target.name.value;
     const cpf = e.target.cpf?.value || '';
-    const email = e.target.email.value;
+    const email = (e.target.email.value || '').trim().toLowerCase();
     const phone = e.target.phone.value;
     const creci = e.target.creci.value;
     const password = e.target.password.value;
@@ -223,8 +231,8 @@ async function handleRegister(e) {
         return;
     }
     
-    // Check if email already exists
-    if (brokers.find(b => b.email === email)) {
+    // Check if email already exists (case-insensitive)
+    if (brokers.find(b => (b.email || '').toLowerCase() === email)) {
         showRegisterFeedback(false, 'Este email já está cadastrado.');
         return;
     }
@@ -337,6 +345,14 @@ function showRegisterForm() {
                 value = value.replace(/^(\d{2})(\d{0,5})(\d{0,4}).*/, '($1) $2-$3');
             }
             e.target.value = value;
+        });
+    }
+    // Email sempre minúsculo (evita falha em envio automático)
+    const emailInput = document.getElementById('regEmail');
+    if (emailInput) {
+        emailInput.addEventListener('blur', function() {
+            const v = (this.value || '').trim().toLowerCase();
+            if (v) this.value = v;
         });
     }
 }
@@ -521,6 +537,126 @@ function isValidCNPJ(cnpj) {
     return check === parseInt(clean.charAt(13), 10);
 }
 
+// ─── Meu Perfil (corretor edita seus dados) ───
+function openBrokerProfileModal() {
+    if (!currentUser || !isBroker()) return;
+    const broker = brokers.find(b => String(b.id) === String(currentUser.id));
+    if (!broker) {
+        if (typeof showMessage === 'function') showMessage('Perfil não encontrado.', 'error');
+        return;
+    }
+    let modal = document.getElementById('brokerProfileModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'brokerProfileModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width:420px;">
+                <span class="close" onclick="closeBrokerProfileModal()">&times;</span>
+                <h2><i class="fas fa-user-edit"></i> Meu Perfil</h2>
+                <p class="form-hint" style="margin-bottom:16px;">Atualize seus dados. O email será salvo sempre em minúsculas.</p>
+                <form id="brokerProfileForm">
+                    <div class="form-group">
+                        <label>Nome</label>
+                        <input type="text" id="brokerProfileName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="brokerProfileEmail" required placeholder="será salvo em minúsculas">
+                    </div>
+                    <div class="form-group">
+                        <label>Telefone</label>
+                        <input type="tel" id="brokerProfilePhone" placeholder="(00) 00000-0000">
+                    </div>
+                    <div class="form-group">
+                        <label>CRECI</label>
+                        <input type="text" id="brokerProfileCreci" placeholder="Opcional">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Salvar alterações</button>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.querySelector('#brokerProfileForm').onsubmit = (e) => { e.preventDefault(); handleBrokerProfileSubmit(); return false; };
+        modal.querySelector('#brokerProfileEmail').addEventListener('blur', function() {
+            const v = (this.value || '').trim().toLowerCase();
+            if (v) this.value = v;
+        });
+    }
+    document.getElementById('brokerProfileName').value = broker.name || '';
+    document.getElementById('brokerProfileEmail').value = broker.email || '';
+    document.getElementById('brokerProfilePhone').value = broker.phone || '';
+    document.getElementById('brokerProfileCreci').value = broker.creci || '';
+    modal.style.display = 'block';
+}
+
+function closeBrokerProfileModal() {
+    const modal = document.getElementById('brokerProfileModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function handleBrokerProfileSubmit() {
+    if (!currentUser || !isBroker()) return;
+    const name = document.getElementById('brokerProfileName')?.value?.trim();
+    const email = (document.getElementById('brokerProfileEmail')?.value || '').trim().toLowerCase();
+    const phone = document.getElementById('brokerProfilePhone')?.value || '';
+    const creci = document.getElementById('brokerProfileCreci')?.value || '';
+    if (!name || !email) {
+        if (typeof showMessage === 'function') showMessage('Nome e email são obrigatórios.', 'error');
+        return;
+    }
+    const other = brokers.find(b => (b.email || '').toLowerCase() === email && String(b.id) !== String(currentUser.id));
+    if (other) {
+        if (typeof showMessage === 'function') showMessage('Este email já está em uso por outro corretor.', 'error');
+        return;
+    }
+    const broker = brokers.find(b => String(b.id) === String(currentUser.id));
+    if (!broker) return;
+    broker.name = name;
+    broker.email = email;
+    broker.phone = phone;
+    broker.creci = creci;
+    currentUser.name = name;
+    currentUser.email = email;
+    currentUser.phone = phone;
+    currentUser.creci = creci;
+    saveBrokersToStorage();
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    if (typeof updateBrokerInFirestore === 'function' && typeof broker.id === 'string') {
+        try {
+            await updateBrokerInFirestore(broker.id, { name, email, phone, creci });
+        } catch (e) { console.error(e); }
+    }
+    closeBrokerProfileModal();
+    updateUIForLoggedUser();
+    if (typeof showMessage === 'function') showMessage('Perfil atualizado com sucesso!', 'success');
+}
+
+function showBrokerMenu() {
+    if (!currentUser || !isBroker()) return;
+    let menu = document.getElementById('brokerUserMenu');
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.id = 'brokerUserMenu';
+        menu.className = 'broker-user-menu-dropdown';
+        menu.innerHTML = `
+            <a href="#" onclick="event.preventDefault();openBrokerProfileModal();document.getElementById('brokerUserMenu').classList.remove('show');"><i class="fas fa-user-edit"></i> Meu Perfil</a>
+            <a href="#" onclick="event.preventDefault();document.getElementById('brokerUserMenu').classList.remove('show');if(confirm('Deseja fazer logout?'))logout();"><i class="fas fa-sign-out-alt"></i> Sair</a>
+        `;
+        document.body.appendChild(menu);
+        document.addEventListener('click', function(ev) {
+            if (!menu.contains(ev.target) && !ev.target.closest('.btn-login')) menu.classList.remove('show');
+        });
+    }
+    const btn = document.querySelector('.btn-login');
+    if (btn) {
+        const rect = btn.getBoundingClientRect();
+        menu.style.top = (rect.bottom + 4) + 'px';
+        menu.style.left = rect.left + 'px';
+        menu.classList.toggle('show');
+    }
+}
+
 // Initialize auth system
 document.addEventListener('DOMContentLoaded', function() {
     // Add password strength indicators after a short delay
@@ -531,7 +667,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function showForgotPassword() {
     const email = prompt('Digite seu email para recuperação de senha:');
     if (email) {
-        const broker = brokers.find(b => b.email === email);
+        const broker = brokers.find(b => (b.email || '').toLowerCase() === (email || '').trim().toLowerCase());
         if (broker) {
             alert('Um link de recuperação foi enviado para seu email.');
         } else {
@@ -604,10 +740,11 @@ async function handleBrokerForgotPasswordSubmit() {
         if (typeof showMessage === 'function') showMessage('Email do corretor não encontrado. Entre em contato pelo telefone (21) 99759-0814.', 'error');
         return;
     }
-    if (typeof sendEmail === 'function') {
-        try {
-            await sendEmail(recipientEmail, subject, body);
-        } catch (e) { console.error('Erro ao enviar email:', e); }
+    const waMsg = `Olá! Enviamos um link para redefinir sua senha no seu email. Verifique a caixa de entrada e a pasta de spam. B F Marques.`;
+    if (typeof sendBrokerNotification === 'function') {
+        try { await sendBrokerNotification(broker, subject, body, waMsg); } catch (e) { console.error('Erro ao enviar notificação:', e); }
+    } else if (typeof sendEmail === 'function') {
+        try { await sendEmail(recipientEmail, subject, body); } catch (e) { console.error('Erro ao enviar email:', e); }
     }
     showLoginForm();
     if (typeof showMessage === 'function') {
@@ -633,7 +770,7 @@ async function approveBroker(brokerId) {
         saveBrokersToStorage();
         if (typeof showMessage === 'function') showMessage(`Corretor ${broker.name} aprovado com sucesso!`, 'success');
         if (typeof loadBrokersData === 'function') loadBrokersData();
-        if (broker.email && typeof sendEmail === 'function') {
+        if (broker.email && (typeof sendBrokerNotification === 'function' || typeof sendEmail === 'function')) {
             const subject = 'Acesso Aprovado - B F Marques Empreendimentos';
             const siteUrl = (typeof CONFIG !== 'undefined' && CONFIG?.company?.siteUrl) || 'https://bfmarquesempreendimentos.github.io/bfm';
             const body = `
@@ -643,7 +780,11 @@ async function approveBroker(brokerId) {
                 <p><strong>Acesse o site:</strong> <a href="${siteUrl}">${siteUrl}</a></p>
                 <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
             `;
-            try { await sendEmail(broker.email, subject, body); } catch (e) { console.error('Erro ao enviar email de aprovação:', e); }
+            const waMsg = `Olá, ${broker.name}! 🎉 Seu cadastro como corretor foi APROVADO. Você já pode acessar o sistema: ${siteUrl}`;
+            try {
+                if (typeof sendBrokerNotification === 'function') await sendBrokerNotification(broker, subject, body, waMsg);
+                else await sendEmail(broker.email, subject, body);
+            } catch (e) { console.error('Erro ao enviar notificação de aprovação:', e); }
         }
     }
 }

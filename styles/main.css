@@ -900,6 +900,112 @@ body {
     overflow: hidden;
 }
 
+/* Carousel de fotos no card */
+.property-carousel-container {
+    position: relative;
+}
+
+.property-carousel-slides {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.property-carousel-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+}
+
+.property-carousel-slide.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.property-carousel-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.property-carousel-prev,
+.property-carousel-next {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.9);
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    opacity: 0.85;
+    transition: opacity 0.2s, background 0.2s;
+}
+
+.property-carousel-prev:hover,
+.property-carousel-next:hover {
+    opacity: 1;
+    background: #fff;
+}
+
+.property-carousel-prev {
+    left: 8px;
+}
+
+.property-carousel-next {
+    right: 8px;
+}
+
+.property-carousel-thumbs {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 3;
+    padding: 4px 8px;
+    background: rgba(0,0,0,0.35);
+    border-radius: 20px;
+}
+
+.property-thumb {
+    width: 36px;
+    height: 28px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    background: transparent;
+    transition: border-color 0.2s, opacity 0.2s;
+}
+
+.property-thumb:hover,
+.property-thumb.active {
+    border-color: #fff;
+    opacity: 1;
+}
+
+.property-thumb:not(.active) {
+    opacity: 0.7;
+}
+
+.property-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 .property-card--amendoeiras .property-image {
     background: #111;
 }
@@ -916,7 +1022,7 @@ body {
     transition: transform 0.3s ease;
 }
 
-.property-card:hover .property-image img {
+.property-card:hover .property-carousel-slide.active img {
     transform: scale(1.1);
 }
 
@@ -1416,6 +1522,43 @@ body {
 
 .auth-feedback-btn:hover {
     opacity: 0.9;
+}
+
+/* Menu dropdown do corretor logado */
+.broker-user-menu-dropdown {
+    position: fixed;
+    z-index: 10001;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    padding: 8px 0;
+    min-width: 180px;
+    display: none;
+}
+
+.broker-user-menu-dropdown.show {
+    display: block;
+}
+
+.broker-user-menu-dropdown a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    color: #333;
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: background 0.2s;
+}
+
+.broker-user-menu-dropdown a:hover {
+    background: #f0f4f8;
+}
+
+.broker-user-menu-dropdown a i {
+    width: 20px;
+    text-align: center;
+    color: #3498db;
 }
 
 .auth-feedback-success .auth-feedback-btn {

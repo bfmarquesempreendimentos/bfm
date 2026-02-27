@@ -506,6 +506,41 @@ function startHeroSlideshow(list) {
     }, 6000);
 }
 
+// Carousel nos cards - trocar fotos sem abrir o modal
+function propertyCardPrev(btn) {
+    const container = btn.closest('.property-carousel-container');
+    if (!container) return;
+    const slides = container.querySelectorAll('.property-carousel-slide');
+    const thumbs = container.querySelectorAll('.property-thumb');
+    if (slides.length <= 1) return;
+    let idx = Array.from(slides).findIndex(s => s.classList.contains('active'));
+    idx = idx <= 0 ? slides.length - 1 : idx - 1;
+    propertyCardShowSlide(container, idx);
+}
+
+function propertyCardNext(btn) {
+    const container = btn.closest('.property-carousel-container');
+    if (!container) return;
+    const slides = container.querySelectorAll('.property-carousel-slide');
+    if (slides.length <= 1) return;
+    let idx = Array.from(slides).findIndex(s => s.classList.contains('active'));
+    idx = idx < 0 || idx >= slides.length - 1 ? 0 : idx + 1;
+    propertyCardShowSlide(container, idx);
+}
+
+function propertyCardGoTo(btn, index) {
+    const container = btn.closest('.property-carousel-container');
+    if (!container) return;
+    propertyCardShowSlide(container, index);
+}
+
+function propertyCardShowSlide(container, index) {
+    const slides = container.querySelectorAll('.property-carousel-slide');
+    const thumbs = container.querySelectorAll('.property-thumb');
+    slides.forEach((s, i) => s.classList.toggle('active', i === index));
+    thumbs.forEach((t, i) => t.classList.toggle('active', i === index));
+}
+
 // Display properties in the grid
 function displayProperties(propertiesToShow) {
     const grid = document.getElementById('propertiesGrid');
@@ -546,7 +581,8 @@ function createPropertyCard(property) {
     
     const mediaOverride = getPropertyMediaOverride(property.id);
     const images = mediaOverride?.images || (Array.isArray(property.images) ? property.images : []);
-    const mainImage = images.length > 0 ? images[0] : 'assets/images/placeholder.jpg';
+    const imageList = images.length > 0 ? images : ['assets/images/placeholder.jpg'];
+    const mainImage = imageList[0];
     
     const highlight = getPropertyHighlight(property.id);
     
@@ -554,9 +590,37 @@ function createPropertyCard(property) {
         ? ''
         : '<span class="price-prefix">À partir de:</span>';
 
+    const hasMultipleImages = imageList.length > 1;
+    const carouselArrows = hasMultipleImages ? `
+            <button type="button" class="property-carousel-prev" aria-label="Foto anterior" onclick="event.stopPropagation(); propertyCardPrev(this)">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button type="button" class="property-carousel-next" aria-label="Próxima foto" onclick="event.stopPropagation(); propertyCardNext(this)">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        ` : '';
+    const thumbnailsHtml = hasMultipleImages ? `
+            <div class="property-carousel-thumbs">
+                ${imageList.map((img, i) => `
+                    <button type="button" class="property-thumb ${i === 0 ? 'active' : ''}" 
+                            onclick="event.stopPropagation(); propertyCardGoTo(this, ${i})" 
+                            aria-label="Ver foto ${i + 1}">
+                        <img src="${img}" alt="" onerror="this.src='assets/images/placeholder.jpg'">
+                    </button>
+                `).join('')}
+            </div>
+        ` : '';
     card.innerHTML = `
-        <div class="property-image">
-            <img src="${mainImage}" alt="${property.title}" onerror="this.src='assets/images/placeholder.jpg'">
+        <div class="property-image property-carousel-container" data-property-id="${property.id}">
+            <div class="property-carousel-slides">
+                ${imageList.map((img, i) => `
+                    <div class="property-carousel-slide ${i === 0 ? 'active' : ''}" data-index="${i}">
+                        <img src="${img}" alt="${property.title}" onerror="this.src='assets/images/placeholder.jpg'">
+                    </div>
+                `).join('')}
+            </div>
+            ${carouselArrows}
+            ${thumbnailsHtml}
             ${brokerView ? `<div class="property-status ${statusClass}">${statusText[property.status]}</div>` : ''}
             ${highlight ? `<div class="property-highlight ${highlight.className}">${highlight.text}</div>` : ''}
         </div>
@@ -1146,9 +1210,11 @@ function checkUserSession() {
 function updateUIForLoggedUser() {
     const loginButton = document.querySelector('.btn-login');
     if (loginButton && currentUser) {
-        loginButton.innerHTML = `<i class="fas fa-user"></i> ${currentUser.name}`;
+        loginButton.innerHTML = `<i class="fas fa-user"></i> ${currentUser.name} <i class="fas fa-chevron-down" style="font-size:0.7em;margin-left:4px;"></i>`;
         loginButton.onclick = () => {
-            if (confirm('Deseja fazer logout?')) {
+            if (typeof isBroker === 'function' && isBroker() && typeof showBrokerMenu === 'function') {
+                showBrokerMenu();
+            } else if (confirm('Deseja fazer logout?')) {
                 logout();
             }
         };

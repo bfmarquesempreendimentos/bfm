@@ -1059,7 +1059,7 @@ async function handleBrokerFormSubmission(e) {
     const brokerData = {
         name: formData.get('name') || formData.get('email'),
         cpf: (formData.get('cpf') || '').replace(/\D/g, ''),
-        email: formData.get('email'),
+        email: (formData.get('email') || '').trim().toLowerCase(),
         phone: formData.get('phone') || '',
         creci: formData.get('creci') || '',
         isActive: formData.get('isActive') === 'true'
@@ -1070,7 +1070,7 @@ async function handleBrokerFormSubmission(e) {
         brokerData.id = brokers.length + 1;
         brokerData.createdAt = new Date();
         
-        if (brokers.find(b => b.email === brokerData.email)) {
+        if (brokers.find(b => (b.email || '').toLowerCase() === brokerData.email)) {
             alert('Este email já está cadastrado.');
             return;
         }
@@ -1091,6 +1091,10 @@ async function handleBrokerFormSubmission(e) {
         if (typeof saveBrokersToStorage === 'function') saveBrokersToStorage();
         showMessage('Corretor adicionado com sucesso!', 'success');
     } else {
+        if (brokers.find(b => (b.email || '').toLowerCase() === brokerData.email && String(b.id) !== String(editingBroker.id))) {
+            alert('Este email já está cadastrado para outro corretor.');
+            return;
+        }
         Object.assign(editingBroker, brokerData);
         if (typeof updateBrokerInFirestore === 'function' && typeof editingBroker.id === 'string') {
             try {

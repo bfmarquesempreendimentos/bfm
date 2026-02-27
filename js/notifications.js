@@ -184,9 +184,9 @@ async function approveReservationRequest(notificationId) {
         // Setup expiration notification
         setupExpirationNotification(reservation);
         
-        // Enviar email ao corretor (solicitante)
+        // Enviar email e WhatsApp ao corretor (solicitante)
         const broker = typeof findBrokerById === 'function' ? findBrokerById(notification.data.brokerId) : null;
-        if (broker && broker.email && typeof sendEmail === 'function') {
+        if (broker && broker.email && (typeof sendBrokerNotification === 'function' || typeof sendEmail === 'function')) {
             const subject = 'Reserva Aprovada - B F Marques Empreendimentos';
             const body = `
                 <h2>Olá, ${broker.name}!</h2>
@@ -194,7 +194,11 @@ async function approveReservationRequest(notificationId) {
                 <p>A reserva está ativa. Atenção ao prazo de validade.</p>
                 <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
             `;
-            try { await sendEmail(broker.email, subject, body); } catch (e) { console.error('Erro ao enviar email de aprovação:', e); }
+            const waMsg = `Olá, ${broker.name}! ✅ Sua reserva do imóvel "${property.title}" para ${reservation.clientInfo.name} foi APROVADA. Fique atento ao prazo de validade. B F Marques.`;
+            try {
+                if (typeof sendBrokerNotification === 'function') await sendBrokerNotification(broker, subject, body, waMsg);
+                else await sendEmail(broker.email, subject, body);
+            } catch (e) { console.error('Erro ao enviar notificação de aprovação:', e); }
         }
         
         showMessage('Reserva aprovada com sucesso!', 'success');
@@ -332,10 +336,10 @@ async function approveDocumentAccess(notificationId) {
     
     saveNotifications();
     
-    // Enviar email ao corretor (solicitante)
+    // Enviar email e WhatsApp ao corretor (solicitante)
     const broker = typeof findBrokerById === 'function' ? findBrokerById(notification.data.brokerId) : null;
     const propertyTitle = notification.data.propertyTitle || 'imóvel';
-    if (broker && broker.email && typeof sendEmail === 'function') {
+    if (broker && broker.email && (typeof sendBrokerNotification === 'function' || typeof sendEmail === 'function')) {
         const subject = 'Acesso a Documentos Aprovado - B F Marques Empreendimentos';
         const body = `
             <h2>Olá, ${broker.name}!</h2>
@@ -343,7 +347,11 @@ async function approveDocumentAccess(notificationId) {
             <p>O acesso está liberado por 7 dias.</p>
             <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
         `;
-        try { await sendEmail(broker.email, subject, body); } catch (e) { console.error('Erro ao enviar email de aprovação:', e); }
+        const waMsg = `Olá, ${broker.name}! 📄 Seu acesso aos documentos do imóvel "${propertyTitle}" foi APROVADO. Válido por 7 dias. B F Marques.`;
+        try {
+            if (typeof sendBrokerNotification === 'function') await sendBrokerNotification(broker, subject, body, waMsg);
+            else await sendEmail(broker.email, subject, body);
+        } catch (e) { console.error('Erro ao enviar notificação de aprovação:', e); }
     }
     
     showMessage('Acesso aos documentos aprovado por 7 dias.', 'success');

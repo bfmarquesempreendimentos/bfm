@@ -5,8 +5,20 @@ const { verifyWebhook, processWebhook } = require('./chatbot/webhook');
 const { getAllLeads, getLeadStats } = require('./chatbot/lead-manager');
 const { sendFollowUp } = require('./chatbot/templates');
 const { getPropertyById } = require('./chatbot/property-data');
+const { sendTextMessage } = require('./chatbot/whatsapp-api');
 
 admin.initializeApp();
+
+/** Normaliza telefone para formato WhatsApp (55 + DDD + número) */
+function normalizePhoneForWhatsApp(phone) {
+  if (!phone || typeof phone !== 'string') return null;
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 10) return null;
+  if (digits.length >= 12 && digits.startsWith('55')) return digits;
+  if (digits.length === 11) return '55' + digits;
+  if (digits.length === 10) return '55' + digits;
+  return null;
+}
 
 function getTransporter() {
   const config = functions.config();
@@ -22,26 +34,36 @@ function getTransporter() {
   });
 }
 
-exports.sendQueuedEmail = functions.firestore
-  .document('emailQueue/{docId}')
+exports.sendQueuedEmail = functions
+  .runWith({ secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'] })
+  .firestore.document('emailQueue/{docId}')
   .onCreate(async (snap, context) => {
     const data = snap.data();
     const transporter = getTransporter();
-    if (!transporter) {
-      await snap.ref.set({ status: 'error', error: 'SMTP não configurado' }, { merge: true });
-      return;
+    if (transporter) {
+      try {
+        await transporter.sendMail({
+          from: data.from || 'bfmarquesempreendimentos@gmail.com',
+          to: data.to,
+          subject: data.subject,
+          html: data.body
+        });
+        await snap.ref.set({ status: 'sent', sentAt: new Date().toISOString() }, { merge: true });
+      } catch (error) {
+        await snap.ref.set({ status: 'error', error: error.message }, { merge: true });
+      }
     }
-    
-    try {
-      await transporter.sendMail({
-        from: data.from || 'bfmarquesempreendimentos@gmail.com',
-        to: data.to,
-        subject: data.subject,
-        html: data.body
-      });
-      await snap.ref.set({ status: 'sent', sentAt: new Date().toISOString() }, { merge: true });
-    } catch (error) {
-      await snap.ref.set({ status: 'error', error: error.message }, { merge: true });
+    if (data.whatsappPhone && data.whatsappMessage) {
+      try {
+        const waPhone = normalizePhoneForWhatsApp(data.whatsappPhone);
+        if (waPhone) {
+          await sendTextMessage(waPhone, data.whatsappMessage);
+          await snap.ref.set({ whatsappStatus: 'sent', whatsappSentAt: new Date().toISOString() }, { merge: true });
+        }
+      } catch (err) {
+        console.error('Erro ao enviar WhatsApp:', err);
+        await snap.ref.set({ whatsappStatus: 'error', whatsappError: err.message }, { merge: true });
+      }
     }
   });
 
@@ -126,18 +148,19 @@ exports.registerBroker = functions.https.onRequest(async (req, res) => {
   try {
     const body = req.body || {};
     const { name, cpf, email, phone, creci, password } = body;
-    if (!name || !email || !password) {
+    const emailNorm = (email || '').trim().toLowerCase();
+    if (!name || !emailNorm || !password) {
       return res.status(400).json({ error: 'nome, email e senha obrigatórios' });
     }
     const db = admin.firestore();
-    const existing = await db.collection('brokers').where('email', '==', email).get();
+    const existing = await db.collection('brokers').where('email', '==', emailNorm).get();
     if (!existing.empty) {
       return res.status(409).json({ error: 'Email já cadastrado' });
     }
     const docRef = await db.collection('brokers').add({
       name: name || '',
       cpf: (cpf || '').replace(/\D/g, ''),
-      email: email,
+      email: emailNorm,
       phone: phone || '',
       creci: creci || '',
       password: password || '',

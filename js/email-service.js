@@ -2,6 +2,26 @@
 
 const COMPANY_EMAIL = 'bfmarquesempreendimentos@gmail.com';
 
+// Enviar notificação ao corretor por email E WhatsApp (quando tiver telefone)
+async function sendBrokerNotification(broker, subject, emailBody, whatsappMessage) {
+    if (!broker || !broker.email) return;
+    const payload = {
+        to: broker.email,
+        subject,
+        body: emailBody,
+        attachments: []
+    };
+    if (broker.phone && whatsappMessage && typeof queueEmailInFirestore === 'function') {
+        payload.whatsappPhone = broker.phone;
+        payload.whatsappMessage = whatsappMessage;
+    }
+    if (typeof queueEmailInFirestore === 'function') {
+        await queueEmailInFirestore(payload);
+        return { to: broker.email, subject, status: 'queued' };
+    }
+    return sendEmail(broker.email, subject, emailBody);
+}
+
 // Enviar email (simulado - em produção usaria API como SendGrid, Mailgun, etc.)
 async function sendEmail(to, subject, body, attachments = []) {
     // Em produção, isso seria uma chamada para API de email
@@ -355,6 +375,7 @@ function formatDate(date) {
 // Exportar funções
 if (typeof window !== 'undefined') {
     window.sendEmail = sendEmail;
+    window.sendBrokerNotification = sendBrokerNotification;
     window.sendRepairRequestEmail = sendRepairRequestEmail;
     window.sendRepairNewResponseEmailToClient = sendRepairNewResponseEmailToClient;
     window.sendRepairClientResponseEmailToCompany = sendRepairClientResponseEmailToCompany;

@@ -219,7 +219,7 @@ async function saveBrokerToFirestore(broker) {
   const data = {
     name: broker.name,
     cpf: broker.cpf || '',
-    email: broker.email,
+    email: (broker.email || '').trim().toLowerCase(),
     phone: broker.phone || '',
     creci: broker.creci || '',
     password: broker.password || '',
@@ -264,6 +264,7 @@ async function getBrokersFromAPI() {
     const list = await res.json();
     return (list || []).map(b => ({
       ...b,
+      email: (b.email || '').trim().toLowerCase(),
       createdAt: b.createdAt ? new Date(b.createdAt) : new Date()
     }));
   } catch (err) {
@@ -285,7 +286,7 @@ async function getBrokersFromFirestore() {
         id: doc.id,
         name: d.name,
         cpf: d.cpf,
-        email: d.email,
+        email: (d.email || '').trim().toLowerCase(),
         phone: d.phone,
         creci: d.creci,
         password: d.password,
@@ -307,7 +308,7 @@ async function updateBrokerInFirestore(brokerId, updates) {
   const data = {};
   if (updates.name !== undefined) data.name = updates.name;
   if (updates.cpf !== undefined) data.cpf = updates.cpf;
-  if (updates.email !== undefined) data.email = updates.email;
+  if (updates.email !== undefined) data.email = (updates.email || '').trim().toLowerCase();
   if (updates.phone !== undefined) data.phone = updates.phone;
   if (updates.creci !== undefined) data.creci = updates.creci;
   if (updates.password !== undefined) data.password = updates.password;
