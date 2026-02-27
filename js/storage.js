@@ -23,24 +23,30 @@ function openStorageDb() {
 }
 
 async function saveAttachment(file) {
-    const db = await openStorageDb();
-    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const record = {
-        id,
+    var db = await openStorageDb();
+    var id = Date.now() + '-' + Math.random().toString(16).slice(2);
+    var record = {
+        id: id,
         name: file.name,
         type: file.type,
         size: file.size,
         blob: file,
         createdAt: new Date().toISOString()
     };
-    
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_ATTACHMENTS, 'readwrite');
-        const store = tx.objectStore(STORE_ATTACHMENTS);
-        const req = store.put(record);
-        req.onsuccess = () => resolve(record);
-        req.onerror = () => reject(req.error);
-    });
+    try {
+        return await new Promise(function(resolve, reject) {
+            var tx = db.transaction(STORE_ATTACHMENTS, 'readwrite');
+            var store = tx.objectStore(STORE_ATTACHMENTS);
+            var req = store.put(record);
+            req.onsuccess = function() { resolve(record); };
+            req.onerror = function() { reject(req.error); };
+        });
+    } catch (e) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn('IndexedDB saveAttachment falhou (alguns navegadores não serializam File):', e);
+        }
+        throw e;
+    }
 }
 
 async function getAttachment(id) {

@@ -39,6 +39,21 @@ function initializeApp() {
     setupEventListeners();
     setupScrollEffects();
     setupWhatsAppLinks();
+    setupSocialLinks();
+}
+
+function setupSocialLinks() {
+    var social = (typeof CONFIG !== 'undefined' && CONFIG.company && CONFIG.company.social) ? CONFIG.company.social : {};
+    var ids = ['footerFacebook', 'footerInstagram', 'footerLinkedin', 'footerYoutube'];
+    var keys = ['facebook', 'instagram', 'linkedin', 'youtube'];
+    for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById(ids[i]);
+        if (el && social[keys[i]]) {
+            el.href = social[keys[i]];
+            el.target = '_blank';
+            el.rel = 'noopener noreferrer';
+        }
+    }
 }
 
 function getPropertyMediaOverride(propertyId) {
@@ -596,7 +611,7 @@ function createPropertyCard(property) {
             <div class="property-carousel-slides">
                 ${imageList.map((img, i) => `
                     <div class="property-carousel-slide ${i === 0 ? 'active' : ''}" data-index="${i}">
-                        <img src="${img}" alt="${property.title}" onerror="this.src='assets/images/placeholder.jpg'">
+                        <img src="${img}" alt="${property.title}" loading="lazy" onerror="this.src='assets/images/placeholder.jpg'">
                     </div>
                 `).join('')}
             </div>

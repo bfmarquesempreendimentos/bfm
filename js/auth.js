@@ -1,42 +1,17 @@
 // Authentication system for brokers
 
-// Sample brokers data - replace with actual backend
-let brokers = [
-    {
-        id: 1,
-        name: 'João Silva',
-        email: 'joao@construtora.com',
-        phone: '(11) 99999-9999',
-        creci: '12345-F',
-        password: '123456', // In production, this should be hashed
-        isActive: true,
-        createdAt: new Date('2024-01-15')
-    },
-    {
-        id: 2,
-        name: 'Maria Santos',
-        email: 'maria@construtora.com',
-        phone: '(11) 88888-8888',
-        creci: '67890-F',
-        password: '123456',
-        isActive: true,
-        createdAt: new Date('2024-02-10')
-    },
-    {
-        id: 3,
-        name: 'Eduardo',
-        email: 'sac1consultoria@gmail.com',
-        phone: '',
-        creci: '',
-        password: '123456',
-        isActive: true,
-        createdAt: new Date('2024-01-01')
-    }
+// Credenciais centralizadas - em produção, sobrescreva via config ou variáveis de ambiente
+var DEMO_PASSWORD = (typeof CONFIG !== 'undefined' && CONFIG.auth && CONFIG.auth.demoPassword) ? CONFIG.auth.demoPassword : '123456';
+
+var brokers = [
+    { id: 1, name: 'João Silva', email: 'joao@construtora.com', phone: '(21) 99999-9999', creci: '12345-F', password: DEMO_PASSWORD, isActive: true, createdAt: new Date('2024-01-15') },
+    { id: 2, name: 'Maria Santos', email: 'maria@construtora.com', phone: '(21) 88888-8888', creci: '67890-F', password: DEMO_PASSWORD, isActive: true, createdAt: new Date('2024-02-10') },
+    { id: 3, name: 'Eduardo', email: 'sac1consultoria@gmail.com', phone: '', creci: '', password: DEMO_PASSWORD, isActive: true, createdAt: new Date('2024-01-01') }
 ];
 
-const ADMIN_BROKER = {
-    email: 'brunoferreiramarques@gmail.com',
-    password: '123456',
+var ADMIN_BROKER = {
+    email: (typeof CONFIG !== 'undefined' && CONFIG.auth && CONFIG.auth.adminEmail) ? CONFIG.auth.adminEmail : 'brunoferreiramarques@gmail.com',
+    password: DEMO_PASSWORD,
     name: 'Admin B F Marques',
     cpf: '',
     phone: '',
@@ -70,7 +45,7 @@ async function loadBrokersFromFirestore() {
     if (typeof getBrokersFromFirestore !== 'function') return false;
     try {
         const fromDb = await getBrokersFromFirestore();
-        const local = ((typeof safeGetArray === 'function' ? safeGetArray('brokers') : JSON.parse(localStorage.getItem('brokers') || '[]')) || []).map(b => ({
+        const local = JSON.parse(localStorage.getItem('brokers') || '[]').map(b => ({
             ...b,
             createdAt: b.createdAt ? new Date(b.createdAt) : new Date()
         }));
@@ -82,7 +57,7 @@ async function loadBrokersFromFirestore() {
         ensureAdminBroker();
         saveBrokersToStorage();
         return true;
-    } catch (err) { console.error('Erro ao carregar corretores do Firestore:', err); }
+    } catch (err) { if (typeof console !== 'undefined' && console.error) console.error('Erro ao carregar corretores do Firestore:', err); }
     return false;
 }
 
@@ -253,7 +228,7 @@ async function handleRegister(e) {
     // Validate phone format
     const phoneRegex = /^\(\d{2}\)\s\d{4,5}-\d{4}$/;
     if (!phoneRegex.test(phone)) {
-        showRegisterFeedback(false, 'Por favor, insira um telefone no formato (11) 99999-9999.');
+        showRegisterFeedback(false, 'Por favor, insira um telefone no formato (21) 99999-9999 ou (21) 9999-9999.');
         return;
     }
 
@@ -292,8 +267,6 @@ async function handleRegister(e) {
         } catch (err) { console.error('Firestore falhou:', err); }
     }
     
-    console.log('New broker registered:', newBroker);
-
     try {
         const notifBody = `
             <h2>🏠 Novo Corretor Solicitou Acesso</h2>
@@ -566,7 +539,7 @@ function openBrokerProfileModal() {
                     </div>
                     <div class="form-group">
                         <label>Telefone</label>
-                        <input type="tel" id="brokerProfilePhone" placeholder="(00) 00000-0000">
+                        <input type="tel" id="brokerProfilePhone" placeholder="(21) 99999-9999">
                     </div>
                     <div class="form-group">
                         <label>CRECI</label>

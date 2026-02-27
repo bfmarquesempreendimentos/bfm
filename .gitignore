@@ -18,4 +18,9 @@ npm-debug.log*
 # Env / secrets
 .env
 .env.local
+config.local.js
 *.pem
+
+# Python
+.venv/
+venv/

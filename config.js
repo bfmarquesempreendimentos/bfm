@@ -1,6 +1,6 @@
 // Configurações do Sistema de Vendas de Imóveis
 
-const CONFIG = {
+var CONFIG = {
     // Informações da Empresa
     company: {
         name: 'B F Marques Empreendimentos',
@@ -12,7 +12,13 @@ const CONFIG = {
         foundedYear: 2010,
         experience: '15 anos de experiência',
         website: 'www.bfmarquesempreendimentos.com.br',
-        siteUrl: 'https://bfmarquesempreendimentos.github.io/bfm'
+        siteUrl: 'https://bfmarquesempreendimentos.github.io/bfm',
+        social: {
+            facebook: '',
+            instagram: '',
+            linkedin: '',
+            youtube: ''
+        }
     },
     
     // Configurações de Reserva
@@ -30,7 +36,9 @@ const CONFIG = {
         passwordMinLength: 6,
         sessionTimeoutMinutes: 480, // 8 horas
         maxLoginAttempts: 5,
-        superAdminEmails: ['brunoferreiramarques@gmail.com'] // Apenas estes podem excluir cadastros
+        superAdminEmails: ['brunoferreiramarques@gmail.com'],
+        adminEmail: 'brunoferreiramarques@gmail.com',
+        demoPassword: '123456' // Em produção, altere e considere migrar para Firebase Auth
     },
     
     // Configurações de Interface
@@ -138,33 +146,30 @@ const CONFIG = {
 
 // Função para obter configuração
 function getConfig(key) {
-    const keys = key.split('.');
-    let value = CONFIG;
-    
-    for (const k of keys) {
+    var keys = key.split('.');
+    var value = CONFIG;
+    for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
         if (value && typeof value === 'object' && k in value) {
             value = value[k];
         } else {
             return null;
         }
     }
-    
     return value;
 }
 
 // Função para definir configuração
 function setConfig(key, newValue) {
-    const keys = key.split('.');
-    let obj = CONFIG;
-    
-    for (let i = 0; i < keys.length - 1; i++) {
-        const k = keys[i];
+    var keys = key.split('.');
+    var obj = CONFIG;
+    for (var i = 0; i < keys.length - 1; i++) {
+        var k = keys[i];
         if (!(k in obj) || typeof obj[k] !== 'object') {
             obj[k] = {};
         }
         obj = obj[k];
     }
-    
     obj[keys[keys.length - 1]] = newValue;
     
     // Salvar no localStorage se disponível
@@ -173,15 +178,28 @@ function setConfig(key, newValue) {
     }
 }
 
-// Carregar configurações do localStorage se disponível
+// Carregar configurações do localStorage - APENAS chaves seguras (ui, cache, development)
+// Evita que auth, security, api e credenciais sejam sobrescritos via DevTools
+var ALLOWED_OVERRIDE_KEYS = ['ui', 'cache', 'development'];
 if (typeof localStorage !== 'undefined') {
-    const savedConfig = localStorage.getItem('siteConfig');
+    var savedConfig = localStorage.getItem('siteConfig');
     if (savedConfig) {
         try {
-            const parsedConfig = JSON.parse(savedConfig);
-            Object.assign(CONFIG, parsedConfig);
+            var parsedConfig = JSON.parse(savedConfig);
+            for (var i = 0; i < ALLOWED_OVERRIDE_KEYS.length; i++) {
+                var key = ALLOWED_OVERRIDE_KEYS[i];
+                if (parsedConfig[key] && typeof parsedConfig[key] === 'object') {
+                    for (var k in parsedConfig[key]) {
+                        if (Object.prototype.hasOwnProperty.call(parsedConfig[key], k)) {
+                            CONFIG[key][k] = parsedConfig[key][k];
+                        }
+                    }
+                }
+            }
         } catch (error) {
-            console.warn('Erro ao carregar configurações salvas:', error);
+            if (typeof console !== 'undefined' && console.warn) {
+                console.warn('Erro ao carregar configurações salvas:', error);
+            }
         }
     }
 }

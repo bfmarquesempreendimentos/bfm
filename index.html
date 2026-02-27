@@ -21,6 +21,8 @@
       function closeMobileMenu(){document.body.classList.remove('mobile-menu-open');var i=document.querySelector('.nav-hamburger i');if(i){i.classList.remove('fa-times');i.classList.add('fa-bars');}}
     </script>
     <link rel="stylesheet" href="styles/main.css?v=2">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -322,10 +324,10 @@
                 <div class="footer-social">
                     <h4>Redes Sociais</h4>
                     <div class="social-links">
-                        <a href="#"><i class="fab fa-facebook"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-linkedin"></i></a>
-                        <a href="#"><i class="fab fa-youtube"></i></a>
+                        <a href="#" id="footerFacebook" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+                        <a href="#" id="footerInstagram" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                        <a href="#" id="footerLinkedin" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                        <a href="#" id="footerYoutube" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
                     </div>
                 </div>
             </div>
@@ -377,7 +379,7 @@
                 </div>
                 <div class="form-group">
                     <label for="regPhone">Telefone:</label>
-                    <input type="tel" id="regPhone" name="phone" required placeholder="(00) 00000-0000">
+                    <input type="tel" id="regPhone" name="phone" required placeholder="(21) 99999-9999">
                 </div>
                 <div class="form-group">
                     <label for="regCRECI">CRECI:</label>
@@ -673,8 +675,8 @@
     </div>
 
     <!-- Scripts -->
+    <script src="js/compat-polyfills.js"></script>
     <script src="config.js"></script>
-    <script src="js/storage-utils.js"></script>
     <script src="js/audit.js"></script>
     <!-- Firebase (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>

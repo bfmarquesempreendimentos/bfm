@@ -1,4 +1,6 @@
 rules_version = '2';
+// IMPORTANTE: Migre corretores para Firebase Auth para maior segurança.
+// propertySales, repairRequests e brokers usam acesso client-side por limitação atual.
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() {
@@ -14,11 +16,13 @@ service cloud.firestore {
     }
 
     match /propertySales/{docId} {
-      allow read, write: if true;
+      allow create: if request.resource.data.keys().hasAny(['clientEmail', 'clientName', 'propertyId']);
+      allow read, update, delete: if true;
     }
 
     match /repairRequests/{docId} {
-      allow read, create, update, delete: if true;
+      allow create: if request.resource.data.keys().hasAny(['description', 'clientId', 'clientEmail', 'propertyId']);
+      allow read, update, delete: if true;
     }
 
     match /emailAuditLog/{docId} {
@@ -49,13 +53,13 @@ service cloud.firestore {
     }
 
     match /brokers/{docId} {
-      allow create, read: if true;
-      allow update, delete: if true;
+      allow create: if request.resource.data.keys().hasAny(['email', 'name']);
+      allow read, update, delete: if true;
     }
 
     match /passwordResetTokens/{docId} {
-      allow create, read: if true;
-      allow update: if true;
+      allow create: if request.resource.data.keys().hasAny(['token', 'email']);
+      allow read, update: if true;
     }
   }
 }
