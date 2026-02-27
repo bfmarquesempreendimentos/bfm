@@ -1299,12 +1299,23 @@ let lightboxMedia = [];
 let lightboxIndex = 0;
 let lightboxKeyHandler = null;
 
+// Normaliza URL para comparação (img.src é absoluto, currentGalleryMedia pode ter relativo)
+function normalizeLightboxSrc(s) {
+    if (!s) return '';
+    if (s.startsWith('data:')) return s;
+    try {
+        const u = new URL(s, window.location.href);
+        return u.href;
+    } catch { return String(s); }
+}
+
 // Show image lightbox (usa currentGalleryMedia se disponível para navegação)
 function showImageLightbox(src, alt) {
     lightboxMedia = Array.isArray(currentGalleryMedia) && currentGalleryMedia.length > 0
         ? currentGalleryMedia
         : [{ type: 'image', src }];
-    const startIdx = lightboxMedia.findIndex(m => m.src === src);
+    const srcNorm = normalizeLightboxSrc(src);
+    const startIdx = lightboxMedia.findIndex(m => normalizeLightboxSrc(m.src) === srcNorm);
     lightboxIndex = startIdx >= 0 ? startIdx : 0;
 
     const lightbox = document.createElement('div');
