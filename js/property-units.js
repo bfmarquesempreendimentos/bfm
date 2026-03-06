@@ -15,10 +15,10 @@ const propertyUnits = {
             { code: "31 cs 8 sob (1qt)", price: 160000, bedrooms: 1, status: "assinado" },
             { code: "31 cs 5 (1qt ind.)", price: 160000, bedrooms: 1, status: "assinado" },
             { code: "31 cs 1 (2qts)", price: 170000, bedrooms: 2, status: "assinado" },
-            { code: "31 cs 7 (1qt)", price: 170000, bedrooms: 1, status: "disponivel" },
+            { code: "31 cs 7 (1qt)", price: 170000, bedrooms: 1, status: "reservado" },
             { code: "31 cs 2 (2qts)", price: 160000, bedrooms: 2, status: "assinado" },
             { code: "31 cs 4 ap (2qts)", price: 150000, bedrooms: 2, status: "assinado" },
-            { code: "31 cs 3 (2qts)", price: 180000, bedrooms: 2, status: "reservado" }
+            { code: "31 cs 3 (2qts)", price: 180000, bedrooms: 2, status: "assinado" }
         ],
         matriculas: {
             "31": "51.881",
