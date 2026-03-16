@@ -15,7 +15,7 @@ const propertyUnits = {
             { code: "31 cs 8 sob (1qt)", price: 160000, bedrooms: 1, status: "assinado" },
             { code: "31 cs 5 (1qt ind.)", price: 160000, bedrooms: 1, status: "assinado" },
             { code: "31 cs 1 (2qts)", price: 170000, bedrooms: 2, status: "assinado" },
-            { code: "31 cs 7 (1qt)", price: 170000, bedrooms: 1, status: "reservado" },
+            { code: "31 cs 7 (1qt)", price: 170000, bedrooms: 1, status: "disponivel" },
             { code: "31 cs 2 (2qts)", price: 160000, bedrooms: 2, status: "assinado" },
             { code: "31 cs 4 ap (2qts)", price: 150000, bedrooms: 2, status: "assinado" },
             { code: "31 cs 3 (2qts)", price: 180000, bedrooms: 2, status: "assinado" }
@@ -65,8 +65,8 @@ const propertyUnits = {
             { code: "casa 07", price: 155000, bedrooms: 1, status: "disponivel" },
             { code: "casa 03", price: 155000, bedrooms: 1, status: "disponivel" },
             { code: "cassa 08", price: 155000, bedrooms: 1, status: "assinado" },
-            { code: "casa 04", price: 160000, bedrooms: 1, status: "reservado" },
-            { code: "casa 09", price: 160000, bedrooms: 1, status: "disponivel" }
+            { code: "casa 04", price: 160000, bedrooms: 1, status: "assinado" },
+            { code: "casa 09", price: 160000, bedrooms: 1, status: "reservado" }
         ],
         engineeringValues: {
             "Cs base": "R$ 195.000,00",
@@ -103,7 +103,7 @@ const propertyUnits = {
             { code: "APTO 208", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 109", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 209", price: 160000, bedrooms: 2, status: "disponivel" },
-            { code: "APTO 110", price: 170000, bedrooms: 2, status: "disponivel" },
+            { code: "APTO 110", price: 170000, bedrooms: 2, status: "reservado" },
             { code: "APTO 210", price: 165000, bedrooms: 2, status: "disponivel" }
         ],
         engineeringValues: {
@@ -137,8 +137,8 @@ const propertyUnits = {
     5: { // Apolo - PDF: Cs 9 Eduardo (sac1consultoria@gmail.com), casa 04 assinado
         name: "APOLO - RUA MARIA JOSÉ ARRUDA BARBOSA LT 02 QD 18 - ITABORAÍ",
         units: [
-            { code: "casa base", price: 135000, bedrooms: 1, status: "disponivel" },
-            { code: "casa 05", price: 130000, bedrooms: 1, status: "disponivel" },
+            { code: "casa base", price: 135000, bedrooms: 1, status: "reservado" },
+            { code: "casa 05", price: 130000, bedrooms: 1, status: "reservado" },
             { code: "casa 01", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "casa 06", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "casa 02", price: 135000, bedrooms: 1, status: "disponivel" },
@@ -146,7 +146,7 @@ const propertyUnits = {
             { code: "casa 03", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "cassa 08", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "casa 04", price: 140000, bedrooms: 1, status: "assinado" },
-            { code: "casa 09", price: 140000, bedrooms: 1, status: "reservado" }
+            { code: "casa 09", price: 150000, bedrooms: 1, status: "reservado" }
         ],
         engineeringValues: {
             "Cs base": "R$ 181.000,00",
@@ -170,7 +170,7 @@ const propertyUnits = {
             { code: "casa 07", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 03", price: 150000, bedrooms: 1, status: "assinado" },
             { code: "cassa 08", price: 150000, bedrooms: 1, status: "assinado" },
-            { code: "casa 04", price: 160000, bedrooms: 1, status: "reservado" },
+            { code: "casa 04", price: 160000, bedrooms: 1, status: "assinado" },
             { code: "casa 09", price: 160000, bedrooms: 1, status: "assinado" }
         ],
         engineeringValues: {
