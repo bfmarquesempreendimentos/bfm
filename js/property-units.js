@@ -139,7 +139,7 @@ const propertyUnits = {
         units: [
             { code: "casa base", price: 135000, bedrooms: 1, status: "reservado" },
             { code: "casa 05", price: 130000, bedrooms: 1, status: "reservado" },
-            { code: "casa 01", price: 135000, bedrooms: 1, status: "disponivel" },
+            { code: "casa 01", price: 135000, bedrooms: 1, status: "reservado" },
             { code: "casa 06", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "casa 02", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "casa 07", price: 135000, bedrooms: 1, status: "disponivel" },
