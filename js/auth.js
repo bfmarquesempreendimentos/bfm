@@ -189,6 +189,16 @@ async function handleRegister(e) {
     const creci = e.target.creci.value;
     const password = e.target.password.value;
     const confirmPassword = e.target.confirmPassword.value;
+    // Aprovação automática somente quando todos os campos do cadastro estiverem preenchidos.
+    const hasAllRegisterFields = !!(
+        (name || '').trim() &&
+        (cpf || '').trim() &&
+        (email || '').trim() &&
+        (phone || '').trim() &&
+        (creci || '').trim() &&
+        (password || '').trim() &&
+        (confirmPassword || '').trim()
+    );
     
     // Validate input
     if (!name || !cpf || !email || !phone || !password || !confirmPassword) {
@@ -246,7 +256,7 @@ async function handleRegister(e) {
         phone: phone,
         creci: creci || '',
         password: password,
-        isActive: false,
+        isActive: hasAllRegisterFields,
         createdAt: createdAt
     };
     newBroker.createdBy = { type: 'Corretor', email: email, name: name, at: new Date().toISOString() };
@@ -268,8 +278,14 @@ async function handleRegister(e) {
     }
     
     try {
+        const notifTitle = hasAllRegisterFields
+            ? '🏠 Novo Corretor Cadastrado (Aprovação Automática)'
+            : '🏠 Novo Corretor Solicitou Acesso';
+        const notifStatus = hasAllRegisterFields
+            ? '<p>✅ Este corretor foi <strong>aprovado automaticamente</strong> porque preencheu todos os campos do cadastro.</p>'
+            : '<p>⚠️ Este corretor está <strong>aguardando aprovação manual</strong> porque faltam campos no cadastro.</p>';
         const notifBody = `
-            <h2>🏠 Novo Corretor Solicitou Acesso</h2>
+            <h2>${notifTitle}</h2>
             <p><strong>Nome:</strong> ${name}</p>
             <p><strong>CPF:</strong> ${cpf}</p>
             <p><strong>Email:</strong> ${email}</p>
@@ -277,14 +293,21 @@ async function handleRegister(e) {
             <p><strong>CRECI:</strong> ${creci || 'Não informado'}</p>
             <p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p>
             <hr>
-            <p>⚠️ Este corretor está <strong>aguardando aprovação</strong>. Acesse o painel administrativo para ativar o acesso.</p>
+            ${notifStatus}
         `;
         if (typeof sendEmail === 'function') {
-            sendEmail('bfmarquesempreendimentos@gmail.com', 'Novo Corretor Solicita Acesso - ' + name, notifBody);
+            const notifSubject = hasAllRegisterFields
+                ? 'Novo Corretor Aprovado Automaticamente - ' + name
+                : 'Novo Corretor Solicita Acesso - ' + name;
+            sendEmail('bfmarquesempreendimentos@gmail.com', notifSubject, notifBody);
         }
     } catch (e) { console.error('Erro ao enviar notificação:', e); }
 
-    showRegisterFeedback(true, 'Seu cadastro foi enviado com sucesso! Aguarde a aprovação do administrador para acessar o sistema.');
+    if (hasAllRegisterFields) {
+        showRegisterFeedback(true, 'Seu cadastro foi aprovado automaticamente! Você já pode fazer login e acessar o sistema.');
+    } else {
+        showRegisterFeedback(true, 'Seu cadastro foi enviado com sucesso! Como faltam campos obrigatórios, ele ficará pendente para aprovação manual do administrador.');
+    }
     
     // Clear form
     e.target.reset();
