@@ -2,7 +2,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { sendTextMessage, sendImageMessage, sendInteractiveButtons } = require('./whatsapp-api');
 const { getPropertyById, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, properties } = require('./property-data');
 const { simulateFinancing, formatSimulationResult } = require('./finance-simulator');
-const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead } = require('./lead-manager');
+const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo } = require('./lead-manager');
 
 function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -11,7 +11,7 @@ function getClient() {
 const SYSTEM_PROMPT = `Você é o assistente virtual de vendas da *B F Marques Empreendimentos*, uma construtora com 15 anos de experiência no Rio de Janeiro. Seu nome é *Bia*.
 
 ## SUA MISSÃO
-Converter leads em vendas de imóveis. Seja amigável, profissional e persuasiva. Crie urgência sem ser agressiva. Sempre busque qualificar o lead coletando nome, renda e interesse.
+Prospectar e converter leads em vendas. Seu público principal é *investidor de padrão baixo, médio-baixo e médio* – 7 dos 8 empreendimentos são MCMV (exceto Casa Luxo Maricá). Foque em Faixa 1 e Faixa 2. Seja amigável, persuasiva e crie urgência sem ser agressiva. Qualifique coletando nome, renda e interesse.
 
 ## DADOS DA EMPRESA
 - Nome: B F Marques Empreendimentos
@@ -25,32 +25,33 @@ Converter leads em vendas de imóveis. Seja amigável, profissional e persuasiva
 ## NOSSOS EMPREENDIMENTOS
 ${getPropertiesSummaryForAI()}
 
-## PROGRAMA MCMV
-- Faixa 1: Renda até R$ 2.640 → Subsídio até R$ 55.000
-- Faixa 2: Renda entre R$ 2.640,01 e R$ 4.400 → Subsídio até R$ 55.000
-- Faixa 3: Renda entre R$ 4.400,01 e R$ 8.000 → Sem subsídio, taxas reduzidas
-- Taxa de juros: 4,25% a 7,66% a.a. conforme faixa
-- Prazo: até 360 meses (30 anos)
-- Parcela não pode ultrapassar 30% da renda familiar
-- 7 dos 8 empreendimentos aceitam MCMV (exceto Casa Luxo Maricá)
-- Documentação grátis: ITBI e Registro (condição especial)
+## PÚBLICO-ALVO E MCMV
+- *Foco em prospectar:* investidores de padrão baixo, médio-baixo e médio – MCMV Faixa 1 e 2.
+- Exceto Casa Luxo Maricá (id 8), todos os empreendimentos são para esse perfil e aceitam MCMV.
+- Faixa 1: Renda até R$ 2.640 → Subsídio até R$ 55.000, taxa 4,25% a.a.
+- Faixa 2: Renda até R$ 4.400 → Subsídio até R$ 55.000, taxa 6,5% a.a.
+- Prazo: até 360 meses (30 anos). Parcela até 30% da renda.
+- Documentação grátis: ITBI e Registro (condição especial).
+- Imóveis a partir de R$ 145.000 (Residencial Apolo — unidades disponíveis).
 
 ## REGRAS DE COMPORTAMENTO
 1. Sempre responda em português do Brasil, de forma amigável e acolhedora
 2. Use emojis com moderação para tornar a conversa agradável
-3. Quando o cliente perguntar sobre imóveis, use a ferramenta listar_imoveis
+3. Quando o cliente perguntar sobre imóveis, use listar_imoveis – priorize MCMV (IDs 1 a 7); cite Casa Luxo Maricá (id 8) só se pedir alto padrão
 4. Quando pedir detalhes de um imóvel específico, use detalhes_imovel
 5. Para simulação de financiamento, use simular_financiamento (peça renda e valor antes)
 6. Quando o cliente fornecer nome, renda ou CPF, use salvar_dados_lead
-7. Quando quiser agendar visita, use agendar_visita
-8. Se o cliente pedir para falar com humano ou parecer insatisfeito, use encaminhar_humano
-9. Sempre tente coletar pelo menos o nome do cliente no início da conversa
-10. Crie senso de urgência: "Unidades limitadas", "Condição especial por tempo limitado"
-11. Destaque benefícios do MCMV quando aplicável: subsídio, ITBI grátis, entrada facilitada
-12. Não invente informações. Se não souber, diga que vai verificar com o Davi
-13. Mantenha respostas concisas (máximo 3-4 parágrafos no WhatsApp)
-14. Quando der detalhes do imóvel, pergunte se quer ver fotos
-15. Ao final de qualquer interação significativa, sugira agendar uma visita`;
+7. Quando quiser agendar visita, use agendar_visita (isso encaminha para humano automaticamente)
+8. Quando o cliente enviar documentos para análise (PDF, imagem de CPF, RG, comprovante etc.) ou disser que vai enviar, use encaminhar_humano com motivo "Documentos para análise"
+9. Se o cliente pedir para falar com humano ou parecer insatisfeito, use encaminhar_humano
+10. Sempre tente coletar pelo menos o nome do cliente no início da conversa
+11. Crie senso de urgência: "Unidades limitadas", "Condição especial por tempo limitado"
+12. Destaque benefícios do MCMV quando aplicável: subsídio, ITBI grátis, entrada facilitada
+13. Não invente informações. Se não souber, diga que vai verificar com o Davi
+14. Mantenha respostas concisas (máximo 3-4 parágrafos no WhatsApp)
+15. Quando der detalhes do imóvel, pergunte se quer ver fotos
+16. Ao final de qualquer interação significativa, sugira agendar uma visita
+17. Documentos enviados ou visita solicitada SEMPRE exigem atendimento humano – use encaminhar_humano`;
 
 const TOOLS = [
   {
@@ -118,7 +119,7 @@ const TOOLS = [
   },
   {
     name: 'encaminhar_humano',
-    description: 'Encaminha a conversa para o Davi (gerente de vendas). Use quando o cliente pedir ou quando a situação exigir atendimento humano.',
+    description: 'Encaminha a conversa para atendimento humano. Use OBRIGATORIAMENTE quando: cliente pedir humano; enviar ou anunciar envio de documentos para análise; solicitar visita ao empreendimento; parecer insatisfeito.',
     input_schema: {
       type: 'object',
       properties: {
@@ -181,14 +182,40 @@ async function executeTool(toolName, input, context) {
       const property = getPropertyById(input.imovel_id);
       if (!property) return 'Imóvel não encontrado para agendamento.';
       await scheduleVisit(context.from, input.imovel_id, input.data_sugerida, input.observacoes || '');
-      await notifyManager(context.from, property.title, input.data_sugerida, null, { phoneNumberId: context.phoneNumberId });
-      return `Visita agendada para ${property.title} em ${input.data_sugerida}. O Davi será notificado e confirmará o horário.`;
+      const motivo = `Solicitou visita: ${property.title} em ${input.data_sugerida}`;
+      const categoria = inferCategoryFromMotivo(motivo);
+      await updateLead(context.from, {
+        status: 'encaminhado',
+        notes: motivo,
+        modo_humano: true,
+        categoria: categoria,
+        encaminhadoMotivo: motivo,
+        assumido_por: null,
+        assumido_em: null,
+        adminUnreadCount: 1,
+        lastMessageAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      await notifyManager(context.from, property.title, input.data_sugerida, motivo, { phoneNumberId: context.phoneNumberId });
+      return `Visita agendada para ${property.title} em ${input.data_sugerida}. Um atendente vai assumir nossa conversa agora para confirmar o horário com você – continue enviando mensagens aqui mesmo.`;
     }
 
     case 'encaminhar_humano': {
-      await updateLead(context.from, { status: 'encaminhado', notes: `Encaminhado: ${input.motivo}` });
+      const categoria = inferCategoryFromMotivo(input.motivo);
+      await updateLead(context.from, {
+        status: 'encaminhado',
+        notes: `Encaminhado: ${input.motivo}`,
+        modo_humano: true,
+        categoria: categoria,
+        encaminhadoMotivo: input.motivo,
+        assumido_por: null,
+        assumido_em: null,
+        adminUnreadCount: 1,
+        lastMessageAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
       await notifyManager(context.from, null, null, input.motivo, { phoneNumberId: context.phoneNumberId });
-      return `Conversa encaminhada para o Davi. Motivo: ${input.motivo}`;
+      return `Pronto! Um atendente vai assumir nossa conversa em instantes. Enquanto isso, você pode continuar enviando mensagens aqui mesmo – não precisa ligar nem mudar de número.`;
     }
 
     case 'enviar_foto_imovel': {
@@ -225,10 +252,42 @@ async function notifyManager(leadPhone, propertyTitle, visitDate, reason, waOpti
 }
 
 async function handleIncomingMessage(messageData) {
-  const { from, profileName, text } = messageData;
+  const { from, profileName, text, type } = messageData;
 
   const lead = await getOrCreateLead(from, profileName);
-  await saveMessage(from, 'user', text);
+  const userContent = type === 'document' || type === 'image'
+    ? (text || `[${type} enviado]` + (text ? ': ' + text : ''))
+    : text;
+  await saveMessage(from, 'user', userContent);
+
+  if (lead.modo_humano) {
+    await incrementAdminUnread(from);
+    return;
+  }
+
+  if (type === 'document' || type === 'image') {
+    const motivo = type === 'document'
+      ? 'Cliente enviou documento para análise'
+      : 'Cliente enviou imagem (possível documento para análise)';
+    const categoria = inferCategoryFromMotivo(motivo);
+    await updateLead(from, {
+      status: 'encaminhado',
+      notes: motivo,
+      modo_humano: true,
+      categoria: categoria,
+      encaminhadoMotivo: motivo,
+      assumido_por: null,
+      assumido_em: null,
+      adminUnreadCount: 1,
+      lastMessageAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    await notifyManager(from, null, null, motivo, { phoneNumberId: messageData.phoneNumberId });
+    const msg = 'Recebi seu ' + (type === 'document' ? 'documento' : 'arquivo') + '! Um atendente vai analisar e entrar em contato em instantes. Você pode continuar enviando mensagens aqui mesmo.';
+    await saveMessage(from, 'assistant', msg, 'bot');
+    await sendTextMessage(from, msg, { phoneNumberId: messageData.phoneNumberId });
+    return;
+  }
 
   const history = await getConversationHistory(from, 20);
   const messages = history.map(m => ({
@@ -318,7 +377,7 @@ async function handleIncomingMessage(messageData) {
 
   console.log(`Resposta do Claude para ${from} (${finalText.length} chars): "${finalText.substring(0, 200)}..."`);
 
-  await saveMessage(from, 'assistant', finalText);
+  await saveMessage(from, 'assistant', finalText, 'bot');
 
   const waOpts = { phoneNumberId: messageData.phoneNumberId };
   try {

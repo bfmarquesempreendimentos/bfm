@@ -47,6 +47,58 @@ Aproveitando para te avisar que temos *unidades limitadas* em alguns dos nossos 
 Quer que eu faça uma simulação rápida? Basta me informar sua renda mensal! 💬`;
   },
 
+  followUp7d: (name, propertyTitle) => {
+    let msg = `Olá, ${name || ''}! 👋
+
+Passando para lembrar: nossos imóveis são ideais para quem busca *primeira moradia* ou *investimento com MCMV*.
+
+📊 *Dados que fazem diferença:*
+• *Faixa 1* (renda até R$ 2.640): subsídio de R$ 55.000 + taxa 4,25% a.a.
+• *Faixa 2* (renda até R$ 4.400): subsídio de R$ 55.000 + taxa 6,5% a.a.
+• Documentação (ITBI + Registro) *GRÁTIS*
+• Parcela não ultrapassa 30% da renda
+
+`;
+    if (propertyTitle) {
+      msg += `Você demonstrou interesse em *${propertyTitle}* – ainda temos unidades! Quer simular o financiamento ou agendar visita?`;
+    } else {
+      msg += `Temos imóveis a partir de *R$ 145.000* em São Gonçalo e Itaboraí. Quer que eu mostre as opções?`;
+    }
+    msg += `\n\n_Estou à disposição!_`;
+    return msg;
+  },
+
+  followUp14d: (name) => {
+    return `Oi, ${name || ''}! 😊
+
+Não esqueci de você! Nossos empreendimentos (exceto Casa Luxo Maricá) são focados em *MCMV Faixa 1 e 2* – padrão baixo, médio-baixo e médio.
+
+💰 *O que isso significa na prática:*
+• Subsídio de *até R$ 55.000* na entrada
+• Taxas de juros *reduzidas* (4,25% ou 6,5% a.a.)
+• 7 dos 8 empreendimentos aceitam MCMV
+• Condição especial: *ITBI e Registro grátis*
+
+🏠 Imóveis em São Gonçalo e Itaboraí a partir de R$ 145.000.
+
+Posso fazer uma simulação com sua renda ou agendar uma visita? Basta responder! 📱`;
+  },
+
+  followUp30d: (name) => {
+    return `Olá, ${name || ''}! 🌟
+
+Última mensagem da sequência: nossos imóveis continuam com condições especiais para *MCMV Faixa 1 e 2*.
+
+📌 *Resumo para você decidir:*
+• Renda até R$ 2.640 → Subsídio R$ 55.000 + 4,25% a.a.
+• Renda até R$ 4.400 → Subsídio R$ 55.000 + 6,5% a.a.
+• Prazo: até 360 meses (30 anos)
+• Parcela: até 30% da sua renda
+• Documentação grátis (ITBI + Registro)
+
+Se quiser retomar a conversa ou receber novidades, é só responder. Caso contrário, não enviarei mais mensagens automáticas – mas estarei aqui quando precisar! 🙌`;
+  },
+
   postVisit: (name, propertyTitle) => {
     return `Olá, ${name || ''}! 🏡
 
@@ -103,6 +155,15 @@ async function sendFollowUp(phone, name, propertyTitle, type = '24h') {
       break;
     case '72h':
       text = TEMPLATES.followUp72h(name);
+      break;
+    case '7d':
+      text = TEMPLATES.followUp7d(name, propertyTitle);
+      break;
+    case '14d':
+      text = TEMPLATES.followUp14d(name);
+      break;
+    case '30d':
+      text = TEMPLATES.followUp30d(name);
       break;
     case 'post-visit':
       text = TEMPLATES.postVisit(name, propertyTitle);

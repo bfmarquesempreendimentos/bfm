@@ -292,7 +292,7 @@ function loadProperties() {
             location: 'Apolo, Itaboraí - RJ',
             address: 'Rua Maria José Arruda Barbosa, LT 02 QD 18, Apolo, Itaboraí - RJ',
             mapsUrl: 'https://www.google.com/maps?q=Rua+Maria+Jos%C3%A9+Arruda+Barbosa+LT+02+QD+18+Apolo+Itabora%C3%AD',
-            price: 135000,
+            price: 145000,
             bedrooms: 1,
             bathrooms: 1,
             area: 42,
