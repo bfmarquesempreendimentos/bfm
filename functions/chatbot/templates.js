@@ -62,7 +62,7 @@ Passando para lembrar: nossos imóveis são ideais para quem busca *primeira mor
     if (propertyTitle) {
       msg += `Você demonstrou interesse em *${propertyTitle}* – ainda temos unidades! Quer simular o financiamento ou agendar visita?`;
     } else {
-      msg += `Temos imóveis a partir de *R$ 145.000* em São Gonçalo e Itaboraí. Quer que eu mostre as opções?`;
+      msg += `Temos imóveis a partir de *R$ 130.000,00* em São Gonçalo e Itaboraí. Quer que eu mostre as opções?`;
     }
     msg += `\n\n_Estou à disposição!_`;
     return msg;
@@ -79,7 +79,7 @@ Não esqueci de você! Nossos empreendimentos (exceto Casa Luxo Maricá) são fo
 • 7 dos 8 empreendimentos aceitam MCMV
 • Condição especial: *ITBI e Registro grátis*
 
-🏠 Imóveis em São Gonçalo e Itaboraí a partir de R$ 145.000.
+🏠 Imóveis em São Gonçalo e Itaboraí a partir de R$ 130.000,00.
 
 Posso fazer uma simulação com sua renda ou agendar uma visita? Basta responder! 📱`;
   },

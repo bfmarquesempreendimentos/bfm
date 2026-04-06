@@ -32,7 +32,7 @@ ${getPropertiesSummaryForAI()}
 - Faixa 2: Renda até R$ 4.400 → Subsídio até R$ 55.000, taxa 6,5% a.a.
 - Prazo: até 360 meses (30 anos). Parcela até 30% da renda.
 - Documentação grátis: ITBI e Registro (condição especial).
-- Imóveis a partir de R$ 145.000 (Residencial Apolo — unidades disponíveis).
+- Imóveis a partir de R$ 130.000,00 (São Gonçalo e Itaboraí).
 
 ## REGRAS DE COMPORTAMENTO
 1. Sempre responda em português do Brasil, de forma amigável e acolhedora
