@@ -329,7 +329,7 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
         if (lead) phone = raw;
       }
       if (!lead) return res.status(404).json({ error: 'Conversa não encontrada' });
-      const messages = await getConversationHistory(phone, 150);
+      const messages = await getConversationHistory(phone, 500);
       return res.json({ lead, messages });
     }
 

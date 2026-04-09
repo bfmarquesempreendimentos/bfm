@@ -163,6 +163,7 @@ function waInboxLoadChat(phone) {
     }
     var statusVal = lead.status || 'novo';
     document.getElementById('waChatStatus').textContent = statusVal;
+    var msgCountEl = document.getElementById('waChatMsgCount');
     var statusSelect = document.getElementById('waChatStatusSelect');
     if (statusSelect) {
       statusSelect.value = statusVal;
@@ -186,17 +187,32 @@ function waInboxLoadChat(phone) {
     if (sendDisabled) sendDisabled.style.display = modoHumano ? 'none' : 'block';
 
     var container = document.getElementById('waChatMessages');
-    container.innerHTML = '';
+    if (msgCountEl) {
+      msgCountEl.textContent = messages.length ? '(' + messages.length + ' mensagens)' : '';
+    }
+
+    var parts = [];
     for (var i = 0; i < messages.length; i++) {
       var m = messages[i];
       var isUser = m.role === 'user';
       var isAdmin = m.source === 'admin';
       var bubbleClass = isUser ? 'user' : (isAdmin ? 'admin' : 'bot');
-      var time = m.timestamp ? new Date(m.timestamp).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+      var label = isUser ? 'Cliente' : (isAdmin ? 'Você (painel)' : 'Bia');
+      var time = m.timestamp ? new Date(m.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
       var rawContent = (m.content || '').replace(/\n/g, '\n');
       var content = escapeHtml(rawContent).replace(/\n/g, '<br>');
-      container.innerHTML += '<div class="wa-chat-bubble ' + bubbleClass + '"><div>' + content + '</div><div class="wa-chat-bubble-time">' + time + (isAdmin ? ' (você)' : '') + '</div></div>';
+      parts.push(
+        '<div class="wa-chat-bubble ' + bubbleClass + '">' +
+        '<div class="wa-chat-bubble-label">' + escapeHtml(label) + '</div>' +
+        '<div>' + content + '</div>' +
+        '<div class="wa-chat-bubble-time">' + escapeHtml(time) + '</div>' +
+        '</div>'
+      );
     }
+    if (messages.length === 0) {
+      parts.push('<div class="wa-loading">Nenhuma mensagem salva nesta conversa ainda.</div>');
+    }
+    container.innerHTML = parts.join('');
     container.scrollTop = container.scrollHeight;
 
     waInboxMarkRead(phone);
