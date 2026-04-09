@@ -2,7 +2,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { sendTextMessage, sendImageMessage, sendInteractiveButtons } = require('./whatsapp-api');
 const { getPropertyById, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, properties } = require('./property-data');
 const { simulateFinancing, formatSimulationResult } = require('./finance-simulator');
-const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo } = require('./lead-manager');
+const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity } = require('./lead-manager');
 
 function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -252,16 +252,27 @@ async function notifyManager(leadPhone, propertyTitle, visitDate, reason, waOpti
 }
 
 async function handleIncomingMessage(messageData) {
-  const { from, profileName, text, type } = messageData;
+  var fromRaw = messageData.from;
+  var phone = normalizeWhatsAppPhone(fromRaw) || fromRaw;
+  var profileName = messageData.profileName;
+  var text = messageData.text;
+  var type = messageData.type;
+  var referral = messageData.referral;
 
-  const lead = await getOrCreateLead(from, profileName);
-  const userContent = type === 'document' || type === 'image'
-    ? (text || `[${type} enviado]` + (text ? ': ' + text : ''))
+  const lead = await getOrCreateLead(phone, profileName);
+  var userContent = type === 'document' || type === 'image'
+    ? (text || '[' + type + ' enviado]' + (text ? ': ' + text : ''))
     : text;
-  await saveMessage(from, 'user', userContent);
+
+  if (referral && typeof referral === 'object' && referral.source_type === 'ad') {
+    await updateLead(phone, { ultimaOrigem: 'anuncio', updatedAt: new Date().toISOString() });
+  }
+
+  await saveMessage(phone, 'user', userContent);
+  await recordInboundActivity(phone, userContent);
 
   if (lead.modo_humano) {
-    await incrementAdminUnread(from);
+    await incrementAdminUnread(phone);
     return;
   }
 
@@ -270,7 +281,7 @@ async function handleIncomingMessage(messageData) {
       ? 'Cliente enviou documento para análise'
       : 'Cliente enviou imagem (possível documento para análise)';
     const categoria = inferCategoryFromMotivo(motivo);
-    await updateLead(from, {
+    await updateLead(phone, {
       status: 'encaminhado',
       notes: motivo,
       modo_humano: true,
@@ -282,14 +293,14 @@ async function handleIncomingMessage(messageData) {
       lastMessageAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-    await notifyManager(from, null, null, motivo, { phoneNumberId: messageData.phoneNumberId });
-    const msg = 'Recebi seu ' + (type === 'document' ? 'documento' : 'arquivo') + '! Um atendente vai analisar e entrar em contato em instantes. Você pode continuar enviando mensagens aqui mesmo.';
-    await saveMessage(from, 'assistant', msg, 'bot');
-    await sendTextMessage(from, msg, { phoneNumberId: messageData.phoneNumberId });
+    await notifyManager(phone, null, null, motivo, { phoneNumberId: messageData.phoneNumberId });
+    var msg = 'Recebi seu ' + (type === 'document' ? 'documento' : 'arquivo') + '! Um atendente vai analisar e entrar em contato em instantes. Você pode continuar enviando mensagens aqui mesmo.';
+    await saveMessage(phone, 'assistant', msg, 'bot');
+    await sendTextMessage(phone, msg, { phoneNumberId: messageData.phoneNumberId });
     return;
   }
 
-  const history = await getConversationHistory(from, 20);
+  const history = await getConversationHistory(phone, 20);
   const messages = history.map(m => ({
     role: m.role === 'user' ? 'user' : 'assistant',
     content: m.content,
@@ -321,71 +332,98 @@ async function handleIncomingMessage(messageData) {
     dedupedMessages.unshift({ role: 'user', content: text });
   }
 
-  const client = getClient();
+  var client;
+  try {
+    client = getClient();
+  } catch (e) {
+    console.error('Anthropic client:', e.message);
+    await handleAiFailure(phone, messageData, 'Configuração da IA ausente.');
+    return;
+  }
 
-  let response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 1024,
-    system: SYSTEM_PROMPT + `\n\nDados do lead atual: Nome: ${lead.name || 'Desconhecido'}, Status: ${lead.status}, Imóveis de interesse: ${(lead.interestedProperties || []).join(', ') || 'Nenhum ainda'}`,
-    tools: TOOLS,
-    messages: dedupedMessages,
-  });
-
-  let finalText = '';
-  let iterations = 0;
-  const maxIterations = 5;
-
-  while (response.stop_reason === 'tool_use' && iterations < maxIterations) {
-    iterations++;
-    const toolBlocks = response.content.filter(b => b.type === 'tool_use');
-    const textBlocks = response.content.filter(b => b.type === 'text');
-
-    if (textBlocks.length > 0) {
-      finalText += textBlocks.map(b => b.text).join('');
-    }
-
-    const toolResults = [];
-    for (const tool of toolBlocks) {
-      const result = await executeTool(tool.name, tool.input, { from, phoneNumberId: messageData.phoneNumberId });
-      toolResults.push({
-        type: 'tool_result',
-        tool_use_id: tool.id,
-        content: result,
-      });
-    }
-
-    dedupedMessages.push({ role: 'assistant', content: response.content });
-    dedupedMessages.push({ role: 'user', content: toolResults });
-
-    response = await client.messages.create({
+  try {
+    let response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      system: SYSTEM_PROMPT + `\n\nDados do lead atual: Nome: ${lead.name || 'Desconhecido'}, Status: ${lead.status}, Imóveis de interesse: ${(lead.interestedProperties || []).join(', ') || 'Nenhum ainda'}`,
       tools: TOOLS,
       messages: dedupedMessages,
     });
+
+    let finalText = '';
+    let iterations = 0;
+    const maxIterations = 5;
+
+    while (response.stop_reason === 'tool_use' && iterations < maxIterations) {
+      iterations++;
+      const toolBlocks = response.content.filter(b => b.type === 'tool_use');
+      const textBlocks = response.content.filter(b => b.type === 'text');
+
+      if (textBlocks.length > 0) {
+        finalText += textBlocks.map(b => b.text).join('');
+      }
+
+      const toolResults = [];
+      for (const tool of toolBlocks) {
+        const result = await executeTool(tool.name, tool.input, { from: phone, phoneNumberId: messageData.phoneNumberId });
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: tool.id,
+          content: result,
+        });
+      }
+
+      dedupedMessages.push({ role: 'assistant', content: response.content });
+      dedupedMessages.push({ role: 'user', content: toolResults });
+
+      response = await client.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: SYSTEM_PROMPT,
+        tools: TOOLS,
+        messages: dedupedMessages,
+      });
+    }
+
+    const responseTextBlocks = response.content.filter(b => b.type === 'text');
+    if (responseTextBlocks.length > 0) {
+      finalText += responseTextBlocks.map(b => b.text).join('');
+    }
+
+    if (!finalText.trim()) {
+      finalText = 'Olá! Sou a Bia, assistente virtual da B F Marques. Como posso te ajudar hoje? 😊';
+    }
+
+    console.log('Resposta do Claude para ' + phone + ' (' + finalText.length + ' chars)');
+
+    await saveMessage(phone, 'assistant', finalText, 'bot');
+    await recordInboundActivity(phone, finalText);
+
+    const waOpts = { phoneNumberId: messageData.phoneNumberId };
+    await sendTextMessage(phone, finalText, waOpts);
+    console.log('Mensagem enviada com sucesso para ' + phone);
+  } catch (err) {
+    console.error('Erro IA/envio para ' + phone + ':', err.response?.data || err.message);
+    await handleAiFailure(phone, messageData, err.message);
   }
+}
 
-  const responseTextBlocks = response.content.filter(b => b.type === 'text');
-  if (responseTextBlocks.length > 0) {
-    finalText += responseTextBlocks.map(b => b.text).join('');
-  }
-
-  if (!finalText.trim()) {
-    finalText = 'Olá! Sou a Bia, assistente virtual da B F Marques. Como posso te ajudar hoje? 😊';
-  }
-
-  console.log(`Resposta do Claude para ${from} (${finalText.length} chars): "${finalText.substring(0, 200)}..."`);
-
-  await saveMessage(from, 'assistant', finalText, 'bot');
-
-  const waOpts = { phoneNumberId: messageData.phoneNumberId };
+async function handleAiFailure(phone, messageData, detail) {
+  var fallback = 'Olá! Recebemos sua mensagem. Nossa equipe responde em instantes por aqui — aguarde só um momento. 😊';
   try {
-    await sendTextMessage(from, finalText, waOpts);
-    console.log(`Mensagem enviada com sucesso para ${from} (phoneNumberId=${waOpts.phoneNumberId || 'env'})`);
-  } catch (sendErr) {
-    console.error(`ERRO ao enviar mensagem para ${from}:`, JSON.stringify(sendErr.response?.data || sendErr.message));
-    throw sendErr;
+    await saveMessage(phone, 'assistant', fallback, 'bot');
+    await sendTextMessage(phone, fallback, { phoneNumberId: messageData.phoneNumberId });
+  } catch (e2) {
+    console.error('Fallback send failed:', e2.message);
+  }
+  try {
+    await incrementAdminUnread(phone);
+    await updateLead(phone, {
+      notes: 'Falha automação: ' + (detail || '').substring(0, 120),
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e3) {
+    console.warn('handleAiFailure update:', e3.message);
   }
 }
 

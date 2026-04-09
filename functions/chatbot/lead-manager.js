@@ -4,6 +4,34 @@ function getDb() {
   return admin.firestore();
 }
 
+/** ID do documento no Firestore: só dígitos, Brasil com 55 + DDD + número */
+function normalizeWhatsAppPhone(raw) {
+  if (raw == null) return null;
+  var s = String(raw).replace(/\D/g, '');
+  if (s.length < 10) return null;
+  if (s.length >= 12 && s.indexOf('55') === 0) return s;
+  if (s.length === 11) return '55' + s;
+  if (s.length === 10) return '55' + s;
+  return s;
+}
+
+async function recordInboundActivity(phone, previewText) {
+  const db = getDb();
+  const ref = db.collection('chatbot_leads').doc(phone);
+  var preview = (previewText || '').trim();
+  if (preview.length > 220) preview = preview.substring(0, 217) + '...';
+  var now = new Date().toISOString();
+  try {
+    await ref.update({
+      lastMessageAt: now,
+      lastActivityPreview: preview,
+      updatedAt: now,
+    });
+  } catch (e) {
+    console.warn('recordInboundActivity: doc missing or update failed', phone, e.message);
+  }
+}
+
 async function getOrCreateLead(phone, profileName) {
   const db = getDb();
   const ref = db.collection('chatbot_leads').doc(phone);
@@ -17,6 +45,7 @@ async function getOrCreateLead(phone, profileName) {
     return { id: phone, ...data, name: data.name || profileName };
   }
 
+  const now = new Date().toISOString();
   const newLead = {
     phone,
     name: profileName || '',
@@ -28,8 +57,10 @@ async function getOrCreateLead(phone, profileName) {
     assignedTo: 'Davi',
     notes: '',
     scheduledVisit: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
+    lastMessageAt: now,
+    lastActivityPreview: '',
   };
 
   await ref.set(newLead);
@@ -73,16 +104,91 @@ async function getConversationHistory(phone, limit = 20) {
   return messages.reverse();
 }
 
-async function saveMessage(phone, role, content) {
+async function saveMessage(phone, role, content, source) {
   const db = getDb();
+  const msg = {
+    role,
+    content,
+    timestamp: new Date().toISOString(),
+  };
+  if (source) msg.source = source; // 'bot' | 'admin'
   await db.collection('chatbot_conversations')
     .doc(phone)
     .collection('messages')
-    .add({
-      role,
-      content,
-      timestamp: new Date().toISOString(),
-    });
+    .add(msg);
+}
+
+function inferCategoryFromMotivo(motivo) {
+  if (!motivo || typeof motivo !== 'string') return 'geral';
+  const m = motivo.toLowerCase();
+  if (m.indexOf('venda') >= 0 || m.indexOf('comprar') >= 0 || m.indexOf('imovel') >= 0 || m.indexOf('visita') >= 0) return 'vendas';
+  if (m.indexOf('documento') >= 0 || m.indexOf('analise') >= 0 || m.indexOf('análise') >= 0) return 'vendas';
+  if (m.indexOf('duvida') >= 0 || m.indexOf('dúvida') >= 0 || m.indexOf('pergunta') >= 0) return 'duvidas';
+  if (m.indexOf('sugest') >= 0 || m.indexOf('reclam') >= 0 || m.indexOf('feedback') >= 0) return 'sugestoes';
+  return 'geral';
+}
+
+async function setModoHumano(phone, adminEmail) {
+  const db = getDb();
+  await db.collection('chatbot_leads').doc(phone).update({
+    modo_humano: true,
+    assumido_por: adminEmail || 'admin',
+    assumido_em: new Date().toISOString(),
+    adminUnreadCount: 0,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+async function returnToBot(phone) {
+  const db = getDb();
+  await db.collection('chatbot_leads').doc(phone).update({
+    modo_humano: false,
+    assumido_por: null,
+    assumido_em: null,
+    adminUnreadCount: 0,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+async function incrementAdminUnread(phone) {
+  const db = getDb();
+  const ref = db.collection('chatbot_leads').doc(phone);
+  const doc = await ref.get();
+  if (!doc.exists) return;
+  const current = doc.data().adminUnreadCount || 0;
+  await ref.update({
+    adminUnreadCount: current + 1,
+    lastMessageAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+async function markAdminRead(phone) {
+  const db = getDb();
+  await db.collection('chatbot_leads').doc(phone).update({
+    adminUnreadCount: 0,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+async function getLeadByPhone(phone) {
+  const db = getDb();
+  const doc = await db.collection('chatbot_leads').doc(phone).get();
+  if (!doc.exists) return null;
+  return { id: doc.id, ...doc.data() };
+}
+
+async function getLastConversationMessage(phone) {
+  const db = getDb();
+  const snapshot = await db.collection('chatbot_conversations')
+    .doc(phone)
+    .collection('messages')
+    .orderBy('timestamp', 'desc')
+    .limit(1)
+    .get();
+  if (snapshot.empty) return null;
+  const data = snapshot.docs[0].data();
+  return { role: data.role, timestamp: data.timestamp };
 }
 
 async function qualifyLead(phone, data) {
@@ -138,11 +244,16 @@ async function getAllLeads(filters = {}) {
 async function getLeadStats() {
   const db = getDb();
   const snapshot = await db.collection('chatbot_leads').get();
-  const stats = { total: 0, novo: 0, qualificado: 0, agendado: 0, convertido: 0 };
+  const stats = { total: 0, novo: 0, qualificado: 0, agendado: 0, convertido: 0, encaminhado: 0, emAtendimento: 0, pendentesLeitura: 0, vendas: 0, duvidas: 0, sugestoes: 0 };
   snapshot.forEach(doc => {
     stats.total++;
-    const s = doc.data().status || 'novo';
+    const d = doc.data();
+    const s = d.status || 'novo';
     if (stats[s] !== undefined) stats[s]++;
+    if (d.modo_humano) stats.emAtendimento++;
+    if ((d.adminUnreadCount || 0) > 0) stats.pendentesLeitura++;
+    const cat = d.categoria || 'geral';
+    if (stats[cat] !== undefined) stats[cat]++;
   });
   return stats;
 }
@@ -157,4 +268,13 @@ module.exports = {
   scheduleVisit,
   getAllLeads,
   getLeadStats,
+  getLeadByPhone,
+  getLastConversationMessage,
+  setModoHumano,
+  returnToBot,
+  incrementAdminUnread,
+  markAdminRead,
+  inferCategoryFromMotivo,
+  normalizeWhatsAppPhone,
+  recordInboundActivity,
 };

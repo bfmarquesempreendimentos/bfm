@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { handleIncomingMessage } = require('./ai-agent');
 const { markAsRead } = require('./whatsapp-api');
+const { normalizeWhatsAppPhone } = require('./lead-manager');
 
 function verifyWebhook(req, res) {
   const mode = req.query['hub.mode'];
@@ -15,9 +16,13 @@ function verifyWebhook(req, res) {
 }
 
 async function processWebhook(req, res) {
-  const body = req.body;
+  const body = req.body || {};
+
+  // Log para diagnóstico (respondo e nada acontece)
+  console.log('[Webhook] POST recebido. object=', body.object, 'entry_count=', (body.entry || []).length);
 
   if (body.object !== 'whatsapp_business_account') {
+    console.log('[Webhook] Ignorando: object não é whatsapp_business_account');
     return res.sendStatus(200);
   }
 
@@ -26,6 +31,7 @@ async function processWebhook(req, res) {
   for (const entry of entries) {
     const changes = entry.changes || [];
     for (const change of changes) {
+      console.log('[Webhook] change.field=', change.field);
       if (change.field !== 'messages') continue;
       const value = change.value;
       if (!value || !value.messages) continue;
@@ -42,18 +48,21 @@ async function processWebhook(req, res) {
         const extracted = extractMessageContent(message);
         if (!extracted) continue;
 
+        var waId = normalizeWhatsAppPhone(from) || from;
         messagesToProcess.push({
-          from,
+          from: waId,
           profileName,
           messageId,
           ...extracted,
           phoneNumberId: metadata.phone_number_id,
+          referral: message.referral || null,
         });
       }
     }
   }
 
   if (messagesToProcess.length === 0) {
+    console.log('[Webhook] Nenhuma mensagem para processar (verifique se "messages" está assinado)');
     return res.sendStatus(200);
   }
 
@@ -73,8 +82,19 @@ async function processWebhook(req, res) {
 
 function extractMessageContent(message) {
   switch (message.type) {
-    case 'text':
-      return { type: 'text', text: message.text?.body || '' };
+    case 'text': {
+      var t = message.text?.body || '';
+      var r = message.referral;
+      if (r && typeof r === 'object') {
+        var bits = [];
+        if (r.source_type) bits.push('origem:' + r.source_type);
+        if (r.headline) bits.push(String(r.headline));
+        if (r.source_url) bits.push(String(r.source_url));
+        if (r.ctwa_clid) bits.push('anuncio');
+        if (bits.length) t = (t ? t + '\n' : '') + '[' + bits.join(' | ') + ']';
+      }
+      return { type: 'text', text: t };
+    }
     case 'interactive':
       if (message.interactive?.type === 'button_reply') {
         return { type: 'text', text: message.interactive.button_reply.title };
@@ -93,9 +113,17 @@ function extractMessageContent(message) {
     case 'document':
     case 'audio':
     case 'video':
-      return { type: message.type, text: message[message.type]?.caption || `[${message.type}]` };
+      return { type: message.type, text: message[message.type]?.caption || '[' + message.type + ']' };
+    case 'button':
+      return {
+        type: 'text',
+        text: (message.button && (message.button.text || message.button.payload)) || '[Resposta de botão]',
+      };
+    case 'unsupported':
+      return { type: 'text', text: '[Mensagem em formato novo no WhatsApp — conteúdo indisponível na API]' };
     default:
-      return null;
+      console.warn('[Webhook] message.type não tratado:', message.type);
+      return { type: 'text', text: '[Tipo: ' + (message.type || '?') + ']' };
   }
 }
 

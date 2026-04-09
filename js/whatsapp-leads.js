@@ -1,235 +1,362 @@
-let waLeadsData = [];
+/* Painel de Atendimento WhatsApp - Inbox e gestão de contatos */
 
-async function loadWhatsAppLeads() {
-  try {
-    const db = firebase.firestore();
+var waInboxBaseUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+var waLeadsData = [];
+var waInboxSelectedPhone = null;
+var waInboxPollTimer = null;
+var waInboxPollInterval = 15000;
 
-    const statsSnap = await db.collection('chatbot_leads').get();
-    const stats = { total: 0, novo: 0, qualificado: 0, agendado: 0, convertido: 0, encaminhado: 0 };
-    const leads = [];
+function waInboxApi(path, options) {
+  options = options || {};
+  var url = waInboxBaseUrl + path;
+  var method = (options.method || 'GET').toUpperCase();
+  var body = options.body;
+  var headers = { 'Content-Type': 'application/json' };
 
-    statsSnap.forEach(doc => {
-      const data = { id: doc.id, ...doc.data() };
-      leads.push(data);
-      stats.total++;
-      const s = data.status || 'novo';
-      if (stats[s] !== undefined) stats[s]++;
-    });
-
-    waLeadsData = leads.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-
-    document.getElementById('waLeadsTotal').textContent = stats.total;
-    document.getElementById('waLeadsNovo').textContent = stats.novo;
-    document.getElementById('waLeadsQualificado').textContent = stats.qualificado;
-    document.getElementById('waLeadsAgendado').textContent = stats.agendado;
-
-    renderWALeadsTable(waLeadsData);
-  } catch (err) {
-    console.error('Erro ao carregar leads WhatsApp:', err);
-    document.getElementById('waLeadsTableBody').innerHTML =
-      '<tr><td colspan="7" class="loading-msg">Erro ao carregar leads</td></tr>';
-  }
+  return fetch(url, {
+    method: method,
+    headers: headers,
+    body: method === 'POST' && body ? JSON.stringify(body) : undefined,
+    cache: 'no-store',
+    credentials: 'omit'
+  }).then(function(res) {
+    if (!res.ok) throw new Error('Erro ' + res.status);
+    return res.json();
+  });
 }
 
-function filterWALeads() {
-  const status = document.getElementById('waFilterStatus').value;
-  const search = document.getElementById('waSearchInput').value.toLowerCase();
-
-  let filtered = waLeadsData;
-  if (status) filtered = filtered.filter(l => l.status === status);
-  if (search) {
-    filtered = filtered.filter(l =>
-      (l.name || '').toLowerCase().includes(search) ||
-      (l.phone || '').includes(search)
-    );
-  }
-  renderWALeadsTable(filtered);
+function waInboxRefresh() {
+  waInboxLoadList();
+  waInboxLoadStats();
+  if (typeof showMessage === 'function') showMessage('Lista atualizada.', 'success');
 }
 
-function renderWALeadsTable(leads) {
-  const tbody = document.getElementById('waLeadsTableBody');
+function waInboxLoadStats() {
+  waInboxApi('/chatbotInbox?action=stats').then(function(stats) {
+    var el;
+    var total = stats.total || 0;
+    el = document.getElementById('waStatTotal');
+    if (el) el.textContent = total;
+    el = document.getElementById('waStatPendentes');
+    if (el) el.textContent = stats.pendentesLeitura || 0;
+    el = document.getElementById('waStatAtendimento');
+    if (el) el.textContent = stats.emAtendimento || 0;
+    el = document.getElementById('waStatVendas');
+    if (el) el.textContent = stats.vendas || 0;
+    el = document.getElementById('waStatDuvidas');
+    if (el) el.textContent = stats.duvidas || 0;
+    el = document.getElementById('waStatSugestoes');
+    if (el) el.textContent = stats.sugestoes || 0;
+    var pendentes = stats.pendentesLeitura || 0;
+    var navLink = document.querySelector('a[href="#whatsapp-leads"]');
+    if (navLink) {
+      var badge = navLink.querySelector('.wa-nav-badge');
+      if (pendentes > 0) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'wa-nav-badge';
+          navLink.appendChild(badge);
+        }
+        badge.textContent = pendentes > 99 ? '99+' : pendentes;
+        badge.style.display = '';
+      } else if (badge) {
+        badge.style.display = 'none';
+      }
+    }
+  }).catch(function(err) {
+    if (typeof console !== 'undefined' && console.warn) console.warn('Erro stats:', err);
+  });
+}
 
-  if (!leads.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="loading-msg">Nenhum lead encontrado</td></tr>';
+function waInboxLoadList() {
+  var listBody = document.getElementById('waInboxListBody');
+  if (listBody) listBody.innerHTML = '<div class="wa-loading">Carregando...</div>';
+
+  var modo = document.getElementById('waFilterModo');
+  var cat = document.getElementById('waFilterCategoria');
+  var status = document.getElementById('waFilterStatus');
+  var search = document.getElementById('waSearchInput');
+
+  var q = '?action=list&limit=100';
+  if (modo && modo.value) q += '&modo_humano=' + (modo.value === 'humano' ? 'true' : 'false');
+  if (cat && cat.value) q += '&categoria=' + encodeURIComponent(cat.value);
+  if (status && status.value) q += '&status=' + encodeURIComponent(status.value);
+  if (search && search.value.trim()) q += '&search=' + encodeURIComponent(search.value.trim());
+
+  waInboxApi('/chatbotInbox' + q).then(function(data) {
+    waLeadsData = data.leads || [];
+    waInboxRenderList();
+    waInboxLoadStats();
+  }).catch(function(err) {
+    if (listBody) listBody.innerHTML = '<div class="wa-loading">Erro ao carregar. <button type="button" onclick="waInboxRefresh()">Tentar novamente</button></div>';
+    if (typeof console !== 'undefined' && console.error) console.error(err);
+  });
+}
+
+function waInboxFilter() {
+  waInboxLoadList();
+}
+
+function waInboxRenderList() {
+  var listBody = document.getElementById('waInboxListBody');
+  if (!listBody) return;
+
+  if (waLeadsData.length === 0) {
+    listBody.innerHTML = '<div class="wa-loading">Nenhuma conversa encontrada.</div>';
     return;
   }
 
-  const propertyNames = {
-    1: 'Porto Novo', 2: 'Itaúna', 3: 'Amendoeiras', 4: 'Laranjal',
-    5: 'Apolo', 6: 'Coelho', 7: 'Caçador', 8: 'Luxo Maricá'
-  };
+  var html = '';
+  for (var i = 0; i < waLeadsData.length; i++) {
+    var l = waLeadsData[i];
+    var phone = l.phone || l.id || '';
+    var name = l.name || 'Sem nome';
+    var unread = (l.adminUnreadCount || 0) > 0;
+    var active = phone === waInboxSelectedPhone;
+    var cat = l.categoria || 'geral';
+    var status = l.status || 'novo';
+    var modoHumano = !!l.modo_humano;
+    var preview = l.lastActivityPreview || l.encaminhadoMotivo || l.notes || '';
+    if (preview.length > 40) preview = preview.substring(0, 37) + '...';
 
-  const statusColors = {
-    novo: '#3498db',
-    qualificado: '#f39c12',
-    agendado: '#e74c3c',
-    convertido: '#27ae60',
-    encaminhado: '#9b59b6',
-  };
+    html += '<div class="wa-inbox-item' + (active ? ' active' : '') + (unread ? ' unread' : '') + '" data-phone="' + escapeHtml(phone) + '" onclick="waInboxSelect(this.getAttribute(\'data-phone\'))">';
+    html += '<div class="wa-inbox-item-avatar"><i class="fab fa-whatsapp"></i></div>';
+    html += '<div class="wa-inbox-item-info">';
+    html += '<div class="wa-inbox-item-name">' + escapeHtml(name) + '</div>';
+    html += '<div class="wa-inbox-item-preview">' + escapeHtml(preview || formatPhoneShort(phone)) + '</div>';
+    html += '<div class="wa-inbox-item-badges">';
+    if (unread) html += '<span class="wa-inbox-item-unread">' + (l.adminUnreadCount || 1) + '</span>';
+    if (modoHumano) html += '<span class="wa-inbox-item-badge" style="background:#fef3c7;color:#92400e;">Humano</span>';
+    if (l.ultimaOrigem === 'anuncio') html += '<span class="wa-inbox-item-badge" style="background:#dbeafe;color:#1e40af;">Anúncio</span>';
+    html += '<span class="wa-inbox-item-badge" style="background:#e2e8f0;">' + escapeHtml(cat) + '</span>';
+    html += '</div>';
+    html += '</div></div>';
+  }
+  listBody.innerHTML = html;
+}
 
-  tbody.innerHTML = leads.map(lead => {
-    const props = (lead.interestedProperties || [])
-      .map(id => propertyNames[id] || `#${id}`)
-      .join(', ') || '—';
+function waInboxSelect(phone) {
+  waInboxSelectedPhone = phone;
+  waInboxRenderList();
+  waInboxLoadChat(phone);
+}
 
-    const income = lead.income
-      ? `R$ ${Number(lead.income).toLocaleString('pt-BR')}`
-      : '—';
+function waInboxLoadChat(phone) {
+  var emptyEl = document.getElementById('waInboxChatEmpty');
+  var activeEl = document.getElementById('waInboxChatActive');
+  if (!emptyEl || !activeEl) return;
 
-    const date = lead.createdAt
-      ? new Date(lead.createdAt).toLocaleDateString('pt-BR')
-      : '—';
+  emptyEl.style.display = 'none';
+  activeEl.style.display = 'flex';
 
-    const status = lead.status || 'novo';
-    const color = statusColors[status] || '#999';
+  waInboxApi('/chatbotInbox?action=conversation&phone=' + encodeURIComponent(phone)).then(function(data) {
+    var lead = data.lead || {};
+    var messages = data.messages || [];
 
-    const phone = lead.phone || '';
-    const waLink = `https://wa.me/${phone}`;
+    document.getElementById('waChatName').textContent = lead.name || 'Sem nome';
+    document.getElementById('waChatPhone').textContent = formatPhone(lead.phone || phone);
+    document.getElementById('waChatCategoria').textContent = lead.categoria || 'geral';
+    document.getElementById('waChatCategoria').className = 'wa-cat-badge';
+    var catSel = document.getElementById('waChatCategoriaSelect');
+    if (catSel) {
+      catSel.value = lead.categoria || 'geral';
+    }
+    var statusVal = lead.status || 'novo';
+    document.getElementById('waChatStatus').textContent = statusVal;
+    var statusSelect = document.getElementById('waChatStatusSelect');
+    if (statusSelect) {
+      statusSelect.value = statusVal;
+    }
 
-    return `<tr>
-      <td><strong>${lead.name || 'Sem nome'}</strong></td>
-      <td><a href="${waLink}" target="_blank" rel="noopener" title="Abrir WhatsApp">${formatPhone(phone)}</a></td>
-      <td>${income}</td>
-      <td>${props}</td>
-      <td><span class="wa-status-badge" style="background:${color}">${status}</span></td>
-      <td>${date}</td>
-      <td class="wa-actions-cell">
-        <button class="btn-small btn-info" onclick="showLeadDetail('${phone}')" title="Ver detalhes">
-          <i class="fas fa-eye"></i>
-        </button>
-        <a href="${waLink}" target="_blank" rel="noopener" class="btn-small btn-whatsapp" title="Responder no WhatsApp">
-          <i class="fab fa-whatsapp"></i>
-        </a>
-      </td>
-    </tr>`;
-  }).join('');
+    var waLink = 'https://wa.me/' + (lead.phone || phone).replace(/\D/g, '');
+    var linkEl = document.getElementById('waChatWaLink');
+    if (linkEl) { linkEl.href = waLink; }
+    var link2 = document.getElementById('waChatWaLink2');
+    if (link2) { link2.href = waLink; }
+
+    var modoHumano = !!lead.modo_humano;
+    var assumirBtn = document.getElementById('waBtnAssumir');
+    var devolverBtn = document.getElementById('waBtnDevolver');
+    var sendBox = document.getElementById('waChatSendBox');
+    var sendDisabled = document.getElementById('waChatSendDisabled');
+
+    if (assumirBtn) assumirBtn.style.display = modoHumano ? 'none' : 'inline-block';
+    if (devolverBtn) devolverBtn.style.display = modoHumano ? 'inline-block' : 'none';
+    if (sendBox) sendBox.style.display = modoHumano ? 'flex' : 'none';
+    if (sendDisabled) sendDisabled.style.display = modoHumano ? 'none' : 'block';
+
+    var container = document.getElementById('waChatMessages');
+    container.innerHTML = '';
+    for (var i = 0; i < messages.length; i++) {
+      var m = messages[i];
+      var isUser = m.role === 'user';
+      var isAdmin = m.source === 'admin';
+      var bubbleClass = isUser ? 'user' : (isAdmin ? 'admin' : 'bot');
+      var time = m.timestamp ? new Date(m.timestamp).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+      var rawContent = (m.content || '').replace(/\n/g, '\n');
+      var content = escapeHtml(rawContent).replace(/\n/g, '<br>');
+      container.innerHTML += '<div class="wa-chat-bubble ' + bubbleClass + '"><div>' + content + '</div><div class="wa-chat-bubble-time">' + time + (isAdmin ? ' (você)' : '') + '</div></div>';
+    }
+    container.scrollTop = container.scrollHeight;
+
+    waInboxMarkRead(phone);
+    waInboxStartPoll();
+
+    var inputEl = document.getElementById('waChatInput');
+    if (inputEl && !inputEl.dataset.waInboxBound) {
+      inputEl.dataset.waInboxBound = '1';
+      inputEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          waInboxSend();
+        }
+      });
+    }
+  }).catch(function(err) {
+    if (typeof console !== 'undefined' && console.error) console.error(err);
+    activeEl.querySelector('#waChatMessages').innerHTML = '<div class="wa-loading">Erro ao carregar conversa.</div>';
+  });
+}
+
+function waInboxAssume() {
+  if (!waInboxSelectedPhone) return;
+  var adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+  waInboxApi('/chatbotInboxAssume', { method: 'POST', body: { phone: waInboxSelectedPhone, adminEmail: adminUser.email || 'admin' } }).then(function() {
+    if (typeof showMessage === 'function') showMessage('Conversa assumida. Agora você pode responder pelo painel.', 'success');
+    waInboxLoadChat(waInboxSelectedPhone);
+    waInboxLoadList();
+  }).catch(function(err) {
+    if (typeof showMessage === 'function') showMessage('Erro ao assumir: ' + (err.message || 'Tente novamente.'), 'error');
+  });
+}
+
+function waInboxReturnToBot() {
+  if (!waInboxSelectedPhone) return;
+  if (!confirm('Devolver esta conversa para o bot? O bot voltará a responder automaticamente.')) return;
+  waInboxApi('/chatbotInboxReturnToBot', { method: 'POST', body: { phone: waInboxSelectedPhone } }).then(function() {
+    if (typeof showMessage === 'function') showMessage('Conversa devolvida ao bot.', 'success');
+    waInboxLoadChat(waInboxSelectedPhone);
+    waInboxLoadList();
+  }).catch(function(err) {
+    if (typeof showMessage === 'function') showMessage('Erro: ' + (err.message || 'Tente novamente.'), 'error');
+  });
+}
+
+function waInboxSend() {
+  if (!waInboxSelectedPhone) return;
+  var input = document.getElementById('waChatInput');
+  var text = (input && input.value || '').trim();
+  if (!text) return;
+
+  input.value = '';
+  input.disabled = true;
+
+  waInboxApi('/chatbotInboxSend', { method: 'POST', body: { phone: waInboxSelectedPhone, text: text } }).then(function() {
+    waInboxLoadChat(waInboxSelectedPhone);
+  }).catch(function(err) {
+    if (typeof showMessage === 'function') showMessage('Erro ao enviar: ' + (err.message || 'Tente novamente.'), 'error');
+  }).then(function() {
+    if (input) input.disabled = false;
+  });
+}
+
+function waInboxMarkRead(phone) {
+  if (!phone) return;
+  waInboxApi('/chatbotInboxMarkRead', { method: 'POST', body: { phone: phone } }).catch(function() {});
+}
+
+function waInboxStartPoll() {
+  if (waInboxPollTimer) clearInterval(waInboxPollTimer);
+  waInboxPollTimer = setInterval(function() {
+    if (waInboxSelectedPhone) {
+      waInboxLoadList();
+      waInboxLoadChat(waInboxSelectedPhone);
+    }
+  }, waInboxPollInterval);
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
 }
 
 function formatPhone(phone) {
   if (!phone) return '—';
-  const clean = phone.replace(/\D/g, '');
-  if (clean.length === 13) {
-    return `+${clean.slice(0, 2)} (${clean.slice(2, 4)}) ${clean.slice(4, 9)}-${clean.slice(9)}`;
-  }
+  var clean = String(phone).replace(/\D/g, '');
+  if (clean.length >= 12) return '+' + clean.substring(0, 2) + ' (' + clean.substring(2, 4) + ') ' + clean.substring(4, 9) + '-' + clean.substring(9);
   return phone;
 }
 
-async function showLeadDetail(phone) {
-  const lead = waLeadsData.find(l => l.phone === phone || l.id === phone);
-  if (!lead) return;
+function formatPhoneShort(phone) {
+  if (!phone) return '';
+  var clean = String(phone).replace(/\D/g, '');
+  if (clean.length >= 10) return '(' + clean.slice(-11, -9) + ') ' + clean.slice(-9, -4) + '-' + clean.slice(-4);
+  return phone;
+}
 
-  const modal = document.getElementById('waLeadDetailModal');
-  const body = document.getElementById('waLeadDetailBody');
-  document.getElementById('waLeadDetailTitle').textContent = lead.name || 'Lead sem nome';
+/* Compatibilidade: manter funções antigas para admin.js */
+function loadWhatsAppLeads() {
+  waInboxRefresh();
+}
 
-  let html = `
-    <div class="wa-lead-info">
-      <div class="wa-lead-info-row"><strong>Telefone:</strong> ${formatPhone(lead.phone)}</div>
-      <div class="wa-lead-info-row"><strong>Nome:</strong> ${lead.name || '—'}</div>
-      <div class="wa-lead-info-row"><strong>Renda:</strong> ${lead.income ? `R$ ${Number(lead.income).toLocaleString('pt-BR')}` : '—'}</div>
-      <div class="wa-lead-info-row"><strong>CPF:</strong> ${lead.cpf || '—'}</div>
-      <div class="wa-lead-info-row"><strong>Email:</strong> ${lead.email || '—'}</div>
-      <div class="wa-lead-info-row"><strong>Status:</strong> ${lead.status || 'novo'}</div>
-      <div class="wa-lead-info-row"><strong>Responsável:</strong> ${lead.assignedTo || 'Davi'}</div>
-      <div class="wa-lead-info-row"><strong>Data de criação:</strong> ${lead.createdAt ? new Date(lead.createdAt).toLocaleString('pt-BR') : '—'}</div>
-    </div>
-  `;
+function filterWALeads() {
+  waInboxFilter();
+}
 
-  if (lead.scheduledVisit) {
-    html += `
-      <div class="wa-lead-visit">
-        <h4>📅 Visita Agendada</h4>
-        <p>Data: ${lead.scheduledVisit.date}</p>
-      </div>
-    `;
-  }
-
-  html += '<div class="wa-lead-conversation"><h4>💬 Histórico de Conversa</h4>';
-
-  try {
-    const db = firebase.firestore();
-    const convSnap = await db.collection('chatbot_conversations')
-      .doc(phone)
-      .collection('messages')
-      .orderBy('timestamp', 'asc')
-      .limit(50)
-      .get();
-
-    if (convSnap.empty) {
-      html += '<p class="no-messages">Nenhuma mensagem registrada</p>';
-    } else {
-      html += '<div class="wa-chat-messages">';
-      convSnap.forEach(doc => {
-        const msg = doc.data();
-        const isUser = msg.role === 'user';
-        const time = msg.timestamp ? new Date(msg.timestamp).toLocaleString('pt-BR') : '';
-        html += `
-          <div class="wa-chat-bubble ${isUser ? 'wa-bubble-user' : 'wa-bubble-bot'}">
-            <div class="wa-bubble-text">${escapeHtml(msg.content || '')}</div>
-            <div class="wa-bubble-time">${time}</div>
-          </div>
-        `;
-      });
-      html += '</div>';
-    }
-  } catch (err) {
-    html += '<p class="no-messages">Erro ao carregar histórico</p>';
-  }
-
-  html += '</div>';
-  html += `
-    <div class="wa-lead-actions-footer">
-      <a href="https://wa.me/${lead.phone}" target="_blank" class="btn btn-primary" style="background:#25d366;">
-        <i class="fab fa-whatsapp"></i> Responder no WhatsApp
-      </a>
-      <select id="waLeadStatusUpdate" onchange="updateLeadStatus('${lead.phone}', this.value)">
-        <option value="">Alterar status...</option>
-        <option value="novo">Novo</option>
-        <option value="qualificado">Qualificado</option>
-        <option value="agendado">Agendado</option>
-        <option value="convertido">Convertido</option>
-      </select>
-    </div>
-  `;
-
-  body.innerHTML = html;
-  modal.style.display = 'flex';
+function showLeadDetail(phone) {
+  waInboxSelect(phone);
 }
 
 function closeLeadDetail() {
-  document.getElementById('waLeadDetailModal').style.display = 'none';
+  waInboxSelectedPhone = null;
+  var emptyEl = document.getElementById('waInboxChatEmpty');
+  var activeEl = document.getElementById('waInboxChatActive');
+  if (emptyEl) emptyEl.style.display = 'flex';
+  if (activeEl) activeEl.style.display = 'none';
+  waInboxRenderList();
+  if (waInboxPollTimer) { clearInterval(waInboxPollTimer); waInboxPollTimer = null; }
 }
 
-async function updateLeadStatus(phone, newStatus) {
-  if (!newStatus) return;
-  try {
-    const db = firebase.firestore();
-    await db.collection('chatbot_leads').doc(phone).update({
-      status: newStatus,
-      updatedAt: new Date().toISOString(),
-    });
-    await loadWhatsAppLeads();
-    closeLeadDetail();
-  } catch (err) {
-    console.error('Erro ao atualizar status:', err);
-    alert('Erro ao atualizar status do lead');
-  }
+function waInboxUpdateStatusFromSelect() {
+  var sel = document.getElementById('waChatStatusSelect');
+  if (sel && waInboxSelectedPhone) updateLeadStatus(waInboxSelectedPhone, sel.value);
 }
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML.replace(/\n/g, '<br>');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const observer = new MutationObserver(() => {
-    const section = document.getElementById('whatsapp-leads');
-    if (section && section.classList.contains('active') && waLeadsData.length === 0) {
-      loadWhatsAppLeads();
-    }
+function waInboxUpdateCategoryFromSelect() {
+  var sel = document.getElementById('waChatCategoriaSelect');
+  if (!sel || !waInboxSelectedPhone) return;
+  var v = sel.value;
+  waInboxApi('/chatbotInboxUpdateCategory', { method: 'POST', body: { phone: waInboxSelectedPhone, categoria: v } }).then(function() {
+    if (typeof showMessage === 'function') showMessage('Categoria atualizada.', 'success');
+    waInboxLoadChat(waInboxSelectedPhone);
+    waInboxLoadList();
+  }).catch(function() {
+    if (typeof showMessage === 'function') showMessage('Erro ao atualizar categoria.', 'error');
   });
+}
 
-  const main = document.querySelector('.admin-main');
-  if (main) observer.observe(main, { subtree: true, attributes: true, attributeFilter: ['class'] });
+function updateLeadStatus(phone, newStatus) {
+  if (!phone || !newStatus) return;
+  waInboxApi('/chatbotInboxUpdateStatus', { method: 'POST', body: { phone: phone, status: newStatus } }).then(function() {
+    if (typeof showMessage === 'function') showMessage('Status atualizado.', 'success');
+    waInboxLoadChat(phone);
+    waInboxLoadList();
+  }).catch(function(err) {
+    if (typeof showMessage === 'function') showMessage('Erro ao atualizar status.', 'error');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var section = document.getElementById('whatsapp-leads');
+  var main = document.querySelector('.admin-main');
+  if (section && main) {
+    var obs = new MutationObserver(function() {
+      if (section.classList.contains('active')) {
+        waInboxRefresh();
+      }
+    });
+    obs.observe(main, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  }
 });

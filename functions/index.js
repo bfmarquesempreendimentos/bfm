@@ -2,7 +2,7 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 const { verifyWebhook, processWebhook } = require('./chatbot/webhook');
-const { getAllLeads, getLeadStats } = require('./chatbot/lead-manager');
+const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveMessage, setModoHumano, returnToBot, markAdminRead, getLastConversationMessage, normalizeWhatsAppPhone } = require('./chatbot/lead-manager');
 const { sendFollowUp } = require('./chatbot/templates');
 const { getPropertyById } = require('./chatbot/property-data');
 const { sendTextMessage } = require('./chatbot/whatsapp-api');
@@ -299,6 +299,213 @@ exports.chatbotLeads = functions.https.onRequest(async (req, res) => {
   }
 });
 
+// ─── Inbox de Atendimento WhatsApp ──────────────────────────────
+function allowCors(res) {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Key');
+}
+
+exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+
+  try {
+    const action = req.query.action || 'list';
+    const db = admin.firestore();
+
+    if (action === 'stats') {
+      const stats = await getLeadStats();
+      return res.json(stats);
+    }
+
+    if (action === 'conversation' && req.query.phone) {
+      const raw = String(req.query.phone).trim();
+      let phone = normalizeWhatsAppPhone(raw) || raw;
+      let lead = await getLeadByPhone(phone);
+      if (!lead && raw !== phone) {
+        lead = await getLeadByPhone(raw);
+        if (lead) phone = raw;
+      }
+      if (!lead) return res.status(404).json({ error: 'Conversa não encontrada' });
+      const messages = await getConversationHistory(phone, 150);
+      return res.json({ lead, messages });
+    }
+
+    const statusFilter = req.query.status;
+    const categoriaFilter = req.query.categoria;
+    const modoHumanoFilter = req.query.modo_humano;
+    const search = (req.query.search || '').trim().toLowerCase();
+    const limit = Math.min(parseInt(req.query.limit) || 100, 200);
+
+    let query = db.collection('chatbot_leads').orderBy('updatedAt', 'desc').limit(Math.min(limit * 2, 300));
+    const snapshot = await query.get();
+    let leads = [];
+    snapshot.forEach(doc => leads.push({ id: doc.id, ...doc.data() }));
+
+    if (statusFilter) leads = leads.filter(l => (l.status || 'novo') === statusFilter);
+    if (categoriaFilter) leads = leads.filter(l => (l.categoria || 'geral') === categoriaFilter);
+    if (modoHumanoFilter === 'true') leads = leads.filter(l => !!l.modo_humano);
+    else if (modoHumanoFilter === 'false') leads = leads.filter(l => !l.modo_humano);
+    if (search) {
+      leads = leads.filter(function(l) {
+        return (l.name || '').toLowerCase().indexOf(search) >= 0 ||
+          (l.phone || '').indexOf(search) >= 0 ||
+          (l.lastActivityPreview || '').toLowerCase().indexOf(search) >= 0 ||
+          (l.encaminhadoMotivo || '').toLowerCase().indexOf(search) >= 0 ||
+          (l.notes || '').toLowerCase().indexOf(search) >= 0;
+      });
+    }
+
+    leads = leads.slice(0, limit);
+    leads.sort(function(a, b) {
+      var da = a.lastMessageAt || a.updatedAt || a.createdAt || '';
+      var db_ = b.lastMessageAt || b.updatedAt || b.createdAt || '';
+      return db_.localeCompare(da);
+    });
+
+    return res.json({ leads: leads, total: leads.length });
+  } catch (err) {
+    console.error('Erro chatbotInbox:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+exports.chatbotInboxAssume = functions
+  .runWith({ secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'] })
+  .https.onRequest(async (req, res) => {
+    allowCors(res);
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+
+    try {
+      const body = req.body || {};
+      const raw = (body.phone || '').trim();
+      const phone = normalizeWhatsAppPhone(raw) || raw;
+      const adminEmail = (body.adminEmail || body.admin || 'admin').trim();
+      if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+
+      await setModoHumano(phone, adminEmail);
+      return res.json({ success: true, message: 'Conversa assumida' });
+    } catch (err) {
+      console.error('Erro ao assumir conversa:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+exports.chatbotInboxReturnToBot = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+
+  try {
+    const body = req.body || {};
+    const raw = (body.phone || '').trim();
+    const phone = normalizeWhatsAppPhone(raw) || raw;
+    if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+
+    await returnToBot(phone);
+    return res.json({ success: true, message: 'Bot reassumiu a conversa' });
+  } catch (err) {
+    console.error('Erro ao devolver para bot:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+exports.chatbotInboxSend = functions
+  .runWith({ secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'] })
+  .https.onRequest(async (req, res) => {
+    allowCors(res);
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+
+    try {
+      const body = req.body || {};
+      const raw = (body.phone || '').trim();
+      const phone = normalizeWhatsAppPhone(raw) || raw;
+      const text = (body.text || body.message || '').trim();
+      if (!phone || !text) return res.status(400).json({ error: 'phone e text obrigatórios' });
+
+      await sendTextMessage(phone, text);
+      await saveMessage(phone, 'assistant', text, 'admin');
+      return res.json({ success: true, message: 'Mensagem enviada' });
+    } catch (err) {
+      console.error('Erro ao enviar mensagem:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+exports.chatbotInboxMarkRead = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+
+  try {
+    const body = req.body || {};
+    const raw = (body.phone || '').trim();
+    const phone = normalizeWhatsAppPhone(raw) || raw;
+    if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+
+    await markAdminRead(phone);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao marcar como lido:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+exports.chatbotInboxUpdateStatus = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+
+  try {
+    const body = req.body || {};
+    const raw = (body.phone || '').trim();
+    const phone = normalizeWhatsAppPhone(raw) || raw;
+    const status = (body.status || 'novo').trim();
+    if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+
+    const validStatuses = ['novo', 'qualificado', 'agendado', 'convertido', 'encaminhado'];
+    const newStatus = validStatuses.indexOf(status) >= 0 ? status : 'novo';
+
+    const db = admin.firestore();
+    await db.collection('chatbot_leads').doc(phone).update({
+      status: newStatus,
+      updatedAt: new Date().toISOString(),
+    });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao atualizar status:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+exports.chatbotInboxUpdateCategory = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+
+  try {
+    const body = req.body || {};
+    const raw = (body.phone || '').trim();
+    const phone = normalizeWhatsAppPhone(raw) || raw;
+    const categoria = (body.categoria || body.category || 'geral').trim();
+    if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+
+    const db = admin.firestore();
+    await db.collection('chatbot_leads').doc(phone).update({
+      categoria: ['vendas', 'duvidas', 'sugestoes', 'geral'].indexOf(categoria) >= 0 ? categoria : 'geral',
+      updatedAt: new Date().toISOString(),
+    });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao atualizar categoria:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Follow-up automático (roda a cada 6 horas) ──────────────────
 exports.chatbotFollowUp = functions
   .runWith({
@@ -311,6 +518,8 @@ exports.chatbotFollowUp = functions
   .onRun(async () => {
     const db = admin.firestore();
     const now = new Date();
+    const HOUR = 1000 * 60 * 60;
+    const DAY = HOUR * 24;
 
     const leadsSnap = await db.collection('chatbot_leads')
       .where('status', 'in', ['novo', 'qualificado'])
@@ -318,19 +527,21 @@ exports.chatbotFollowUp = functions
 
     for (const doc of leadsSnap.docs) {
       const lead = doc.data();
-      const created = new Date(lead.createdAt);
-      const hoursElapsed = (now - created) / (1000 * 60 * 60);
-      const lastFollowUp = lead.lastFollowUp ? new Date(lead.lastFollowUp) : null;
-      const hoursSinceFollowUp = lastFollowUp ? (now - lastFollowUp) / (1000 * 60 * 60) : Infinity;
+      if (lead.modo_humano) continue;
 
-      if (hoursSinceFollowUp < 20) continue;
+      const created = new Date(lead.createdAt);
+      const hoursElapsed = (now - created) / HOUR;
+      const lastFollowUp = lead.lastFollowUp ? new Date(lead.lastFollowUp) : null;
+      const hoursSinceFollowUp = lastFollowUp ? (now - lastFollowUp) / HOUR : Infinity;
 
       try {
         let propertyTitle = null;
-        if (lead.interestedProperties?.length > 0) {
+        if (lead.interestedProperties && lead.interestedProperties.length > 0) {
           const prop = getPropertyById(lead.interestedProperties[0]);
           if (prop) propertyTitle = prop.title;
         }
+
+        if (hoursSinceFollowUp < 20) continue;
 
         if (hoursElapsed >= 20 && hoursElapsed < 48 && !lead.followUp24hSent) {
           await sendFollowUp(lead.phone, lead.name, propertyTitle, '24h');
@@ -340,6 +551,25 @@ exports.chatbotFollowUp = functions
           await sendFollowUp(lead.phone, lead.name, propertyTitle, '72h');
           await doc.ref.update({ followUp72hSent: true, lastFollowUp: now.toISOString() });
           console.log(`Follow-up 72h enviado para ${lead.phone}`);
+        } else {
+          const lastMsg = await getLastConversationMessage(lead.phone);
+          if (!lastMsg || lastMsg.role === 'user') continue;
+          const lastMsgAt = new Date(lastMsg.timestamp);
+          const daysSinceLastBotMsg = (now - lastMsgAt) / DAY;
+
+          if (daysSinceLastBotMsg >= 30 && !lead.followUp30dSent) {
+            await sendFollowUp(lead.phone, lead.name, null, '30d');
+            await doc.ref.update({ followUp30dSent: true, lastFollowUp: now.toISOString() });
+            console.log(`Follow-up 30d enviado para ${lead.phone}`);
+          } else if (daysSinceLastBotMsg >= 14 && !lead.followUp14dSent) {
+            await sendFollowUp(lead.phone, lead.name, null, '14d');
+            await doc.ref.update({ followUp14dSent: true, lastFollowUp: now.toISOString() });
+            console.log(`Follow-up 14d enviado para ${lead.phone}`);
+          } else if (daysSinceLastBotMsg >= 7 && !lead.followUp7dSent) {
+            await sendFollowUp(lead.phone, lead.name, propertyTitle, '7d');
+            await doc.ref.update({ followUp7dSent: true, lastFollowUp: now.toISOString() });
+            console.log(`Follow-up 7d enviado para ${lead.phone}`);
+          }
         }
       } catch (err) {
         console.error(`Erro follow-up para ${lead.phone}:`, err.message);
