@@ -2,17 +2,21 @@
 :root {
     --admin-header-h: 64px;
     --admin-sidebar-w: 268px;
+    /* Mesmo tom do site público (.header.scrolled, --primary-dark em main.css) */
+    --admin-site-navy: #0b1f3a;
+    --admin-site-navy-mid: #1f4e79;
     --admin-bg: #eef2f7;
     --admin-surface: #ffffff;
     --admin-border: #e2e8f0;
     --admin-text: #0f172a;
     --admin-text-muted: #64748b;
-    --admin-accent: #2563eb;
-    --admin-accent-soft: rgba(37, 99, 235, 0.12);
-    --admin-sidebar-bg: #0f172a;
-    --admin-sidebar-border: #1e293b;
-    --admin-sidebar-text: #94a3b8;
-    --admin-sidebar-active: #f8fafc;
+    --admin-accent: #0b1f3a;
+    --admin-accent-bright: #3498db;
+    --admin-accent-soft: rgba(11, 31, 58, 0.1);
+    --admin-sidebar-bg: #ffffff;
+    --admin-sidebar-border: #e2e8f0;
+    --admin-sidebar-text: #475569;
+    --admin-sidebar-active-text: #0b1f3a;
     --admin-radius: 12px;
     --admin-radius-sm: 8px;
     --admin-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 20px rgba(15, 23, 42, 0.04);
@@ -37,18 +41,20 @@
     -webkit-font-smoothing: antialiased;
 }
 
-/* Cabeçalho */
+/* Cabeçalho — azul do site público */
 .admin-header {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     height: var(--admin-header-h);
-    background: var(--admin-surface);
-    border-bottom: 1px solid var(--admin-border);
+    background: var(--admin-site-navy);
+    background: -webkit-linear-gradient(120deg, #0b1f3a 0%, #1f4e79 100%);
+    background: linear-gradient(120deg, #0b1f3a 0%, #1f4e79 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
     z-index: 1000;
-    -webkit-box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
-    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+    -webkit-box-shadow: 0 2px 12px rgba(11, 31, 58, 0.35);
+    box-shadow: 0 2px 12px rgba(11, 31, 58, 0.35);
 }
 
 .admin-nav {
@@ -71,7 +77,7 @@
 }
 
 .admin-brand h1 {
-    color: var(--admin-text);
+    color: #ffffff;
     font-size: 1.125rem;
     font-weight: 700;
     letter-spacing: -0.02em;
@@ -83,14 +89,14 @@
     display: block;
     font-size: 0.7rem;
     font-weight: 500;
-    color: var(--admin-text-muted);
+    color: rgba(255, 255, 255, 0.78);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     margin-top: 2px;
 }
 
 .admin-brand i {
-    color: var(--admin-accent);
+    color: #5dade2;
     margin-right: 8px;
 }
 
@@ -128,7 +134,7 @@
 }
 
 .admin-user-name {
-    color: var(--admin-text);
+    color: #ffffff;
     font-weight: 600;
     font-size: 0.875rem;
     max-width: 200px;
@@ -155,7 +161,23 @@
     background: #b91c1c;
 }
 
-/* Sidebar escura */
+.admin-header .admin-menu-toggle {
+    color: #ffffff;
+}
+
+.admin-header .notification-bell {
+    color: #ffffff;
+}
+
+.admin-header .notification-bell:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.admin-header .notification-bell i {
+    color: #ffffff;
+}
+
+/* Sidebar clara (contraste com barra superior) */
 .admin-sidebar {
     position: fixed;
     top: var(--admin-header-h);
@@ -164,6 +186,8 @@
     height: calc(100vh - var(--admin-header-h));
     background: var(--admin-sidebar-bg);
     border-right: 1px solid var(--admin-sidebar-border);
+    -webkit-box-shadow: 2px 0 16px rgba(15, 23, 42, 0.04);
+    box-shadow: 2px 0 16px rgba(15, 23, 42, 0.04);
     z-index: 999;
     overflow-y: auto;
     overflow-x: hidden;
@@ -183,7 +207,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #475569;
+    color: #94a3b8;
     padding: 12px 20px 6px;
     margin: 0;
 }
@@ -215,14 +239,14 @@
 }
 
 .nav-item a:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #e2e8f0;
+    background: #f1f5f9;
+    color: var(--admin-sidebar-active-text);
 }
 
 .nav-item.active a {
     background: var(--admin-accent-soft);
-    color: var(--admin-sidebar-active);
-    border-left-color: var(--admin-accent);
+    color: var(--admin-sidebar-active-text);
+    border-left-color: var(--admin-site-navy);
     font-weight: 600;
 }
 
@@ -1259,7 +1283,7 @@
     font-size: 1.5rem;
     cursor: pointer;
     padding: 8px 12px;
-    color: #2c3e50;
+    color: #ffffff;
 }
 
 .admin-sidebar-overlay {
