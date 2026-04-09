@@ -70,8 +70,8 @@ exports.sendQueuedEmail = functions
 // ─── WhatsApp Chatbot Webhook ─────────────────────────────────────
 exports.chatbotWebhook = functions
   .runWith({
-    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'ANTHROPIC_API_KEY'],
-    timeoutSeconds: 60,
+    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY'],
+    timeoutSeconds: 120,
     memory: '512MB',
   })
   .https.onRequest(async (req, res) => {
@@ -82,6 +82,7 @@ exports.chatbotWebhook = functions
         const hasVerify = !!process.env.WHATSAPP_VERIFY_TOKEN;
         const hasPhoneId = !!process.env.WHATSAPP_PHONE_NUMBER_ID;
         const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+        const hasOpenAI = !!process.env.OPENAI_API_KEY;
         return res.status(200).json({
           ok: hasToken && hasVerify && hasPhoneId && hasAnthropic,
           secrets: {
@@ -89,6 +90,7 @@ exports.chatbotWebhook = functions
             WHATSAPP_VERIFY_TOKEN: hasVerify ? 'definido' : 'FALTANDO',
             WHATSAPP_PHONE_NUMBER_ID: hasPhoneId ? 'definido' : 'FALTANDO (use o do payload ou Embedded Signup)',
             ANTHROPIC_API_KEY: hasAnthropic ? 'definido' : 'FALTANDO',
+            OPENAI_API_KEY: hasOpenAI ? 'definido' : 'opcional (transcrição de áudio da Bia)',
           },
           webhook: 'Para Meta verificar, use hub.mode=subscribe e hub.verify_token igual ao secret',
         });
@@ -322,14 +324,18 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
 
     if (action === 'conversation' && req.query.phone) {
       const raw = String(req.query.phone).trim();
-      let phone = normalizeWhatsAppPhone(raw) || raw;
-      let lead = await getLeadByPhone(phone);
-      if (!lead && raw !== phone) {
+      const norm = normalizeWhatsAppPhone(raw) || raw;
+      let lead = await getLeadByPhone(norm);
+      if (!lead && raw !== norm) {
         lead = await getLeadByPhone(raw);
-        if (lead) phone = raw;
       }
       if (!lead) return res.status(404).json({ error: 'Conversa não encontrada' });
-      const messages = await getConversationHistory(phone, 500);
+      /** Mensagens ficam em chatbot_conversations/{telefone normalizado} */
+      const convoPhone = norm;
+      let messages = await getConversationHistory(convoPhone, 500);
+      if (messages.length === 0 && raw !== norm) {
+        messages = await getConversationHistory(raw, 500);
+      }
       return res.json({ lead, messages });
     }
 
@@ -442,11 +448,13 @@ exports.chatbotInboxSend = functions
           caption: caption,
           filename: mediaName,
         });
-        const tipoLabel = up.waType === 'image' ? 'Imagem' : up.waType === 'video' ? 'Vídeo' : 'Documento';
+        const tipoLabel = up.waType === 'image' ? 'Imagem' : up.waType === 'video' ? 'Vídeo' : up.waType === 'audio' ? 'Áudio' : 'Documento';
         const line = caption || ('[' + tipoLabel + ': ' + mediaName + ']');
         await saveMessage(phone, 'assistant', line, 'admin', {
           attachmentType: up.waType,
           fileName: mediaName,
+          whatsappMediaId: up.id,
+          mimeType: mediaMime,
         });
         await recordInboundActivity(phone, line);
         return res.json({ success: true, message: 'Mídia enviada' });
@@ -474,7 +482,7 @@ exports.chatbotInboxWhatsAppMedia = functions
 
     try {
       const mediaId = String(req.query.mediaId || '').trim();
-      if (!mediaId || !/^[0-9A-Za-z_-]+$/.test(mediaId)) {
+      if (!mediaId || !/^[0-9A-Za-z_.-]+$/.test(mediaId)) {
         return res.status(400).send('mediaId inválido');
       }
       const { buffer, mimeType } = await getWhatsAppMediaBuffer(mediaId, {});

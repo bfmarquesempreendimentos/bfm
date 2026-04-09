@@ -80,10 +80,26 @@ async function processWebhook(req, res) {
   }
 }
 
+/** id retornado pela Meta (string); evita gravar mensagem de áudio sem player no painel */
+function pickWhatsAppMediaId(sub) {
+  if (!sub || typeof sub !== 'object') return null;
+  var id = sub.id != null ? sub.id : sub.media_id;
+  if (id == null || id === '') return null;
+  id = String(id).trim();
+  if (!/^[0-9A-Za-z_.-]+$/.test(id)) return null;
+  return id;
+}
+
 function extractMessageContent(message) {
-  switch (message.type) {
+  var rawType = message.type;
+  var t = String(rawType || '').toLowerCase();
+  if (t === 'voice') {
+    t = 'audio';
+  }
+
+  switch (t) {
     case 'text': {
-      var t = message.text?.body || '';
+      var txt = message.text?.body || '';
       var r = message.referral;
       if (r && typeof r === 'object') {
         var bits = [];
@@ -91,9 +107,9 @@ function extractMessageContent(message) {
         if (r.headline) bits.push(String(r.headline));
         if (r.source_url) bits.push(String(r.source_url));
         if (r.ctwa_clid) bits.push('anuncio');
-        if (bits.length) t = (t ? t + '\n' : '') + '[' + bits.join(' | ') + ']';
+        if (bits.length) txt = (txt ? txt + '\n' : '') + '[' + bits.join(' | ') + ']';
       }
-      return { type: 'text', text: t };
+      return { type: 'text', text: txt };
     }
     case 'interactive':
       if (message.interactive?.type === 'button_reply') {
@@ -111,14 +127,30 @@ function extractMessageContent(message) {
       };
     case 'image':
     case 'document':
-    case 'audio':
     case 'video': {
-      const sub = message[message.type] || {};
+      var subM = message[t] || message[rawType] || {};
+      var idM = pickWhatsAppMediaId(subM);
+      if (!idM) {
+        console.warn('[Webhook] mídia tipo', rawType, 'sem id. Chaves do nó:', Object.keys(subM || {}).join(','));
+      }
       return {
-        type: message.type,
-        text: sub.caption || (message.type === 'audio' ? '[Mensagem de áudio]' : '[' + message.type + ']'),
-        mediaId: sub.id || null,
-        mimeType: sub.mime_type || '',
+        type: t,
+        text: subM.caption || ('[' + t + ']'),
+        mediaId: idM,
+        mimeType: subM.mime_type || '',
+      };
+    }
+    case 'audio': {
+      var subA = message.audio || message.voice || {};
+      var idA = pickWhatsAppMediaId(subA);
+      if (!idA) {
+        console.warn('[Webhook] áudio sem media id. message.type=', rawType, 'chaves audio:', Object.keys(message.audio || {}).join(','), 'voice:', Object.keys(message.voice || {}).join(','));
+      }
+      return {
+        type: 'audio',
+        text: subA.caption || '[Mensagem de áudio]',
+        mediaId: idA,
+        mimeType: subA.mime_type || '',
       };
     }
     case 'button':

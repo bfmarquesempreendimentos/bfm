@@ -8,6 +8,7 @@ function mimeToWhatsAppType(mime) {
   const m = mime.toLowerCase();
   if (m.indexOf('image/') === 0) return 'image';
   if (m.indexOf('video/') === 0) return 'video';
+  if (m.indexOf('audio/') === 0) return 'audio';
   return 'document';
 }
 
@@ -96,7 +97,7 @@ async function sendDocumentMessage(to, documentUrl, filename, caption = '', opti
   });
 }
 
-/** Upload binário para a Meta e retorna id + tipo (image|video|document) */
+/** Upload binário para a Meta e retorna id + tipo (image|video|audio|document) */
 async function uploadMediaBuffer(buffer, mimeType, filename, options = {}) {
   const { token, phoneNumberId } = getConfig(options.phoneNumberId);
   if (!phoneNumberId) {
@@ -138,6 +139,8 @@ async function sendMediaById(to, waType, mediaId, opts = {}) {
   } else if (waType === 'video') {
     payload.video = { id: mediaId };
     if (caption) payload.video.caption = caption;
+  } else if (waType === 'audio') {
+    payload.audio = { id: mediaId };
   } else {
     payload.document = { id: mediaId, filename: filename };
     if (caption) payload.document.caption = caption;
@@ -201,7 +204,7 @@ async function getWhatsAppMediaBuffer(mediaId, options = {}) {
     throw new Error('WHATSAPP_TOKEN não configurado');
   }
   const id = String(mediaId || '').trim();
-  if (!id || !/^[0-9A-Za-z_-]+$/.test(id)) {
+  if (!id || !/^[0-9A-Za-z_.-]+$/.test(id)) {
     throw new Error('mediaId inválido');
   }
   const metaUrl = `${GRAPH_API}/${id}`;

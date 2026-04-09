@@ -1,5 +1,16 @@
 /* Painel de Atendimento WhatsApp - Inbox e gestão de contatos */
 
+/** Alinha com lead-manager.normalizeWhatsAppPhone (só dígitos, BR com 55) */
+function normalizeWaPhone(raw) {
+  if (raw == null) return '';
+  var s = String(raw).replace(/\D/g, '');
+  if (s.length < 10) return String(raw).trim();
+  if (s.length >= 12 && s.indexOf('55') === 0) return s;
+  if (s.length === 11) return '55' + s;
+  if (s.length === 10) return '55' + s;
+  return s;
+}
+
 var waInboxBaseUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
 var waLeadsData = [];
 var waInboxSelectedPhone = null;
@@ -90,13 +101,15 @@ function waInboxChatSignature(messages, lead) {
   var n = messages ? messages.length : 0;
   var lastTs = '';
   var lastLen = 0;
+  var lastMeta = '';
   if (n > 0) {
     var last = messages[n - 1];
     lastTs = String(last.timestamp || '');
     lastLen = String(last.content || '').length;
+    lastMeta = String(last.whatsappMediaId || '') + '|' + String(last.attachmentType || '') + '|' + String(last.mimeType || '');
   }
   var leadPart = lead ? (String(lead.updatedAt || '') + '|' + String(lead.modo_humano ? 1 : 0) + '|' + String(lead.status || '')) : '';
-  return leadPart + '||' + String(n) + '|' + lastTs + '|' + String(lastLen);
+  return leadPart + '||' + String(n) + '|' + lastTs + '|' + String(lastLen) + '|' + lastMeta;
 }
 
 function waInboxLoadList(quiet) {
@@ -146,7 +159,7 @@ function waInboxRenderList() {
   var html = '';
   for (var i = 0; i < waLeadsData.length; i++) {
     var l = waLeadsData[i];
-    var phone = l.phone || l.id || '';
+    var phone = normalizeWaPhone(l.phone || l.id || '');
     var name = l.name || 'Sem nome';
     var unread = (l.adminUnreadCount || 0) > 0;
     var active = phone === waInboxSelectedPhone;
@@ -173,10 +186,10 @@ function waInboxRenderList() {
 }
 
 function waInboxSelect(phone) {
-  waInboxSelectedPhone = phone;
+  waInboxSelectedPhone = normalizeWaPhone(phone) || phone;
   waLastChatSig = '';
   waInboxRenderList();
-  waInboxLoadChat(phone, { quiet: false });
+  waInboxLoadChat(waInboxSelectedPhone, { quiet: false });
 }
 
 function waInboxLoadChat(phone, opts) {
@@ -197,18 +210,19 @@ function waInboxLoadChat(phone, opts) {
     stickToBottom = distFromBottom < 120;
   }
 
-  waInboxApi('/chatbotInbox?action=conversation&phone=' + encodeURIComponent(phone)).then(function(data) {
+  var phoneNorm = normalizeWaPhone(phone);
+  waInboxApi('/chatbotInbox?action=conversation&phone=' + encodeURIComponent(phoneNorm || phone)).then(function(data) {
     var lead = data.lead || {};
     var messages = data.messages || [];
 
     var sig = waInboxChatSignature(messages, lead);
-    if (quiet && phone === waInboxSelectedPhone && sig === waLastChatSig) {
+    if (quiet && normalizeWaPhone(phone) === normalizeWaPhone(waInboxSelectedPhone) && sig === waLastChatSig) {
       return;
     }
     waLastChatSig = sig;
 
     document.getElementById('waChatName').textContent = lead.name || 'Sem nome';
-    document.getElementById('waChatPhone').textContent = formatPhone(lead.phone || phone);
+    document.getElementById('waChatPhone').textContent = formatPhone(lead.phone || phoneNorm || phone);
     document.getElementById('waChatCategoria').textContent = lead.categoria || 'geral';
     document.getElementById('waChatCategoria').className = 'wa-cat-badge';
     var catSel = document.getElementById('waChatCategoriaSelect');
@@ -279,6 +293,9 @@ function waInboxLoadChat(phone, opts) {
         attHtml = '<div class="wa-chat-attachment wa-chat-doc-download">' +
           '<a href="' + mediaProxy + '" target="_blank" rel="noopener" class="wa-chat-doc-link"><i class="fas fa-file-download" aria-hidden="true"></i> ' +
           escapeHtml(attName || 'Abrir documento recebido') + '</a></div>';
+      } else if (att === 'audio') {
+        attHtml = '<div class="wa-chat-attachment wa-chat-attachment-file wa-chat-audio-fallback"><i class="fas fa-microphone" aria-hidden="true"></i> ' +
+          '<span>Áudio recebido — reprodução no painel indisponível (sem ID da mídia). Ouça no celular do cliente ou peça outro áudio.</span></div>';
       } else if (att === 'image' || att === 'video' || att === 'document') {
         attHtml = '<div class="wa-chat-attachment wa-chat-attachment-file"><i class="fas fa-paperclip" aria-hidden="true"></i> ' +
           escapeHtml(attName || (att === 'document' ? 'Documento' : att)) + '</div>';
@@ -311,7 +328,7 @@ function waInboxLoadChat(phone, opts) {
       if (container.scrollTop < 0) container.scrollTop = 0;
     }
 
-    waInboxMarkRead(phone);
+    waInboxMarkRead(phoneNorm || phone);
     waInboxStartPoll();
 
     var inputEl = document.getElementById('waChatInput');

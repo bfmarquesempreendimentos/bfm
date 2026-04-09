@@ -1,5 +1,6 @@
 const Anthropic = require('@anthropic-ai/sdk');
-const { sendTextMessage, sendImageMessage, sendVideoMessage, sendInteractiveButtons } = require('./whatsapp-api');
+const { sendTextMessage, sendImageMessage, sendVideoMessage, sendInteractiveButtons, getWhatsAppMediaBuffer } = require('./whatsapp-api');
+const { transcribeAudioBuffer } = require('./audio-transcription');
 const { getPropertyById, getPropertyMediaLists, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, properties } = require('./property-data');
 const { simulateFinancing, formatSimulationResult } = require('./finance-simulator');
 const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone } = require('./lead-manager');
@@ -57,7 +58,8 @@ ${getPropertiesSummaryForAI()}
 17. Documentos enviados ou visita solicitada SEMPRE exigem atendimento humano – use encaminhar_humano
 18. Não diga apenas “renda”; diga *renda bruta familiar* para alinhar com o programa e evitar retrabalho na análise
 19. *Nunca* encaminhe ao humano apenas porque o cliente pediu material visual do imóvel — isso é papel da ferramenta enviar_midias_imovel
-20. Depois de *enviar_midias_imovel*, sua resposta em texto deve ser *curta* (ofereça simulação ou visita) — não repita o mesmo resumo que a ferramenta já deu ao cliente`;
+20. Depois de *enviar_midias_imovel*, sua resposta em texto deve ser *curta* (ofereça simulação ou visita) — não repita o mesmo resumo que a ferramenta já deu ao cliente
+21. Quando o cliente mandar *áudio*, a conversa pode trazer o texto *já transcrito* — responda ao conteúdo como se fosse mensagem escrita, em português natural`;
 
 const TOOLS = [
   {
@@ -325,24 +327,48 @@ async function handleIncomingMessage(messageData) {
 
   const lead = await getOrCreateLead(phone, profileName);
   var userContent;
+  var userMsgMeta = {};
+  if (type === 'audio' || type === 'video' || type === 'image' || type === 'document') {
+    userMsgMeta = {
+      attachmentType: type,
+      mimeType: messageData.mimeType || '',
+    };
+    if (messageData.mediaId) {
+      userMsgMeta.whatsappMediaId = String(messageData.mediaId);
+    }
+  }
+
   if (type === 'document' || type === 'image') {
     userContent = text || ('[' + type + ' enviado]') + (text ? ': ' + text : '');
   } else if (type === 'audio') {
-    userContent = (text && text.charAt(0) !== '[') ? text : '🎤 Mensagem de áudio';
+    var captionAudio = (text && text.charAt(0) !== '[') ? text : '';
+    userContent = null;
+    if (messageData.mediaId) {
+      try {
+        const media = await getWhatsAppMediaBuffer(messageData.mediaId, {
+          phoneNumberId: messageData.phoneNumberId,
+        });
+        var transcript = await transcribeAudioBuffer(media.buffer, media.mimeType);
+        if (transcript) {
+          userContent = transcript;
+          if (captionAudio) {
+            userContent = userContent + '\n[Legenda: ' + captionAudio + ']';
+          }
+        }
+      } catch (err) {
+        console.error('[Bia] áudio/transcrição:', err.response?.data || err.message);
+      }
+    }
+    if (!userContent) {
+      userContent = captionAudio || '🎤 Mensagem de áudio';
+    }
   } else if (type === 'video') {
     userContent = (text && text.charAt(0) !== '[') ? text : '🎬 Vídeo';
   } else {
     userContent = text;
   }
 
-  var userMsgMeta = {};
-  if (messageData.mediaId && (type === 'audio' || type === 'video' || type === 'image' || type === 'document')) {
-    userMsgMeta = {
-      attachmentType: type,
-      whatsappMediaId: messageData.mediaId,
-      mimeType: messageData.mimeType || '',
-    };
-  }
+  var textForAi = userContent;
 
   if (referral && typeof referral === 'object' && referral.source_type === 'ad') {
     await updateLead(phone, { ultimaOrigem: 'anuncio', updatedAt: new Date().toISOString() });
@@ -388,12 +414,12 @@ async function handleIncomingMessage(messageData) {
 
   if (messages.length === 0 || (messages.length === 1 && messages[0].role === 'user')) {
     messages.length = 0;
-    messages.push({ role: 'user', content: text });
+    messages.push({ role: 'user', content: textForAi });
   }
 
   if (messages.length > 0 && messages[messages.length - 1].role === 'user' &&
-      messages[messages.length - 1].content !== text) {
-    messages.push({ role: 'user', content: text });
+      messages[messages.length - 1].content !== textForAi) {
+    messages.push({ role: 'user', content: textForAi });
   }
 
   const dedupedMessages = [];
@@ -406,10 +432,10 @@ async function handleIncomingMessage(messageData) {
   }
 
   if (dedupedMessages.length === 0) {
-    dedupedMessages.push({ role: 'user', content: text });
+    dedupedMessages.push({ role: 'user', content: textForAi });
   }
   if (dedupedMessages[0].role !== 'user') {
-    dedupedMessages.unshift({ role: 'user', content: text });
+    dedupedMessages.unshift({ role: 'user', content: textForAi });
   }
 
   var client;
