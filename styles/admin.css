@@ -1455,8 +1455,21 @@
     font-size: 13px;
     padding: 8px 0 10px;
     color: #2d3748;
+    display: flex;
+    flex-wrap: wrap;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
 }
-.wa-chat-pending-file .wa-pending-name { font-weight: 600; margin-right: 8px; }
+.wa-chat-pending-file .wa-pending-item {
+    display: inline-block;
+    margin-right: 10px;
+    margin-bottom: 6px;
+    padding: 4px 8px;
+    background: #edf2f7;
+    border-radius: 6px;
+}
+.wa-chat-pending-file .wa-pending-name { font-weight: 600; margin-right: 4px; }
 .wa-inbox-chat-active .wa-chat-attachment {
     margin-bottom: 8px;
     max-width: 100%;

@@ -332,73 +332,124 @@ function waInboxPickFile() {
   if (inp) inp.click();
 }
 
-function waInboxFileChosen(fileInput) {
-  if (!fileInput || !fileInput.files || !fileInput.files.length) return;
-  var f = fileInput.files[0];
-  window.waInboxPendingFile = { file: f, name: f.name, type: f.type || 'application/octet-stream' };
+function waInboxRefreshPendingFileUI() {
   var row = document.getElementById('waChatPendingFile');
-  if (row) {
-    row.style.display = 'block';
-    row.innerHTML = '<span class="wa-pending-name">' + escapeHtml(f.name) + '</span> <button type="button" class="btn-small btn-secondary" onclick="waInboxClearFile()">Remover</button>';
+  var arr = window.waInboxPendingFiles;
+  if (!arr || arr.length === 0) {
+    window.waInboxPendingFiles = [];
+    if (row) {
+      row.style.display = 'none';
+      row.innerHTML = '';
+    }
+    return;
   }
-  fileInput.value = '';
+  if (!row) return;
+  row.style.display = 'block';
+  var html = '';
+  var j;
+  for (j = 0; j < arr.length; j++) {
+    html += '<span class="wa-pending-item">' +
+      '<span class="wa-pending-name">' + escapeHtml(arr[j].name) + '</span>' +
+      ' <button type="button" class="btn-small btn-secondary" onclick="waInboxRemovePending(' + j + ')">×</button>' +
+      '</span>';
+  }
+  html += ' <button type="button" class="btn-small btn-secondary" onclick="waInboxClearAllFiles()">Remover todos</button>';
+  row.innerHTML = html;
 }
 
-function waInboxClearFile() {
-  window.waInboxPendingFile = null;
-  var row = document.getElementById('waChatPendingFile');
-  if (row) {
-    row.style.display = 'none';
-    row.innerHTML = '';
+function waInboxFileChosen(fileInput) {
+  if (!fileInput || !fileInput.files || !fileInput.files.length) return;
+  if (!window.waInboxPendingFiles) window.waInboxPendingFiles = [];
+  var i;
+  for (i = 0; i < fileInput.files.length; i++) {
+    var f = fileInput.files[i];
+    window.waInboxPendingFiles.push({
+      file: f,
+      name: f.name,
+      type: f.type || 'application/octet-stream'
+    });
   }
+  fileInput.value = '';
+  waInboxRefreshPendingFileUI();
+}
+
+function waInboxRemovePending(index) {
+  if (!window.waInboxPendingFiles || index < 0 || index >= window.waInboxPendingFiles.length) return;
+  window.waInboxPendingFiles.splice(index, 1);
+  waInboxRefreshPendingFileUI();
+}
+
+function waInboxClearAllFiles() {
+  window.waInboxPendingFiles = [];
+  waInboxRefreshPendingFileUI();
 }
 
 function waInboxSend() {
   if (!waInboxSelectedPhone) return;
   var input = document.getElementById('waChatInput');
   var text = (input && input.value || '').trim();
-  var pending = window.waInboxPendingFile;
-  if (!text && !pending) return;
+  var pendingList = window.waInboxPendingFiles || [];
+  var hasFiles = pendingList.length > 0;
+  if (!text && !hasFiles) return;
 
   var finish = function() {
     if (input) input.disabled = false;
   };
 
-  if (pending) {
+  if (hasFiles) {
     if (!window.FileReader) {
       if (typeof showMessage === 'function') showMessage('Seu navegador não suporta anexos por aqui.', 'error');
       return;
     }
-    var reader = new FileReader();
-    reader.onerror = function() {
-      if (typeof showMessage === 'function') showMessage('Erro ao ler o arquivo.', 'error');
-    };
-    reader.onloadend = function() {
-      var result = reader.result;
-      if (!result || typeof result !== 'string') return;
-      var comma = result.indexOf(',');
-      var base64 = comma >= 0 ? result.substring(comma + 1) : result;
-      if (input) input.disabled = true;
-      waInboxApi('/chatbotInboxSend', {
-        method: 'POST',
-        body: {
-          phone: waInboxSelectedPhone,
-          text: text,
-          mediaBase64: base64,
-          mediaMimeType: pending.type,
-          mediaFileName: pending.name
-        }
-      }).then(function() {
+    if (input) input.disabled = true;
+
+    var sendOne = function(index) {
+      if (index >= pendingList.length) {
         if (input) input.value = '';
-        waInboxClearFile();
+        waInboxClearAllFiles();
         waLastChatSig = '';
         waInboxLoadChat(waInboxSelectedPhone, { quiet: false });
         waInboxLoadList(true);
-      }).catch(function(err) {
-        if (typeof showMessage === 'function') showMessage('Erro ao enviar: ' + (err.message || 'Tente novamente.'), 'error');
-      }).then(finish);
+        finish();
+        return;
+      }
+      var pending = pendingList[index];
+      var caption = index === 0 ? text : '';
+      var reader = new FileReader();
+      reader.onerror = function() {
+        if (typeof showMessage === 'function') showMessage('Erro ao ler: ' + escapeHtml(pending.name), 'error');
+        finish();
+      };
+      reader.onloadend = function() {
+        var result = reader.result;
+        if (!result || typeof result !== 'string') {
+          finish();
+          return;
+        }
+        var comma = result.indexOf(',');
+        var base64 = comma >= 0 ? result.substring(comma + 1) : result;
+        waInboxApi('/chatbotInboxSend', {
+          method: 'POST',
+          body: {
+            phone: waInboxSelectedPhone,
+            text: caption,
+            mediaBase64: base64,
+            mediaMimeType: pending.type,
+            mediaFileName: pending.name
+          }
+        }).then(function() {
+          sendOne(index + 1);
+        }).catch(function(err) {
+          if (typeof showMessage === 'function') {
+            showMessage('Erro ao enviar ' + pending.name + ': ' + (err.message || 'Tente novamente.'), 'error');
+          }
+          finish();
+        });
+      };
+      reader.readAsDataURL(pending.file);
     };
-    reader.readAsDataURL(pending.file);
+
+    sendOne(0);
     return;
   }
 
