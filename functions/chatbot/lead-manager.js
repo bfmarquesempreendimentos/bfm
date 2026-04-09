@@ -131,6 +131,8 @@ async function saveMessage(phone, role, content, source, meta) {
   if (meta.attachmentType) msg.attachmentType = meta.attachmentType;
   if (meta.attachmentUrl) msg.attachmentUrl = meta.attachmentUrl;
   if (meta.fileName) msg.fileName = meta.fileName;
+  if (meta.whatsappMediaId) msg.whatsappMediaId = meta.whatsappMediaId;
+  if (meta.mimeType) msg.mimeType = meta.mimeType;
   await db.collection('chatbot_conversations')
     .doc(phone)
     .collection('messages')

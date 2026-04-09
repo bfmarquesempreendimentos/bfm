@@ -112,8 +112,15 @@ function extractMessageContent(message) {
     case 'image':
     case 'document':
     case 'audio':
-    case 'video':
-      return { type: message.type, text: message[message.type]?.caption || '[' + message.type + ']' };
+    case 'video': {
+      const sub = message[message.type] || {};
+      return {
+        type: message.type,
+        text: sub.caption || (message.type === 'audio' ? '[Mensagem de áudio]' : '[' + message.type + ']'),
+        mediaId: sub.id || null,
+        mimeType: sub.mime_type || '',
+      };
+    }
     case 'button':
       return {
         type: 'text',

@@ -191,6 +191,37 @@ async function sendInteractiveButtons(to, bodyText, buttons, options = {}) {
   });
 }
 
+/**
+ * Baixa binário de mídia já existente no WhatsApp (recebida do cliente).
+ * Meta: GET /{media-id} → url + mime_type; GET url com Authorization.
+ */
+async function getWhatsAppMediaBuffer(mediaId, options = {}) {
+  const { token } = getConfig(options.phoneNumberId);
+  if (!token) {
+    throw new Error('WHATSAPP_TOKEN não configurado');
+  }
+  const id = String(mediaId || '').trim();
+  if (!id || !/^[0-9A-Za-z_-]+$/.test(id)) {
+    throw new Error('mediaId inválido');
+  }
+  const metaUrl = `${GRAPH_API}/${id}`;
+  const metaRes = await axios.get(metaUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const downloadUrl = metaRes.data && metaRes.data.url;
+  const rawMime = (metaRes.data && metaRes.data.mime_type) || 'application/octet-stream';
+  const mimeType = String(rawMime).split(';')[0].trim();
+  if (!downloadUrl) {
+    throw new Error('URL de mídia não retornada pela Meta');
+  }
+  const binRes = await axios.get(downloadUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+    responseType: 'arraybuffer',
+    maxContentLength: 50 * 1024 * 1024,
+  });
+  return { buffer: Buffer.from(binRes.data), mimeType: mimeType };
+}
+
 async function markAsRead(messageId, options = {}) {
   const { token, phoneNumberId } = getConfig(options.phoneNumberId);
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
@@ -228,6 +259,7 @@ module.exports = {
   sendDocumentMessage,
   uploadMediaBuffer,
   sendMediaById,
+  getWhatsAppMediaBuffer,
   mimeToWhatsAppType,
   sendInteractiveList,
   sendInteractiveButtons,

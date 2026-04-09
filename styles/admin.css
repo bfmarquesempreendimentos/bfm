@@ -1626,6 +1626,31 @@
     font-size: 13px;
     color: #4a5568;
 }
+.wa-inbox-chat-active .wa-chat-audio {
+    max-width: 100%;
+}
+.wa-inbox-chat-active .wa-chat-audio-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 8px;
+}
+.wa-inbox-chat-active .wa-chat-audio audio {
+    width: 100%;
+    max-width: 360px;
+    min-height: 44px;
+    vertical-align: middle;
+}
+.wa-inbox-chat-active .wa-chat-doc-link {
+    display: inline-block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+.wa-inbox-chat-active .wa-chat-doc-link:hover {
+    color: #1e40af;
+}
 .wa-loading { padding: 24px; text-align: center; color: #718096; }
 
 @media (max-width: 900px) {

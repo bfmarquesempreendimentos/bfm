@@ -5,7 +5,7 @@ const { verifyWebhook, processWebhook } = require('./chatbot/webhook');
 const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveMessage, deleteConversationMessage, setModoHumano, returnToBot, markAdminRead, getLastConversationMessage, normalizeWhatsAppPhone, recordInboundActivity } = require('./chatbot/lead-manager');
 const { sendFollowUp } = require('./chatbot/templates');
 const { getPropertyById } = require('./chatbot/property-data');
-const { sendTextMessage, uploadMediaBuffer, sendMediaById } = require('./chatbot/whatsapp-api');
+const { sendTextMessage, uploadMediaBuffer, sendMediaById, getWhatsAppMediaBuffer } = require('./chatbot/whatsapp-api');
 
 admin.initializeApp();
 
@@ -461,6 +461,30 @@ exports.chatbotInboxSend = functions
     } catch (err) {
       console.error('Erro ao enviar mensagem:', err);
       return res.status(500).json({ error: err.message });
+    }
+  });
+
+/** Proxy de mídia recebida do WhatsApp (áudio/vídeo/imagem) para o painel reproduzir — URLs Meta exigem token. */
+exports.chatbotInboxWhatsAppMedia = functions
+  .runWith({ secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'] })
+  .https.onRequest(async (req, res) => {
+    allowCors(res);
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    if (req.method !== 'GET') return res.status(405).send('Method not allowed');
+
+    try {
+      const mediaId = String(req.query.mediaId || '').trim();
+      if (!mediaId || !/^[0-9A-Za-z_-]+$/.test(mediaId)) {
+        return res.status(400).send('mediaId inválido');
+      }
+      const { buffer, mimeType } = await getWhatsAppMediaBuffer(mediaId, {});
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Content-Type', mimeType || 'application/octet-stream');
+      res.set('Cache-Control', 'private, max-age=120');
+      return res.status(200).send(buffer);
+    } catch (err) {
+      console.error('chatbotInboxWhatsAppMedia:', err.response?.data || err.message);
+      return res.status(502).send('Falha ao buscar mídia');
     }
   });
 

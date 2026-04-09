@@ -324,15 +324,31 @@ async function handleIncomingMessage(messageData) {
   var referral = messageData.referral;
 
   const lead = await getOrCreateLead(phone, profileName);
-  var userContent = type === 'document' || type === 'image'
-    ? (text || '[' + type + ' enviado]' + (text ? ': ' + text : ''))
-    : text;
+  var userContent;
+  if (type === 'document' || type === 'image') {
+    userContent = text || ('[' + type + ' enviado]') + (text ? ': ' + text : '');
+  } else if (type === 'audio') {
+    userContent = (text && text.charAt(0) !== '[') ? text : '🎤 Mensagem de áudio';
+  } else if (type === 'video') {
+    userContent = (text && text.charAt(0) !== '[') ? text : '🎬 Vídeo';
+  } else {
+    userContent = text;
+  }
+
+  var userMsgMeta = {};
+  if (messageData.mediaId && (type === 'audio' || type === 'video' || type === 'image' || type === 'document')) {
+    userMsgMeta = {
+      attachmentType: type,
+      whatsappMediaId: messageData.mediaId,
+      mimeType: messageData.mimeType || '',
+    };
+  }
 
   if (referral && typeof referral === 'object' && referral.source_type === 'ad') {
     await updateLead(phone, { ultimaOrigem: 'anuncio', updatedAt: new Date().toISOString() });
   }
 
-  await saveMessage(phone, 'user', userContent);
+  await saveMessage(phone, 'user', userContent, undefined, userMsgMeta);
   await recordInboundActivity(phone, userContent);
 
   if (lead.modo_humano) {

@@ -258,11 +258,27 @@ function waInboxLoadChat(phone, opts) {
       var att = m.attachmentType;
       var attUrl = m.attachmentUrl;
       var attName = m.fileName;
+      var waMediaId = m.whatsappMediaId;
+      var mediaProxy = waMediaId
+        ? (waInboxBaseUrl + '/chatbotInboxWhatsAppMedia?mediaId=' + encodeURIComponent(String(waMediaId)))
+        : '';
       var attHtml = '';
-      if (att === 'image' && attUrl) {
+      if (att === 'audio' && waMediaId) {
+        attHtml = '<div class="wa-chat-attachment wa-chat-audio">' +
+          '<div class="wa-chat-audio-title"><i class="fas fa-microphone" aria-hidden="true"></i> Mensagem de áudio</div>' +
+          '<audio controls preload="metadata" src="' + mediaProxy + '">Seu navegador não reproduz áudio.</audio></div>';
+      } else if (att === 'image' && attUrl) {
         attHtml = '<div class="wa-chat-attachment"><img src="' + escapeHtml(attUrl) + '" alt="" /></div>';
+      } else if (att === 'image' && waMediaId) {
+        attHtml = '<div class="wa-chat-attachment"><img src="' + mediaProxy + '" alt="Imagem recebida" /></div>';
       } else if (att === 'video' && attUrl) {
         attHtml = '<div class="wa-chat-attachment"><video controls preload="metadata" src="' + escapeHtml(attUrl) + '"></video></div>';
+      } else if (att === 'video' && waMediaId) {
+        attHtml = '<div class="wa-chat-attachment"><video controls preload="metadata" src="' + mediaProxy + '"></video></div>';
+      } else if (att === 'document' && waMediaId) {
+        attHtml = '<div class="wa-chat-attachment wa-chat-doc-download">' +
+          '<a href="' + mediaProxy + '" target="_blank" rel="noopener" class="wa-chat-doc-link"><i class="fas fa-file-download" aria-hidden="true"></i> ' +
+          escapeHtml(attName || 'Abrir documento recebido') + '</a></div>';
       } else if (att === 'image' || att === 'video' || att === 'document') {
         attHtml = '<div class="wa-chat-attachment wa-chat-attachment-file"><i class="fas fa-paperclip" aria-hidden="true"></i> ' +
           escapeHtml(attName || (att === 'document' ? 'Documento' : att)) + '</div>';
