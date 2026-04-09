@@ -583,28 +583,28 @@
                                 <span id="waChatStatus" class="wa-status-badge">—</span>
                                 <span id="waChatMsgCount" class="wa-msg-count" title="Mensagens carregadas do histórico"></span>
                             </div>
-                            <div class="wa-chat-header-actions">
-                                <select id="waChatStatusSelect" onchange="waInboxUpdateStatusFromSelect()" title="Alterar status">
+                            <div class="wa-chat-header-actions" role="toolbar" aria-label="Ações da conversa">
+                                <select id="waChatStatusSelect" onchange="waInboxUpdateStatusFromSelect()" title="Alterar status" aria-label="Status do lead">
                                     <option value="novo">Novo</option>
                                     <option value="qualificado">Qualificado</option>
                                     <option value="encaminhado">Encaminhado</option>
                                     <option value="agendado">Agendado</option>
                                     <option value="convertido">Convertido</option>
                                 </select>
-                                <select id="waChatCategoriaSelect" onchange="waInboxUpdateCategoryFromSelect()" title="Alterar categoria">
+                                <select id="waChatCategoriaSelect" onchange="waInboxUpdateCategoryFromSelect()" title="Alterar categoria" aria-label="Categoria do atendimento">
                                     <option value="geral">Geral</option>
                                     <option value="vendas">Vendas</option>
                                     <option value="duvidas">Dúvidas</option>
                                     <option value="sugestoes">Sugestões</option>
                                 </select>
-                                <a id="waChatWaLink" href="#" target="_blank" rel="noopener" class="btn-small btn-whatsapp">
-                                    <i class="fab fa-whatsapp"></i> Abrir WhatsApp
+                                <a id="waChatWaLink" href="#" target="_blank" rel="noopener" class="btn-small btn-whatsapp" title="Abrir conversa no app WhatsApp">
+                                    <i class="fab fa-whatsapp" aria-hidden="true"></i> Abrir WhatsApp
                                 </a>
-                                <button type="button" id="waBtnAssumir" class="btn-small btn-primary" onclick="waInboxAssume()" style="display:none;">
-                                    <i class="fas fa-user"></i> Assumir
+                                <button type="button" id="waBtnAssumir" class="btn-small btn-primary" onclick="waInboxAssume()" style="display:none;" title="Responder por este painel (pausa o bot)">
+                                    <i class="fas fa-user" aria-hidden="true"></i> Assumir
                                 </button>
-                                <button type="button" id="waBtnDevolver" class="btn-small btn-secondary" onclick="waInboxReturnToBot()" style="display:none;">
-                                    <i class="fas fa-robot"></i> Devolver ao bot
+                                <button type="button" id="waBtnDevolver" class="btn-small btn-secondary" onclick="waInboxReturnToBot()" style="display:none;" title="O bot volta a responder automaticamente neste número">
+                                    <i class="fas fa-robot" aria-hidden="true"></i> Devolver ao bot
                                 </button>
                             </div>
                         </div>

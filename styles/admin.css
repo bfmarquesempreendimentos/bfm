@@ -1341,31 +1341,147 @@
     flex-shrink: 0;
     position: relative;
     z-index: 2;
-    padding: 12px 16px;
-    background: #f7fafc;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 14px 18px;
+    background: #ffffff;
+    border-bottom: 2px solid #cbd5e1;
+    -webkit-box-shadow: 0 2px 10px rgba(15, 23, 42, 0.07);
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.07);
     display: flex;
+    -webkit-box-pack: justify;
+    -ms-flex-pack: justify;
     justify-content: space-between;
+    -webkit-box-align: start;
+    -ms-flex-align: start;
     align-items: flex-start;
     flex-wrap: wrap;
-    gap: 10px;
 }
-.wa-chat-header-info { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.wa-chat-header-info strong { margin-right: 4px; }
-.wa-phone { font-size: 12px; color: #718096; margin-right: 4px; }
-.wa-cat-badge, .wa-status-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; margin-right: 4px; }
+.wa-chat-header-info {
+    display: flex;
+    flex-wrap: wrap;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    max-width: 100%;
+}
+.wa-chat-header-info > * {
+    margin-right: 10px;
+    margin-bottom: 6px;
+}
+.wa-chat-header-info strong {
+    font-size: 1.05rem;
+    color: #0f172a;
+    font-weight: 700;
+}
+.wa-phone {
+    font-size: 13px;
+    color: #475569;
+    font-weight: 500;
+}
+.wa-cat-badge,
+.wa-status-badge {
+    font-size: 12px;
+    padding: 5px 11px;
+    border-radius: 6px;
+    font-weight: 600;
+    display: inline-block;
+    line-height: 1.2;
+}
+.wa-cat-badge {
+    background: #e2e8f0;
+    color: #1e293b;
+    border: 1px solid #94a3b8;
+}
+.wa-status-badge {
+    background: #dbeafe;
+    color: #1e3a8a;
+    border: 1px solid #60a5fa;
+}
+.wa-msg-count {
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    padding: 5px 10px;
+    border-radius: 6px;
+}
 .wa-chat-header-actions {
     display: flex;
-    gap: 8px;
     flex-wrap: wrap;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
     align-items: center;
+    -webkit-box-pack: end;
+    -ms-flex-pack: end;
     justify-content: flex-end;
     max-width: 100%;
 }
+.wa-chat-header-actions > * {
+    margin-right: 10px;
+    margin-bottom: 8px;
+}
 .wa-chat-header-actions select {
-    max-width: 140px;
-    padding: 6px 8px;
-    font-size: 13px;
+    max-width: 170px;
+    min-height: 42px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    background: #ffffff;
+    border: 2px solid #64748b;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.wa-chat-header-actions select:focus {
+    outline: none;
+    border-color: #2563eb;
+    -webkit-box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+/* Botões do cabeçalho do chat: .btn-secondary sem estilo no main.css deixava texto branco invisível */
+.wa-chat-header-actions .btn-small {
+    min-height: 42px;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 8px;
+    border-width: 2px;
+    border-style: solid;
+    -webkit-box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+    text-decoration: none;
+}
+.wa-chat-header-actions .btn-small.btn-primary {
+    background: #1d4ed8;
+    background: -webkit-linear-gradient(top, #2563eb 0%, #1d4ed8 100%);
+    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+    color: #ffffff !important;
+    border-color: #1e40af;
+}
+.wa-chat-header-actions .btn-small.btn-primary:hover {
+    background: #1e40af;
+    color: #ffffff !important;
+}
+.wa-chat-header-actions .btn-small.btn-secondary {
+    background: #f1f5f9;
+    color: #0f172a !important;
+    border-color: #475569;
+}
+.wa-chat-header-actions .btn-small.btn-secondary:hover {
+    background: #e2e8f0;
+    border-color: #334155;
+    color: #020617 !important;
+}
+.wa-chat-header-actions .btn-whatsapp {
+    background: #22c55e !important;
+    color: #ffffff !important;
+    border-color: #15803d !important;
+    font-weight: 700;
+}
+.wa-chat-header-actions .btn-whatsapp:hover {
+    background: #16a34a !important;
+    color: #ffffff !important;
 }
 .wa-inbox-chat-active .wa-chat-messages {
     flex: 1 1 auto;
@@ -1413,41 +1529,6 @@
     margin-bottom: 4px;
 }
 .wa-inbox-chat-active .wa-chat-bubble-time { font-size: 10px; color: #718096; margin-top: 6px; text-align: right; }
-.wa-inbox-chat-active .wa-chat-bubble--deletable { position: relative; padding-right: 36px; }
-.wa-inbox-chat-active .wa-chat-delete-msg {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    z-index: 1;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    border: none;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.9);
-    color: #c53030;
-    cursor: pointer;
-    line-height: 1;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-.wa-inbox-chat-active .wa-chat-delete-msg:hover {
-    background: #fed7d7;
-    color: #9b2c2c;
-}
-.wa-inbox-chat-active .wa-chat-bubble.admin .wa-chat-delete-msg,
-.wa-inbox-chat-active .wa-chat-bubble.bot .wa-chat-delete-msg {
-    background: rgba(255, 255, 255, 0.95);
-}
-.wa-sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    border: 0;
-}
 .wa-inbox-chat-active .wa-chat-send,
 .wa-inbox-chat-active .wa-chat-send-disabled {
     flex-shrink: 0;
@@ -1483,7 +1564,27 @@
     flex-shrink: 0;
 }
 .wa-chat-send-actions .btn {
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    min-height: 44px;
+    padding-left: 18px;
+    padding-right: 18px;
+    font-weight: 700;
+    font-size: 15px;
+    border-radius: 8px;
+    border-width: 2px;
+    border-style: solid;
+}
+.wa-chat-send-actions .btn-secondary {
+    background: #fff;
+    color: #1e293b !important;
+    border-color: #64748b;
+}
+.wa-chat-send-actions .btn-secondary:hover {
+    background: #f8fafc;
+    border-color: #475569;
+}
+.wa-chat-send-actions .btn-primary {
+    border-color: #1e40af;
 }
 .wa-chat-send-actions .btn:last-child { margin-bottom: 0; }
 .wa-chat-pending-file {
@@ -1543,6 +1644,18 @@
     .wa-inbox-chat-active .wa-chat-messages {
         min-height: 280px;
         max-height: 55vh;
+    }
+    .wa-chat-header-actions {
+        width: 100%;
+        -webkit-box-pack: start;
+        -ms-flex-pack: start;
+        justify-content: flex-start;
+    }
+    .wa-chat-header-actions select {
+        max-width: none;
+        -webkit-box-flex: 1;
+        -ms-flex: 1 1 140px;
+        flex: 1 1 140px;
     }
 }
 
