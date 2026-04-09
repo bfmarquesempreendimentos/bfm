@@ -436,19 +436,24 @@ async function deleteSale(saleId) {
 
 // Show section
 function showSection(sectionId) {
-    // Update navigation
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    const navLink = document.querySelector(`.nav-item a[href="#${sectionId}"]`) || 
-                    document.querySelector(`[onclick*="showSection('${sectionId}')"]`);
-    if (navLink) navLink.closest('.nav-item')?.classList.add('active');
-    
-    // Update sections
-    document.querySelectorAll('.admin-section').forEach(section => {
-        section.classList.remove('active');
-    });
-    document.getElementById(sectionId).classList.add('active');
+    var navItems = document.querySelectorAll('.nav-item');
+    var i;
+    for (i = 0; i < navItems.length; i++) {
+        navItems[i].classList.remove('active');
+    }
+    var navLink = document.querySelector('.nav-item a[href="#' + sectionId + '"]') ||
+        document.querySelector('[onclick*="showSection(\'' + sectionId + '\')"]');
+    if (navLink && navLink.parentNode && navLink.parentNode.classList &&
+            navLink.parentNode.classList.contains('nav-item')) {
+        navLink.parentNode.classList.add('active');
+    }
+
+    var sections = document.querySelectorAll('.admin-section');
+    for (i = 0; i < sections.length; i++) {
+        sections[i].classList.remove('active');
+    }
+    var target = document.getElementById(sectionId);
+    if (target) target.classList.add('active');
     
     currentSection = sectionId;
     
@@ -510,7 +515,17 @@ function syncAdminDashboardLocalData() {
 function adminFetchJson(path) {
     var sep = path.indexOf('?') >= 0 ? '&' : '?';
     return fetch(ADMIN_FUNCTIONS_BASE + path + sep + '_=' + Date.now(), { cache: 'no-store', credentials: 'omit' })
-        .then(function(res) { return res.ok ? res.json() : null; })
+        .then(function(res) {
+            if (!res.ok) return null;
+            return res.text().then(function(txt) {
+                if (!txt || !String(txt).trim()) return null;
+                try {
+                    return JSON.parse(txt);
+                } catch (e) {
+                    return null;
+                }
+            });
+        })
         .catch(function() { return null; });
 }
 
@@ -603,10 +618,86 @@ function buildMergedDashboardActivity(repairsList, salesList) {
     return items.slice(0, 12);
 }
 
+function applyRemoteDashboardWidgets(waStats, repairsOpen, salesCount, brokersActive, localBrokersFallback) {
+    var waEl = document.getElementById('dashboardWaLeads');
+    var waSub = document.getElementById('dashboardWaLeadsSub');
+    var repEl = document.getElementById('dashboardRepairsOpen');
+    var salEl = document.getElementById('dashboardSalesRegistered');
+    var elBrok = document.getElementById('totalBrokers');
+
+    if (waEl) waEl.textContent = waStats && waStats.total != null ? String(waStats.total) : '0';
+    if (waSub) {
+        var bits = [];
+        if (waStats && waStats.pendentesLeitura > 0) bits.push(waStats.pendentesLeitura + ' sem leitura');
+        if (waStats && waStats.emAtendimento > 0) bits.push(waStats.emAtendimento + ' em atendimento');
+        waSub.textContent = bits.join(' · ');
+    }
+    if (repEl) repEl.textContent = repairsOpen != null ? String(repairsOpen) : '0';
+    if (salEl) salEl.textContent = salesCount != null ? String(salesCount) : '0';
+    if (elBrok && brokersActive != null) elBrok.textContent = String(brokersActive);
+    else if (elBrok) elBrok.textContent = String(localBrokersFallback);
+}
+
+function fetchDashboardRemoteThenActivity(localBrokers) {
+    adminFetchJson('/adminDashboardBundle').then(function(bundle) {
+        var repairsList = null;
+        var salesList = null;
+        if (bundle && !bundle.error && bundle.wa) {
+            applyRemoteDashboardWidgets(bundle.wa, bundle.repairsOpen, bundle.salesCount, bundle.brokersActive, localBrokers);
+        } else {
+            return Promise.all([
+                adminFetchJson('/getBrokers'),
+                adminFetchJson('/chatbotInbox?action=stats'),
+                adminFetchJson('/getRepairs'),
+                adminFetchJson('/getPropertySales')
+            ]).then(function(results) {
+                var brokersList = results[0];
+                var waStats = results[1] || {};
+                repairsList = results[2];
+                salesList = results[3];
+                var activeCount = localBrokers;
+                if (Array.isArray(brokersList) && brokersList.length) {
+                    activeCount = 0;
+                    for (var b = 0; b < brokersList.length; b++) {
+                        if (brokersList[b].isActive) activeCount++;
+                    }
+                }
+                var repOpen = null;
+                if (Array.isArray(repairsList)) {
+                    repOpen = 0;
+                    for (var r = 0; r < repairsList.length; r++) {
+                        var st = String(repairsList[r].status || '').toLowerCase();
+                        if (st !== 'concluido' && st !== 'cancelado') repOpen++;
+                    }
+                }
+                var salesLen = Array.isArray(salesList) ? salesList.length : null;
+                applyRemoteDashboardWidgets(waStats, repOpen, salesLen, activeCount, localBrokers);
+                renderDashboardActivityList(buildMergedDashboardActivity(repairsList, salesList));
+            });
+        }
+        return Promise.all([
+            adminFetchJson('/getRepairs'),
+            adminFetchJson('/getPropertySales')
+        ]).then(function(rs) {
+            renderDashboardActivityList(buildMergedDashboardActivity(rs[0], rs[1]));
+        });
+    }).catch(function() {
+        applyRemoteDashboardWidgets({ total: 0 }, 0, 0, undefined, localBrokers);
+        renderDashboardActivityList(buildMergedDashboardActivity(null, null));
+    });
+}
+
 // Load dashboard data
 function loadDashboardData() {
     syncAdminDashboardLocalData();
 
+    if ((!properties || properties.length === 0) && typeof loadProperties === 'function') {
+        loadProperties();
+    }
+
+    var agg = typeof getAggregatedUnitInventoryForDashboard === 'function'
+        ? getAggregatedUnitInventoryForDashboard()
+        : null;
     var stats = typeof getPropertyStatistics === 'function' ? getPropertyStatistics() : {
         total: 0, available: 0, reserved: 0, sold: 0, totalValue: 0, availablePortfolioValue: 0
     };
@@ -618,64 +709,31 @@ function loadDashboardData() {
     var elSold = document.getElementById('soldProperties');
     var elBrok = document.getElementById('totalBrokers');
     var elVal = document.getElementById('totalValue');
-    if (elTotal) elTotal.textContent = stats.total;
-    if (elAvail) elAvail.textContent = stats.available;
-    if (elRes) elRes.textContent = stats.reserved;
-    if (elSold) elSold.textContent = stats.sold;
+
+    var empCount = stats.total;
+    if (agg && agg.empreendimentos > 0) empCount = agg.empreendimentos;
+
+    if (elTotal) elTotal.textContent = String(empCount);
+
+    if (agg && agg.unidadesTotal > 0) {
+        if (elAvail) elAvail.textContent = String(agg.disponivel);
+        if (elRes) elRes.textContent = String(agg.reservado);
+        if (elSold) elSold.textContent = String(agg.assinado);
+        if (elVal) elVal.textContent = 'R$ ' + (agg.valorDisponiveis || 0).toLocaleString('pt-BR');
+    } else {
+        if (elAvail) elAvail.textContent = String(stats.available);
+        if (elRes) elRes.textContent = String(stats.reserved);
+        if (elSold) elSold.textContent = String(stats.sold);
+        var portVal = typeof stats.availablePortfolioValue === 'number' ? stats.availablePortfolioValue : 0;
+        if (!portVal && typeof stats.totalValue === 'number') portVal = stats.totalValue;
+        if (elVal) elVal.textContent = 'R$ ' + portVal.toLocaleString('pt-BR');
+    }
+
     if (elBrok) elBrok.textContent = String(localBrokers);
-    var portVal = typeof stats.availablePortfolioValue === 'number' ? stats.availablePortfolioValue : 0;
-    if (elVal) elVal.textContent = 'R$ ' + portVal.toLocaleString('pt-BR');
 
     loadExpiringReservations();
 
-    Promise.all([
-        adminFetchJson('/getBrokers'),
-        adminFetchJson('/chatbotInbox?action=stats'),
-        adminFetchJson('/getRepairs'),
-        adminFetchJson('/getPropertySales')
-    ]).then(function(results) {
-        var brokersList = results[0];
-        var waStats = results[1] || {};
-        var repairsList = results[2];
-        var salesList = results[3];
-
-        var activeBrokersCount = localBrokers;
-        if (Array.isArray(brokersList) && brokersList.length) {
-            activeBrokersCount = 0;
-            for (var b = 0; b < brokersList.length; b++) {
-                if (brokersList[b].isActive) activeBrokersCount++;
-            }
-        }
-        if (elBrok) elBrok.textContent = String(activeBrokersCount);
-
-        var waEl = document.getElementById('dashboardWaLeads');
-        var waSub = document.getElementById('dashboardWaLeadsSub');
-        if (waEl) waEl.textContent = waStats.total != null ? String(waStats.total) : '—';
-        if (waSub) {
-            var bits = [];
-            if (waStats.pendentesLeitura > 0) bits.push(waStats.pendentesLeitura + ' sem leitura');
-            if (waStats.emAtendimento > 0) bits.push(waStats.emAtendimento + ' em atendimento humano');
-            waSub.textContent = bits.join(' · ');
-        }
-
-        var repOpen = 0;
-        if (Array.isArray(repairsList)) {
-            for (var r = 0; r < repairsList.length; r++) {
-                var st = String(repairsList[r].status || '').toLowerCase();
-                if (st !== 'concluido' && st !== 'cancelado') repOpen++;
-            }
-        }
-        var repEl = document.getElementById('dashboardRepairsOpen');
-        if (repEl) repEl.textContent = String(repOpen);
-
-        var regSales = Array.isArray(salesList) ? salesList.length : 0;
-        var salEl = document.getElementById('dashboardSalesRegistered');
-        if (salEl) salEl.textContent = String(regSales);
-
-        renderDashboardActivityList(buildMergedDashboardActivity(repairsList, salesList));
-    }).catch(function() {
-        renderDashboardActivityList(buildMergedDashboardActivity(null, null));
-    });
+    fetchDashboardRemoteThenActivity(localBrokers);
 }
 
 // Atividade de exemplo (fallback se necessário)
