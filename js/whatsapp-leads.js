@@ -329,7 +329,12 @@ function waInboxReturnToBot() {
 
 function waInboxPickFile() {
   var inp = document.getElementById('waChatFileInput');
-  if (inp) inp.click();
+  if (inp) {
+    try {
+      inp.setAttribute('multiple', 'multiple');
+    } catch (eIgn) {}
+    inp.click();
+  }
 }
 
 function waInboxRefreshPendingFileUI() {
@@ -360,16 +365,30 @@ function waInboxRefreshPendingFileUI() {
 function waInboxFileChosen(fileInput) {
   if (!fileInput || !fileInput.files || !fileInput.files.length) return;
   if (!window.waInboxPendingFiles) window.waInboxPendingFiles = [];
+  var n = fileInput.files.length;
+  var list = [];
   var i;
-  for (i = 0; i < fileInput.files.length; i++) {
-    var f = fileInput.files[i];
-    window.waInboxPendingFiles.push({
-      file: f,
-      name: f.name,
-      type: f.type || 'application/octet-stream'
-    });
+  for (i = 0; i < n; i++) {
+    list.push(fileInput.files[i]);
   }
   fileInput.value = '';
+  for (i = 0; i < list.length; i++) {
+    var f = list[i];
+    if (!f) continue;
+    var blob = f;
+    if (typeof f.slice === 'function') {
+      try {
+        blob = f.slice(0, f.size, f.type || '');
+      } catch (eSlice) {
+        blob = f;
+      }
+    }
+    window.waInboxPendingFiles.push({
+      file: blob,
+      name: f.name || ('arquivo-' + (window.waInboxPendingFiles.length + 1)),
+      type: (f.type && String(f.type).length) ? f.type : 'application/octet-stream'
+    });
+  }
   waInboxRefreshPendingFileUI();
 }
 
@@ -401,55 +420,88 @@ function waInboxSend() {
       if (typeof showMessage === 'function') showMessage('Seu navegador não suporta anexos por aqui.', 'error');
       return;
     }
-    if (input) input.disabled = true;
+    var snapshot = [];
+    var sx;
+    for (sx = 0; sx < window.waInboxPendingFiles.length; sx++) {
+      snapshot.push(window.waInboxPendingFiles[sx]);
+    }
+    if (snapshot.length === 0) return;
 
-    var sendOne = function(index) {
-      if (index >= pendingList.length) {
+    if (input) input.disabled = true;
+    var btnSend = document.getElementById('waBtnSend');
+    if (btnSend) btnSend.disabled = true;
+
+    var encodedParts = [];
+    var readIndex = 0;
+
+    function failRead(pendName) {
+      if (typeof showMessage === 'function') showMessage('Erro ao ler: ' + escapeHtml(pendName || 'arquivo'), 'error');
+      if (btnSend) btnSend.disabled = false;
+      finish();
+    }
+
+    function readNext() {
+      if (readIndex >= snapshot.length) {
+        postNext(0);
+        return;
+      }
+      var pending = snapshot[readIndex];
+      var reader = new FileReader();
+      reader.onerror = function() {
+        failRead(pending.name);
+      };
+      reader.onloadend = function() {
+        var result = reader.result;
+        if (!result || typeof result !== 'string') {
+          failRead(pending.name);
+          return;
+        }
+        var comma = result.indexOf(',');
+        encodedParts.push({
+          base64: comma >= 0 ? result.substring(comma + 1) : result,
+          name: pending.name,
+          type: pending.type
+        });
+        readIndex++;
+        readNext();
+      };
+      reader.readAsDataURL(pending.file);
+    }
+
+    function postNext(pi) {
+      if (pi >= encodedParts.length) {
         if (input) input.value = '';
         waInboxClearAllFiles();
         waLastChatSig = '';
         waInboxLoadChat(waInboxSelectedPhone, { quiet: false });
         waInboxLoadList(true);
+        if (btnSend) btnSend.disabled = false;
         finish();
         return;
       }
-      var pending = pendingList[index];
-      var caption = index === 0 ? text : '';
-      var reader = new FileReader();
-      reader.onerror = function() {
-        if (typeof showMessage === 'function') showMessage('Erro ao ler: ' + escapeHtml(pending.name), 'error');
-        finish();
-      };
-      reader.onloadend = function() {
-        var result = reader.result;
-        if (!result || typeof result !== 'string') {
-          finish();
-          return;
+      var part = encodedParts[pi];
+      var caption = pi === 0 ? text : '';
+      waInboxApi('/chatbotInboxSend', {
+        method: 'POST',
+        body: {
+          phone: waInboxSelectedPhone,
+          text: caption,
+          mediaBase64: part.base64,
+          mediaMimeType: part.type,
+          mediaFileName: part.name
         }
-        var comma = result.indexOf(',');
-        var base64 = comma >= 0 ? result.substring(comma + 1) : result;
-        waInboxApi('/chatbotInboxSend', {
-          method: 'POST',
-          body: {
-            phone: waInboxSelectedPhone,
-            text: caption,
-            mediaBase64: base64,
-            mediaMimeType: pending.type,
-            mediaFileName: pending.name
-          }
-        }).then(function() {
-          sendOne(index + 1);
-        }).catch(function(err) {
-          if (typeof showMessage === 'function') {
-            showMessage('Erro ao enviar ' + pending.name + ': ' + (err.message || 'Tente novamente.'), 'error');
-          }
-          finish();
-        });
-      };
-      reader.readAsDataURL(pending.file);
-    };
+      }).then(function() {
+        postNext(pi + 1);
+      }).catch(function(err) {
+        if (typeof showMessage === 'function') {
+          showMessage('Erro ao enviar ' + part.name + ': ' + (err.message || 'Tente novamente.'), 'error');
+        }
+        if (btnSend) btnSend.disabled = false;
+        finish();
+      });
+    }
 
-    sendOne(0);
+    readNext();
     return;
   }
 
