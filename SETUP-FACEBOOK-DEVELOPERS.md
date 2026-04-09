@@ -51,7 +51,7 @@ Use exatamente estas URLs ao configurar o app **BF Marques Chatbot** no [Meta fo
 2. **Editar** ou **Configurar**
 3. URL de callback: `https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/chatbotWebhook`
 4. Token de verificação: valor do secret `WHATSAPP_VERIFY_TOKEN`
-5. Inscrever em: **messages**
+5. **OBRIGATÓRIO:** Na tabela "Campos do webhook", ative a inscrição em **messages** (toggle em "Assinar"). Se estiver "Cancelou a assinatura", o chatbot **não receberá** mensagens.
 6. **Verificar e salvar**
 
 ### Exclusão de Dados (Data Deletion)
