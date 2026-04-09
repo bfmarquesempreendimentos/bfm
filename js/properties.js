@@ -238,6 +238,8 @@ function getPropertyStatistics() {
         sold: properties.filter(p => p.status === 'vendido').length,
         averagePrice: 0,
         totalValue: 0,
+        /** Soma dos preços só de imóveis disponíveis (carteira anunciada) */
+        availablePortfolioValue: 0,
         byType: {},
         priceRanges: {
             'até 500k': 0,
@@ -248,7 +250,10 @@ function getPropertyStatistics() {
     };
     
     if (properties.length > 0) {
-        stats.totalValue = properties.reduce((sum, p) => sum + p.price, 0);
+        stats.totalValue = properties.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+        stats.availablePortfolioValue = properties
+            .filter(p => p.status === 'disponivel')
+            .reduce((sum, p) => sum + (Number(p.price) || 0), 0);
         stats.averagePrice = stats.totalValue / properties.length;
         
         // Count by type

@@ -170,12 +170,43 @@
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon">
+                    <div class="stat-icon available">
                         <i class="fas fa-dollar-sign"></i>
                     </div>
                     <div class="stat-info">
                         <h3 id="totalValue">R$ 0</h3>
-                        <p>Valor Total</p>
+                        <p>Valor ref. disponíveis</p>
+                        <small id="totalValueHint" class="stat-card-hint">Soma dos preços das unidades em “Disponível”</small>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon stat-icon-whatsapp">
+                        <i class="fab fa-whatsapp"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="dashboardWaLeads">—</h3>
+                        <p>Leads WhatsApp</p>
+                        <small id="dashboardWaLeadsSub" class="stat-card-hint"></small>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon reserved">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="dashboardRepairsOpen">—</h3>
+                        <p>Reparos em aberto</p>
+                        <small class="stat-card-hint">Pendente ou em andamento</small>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon sold">
+                        <i class="fas fa-file-signature"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="dashboardSalesRegistered">—</h3>
+                        <p>Vendas registradas</p>
+                        <small class="stat-card-hint">Contratos no Firestore (área cliente)</small>
                     </div>
                 </div>
             </div>
@@ -965,7 +996,7 @@
     <script src="js/whatsapp-leads.js"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=2"></script>
+    <script src="js/admin.js?v=3"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

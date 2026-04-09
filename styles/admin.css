@@ -210,11 +210,25 @@
     background: #e74c3c;
 }
 
+.stat-icon-whatsapp {
+    background: #128C7E;
+}
+
 .stat-info h3 {
     font-size: 1.8rem;
     font-weight: 700;
     color: #2c3e50;
     margin-bottom: 5px;
+}
+
+.stat-card-hint {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: #64748b;
+    margin-top: 6px;
+    line-height: 1.35;
+    max-width: 220px;
 }
 
 .stat-info p {

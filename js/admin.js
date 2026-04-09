@@ -490,64 +490,197 @@ function showSection(sectionId) {
     }
 }
 
-// Load dashboard data
-function loadDashboardData() {
-    const stats = getPropertyStatistics();
-    const activeBrokers = getActiveBrokers().length;
-    
-    // Update stats cards
-    document.getElementById('totalProperties').textContent = stats.total;
-    document.getElementById('availableProperties').textContent = stats.available;
-    document.getElementById('reservedProperties').textContent = stats.reserved;
-    document.getElementById('soldProperties').textContent = stats.sold;
-    document.getElementById('totalBrokers').textContent = activeBrokers;
-    document.getElementById('totalValue').textContent = `R$ ${stats.totalValue.toLocaleString('pt-BR')}`;
-    
-    // Load recent activity
-    loadRecentActivity();
-    
-    // Load expiring reservations
-    loadExpiringReservations();
+var ADMIN_FUNCTIONS_BASE = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+
+function syncAdminDashboardLocalData() {
+    if (typeof loadPropertiesFromStorage === 'function') {
+        loadPropertiesFromStorage();
+    }
+    if ((!properties || properties.length === 0) && typeof loadProperties === 'function') {
+        loadProperties();
+    }
+    if (typeof initializeReservationSystem === 'function') {
+        initializeReservationSystem();
+    }
+    if (typeof loadPropertySales === 'function') {
+        loadPropertySales();
+    }
 }
 
-// Load recent activity
-function loadRecentActivity() {
-    const container = document.getElementById('recentActivity');
+function adminFetchJson(path) {
+    var sep = path.indexOf('?') >= 0 ? '&' : '?';
+    return fetch(ADMIN_FUNCTIONS_BASE + path + sep + '_=' + Date.now(), { cache: 'no-store', credentials: 'omit' })
+        .then(function(res) { return res.ok ? res.json() : null; })
+        .catch(function() { return null; });
+}
+
+function formatDashboardRelativeTime(d) {
+    var dt = d instanceof Date ? d : new Date(d);
+    if (isNaN(dt.getTime())) return '';
+    var diff = Date.now() - dt.getTime();
+    if (diff < 0) diff = 0;
+    if (diff < 60000) return 'agora há pouco';
+    if (diff < 3600000) return Math.floor(diff / 60000) + ' min atrás';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + ' h atrás';
+    if (diff < 172800000) return 'ontem';
+    return dt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function renderDashboardActivityList(items) {
+    var container = document.getElementById('recentActivity');
     if (!container) return;
-    
-    // Sample activity data - replace with real data
-    const activities = [
-        {
-            type: 'property',
-            icon: 'fas fa-home',
-            text: 'Novo imóvel adicionado: Apartamento Vista Mar',
-            time: '2 horas atrás'
-        },
-        {
-            type: 'reservation',
-            icon: 'fas fa-calendar-check',
-            text: 'Nova reserva por João Silva',
-            time: '4 horas atrás'
-        },
-        {
-            type: 'sale',
-            icon: 'fas fa-handshake',
-            text: 'Venda concluída: Casa Condomínio',
-            time: '1 dia atrás'
+    if (!items || items.length === 0) {
+        container.innerHTML = '<p class="empty-message">Nenhuma atividade recente registrada (reservas, vendas ou reparos).</p>';
+        return;
+    }
+    container.innerHTML = items.map(function(activity) {
+        return (
+            '<div class="activity-item">' +
+            '<div class="activity-icon ' + activity.type + '">' +
+            '<i class="' + activity.icon + '"></i>' +
+            '</div>' +
+            '<div class="activity-text">' +
+            '<p>' + activity.text + '</p>' +
+            '<small>' + activity.time + '</small>' +
+            '</div>' +
+            '</div>'
+        );
+    }).join('');
+}
+
+function buildMergedDashboardActivity(repairsList, salesList) {
+    var items = [];
+    var i;
+    if (typeof reservations !== 'undefined' && reservations.length) {
+        var resCopy = reservations.slice().sort(function(a, b) {
+            return new Date(b.createdAt) - new Date(a.createdAt);
+        }).slice(0, 6);
+        for (i = 0; i < resCopy.length; i++) {
+            var rv = resCopy[i];
+            var prop = typeof getPropertyById === 'function' ? getPropertyById(rv.propertyId) : null;
+            var title = prop && prop.title ? prop.title : 'Imóvel #' + rv.propertyId;
+            items.push({
+                t: new Date(rv.createdAt).getTime(),
+                type: 'reservation',
+                icon: 'fas fa-calendar-check',
+                text: 'Reserva: ' + title + (rv.clientName ? ' · ' + rv.clientName : ''),
+                time: formatDashboardRelativeTime(rv.createdAt)
+            });
         }
-    ];
-    
-    container.innerHTML = activities.map(activity => `
-        <div class="activity-item">
-            <div class="activity-icon ${activity.type}">
-                <i class="${activity.icon}"></i>
-            </div>
-            <div class="activity-text">
-                <p>${activity.text}</p>
-                <small>${activity.time}</small>
-            </div>
-        </div>
-    `).join('');
+    }
+    if (Array.isArray(salesList) && salesList.length) {
+        var sCopy = salesList.slice().sort(function(a, b) {
+            return new Date(b.saleDate || b.createdAt || 0) - new Date(a.saleDate || a.createdAt || 0);
+        }).slice(0, 6);
+        for (i = 0; i < sCopy.length; i++) {
+            var s = sCopy[i];
+            items.push({
+                t: new Date(s.saleDate || s.createdAt || 0).getTime(),
+                type: 'sale',
+                icon: 'fas fa-handshake',
+                text: 'Venda registrada: ' + (s.propertyTitle || 'Imóvel') + (s.clientName ? ' · ' + s.clientName : ''),
+                time: formatDashboardRelativeTime(s.saleDate || s.createdAt)
+            });
+        }
+    }
+    if (Array.isArray(repairsList) && repairsList.length) {
+        var rCopy = repairsList.slice().sort(function(a, b) {
+            return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        }).slice(0, 6);
+        for (i = 0; i < rCopy.length; i++) {
+            var rp = rCopy[i];
+            items.push({
+                t: new Date(rp.createdAt || 0).getTime(),
+                type: 'property',
+                icon: 'fas fa-tools',
+                text: 'Reparo: ' + (rp.propertyTitle || rp.description || 'Solicitação').substring(0, 80) +
+                    (rp.clientName ? ' · ' + rp.clientName : ''),
+                time: formatDashboardRelativeTime(rp.createdAt)
+            });
+        }
+    }
+    items.sort(function(a, b) { return b.t - a.t; });
+    return items.slice(0, 12);
+}
+
+// Load dashboard data
+function loadDashboardData() {
+    syncAdminDashboardLocalData();
+
+    var stats = typeof getPropertyStatistics === 'function' ? getPropertyStatistics() : {
+        total: 0, available: 0, reserved: 0, sold: 0, totalValue: 0, availablePortfolioValue: 0
+    };
+    var localBrokers = typeof getActiveBrokers === 'function' ? getActiveBrokers().length : 0;
+
+    var elTotal = document.getElementById('totalProperties');
+    var elAvail = document.getElementById('availableProperties');
+    var elRes = document.getElementById('reservedProperties');
+    var elSold = document.getElementById('soldProperties');
+    var elBrok = document.getElementById('totalBrokers');
+    var elVal = document.getElementById('totalValue');
+    if (elTotal) elTotal.textContent = stats.total;
+    if (elAvail) elAvail.textContent = stats.available;
+    if (elRes) elRes.textContent = stats.reserved;
+    if (elSold) elSold.textContent = stats.sold;
+    if (elBrok) elBrok.textContent = String(localBrokers);
+    var portVal = typeof stats.availablePortfolioValue === 'number' ? stats.availablePortfolioValue : 0;
+    if (elVal) elVal.textContent = 'R$ ' + portVal.toLocaleString('pt-BR');
+
+    loadExpiringReservations();
+
+    Promise.all([
+        adminFetchJson('/getBrokers'),
+        adminFetchJson('/chatbotInbox?action=stats'),
+        adminFetchJson('/getRepairs'),
+        adminFetchJson('/getPropertySales')
+    ]).then(function(results) {
+        var brokersList = results[0];
+        var waStats = results[1] || {};
+        var repairsList = results[2];
+        var salesList = results[3];
+
+        var activeBrokersCount = localBrokers;
+        if (Array.isArray(brokersList) && brokersList.length) {
+            activeBrokersCount = 0;
+            for (var b = 0; b < brokersList.length; b++) {
+                if (brokersList[b].isActive) activeBrokersCount++;
+            }
+        }
+        if (elBrok) elBrok.textContent = String(activeBrokersCount);
+
+        var waEl = document.getElementById('dashboardWaLeads');
+        var waSub = document.getElementById('dashboardWaLeadsSub');
+        if (waEl) waEl.textContent = waStats.total != null ? String(waStats.total) : '—';
+        if (waSub) {
+            var bits = [];
+            if (waStats.pendentesLeitura > 0) bits.push(waStats.pendentesLeitura + ' sem leitura');
+            if (waStats.emAtendimento > 0) bits.push(waStats.emAtendimento + ' em atendimento humano');
+            waSub.textContent = bits.join(' · ');
+        }
+
+        var repOpen = 0;
+        if (Array.isArray(repairsList)) {
+            for (var r = 0; r < repairsList.length; r++) {
+                var st = String(repairsList[r].status || '').toLowerCase();
+                if (st !== 'concluido' && st !== 'cancelado') repOpen++;
+            }
+        }
+        var repEl = document.getElementById('dashboardRepairsOpen');
+        if (repEl) repEl.textContent = String(repOpen);
+
+        var regSales = Array.isArray(salesList) ? salesList.length : 0;
+        var salEl = document.getElementById('dashboardSalesRegistered');
+        if (salEl) salEl.textContent = String(regSales);
+
+        renderDashboardActivityList(buildMergedDashboardActivity(repairsList, salesList));
+    }).catch(function() {
+        renderDashboardActivityList(buildMergedDashboardActivity(null, null));
+    });
+}
+
+// Atividade de exemplo (fallback se necessário)
+function loadRecentActivity() {
+    renderDashboardActivityList(buildMergedDashboardActivity(null, null));
 }
 
 // Load expiring reservations
@@ -576,7 +709,7 @@ function loadExpiringReservations() {
                     <i class="fas fa-clock"></i>
                 </div>
                 <div class="activity-text">
-                    <p>${property?.title || 'Imóvel não encontrado'}</p>
+                    <p>${property && property.title ? property.title : 'Imóvel não encontrado'}</p>
                     <small>${timeLeft}</small>
                 </div>
             </div>
