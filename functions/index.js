@@ -2,10 +2,10 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 const { verifyWebhook, processWebhook } = require('./chatbot/webhook');
-const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveMessage, setModoHumano, returnToBot, markAdminRead, getLastConversationMessage, normalizeWhatsAppPhone } = require('./chatbot/lead-manager');
+const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveMessage, setModoHumano, returnToBot, markAdminRead, getLastConversationMessage, normalizeWhatsAppPhone, recordInboundActivity } = require('./chatbot/lead-manager');
 const { sendFollowUp } = require('./chatbot/templates');
 const { getPropertyById } = require('./chatbot/property-data');
-const { sendTextMessage } = require('./chatbot/whatsapp-api');
+const { sendTextMessage, uploadMediaBuffer, sendMediaById } = require('./chatbot/whatsapp-api');
 
 admin.initializeApp();
 
@@ -425,10 +425,38 @@ exports.chatbotInboxSend = functions
       const raw = (body.phone || '').trim();
       const phone = normalizeWhatsAppPhone(raw) || raw;
       const text = (body.text || body.message || '').trim();
-      if (!phone || !text) return res.status(400).json({ error: 'phone e text obrigatórios' });
+      const caption = text;
+      const mediaB64 = body.mediaBase64 || body.fileBase64;
+      const mediaMime = (body.mediaMimeType || body.mimeType || '').trim();
+      const mediaName = (body.mediaFileName || body.fileName || 'arquivo').trim();
+
+      if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+
+      if (mediaB64 && mediaMime) {
+        const buf = Buffer.from(String(mediaB64), 'base64');
+        if (buf.length > 14 * 1024 * 1024) {
+          return res.status(400).json({ error: 'Arquivo muito grande (máx. 14 MB)' });
+        }
+        const up = await uploadMediaBuffer(buf, mediaMime, mediaName, {});
+        await sendMediaById(phone, up.waType, up.id, {
+          caption: caption,
+          filename: mediaName,
+        });
+        const tipoLabel = up.waType === 'image' ? 'Imagem' : up.waType === 'video' ? 'Vídeo' : 'Documento';
+        const line = caption || ('[' + tipoLabel + ': ' + mediaName + ']');
+        await saveMessage(phone, 'assistant', line, 'admin', {
+          attachmentType: up.waType,
+          fileName: mediaName,
+        });
+        await recordInboundActivity(phone, line);
+        return res.json({ success: true, message: 'Mídia enviada' });
+      }
+
+      if (!text) return res.status(400).json({ error: 'Digite uma mensagem ou anexe um arquivo' });
 
       await sendTextMessage(phone, text);
       await saveMessage(phone, 'assistant', text, 'admin');
+      await recordInboundActivity(phone, text);
       return res.json({ success: true, message: 'Mensagem enviada' });
     } catch (err) {
       console.error('Erro ao enviar mensagem:', err);

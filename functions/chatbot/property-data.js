@@ -17,6 +17,12 @@ const properties = [
     features: ['1 e 2 quartos', 'Acabamento moderno', 'Pisos cerâmicos', 'Grades de segurança', 'Boa ventilação', 'Próximo ao comércio'],
     mcmv: true,
     image: `${SITE_BASE_URL}/assets/images/porto-novo/IMG_2689.jpg`,
+    gallery: [
+      `${SITE_BASE_URL}/assets/images/porto-novo/IMG_2689.jpg`,
+      `${SITE_BASE_URL}/assets/images/porto-novo/IMG_2673.jpg`,
+      `${SITE_BASE_URL}/assets/images/porto-novo/IMG_2680.jpg`,
+    ],
+    videos: [],
     mapsUrl: 'https://maps.app.goo.gl/FmuFKNprhngr2hGG9',
   },
   {
@@ -35,6 +41,14 @@ const properties = [
     features: ['1 quarto', 'Acabamento moderno', 'Cozinha planejada', 'Banheiro social'],
     mcmv: true,
     image: `${SITE_BASE_URL}/assets/images/residencial-itauna/itauna-03.jpg`,
+    gallery: [
+      `${SITE_BASE_URL}/assets/images/residencial-itauna/itauna-01.jpg`,
+      `${SITE_BASE_URL}/assets/images/residencial-itauna/itauna-02.jpg`,
+      `${SITE_BASE_URL}/assets/images/residencial-itauna/itauna-03.jpg`,
+      `${SITE_BASE_URL}/assets/images/residencial-itauna/itauna-04.jpg`,
+      `${SITE_BASE_URL}/assets/images/residencial-itauna/itauna-05.jpg`,
+    ],
+    videos: [],
     mapsUrl: 'https://maps.app.goo.gl/gyF6ERJs1rrKHkbZ9',
   },
   {
@@ -53,6 +67,18 @@ const properties = [
     features: ['20 unidades', '1 quarto', 'Área de serviço', 'Localização central', 'Próximo ao comércio'],
     mcmv: true,
     image: `${SITE_BASE_URL}/assets/images/amendoeiras/amendoeiras-08.jpg`,
+    gallery: [
+      `${SITE_BASE_URL}/assets/images/amendoeiras/amendoeiras-08.jpg`,
+      `${SITE_BASE_URL}/assets/images/amendoeiras/amendoeiras-01.jpg`,
+      `${SITE_BASE_URL}/assets/images/amendoeiras/amendoeiras-02.jpg`,
+      `${SITE_BASE_URL}/assets/images/amendoeiras/amendoeiras-03.jpg`,
+      `${SITE_BASE_URL}/assets/images/amendoeiras/amendoeiras-04.jpg`,
+    ],
+    videos: [
+      `${SITE_BASE_URL}/assets/videos/amendoeiras/amendoeiras-01.mp4`,
+      `${SITE_BASE_URL}/assets/videos/amendoeiras/amendoeiras-02.mp4`,
+      `${SITE_BASE_URL}/assets/videos/amendoeiras/amendoeiras-03.mp4`,
+    ],
     mapsUrl: 'https://maps.app.goo.gl/i3eExj2Wk3vD2xQNA',
   },
   {
@@ -71,6 +97,13 @@ const properties = [
     features: ['15 unidades', 'Condomínio fechado', 'Bairro tranquilo', '1 vaga de garagem'],
     mcmv: true,
     image: `${SITE_BASE_URL}/assets/images/laranjal/laranjal-01.jpg`,
+    gallery: [
+      `${SITE_BASE_URL}/assets/images/laranjal/laranjal-01.jpg`,
+      `${SITE_BASE_URL}/assets/images/laranjal/laranjal-02.jpg`,
+      `${SITE_BASE_URL}/assets/images/laranjal/laranjal-03.jpg`,
+      `${SITE_BASE_URL}/assets/images/laranjal/laranjal-04.jpg`,
+    ],
+    videos: [],
     mapsUrl: 'https://maps.app.goo.gl/sjoAjX93gB5aN8EV6',
   },
   {
@@ -89,6 +122,13 @@ const properties = [
     features: ['Região em crescimento', 'Ótimo custo-benefício', 'Quintal', 'Área de serviço'],
     mcmv: true,
     image: `${SITE_BASE_URL}/assets/images/apolo/apolo-01.jpg`,
+    gallery: [
+      `${SITE_BASE_URL}/assets/images/apolo/apolo-01.jpg`,
+      `${SITE_BASE_URL}/assets/images/apolo/apolo-02.jpg`,
+      `${SITE_BASE_URL}/assets/images/apolo/apolo-03.jpg`,
+      `${SITE_BASE_URL}/assets/images/apolo/apolo-04.jpg`,
+    ],
+    videos: [`${SITE_BASE_URL}/assets/videos/apolo/apolo-01.mp4`],
     mapsUrl: 'https://maps.app.goo.gl/SKmfSAxpZ3ercJ646',
   },
   {
@@ -107,6 +147,13 @@ const properties = [
     features: ['Condomínio seguro', 'Bom acabamento', 'Fácil acesso', 'Área externa'],
     mcmv: true,
     image: `${SITE_BASE_URL}/assets/images/coelho/coelho-07.jpg`,
+    gallery: [
+      `${SITE_BASE_URL}/assets/images/coelho/coelho-07.jpg`,
+      `${SITE_BASE_URL}/assets/images/coelho/coelho-01.jpg`,
+      `${SITE_BASE_URL}/assets/images/coelho/coelho-02.jpg`,
+      `${SITE_BASE_URL}/assets/images/coelho/coelho-03.jpg`,
+    ],
+    videos: [`${SITE_BASE_URL}/assets/videos/coelho/coelho-01.mp4`],
     mapsUrl: 'https://maps.app.goo.gl/XBHZuNsdxTTVmnw66',
   },
   {
@@ -125,6 +172,13 @@ const properties = [
     features: ['20 apartamentos', '1 quarto', 'Prédio moderno', 'Área de serviço'],
     mcmv: true,
     image: `${SITE_BASE_URL}/assets/images/cacador/cacador-02.jpg`,
+    gallery: [
+      `${SITE_BASE_URL}/assets/images/cacador/cacador-02.jpg`,
+      `${SITE_BASE_URL}/assets/images/cacador/cacador-01.jpg`,
+      `${SITE_BASE_URL}/assets/images/cacador/cacador-03.jpg`,
+      `${SITE_BASE_URL}/assets/images/cacador/cacador-04.jpg`,
+    ],
+    videos: [`${SITE_BASE_URL}/assets/videos/cacador/cacador-01.mp4`],
     mapsUrl: 'https://maps.app.goo.gl/N4CNvNQwx1KWBFCH6',
   },
   {
@@ -143,12 +197,38 @@ const properties = [
     features: ['3 suítes', '360m²', '5 vagas', 'Piscina', 'Churrasqueira', 'Espaço gourmet', 'Condomínio fechado'],
     mcmv: false,
     image: `${SITE_BASE_URL}/assets/images/marica/foto1.jpeg`,
+    gallery: [
+      `${SITE_BASE_URL}/assets/images/marica/foto1.jpeg`,
+      `${SITE_BASE_URL}/assets/images/marica/marica-01.jpg`,
+      `${SITE_BASE_URL}/assets/images/marica/marica-02.jpg`,
+    ],
+    videos: [
+      `${SITE_BASE_URL}/assets/videos/marica/marica-01.mp4`,
+      `${SITE_BASE_URL}/assets/videos/marica/marica-02.mp4`,
+    ],
     mapsUrl: 'https://www.google.com/maps?q=Rua+Irineu+Ferreira+Pinto+374+Maricá+RJ',
   },
 ];
 
 function getPropertyById(id) {
   return properties.find(p => p.id === id) || null;
+}
+
+/** Listas únicas de URLs públicas (HTTPS) para envio pelo WhatsApp */
+function getPropertyMediaLists(p) {
+  if (!p) return { images: [], videos: [] };
+  var baseList = (p.gallery && p.gallery.length) ? p.gallery.slice() : (p.image ? [p.image] : []);
+  var seen = {};
+  var images = [];
+  for (var i = 0; i < baseList.length; i++) {
+    var u = baseList[i];
+    if (u && !seen[u]) {
+      seen[u] = 1;
+      images.push(u);
+    }
+  }
+  var videos = (p.videos && p.videos.length) ? p.videos.slice() : [];
+  return { images: images, videos: videos };
 }
 
 function filterProperties(filters = {}) {
@@ -192,6 +272,7 @@ function getPropertiesSummaryForAI() {
 module.exports = {
   properties,
   getPropertyById,
+  getPropertyMediaLists,
   filterProperties,
   formatPropertyShort,
   formatPropertyFull,

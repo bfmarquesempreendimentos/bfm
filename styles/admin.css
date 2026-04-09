@@ -1420,15 +1420,62 @@
     border-top: 1px solid #e2e8f0;
     background: #f7fafc;
 }
-.wa-chat-send { display: flex; gap: 12px; align-items: flex-end; }
-.wa-chat-send textarea {
+.wa-chat-send { display: flex; flex-direction: column; align-items: stretch; }
+.wa-chat-send-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    -webkit-box-align: end;
+    -ms-flex-align: end;
+}
+.wa-chat-send-row textarea {
     flex: 1;
+    -webkit-box-flex: 1;
+    -ms-flex: 1;
+    margin-right: 10px;
     padding: 10px 14px;
     border: 1px solid #d1d5db;
     border-radius: 8px;
     font-size: 14px;
     resize: none;
     min-height: 44px;
+}
+.wa-chat-send-actions {
+    display: flex;
+    flex-direction: column;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    flex-shrink: 0;
+}
+.wa-chat-send-actions .btn {
+    margin-bottom: 8px;
+}
+.wa-chat-send-actions .btn:last-child { margin-bottom: 0; }
+.wa-chat-pending-file {
+    font-size: 13px;
+    padding: 8px 0 10px;
+    color: #2d3748;
+}
+.wa-chat-pending-file .wa-pending-name { font-weight: 600; margin-right: 8px; }
+.wa-inbox-chat-active .wa-chat-attachment {
+    margin-bottom: 8px;
+    max-width: 100%;
+}
+.wa-inbox-chat-active .wa-chat-attachment img {
+    max-width: 100%;
+    max-height: 220px;
+    border-radius: 6px;
+    display: block;
+}
+.wa-inbox-chat-active .wa-chat-attachment video {
+    max-width: 100%;
+    max-height: 240px;
+    border-radius: 6px;
+    display: block;
+}
+.wa-inbox-chat-active .wa-chat-attachment-file {
+    font-size: 13px;
+    color: #4a5568;
 }
 .wa-loading { padding: 24px; text-align: center; color: #718096; }
 

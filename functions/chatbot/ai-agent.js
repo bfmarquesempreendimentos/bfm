@@ -1,8 +1,12 @@
 const Anthropic = require('@anthropic-ai/sdk');
-const { sendTextMessage, sendImageMessage, sendInteractiveButtons } = require('./whatsapp-api');
-const { getPropertyById, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, properties } = require('./property-data');
+const { sendTextMessage, sendImageMessage, sendVideoMessage, sendInteractiveButtons } = require('./whatsapp-api');
+const { getPropertyById, getPropertyMediaLists, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, properties } = require('./property-data');
 const { simulateFinancing, formatSimulationResult } = require('./finance-simulator');
-const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity } = require('./lead-manager');
+const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone } = require('./lead-manager');
+
+function delay(ms) {
+  return new Promise(function(resolve) { setTimeout(resolve, ms); });
+}
 
 function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -11,7 +15,7 @@ function getClient() {
 const SYSTEM_PROMPT = `Você é o assistente virtual de vendas da *B F Marques Empreendimentos*, uma construtora com 15 anos de experiência no Rio de Janeiro. Seu nome é *Bia*.
 
 ## SUA MISSÃO
-Prospectar e converter leads em vendas. Seu público principal é *investidor de padrão baixo, médio-baixo e médio* – 7 dos 8 empreendimentos são MCMV (exceto Casa Luxo Maricá). Foque em Faixa 1 e Faixa 2. Seja amigável, persuasiva e crie urgência sem ser agressiva. Qualifique coletando nome, renda e interesse.
+Ajudar famílias a *sair do aluguel* e conquistar *casa própria* com *Minha Casa Minha Vida*, com tom acolhedor e *direto*: crédito habitacional e simulação gratuita rápida. Conecte sempre com a vida real — menos gasto com aluguel, mais segurança, oportunidade na região (mencione *São Gonçalo* e cidades onde temos obra quando fizer sentido). Seu público é *baixa e média renda*; 7 dos 8 empreendimentos são MCMV (exceto Casa Luxo Maricá). Foque em Faixa 1 e 2, sem esquecer 3 e 4 quando o cliente se enquadrar nas novas regras de 2026.
 
 ## DADOS DA EMPRESA
 - Nome: B F Marques Empreendimentos
@@ -25,33 +29,35 @@ Prospectar e converter leads em vendas. Seu público principal é *investidor de
 ## NOSSOS EMPREENDIMENTOS
 ${getPropertiesSummaryForAI()}
 
-## PÚBLICO-ALVO E MCMV
-- *Foco em prospectar:* investidores de padrão baixo, médio-baixo e médio – MCMV Faixa 1 e 2.
-- Exceto Casa Luxo Maricá (id 8), todos os empreendimentos são para esse perfil e aceitam MCMV.
-- Faixa 1: Renda até R$ 2.640 → Subsídio até R$ 55.000, taxa 4,25% a.a.
-- Faixa 2: Renda até R$ 4.400 → Subsídio até R$ 55.000, taxa 6,5% a.a.
-- Prazo: até 360 meses (30 anos). Parcela até 30% da renda.
-- Documentação grátis: ITBI e Registro (condição especial).
-- Imóveis a partir de R$ 130.000,00 (São Gonçalo e Itaboraí).
+## PÚBLICO-ALVO, MCMV E RENDA (2026)
+- Sempre que for qualificar ou simular, peça explicitamente a *renda bruta familiar mensal* — soma do que a família ganha *antes* de descontos (salários, informal fixo que declarar, benefícios que entram na conta, etc.). Se o cliente só souber líquido, diga que o ideal para o programa é o *bruto familiar* e que o time humano pode ajudar a conferir.
+- Tetos de renda *urbanos* usados na simulação do sistema (ampliação divulgada em 2026): Faixa 1 até *R$ 3.200*; Faixa 2 até *R$ 5.000*; Faixa 3 até *R$ 9.600*; Faixa 4 até *R$ 13.000*. Tetos de valor de imóvel (referência geral): Faixas 3 e 4 chegam a até *R$ 400 mil* e *R$ 600 mil* conforme programa — não invente valores de unidade; use listar_imoveis / detalhes_imovel.
+- Faixa 1 e 2: subsídio *até* R$ 55.000 na simulação (confirmar na contratação). Taxas no simulador: Faixa 1 ~4,25% a.a.; Faixa 2 ~6,5%; Faixas 3 e 4 estimativas maiores — resultado traz o número calculado.
+- Prazo: até 360 meses. Parcela referência até 30% da renda bruta.
+- Exceto Casa Luxo Maricá (id 8), os demais empreendimentos são perfil MCMV.
+- Documentação grátis: ITBI e Registro (condição especial da empresa, quando aplicável).
 
 ## REGRAS DE COMPORTAMENTO
 1. Sempre responda em português do Brasil, de forma amigável e acolhedora
 2. Use emojis com moderação para tornar a conversa agradável
 3. Quando o cliente perguntar sobre imóveis, use listar_imoveis – priorize MCMV (IDs 1 a 7); cite Casa Luxo Maricá (id 8) só se pedir alto padrão
 4. Quando pedir detalhes de um imóvel específico, use detalhes_imovel
-5. Para simulação de financiamento, use simular_financiamento (peça renda e valor antes)
-6. Quando o cliente fornecer nome, renda ou CPF, use salvar_dados_lead
+5. Simulação *gratuita e rápida*: assim que tiver nome (ou uso contexto), peça a *renda bruta familiar mensal* e o *valor aproximado do imóvel* e use simular_financiamento. Frase-tipo: “Me passa a renda bruta da família e um valor de imóvel que você imagina que eu te mostro na hora uma simulação gratuita.”
+6. Quando o cliente fornecer nome, renda bruta familiar ou CPF, use salvar_dados_lead
 7. Quando quiser agendar visita, use agendar_visita (isso encaminha para humano automaticamente)
 8. Quando o cliente enviar documentos para análise (PDF, imagem de CPF, RG, comprovante etc.) ou disser que vai enviar, use encaminhar_humano com motivo "Documentos para análise"
 9. Se o cliente pedir para falar com humano ou parecer insatisfeito, use encaminhar_humano
-10. Sempre tente coletar pelo menos o nome do cliente no início da conversa
+10. No início: (1) nome, (2) *renda bruta familiar mensal*, (3) região ou imóvel de interesse — depois ofereça simulação ou opções com listar_imoveis
 11. Crie senso de urgência: "Unidades limitadas", "Condição especial por tempo limitado"
 12. Destaque benefícios do MCMV quando aplicável: subsídio, ITBI grátis, entrada facilitada
 13. Não invente informações. Se não souber, diga que vai verificar com o Davi
-14. Mantenha respostas concisas (máximo 3-4 parágrafos no WhatsApp)
-15. Quando der detalhes do imóvel, pergunte se quer ver fotos
+14. Respostas concisas (máximo 3–4 parágrafos), sempre com foco em *aprovação de crédito* e próximo passo claro
+15. Pedido de *fotos, imagens ou vídeos* do empreendimento: use *enviar_midias_imovel* na hora — envia até *3 fotos* e *1 vídeo* (se houver na pasta do imóvel). Se o cliente pedir *mais*, chame de novo com *enviar_mais: true*. *Não* use encaminhar_humano só por isso; a conversa segue com você
 16. Ao final de qualquer interação significativa, sugira agendar uma visita
-17. Documentos enviados ou visita solicitada SEMPRE exigem atendimento humano – use encaminhar_humano`;
+17. Documentos enviados ou visita solicitada SEMPRE exigem atendimento humano – use encaminhar_humano
+18. Não diga apenas “renda”; diga *renda bruta familiar* para alinhar com o programa e evitar retrabalho na análise
+19. *Nunca* encaminhe ao humano apenas porque o cliente pediu material visual do imóvel — isso é papel da ferramenta enviar_midias_imovel
+20. Depois de *enviar_midias_imovel*, sua resposta em texto deve ser *curta* (ofereça simulação ou visita) — não repita o mesmo resumo que a ferramenta já deu ao cliente`;
 
 const TOOLS = [
   {
@@ -69,7 +75,7 @@ const TOOLS = [
   },
   {
     name: 'detalhes_imovel',
-    description: 'Retorna detalhes completos de um imóvel específico e envia foto.',
+    description: 'Retorna detalhes completos de um imóvel específico (texto). Para enviar fotos/vídeos use enviar_midias_imovel.',
     input_schema: {
       type: 'object',
       properties: {
@@ -80,11 +86,11 @@ const TOOLS = [
   },
   {
     name: 'simular_financiamento',
-    description: 'Simula financiamento MCMV. Use quando o cliente informar renda e valor do imóvel.',
+    description: 'Simula financiamento MCMV. Use quando o cliente informar renda BRUTA FAMILIAR mensal total e valor do imóvel (ou estimativa).',
     input_schema: {
       type: 'object',
       properties: {
-        renda_mensal: { type: 'number', description: 'Renda familiar mensal em reais' },
+        renda_mensal: { type: 'number', description: 'Renda bruta familiar mensal total em reais (antes de descontos)' },
         valor_imovel: { type: 'number', description: 'Valor do imóvel em reais' },
       },
       required: ['renda_mensal', 'valor_imovel'],
@@ -92,12 +98,12 @@ const TOOLS = [
   },
   {
     name: 'salvar_dados_lead',
-    description: 'Salva dados de qualificação do lead (nome, renda, CPF, email).',
+    description: 'Salva dados de qualificação do lead (nome, renda bruta familiar mensal, CPF, email).',
     input_schema: {
       type: 'object',
       properties: {
         nome: { type: 'string', description: 'Nome do cliente' },
-        renda: { type: 'number', description: 'Renda mensal informada' },
+        renda: { type: 'number', description: 'Renda bruta familiar mensal informada' },
         cpf: { type: 'string', description: 'CPF do cliente' },
         email: { type: 'string', description: 'Email do cliente' },
       },
@@ -119,7 +125,7 @@ const TOOLS = [
   },
   {
     name: 'encaminhar_humano',
-    description: 'Encaminha a conversa para atendimento humano. Use OBRIGATORIAMENTE quando: cliente pedir humano; enviar ou anunciar envio de documentos para análise; solicitar visita ao empreendimento; parecer insatisfeito.',
+    description: 'Encaminha a conversa para atendimento humano. Use OBRIGATORIAMENTE quando: cliente pedir humano; enviar ou anunciar envio de documentos para análise; solicitar visita ao empreendimento; parecer insatisfeito. NÃO use só porque pediram fotos ou tour em vídeo — use enviar_midias_imovel.',
     input_schema: {
       type: 'object',
       properties: {
@@ -129,12 +135,13 @@ const TOOLS = [
     },
   },
   {
-    name: 'enviar_foto_imovel',
-    description: 'Envia a foto principal do imóvel para o cliente.',
+    name: 'enviar_midias_imovel',
+    description: 'Envia fotos e vídeo (se existir) do imóvel pelo WhatsApp. Primeira vez: use enviar_mais false. Se o cliente pedir mais fotos/ângulos, use enviar_mais true.',
     input_schema: {
       type: 'object',
       properties: {
-        imovel_id: { type: 'number', description: 'ID do imóvel' },
+        imovel_id: { type: 'number', description: 'ID do imóvel (1 a 8)' },
+        enviar_mais: { type: 'boolean', description: 'True se o cliente já recebeu um lote e pediu mais mídias.' },
       },
       required: ['imovel_id'],
     },
@@ -218,11 +225,68 @@ async function executeTool(toolName, input, context) {
       return `Pronto! Um atendente vai assumir nossa conversa em instantes. Enquanto isso, você pode continuar enviando mensagens aqui mesmo – não precisa ligar nem mudar de número.`;
     }
 
-    case 'enviar_foto_imovel': {
+    case 'enviar_midias_imovel': {
       const property = getPropertyById(input.imovel_id);
-      if (!property || !property.image) return 'Foto não disponível.';
-      await sendImageMessage(context.from, property.image, `📸 ${property.title}`, { phoneNumberId: context.phoneNumberId });
-      return `Foto de ${property.title} enviada.`;
+      if (!property) return 'Imóvel não encontrado.';
+      const lists = getPropertyMediaLists(property);
+      const images = lists.images;
+      const videos = lists.videos;
+      if (images.length === 0 && videos.length === 0) return 'Não há fotos ou vídeos cadastrados para este imóvel.';
+
+      const lead = await getLeadByPhone(context.from);
+      var cur = lead && lead.mediaGalleryCursor;
+      const pid = property.id;
+      const mais = !!input.enviar_mais;
+      if (!mais || !cur || cur.propertyId !== pid) {
+        cur = { propertyId: pid, imageIdx: 0, videoIdx: 0 };
+      }
+
+      const maxImg = 3;
+      const batchImages = images.slice(cur.imageIdx, cur.imageIdx + maxImg);
+      var batchVideos = [];
+      if (videos.length > 0 && cur.videoIdx < videos.length) {
+        if (batchImages.length > 0) {
+          batchVideos = videos.slice(cur.videoIdx, cur.videoIdx + 1);
+        } else if (cur.imageIdx >= images.length) {
+          batchVideos = videos.slice(cur.videoIdx, cur.videoIdx + 1);
+        }
+      }
+
+      if (batchImages.length === 0 && batchVideos.length === 0) {
+        return 'Já enviei todas as fotos e vídeos que temos deste imóvel. Se quiser, posso recomeçar do início — é só pedir "manda de novo as fotos".';
+      }
+
+      const waOpt = { phoneNumberId: context.phoneNumberId };
+      var imgN = 0;
+      var ii;
+      for (ii = 0; ii < batchImages.length; ii++) {
+        var cap = imgN === 0 ? `📸 ${property.title}` : '';
+        await sendImageMessage(context.from, batchImages[ii], cap, waOpt);
+        imgN++;
+        await delay(650);
+      }
+      var jj;
+      for (jj = 0; jj < batchVideos.length; jj++) {
+        await sendVideoMessage(context.from, batchVideos[jj], `🎬 ${property.title}`, waOpt);
+        await delay(900);
+      }
+
+      const newCursor = {
+        propertyId: pid,
+        imageIdx: cur.imageIdx + batchImages.length,
+        videoIdx: cur.videoIdx + batchVideos.length,
+      };
+      await updateLead(context.from, { mediaGalleryCursor: newCursor });
+
+      const summary = [];
+      if (batchImages.length) summary.push(batchImages.length + ' foto(s)');
+      if (batchVideos.length) summary.push('1 vídeo');
+      const line = `Enviei ${summary.join(' e ')} de ${property.title}.`;
+      await saveMessage(context.from, 'assistant', line, 'bot');
+      await recordInboundActivity(context.from, line);
+
+      var aindaTem = newCursor.imageIdx < images.length || newCursor.videoIdx < videos.length;
+      return line + (aindaTem ? ' Se quiser mais, é só pedir.' : '');
     }
 
     default:

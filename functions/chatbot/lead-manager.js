@@ -104,14 +104,18 @@ async function getConversationHistory(phone, limit = 20) {
   return messages.reverse();
 }
 
-async function saveMessage(phone, role, content, source) {
+async function saveMessage(phone, role, content, source, meta) {
   const db = getDb();
   const msg = {
     role,
-    content,
+    content: content || '',
     timestamp: new Date().toISOString(),
   };
   if (source) msg.source = source; // 'bot' | 'admin'
+  meta = meta || {};
+  if (meta.attachmentType) msg.attachmentType = meta.attachmentType;
+  if (meta.attachmentUrl) msg.attachmentUrl = meta.attachmentUrl;
+  if (meta.fileName) msg.fileName = meta.fileName;
   await db.collection('chatbot_conversations')
     .doc(phone)
     .collection('messages')

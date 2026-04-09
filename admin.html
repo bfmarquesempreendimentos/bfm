@@ -610,10 +610,19 @@
                         </div>
                         <div class="wa-chat-messages" id="waChatMessages"></div>
                         <div class="wa-chat-send" id="waChatSendBox">
-                            <textarea id="waChatInput" placeholder="Digite sua mensagem..." rows="2" maxlength="4000"></textarea>
-                            <button type="button" class="btn btn-primary" onclick="waInboxSend()" id="waBtnSend">
-                                <i class="fas fa-paper-plane"></i> Enviar
-                            </button>
+                            <div id="waChatPendingFile" class="wa-chat-pending-file" style="display:none;"></div>
+                            <input type="file" id="waChatFileInput" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;" accept="image/*,video/*,.pdf,.doc,.docx,application/pdf" onchange="waInboxFileChosen(this)">
+                            <div class="wa-chat-send-row">
+                                <textarea id="waChatInput" placeholder="Digite sua mensagem (opcional se houver anexo)..." rows="2" maxlength="4000"></textarea>
+                                <div class="wa-chat-send-actions">
+                                    <button type="button" class="btn btn-secondary" onclick="waInboxPickFile()" id="waBtnAttach" title="Anexar foto, vídeo ou documento">
+                                        <i class="fas fa-paperclip"></i> Anexar
+                                    </button>
+                                    <button type="button" class="btn btn-primary" onclick="waInboxSend()" id="waBtnSend">
+                                        <i class="fas fa-paper-plane"></i> Enviar
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div class="wa-chat-send-disabled" id="waChatSendDisabled" style="display:none;">
                             <p>Assuma a conversa para enviar mensagens pelo painel.</p>
