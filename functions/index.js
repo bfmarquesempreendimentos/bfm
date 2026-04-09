@@ -2,7 +2,7 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 const { verifyWebhook, processWebhook } = require('./chatbot/webhook');
-const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveMessage, setModoHumano, returnToBot, markAdminRead, getLastConversationMessage, normalizeWhatsAppPhone, recordInboundActivity } = require('./chatbot/lead-manager');
+const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveMessage, deleteConversationMessage, setModoHumano, returnToBot, markAdminRead, getLastConversationMessage, normalizeWhatsAppPhone, recordInboundActivity } = require('./chatbot/lead-manager');
 const { sendFollowUp } = require('./chatbot/templates');
 const { getPropertyById } = require('./chatbot/property-data');
 const { sendTextMessage, uploadMediaBuffer, sendMediaById } = require('./chatbot/whatsapp-api');
@@ -463,6 +463,26 @@ exports.chatbotInboxSend = functions
       return res.status(500).json({ error: err.message });
     }
   });
+
+exports.chatbotInboxDeleteMessage = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+
+  try {
+    const body = req.body || {};
+    const raw = (body.phone || '').trim();
+    const phone = normalizeWhatsAppPhone(raw) || raw;
+    const messageId = (body.messageId || body.id || '').trim();
+    if (!phone || !messageId) return res.status(400).json({ error: 'phone e messageId obrigatórios' });
+
+    await deleteConversationMessage(phone, messageId);
+    return res.json({ success: true, message: 'Mensagem removida do histórico' });
+  } catch (err) {
+    console.error('Erro ao apagar mensagem:', err);
+    return res.status(400).json({ error: err.message });
+  }
+});
 
 exports.chatbotInboxMarkRead = functions.https.onRequest(async (req, res) => {
   allowCors(res);

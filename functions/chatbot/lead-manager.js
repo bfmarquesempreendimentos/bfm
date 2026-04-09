@@ -100,8 +100,23 @@ async function getConversationHistory(phone, limit = 20) {
     .get();
 
   const messages = [];
-  snapshot.forEach(doc => messages.push(doc.data()));
+  snapshot.forEach(doc => messages.push({ ...doc.data(), id: doc.id }));
   return messages.reverse();
+}
+
+/** Remove mensagem salva (histórico do painel). Não apaga no WhatsApp do cliente — limitação da API Meta. */
+async function deleteConversationMessage(phone, messageDocId) {
+  const db = getDb();
+  const ref = db.collection('chatbot_conversations').doc(phone).collection('messages').doc(messageDocId);
+  const doc = await ref.get();
+  if (!doc.exists) {
+    throw new Error('Mensagem não encontrada');
+  }
+  const d = doc.data();
+  if (d.role !== 'assistant') {
+    throw new Error('Só é possível remover mensagens enviadas pelo bot ou pelo painel');
+  }
+  await ref.delete();
 }
 
 async function saveMessage(phone, role, content, source, meta) {
@@ -267,6 +282,7 @@ module.exports = {
   updateLead,
   addInterestedProperty,
   getConversationHistory,
+  deleteConversationMessage,
   saveMessage,
   qualifyLead,
   scheduleVisit,

@@ -22,8 +22,13 @@ function waInboxApi(path, options) {
     cache: 'no-store',
     credentials: 'omit'
   }).then(function(res) {
-    if (!res.ok) throw new Error('Erro ' + res.status);
-    return res.json();
+    return res.json().then(function(data) {
+      if (!res.ok) {
+        var msg = (data && data.error) ? String(data.error) : ('Erro ' + res.status);
+        throw new Error(msg);
+      }
+      return data;
+    });
   });
 }
 
@@ -262,8 +267,16 @@ function waInboxLoadChat(phone, opts) {
         attHtml = '<div class="wa-chat-attachment wa-chat-attachment-file"><i class="fas fa-paperclip" aria-hidden="true"></i> ' +
           escapeHtml(attName || (att === 'document' ? 'Documento' : att)) + '</div>';
       }
+      var deletable = !isUser && m.id;
+      var extraBubbleClass = deletable ? ' wa-chat-bubble--deletable' : '';
+      var delBtn = '';
+      if (deletable) {
+        delBtn = '<button type="button" class="wa-chat-delete-msg" data-msg-id="' + escapeHtml(String(m.id)) + '" onclick="waInboxDeleteMessageButton(event)" title="Remover só do painel (no WhatsApp do cliente continua)">' +
+          '<i class="fas fa-trash-alt" aria-hidden="true"></i><span class="wa-sr-only">Apagar do histórico</span></button>';
+      }
       parts.push(
-        '<div class="wa-chat-bubble ' + bubbleClass + '">' +
+        '<div class="wa-chat-bubble ' + bubbleClass + extraBubbleClass + '">' +
+        delBtn +
         '<div class="wa-chat-bubble-label">' + escapeHtml(label) + '</div>' +
         attHtml +
         '<div>' + content + '</div>' +
@@ -521,6 +534,25 @@ function waInboxSend() {
 function waInboxMarkRead(phone) {
   if (!phone) return;
   waInboxApi('/chatbotInboxMarkRead', { method: 'POST', body: { phone: phone } }).catch(function() {});
+}
+
+function waInboxDeleteMessageButton(ev) {
+  if (!ev || !ev.currentTarget) return;
+  if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
+  var id = ev.currentTarget.getAttribute('data-msg-id');
+  if (!id || !waInboxSelectedPhone) return;
+  var msg = 'Remover esta mensagem apenas do histórico deste painel?\n\n' +
+    'No WhatsApp do cliente ela continua visível — a API oficial da Meta não permite apagar mensagem já enviada no aplicativo.';
+  if (!confirm(msg)) return;
+  waInboxApi('/chatbotInboxDeleteMessage', { method: 'POST', body: { phone: waInboxSelectedPhone, messageId: id } }).then(function() {
+    waLastChatSig = '';
+    waLastListSig = '';
+    waInboxLoadChat(waInboxSelectedPhone, { quiet: false });
+    waInboxLoadList(true);
+    if (typeof showMessage === 'function') showMessage('Mensagem removida do histórico do painel.', 'success');
+  }).catch(function(err) {
+    if (typeof showMessage === 'function') showMessage(err.message || 'Erro ao remover.', 'error');
+  });
 }
 
 function waInboxStartPoll() {
