@@ -70,7 +70,8 @@ exports.sendQueuedEmail = functions
 // ─── WhatsApp Chatbot Webhook ─────────────────────────────────────
 exports.chatbotWebhook = functions
   .runWith({
-    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY'],
+    /** OPENAI_API_KEY: após `firebase functions:secrets:set OPENAI_API_KEY`, inclua 'OPENAI_API_KEY' aqui para a Bia transcrever áudios */
+    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID', 'ANTHROPIC_API_KEY'],
     timeoutSeconds: 120,
     memory: '512MB',
   })
