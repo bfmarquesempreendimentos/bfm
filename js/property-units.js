@@ -139,14 +139,14 @@ const propertyUnits = {
         units: [
             { code: "casa base", price: 135000, bedrooms: 1, status: "assinado" },
             { code: "casa 05", price: 130000, bedrooms: 1, status: "disponivel" },
-            { code: "casa 01", price: 135000, bedrooms: 1, status: "reservado" },
+            { code: "casa 01", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "casa 06", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 02", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 07", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 03", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "cassa 08", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 04", price: 140000, bedrooms: 1, status: "assinado" },
-            { code: "casa 09", price: 150000, bedrooms: 1, status: "reservado" }
+            { code: "casa 09", price: 150000, bedrooms: 1, status: "disponivel" }
         ],
         engineeringValues: {
             "Cs base": "R$ 181.000,00",
@@ -191,7 +191,7 @@ const propertyUnits = {
         units: [
             { code: "APTO 101", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 201", price: 165000, bedrooms: 2, status: "disponivel" },
-            { code: "APTO 102", price: 165000, bedrooms: 2, status: "reservado" },
+            { code: "APTO 102", price: 165000, bedrooms: 2, status: "assinado" },
             { code: "APTO 202", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 103", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 203", price: 160000, bedrooms: 2, status: "disponivel" },
@@ -220,6 +220,14 @@ const propertyUnits = {
             "APTO 207": "R$ 152.000,00",
             "APTO 210": "R$ 167.000,00"
         }
+    },
+
+    /** Casa Luxo Maricá — empreendimento com uma única unidade (alto padrão) */
+    8: {
+        name: "CASA LUXO MARICÁ - CONDOMÍNIO ELISA BEACH",
+        units: [
+            { code: "Casa única", price: 1180000, bedrooms: 3, status: "disponivel" }
+        ]
     }
 };
 
@@ -275,6 +283,70 @@ function getUnitStatusText(status) {
         'assinado': 'Assinado'
     };
     return statusMap[status] || status;
+}
+
+/**
+ * Resumo de inventário por empreendimento (para cards do site e filtros futuros).
+ * @returns {{ total: number, disponivel: number, reservado: number, assinado: number } | null}
+ */
+function getEnterpriseInventorySummary(propertyId) {
+    var data = typeof getPropertyUnits === 'function' ? getPropertyUnits(propertyId) : null;
+    if (!data || !Array.isArray(data.units) || data.units.length === 0) return null;
+    var units = data.units;
+    var total = units.length;
+    var disponivel = 0;
+    var reservado = 0;
+    var assinado = 0;
+    for (var i = 0; i < units.length; i++) {
+        var st = String(units[i].status || '').toLowerCase();
+        if (st === 'disponivel') disponivel++;
+        else if (st === 'reservado') reservado++;
+        else if (st === 'assinado') assinado++;
+    }
+    return { total: total, disponivel: disponivel, reservado: reservado, assinado: assinado };
+}
+
+/**
+ * Painel admin / métricas: agrega todas as unidades dos empreendimentos (ids 1–8).
+ * O status no nível do card em `properties` não reflete unidade a unidade.
+ */
+function getAggregatedUnitInventoryForDashboard() {
+    var out = {
+        empreendimentos: 0,
+        unidadesTotal: 0,
+        disponivel: 0,
+        reservado: 0,
+        assinado: 0,
+        valorDisponiveis: 0,
+    };
+    if (typeof properties !== 'undefined' && properties && properties.length) {
+        out.empreendimentos = properties.length;
+    }
+    var pid;
+    for (pid = 1; pid <= 8; pid++) {
+        var data = typeof getPropertyUnits === 'function' ? getPropertyUnits(pid) : null;
+        if (!data || !Array.isArray(data.units) || data.units.length === 0) {
+            continue;
+        }
+        var u;
+        for (u = 0; u < data.units.length; u++) {
+            var unit = data.units[u];
+            out.unidadesTotal++;
+            var st = String(unit.status || '').toLowerCase();
+            if (st === 'disponivel') {
+                out.disponivel++;
+                out.valorDisponiveis += Number(unit.price) || 0;
+            } else if (st === 'reservado') {
+                out.reservado++;
+            } else if (st === 'assinado') {
+                out.assinado++;
+            }
+        }
+    }
+    if (out.empreendimentos === 0 && out.unidadesTotal > 0) {
+        out.empreendimentos = 8;
+    }
+    return out;
 }
 
 // Create units table for property

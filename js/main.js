@@ -205,6 +205,7 @@ function loadProperties() {
             videos: [],
             description: 'Apartamentos modernos no Condomínio Porto Novo com opções de 1 e 2 quartos. Unidades sem vaga de garagem, ideais para quem busca praticidade e localização estratégica. Acabamento de qualidade com pisos cerâmicos, janelas com grades de segurança e boa ventilação natural.',
             features: ['Apartamentos de 1 e 2 quartos', 'Sem vaga de garagem', 'Acabamento moderno', 'Pisos cerâmicos', 'Grades de segurança', 'Boa ventilação', 'Localização estratégica', 'Fácil acesso ao transporte', 'Próximo ao comércio'],
+            hideFromSite: true,
             reservedUntil: null,
             reservedBy: null,
             matricula: '51.881 a 51.894',
@@ -274,8 +275,10 @@ function loadProperties() {
             parking: 1,
             status: 'disponivel',
             images: [
-                'assets/images/laranjal/laranjal-01.jpg',
-                'assets/images/laranjal/laranjal-02.jpg',
+                'assets/images/laranjal/laranjal-05.png',
+                'assets/images/laranjal/laranjal-06.png',
+                'assets/images/laranjal/laranjal-07.png',
+                'assets/images/laranjal/laranjal-08.png',
                 'assets/images/laranjal/laranjal-03.jpg',
                 'assets/images/laranjal/laranjal-04.jpg'
             ],
@@ -445,8 +448,14 @@ function loadProperties() {
         }
     ];
     
-    setTimeout(() => displayProperties(properties), 0);
-    startHeroSlideshow(properties);
+    setTimeout(function() { displayProperties(properties); }, 0);
+    startHeroSlideshow(getVisibleProperties(properties));
+}
+
+function getVisibleProperties(list) {
+    return (list || []).filter(function(property) {
+        return !property.hideFromSite;
+    });
 }
 
 function startHeroSlideshow(list) {
@@ -554,13 +563,14 @@ function displayProperties(propertiesToShow) {
     if (!grid) return;
     
     grid.innerHTML = '';
+    var visibleProperties = getVisibleProperties(propertiesToShow);
     
-    if (propertiesToShow.length === 0) {
+    if (visibleProperties.length === 0) {
         grid.innerHTML = '<div class="no-properties">Nenhum imóvel encontrado com os filtros selecionados.</div>';
         return;
     }
     
-    propertiesToShow.forEach(property => {
+    visibleProperties.forEach(property => {
         const propertyCard = createPropertyCard(property);
         grid.appendChild(propertyCard);
     });
@@ -596,6 +606,17 @@ function createPropertyCard(property) {
     const pricePrefix = property.title === 'Casa Luxo Maricá'
         ? ''
         : '<span class="price-prefix">À partir de:</span>';
+
+    var invSummary = typeof getEnterpriseInventorySummary === 'function' ? getEnterpriseInventorySummary(property.id) : null;
+    var invHtml = '';
+    if (invSummary) {
+        invHtml =
+            '<div class="property-inventory-hint" aria-label="Inventário de unidades">' +
+            '<span class="property-inventory-hint__total">' + invSummary.total + ' unidades</span>' +
+            '<span class="property-inventory-hint__sep"> · </span>' +
+            '<span class="property-inventory-hint__avail">' + invSummary.disponivel + ' disponíveis</span>' +
+            '</div>';
+    }
 
     const hasMultipleImages = imageList.length > 1;
     const carouselArrows = hasMultipleImages ? `
@@ -639,6 +660,7 @@ function createPropertyCard(property) {
                 ${pricePrefix}
                 R$ ${property.price.toLocaleString('pt-BR')}
             </div>
+            ${invHtml}
             <div class="property-actions">
                 ${reserveButton}
                 <button class="btn-details" onclick="event.stopPropagation(); handleRestrictedAction('details', ${property.id})">
