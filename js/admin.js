@@ -497,6 +497,11 @@ function showSection(sectionId) {
 
 var ADMIN_FUNCTIONS_BASE = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
 
+function hasLikelyPhone(phone) {
+    var digits = String(phone || '').replace(/\D/g, '');
+    return digits.length >= 10;
+}
+
 function syncAdminDashboardLocalData() {
     if (typeof loadPropertiesFromStorage === 'function') {
         loadPropertiesFromStorage();
@@ -1194,13 +1199,21 @@ async function loadBrokersData() {
     const allBrokers = getAllBrokers();
     var testSelect = document.getElementById('brokerCampaignTestSelect');
     if (testSelect) {
-        var activeBrokers = allBrokers.filter(function(b) { return !!b.isActive; });
+        var activeBrokers = allBrokers.filter(function(b) {
+            return !!b.isActive && !b.isAdmin && hasLikelyPhone(b.phone);
+        });
+        if (activeBrokers.length === 0) {
+            activeBrokers = allBrokers.filter(function(b) { return !!b.isActive; });
+        }
         var opts = ['<option value="">Selecione um corretor ativo</option>'];
         activeBrokers.forEach(function(b) {
             opts.push('<option value="' + String(b.id).replace(/"/g, '&quot;') + '">' +
                 (b.name || b.email || ('Corretor ' + b.id)) + ' - ' + (b.phone || 'sem telefone') +
                 '</option>');
         });
+        if (activeBrokers.length === 0) {
+            opts.push('<option value="" disabled>Nenhum corretor ativo encontrado</option>');
+        }
         testSelect.innerHTML = opts.join('');
     }
     
