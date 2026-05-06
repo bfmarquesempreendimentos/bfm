@@ -146,6 +146,12 @@
                     name: account.name,
                     loginTime: new Date().toISOString()
                 }));
+                try {
+                    sessionStorage.setItem('adminSession', JSON.stringify({
+                        email: account.email,
+                        password: password
+                    }));
+                } catch (e) {}
                 window.location.href = 'admin.html?t=' + Date.now();
             } else {
                 alert('Credenciais inválidas!');
@@ -154,6 +160,7 @@
 
         if (/[?&]logout=1/.test(window.location.search)) {
             localStorage.removeItem('adminUser');
+            try { sessionStorage.removeItem('adminSession'); } catch (e) {}
         }
         var stored = localStorage.getItem('adminUser');
         if (stored) {

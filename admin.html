@@ -379,8 +379,8 @@
             
             <div class="admin-panel admin-panel--form">
                 <div class="admin-panel-header">
-                    <h3 class="admin-panel-title">Nova venda</h3>
-                    <p class="admin-panel-desc">Preencha os dados do comprador e do imóvel. Anexos podem ser exigidos conforme regras da Caixa.</p>
+                    <h3 class="admin-panel-title" id="saleFormTitle">Nova venda</h3>
+                    <p class="admin-panel-desc">Preencha os dados do comprador e do imóvel. Em empreendimentos com várias unidades, informe a unidade vendida. Anexos podem ser exigidos conforme regras da Caixa.</p>
                 </div>
                 <div class="admin-panel-body">
                 <form id="saleForm" class="property-form property-form--sale" onsubmit="handleSaleFormSubmission(event); return false;">
@@ -391,8 +391,15 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Unidade (opcional)</label>
-                        <input type="text" id="saleUnitCode" placeholder="Ex: 101, Casa 05">
+                        <label id="saleUnitCodeLabel">Unidade</label>
+                        <input type="text" id="saleUnitCode" placeholder="Ex: APTO 102, casa 09 (obrigatório se houver várias unidades)">
+                        <small class="form-hint">Empreendimentos com uma única unidade são preenchidos automaticamente.</small>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="saleSyncUnitStatus" checked>
+                            Atualizar status da unidade no site para &ldquo;Assinado&rdquo; (tabela de unidades + nuvem)
+                        </label>
                     </div>
                     <div class="form-group">
                         <label>Nome do Cliente *</label>
@@ -418,6 +425,10 @@
                         <label>Nº do Contrato (opcional)</label>
                         <input type="text" id="saleContractNumber">
                     </div>
+                    <div class="form-group">
+                        <label>Observações internas (opcional)</label>
+                        <textarea id="saleNotes" rows="2" placeholder="Forma de pagamento, corretor externo, etc."></textarea>
+                    </div>
                     <div id="saleContractPhotosGroup" class="form-group" style="display:none">
                         <label>Fotos do contrato/escritura (Caixa) *</label>
                         <input type="file" id="saleContractPhotos" accept="image/*,.pdf" multiple>
@@ -425,7 +436,10 @@
                     </div>
                     <div class="form-actions-bar">
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save" aria-hidden="true"></i> Registrar venda
+                        <i class="fas fa-save" aria-hidden="true"></i> <span id="saleFormSubmitLabel">Registrar venda</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="saleFormCancelEdit" style="display:none;" onclick="cancelSaleEdit()">
+                        <i class="fas fa-times" aria-hidden="true"></i> Cancelar edição
                     </button>
                     </div>
                 </form>
@@ -433,17 +447,24 @@
             </div>
             
             <div class="admin-table-container admin-table-container--elevated admin-table-container--spaced">
-                <div class="admin-table-caption">Vendas já registradas</div>
+                <div class="admin-table-caption" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;">
+                    <span>Vendas já registradas</span>
+                    <button type="button" class="btn btn-secondary" onclick="runMigrateLegacySaleSlots()" title="Uma vez: preenche saleSlotKey nas vendas antigas do Firestore">
+                        <i class="fas fa-database" aria-hidden="true"></i> Migrar vendas antigas (chave de unidade)
+                    </button>
+                </div>
                 <table class="admin-table" id="salesTable">
                     <thead>
                         <tr>
                             <th>ID</th>
                             <th>Imóvel</th>
+                            <th>Unidade</th>
                             <th>Cliente</th>
-                            <th>CPF</th>
+                            <th>CPF/CNPJ</th>
                             <th>Email</th>
                             <th>Valor</th>
                             <th>Data</th>
+                            <th>Registrado por</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
@@ -1126,7 +1147,7 @@
     <script src="js/whatsapp-leads.js?v=2"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=5"></script>
+    <script src="js/admin.js?v=8"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

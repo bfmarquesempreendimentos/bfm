@@ -4,7 +4,7 @@
 // Em produção, isso viria de um banco de dados
 let propertySales = JSON.parse(localStorage.getItem('propertySales') || '[]');
 
-// Adicionar propriedade vendida (Firestore = base única, sync Mac/Desktop)
+// Adicionar propriedade vendida — o painel admin usa Cloud Function (adminPropertySaleMutate). Esta função mantém cache local legado.
 async function addPropertySale(saleData) {
     if (!saleData) return null;
     const cpf = (saleData.clientCPF || '').toString().replace(/\D/g, '');
@@ -12,11 +12,13 @@ async function addPropertySale(saleData) {
         console.error('addPropertySale: CPF/CNPJ inválido (11 ou 14 dígitos)', saleData.clientCPF);
         return null;
     }
-    // Bloqueio duplicata: 1 imóvel = 1 venda
     if (typeof loadPropertySales === 'function') loadPropertySales();
-    const dup = propertySales.some(s => String(s.propertyId) === String(saleData.propertyId));
+    var dup = propertySales.some(function(s) {
+        if (saleData.saleSlotKey && s.saleSlotKey) return s.saleSlotKey === saleData.saleSlotKey;
+        return String(s.propertyId) === String(saleData.propertyId);
+    });
     if (dup) {
-        console.error('addPropertySale: Imóvel já possui venda registrada', saleData.propertyId);
+        console.error('addPropertySale: venda duplicada para este empreendimento/unidade', saleData.propertyId, saleData.saleSlotKey);
         return null;
     }
     var sale = {
@@ -84,26 +86,34 @@ function loadPropertySales() {
 
 // Converter venda em propriedade do cliente
 function saleToClientProperty(sale) {
-    // Buscar propriedade original
-    const property = properties.find(p => p.id === sale.propertyId);
+    var property = null;
+    if (typeof properties !== 'undefined' && properties && properties.length) {
+        var pi;
+        for (pi = 0; pi < properties.length; pi++) {
+            if (properties[pi].id === sale.propertyId || String(properties[pi].id) === String(sale.propertyId)) {
+                property = properties[pi];
+                break;
+            }
+        }
+    }
     
     return {
         id: sale.id,
         propertyId: sale.propertyId,
-        title: sale.propertyTitle || property?.title || 'Imóvel',
-        type: property?.type || 'apartamento',
-        location: property?.location || '',
+        title: sale.propertyTitle || (property && property.title) || 'Imóvel',
+        type: (property && property.type) || 'apartamento',
+        location: (property && property.location) || '',
         price: sale.salePrice,
-        bedrooms: property?.bedrooms || 0,
-        bathrooms: property?.bathrooms || 0,
-        area: property?.area || 0,
+        bedrooms: (property && property.bedrooms) || 0,
+        bathrooms: (property && property.bathrooms) || 0,
+        area: (property && property.area) || 0,
         unitCode: sale.unitCode,
         purchaseDate: sale.saleDate,
         contractNumber: sale.contractNumber,
         status: 'vendido',
-        openPortion: null, // Será calculado se houver financiamento
-        images: property?.images || [],
-        description: property?.description || ''
+        openPortion: null,
+        images: (property && property.images) || [],
+        description: (property && property.description) || ''
     };
 }
 

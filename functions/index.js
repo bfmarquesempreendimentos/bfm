@@ -6,6 +6,7 @@ const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveM
 const { sendFollowUp } = require('./chatbot/templates');
 const { getPropertyById } = require('./chatbot/property-data');
 const { sendTextMessage, uploadMediaBuffer, sendMediaById, getWhatsAppMediaBuffer } = require('./chatbot/whatsapp-api');
+const propertySalesHandlers = require('./property-sales-handlers');
 
 admin.initializeApp();
 
@@ -316,23 +317,41 @@ exports.registerBroker = functions.https.onRequest(async (req, res) => {
   }
 });
 
-// ─── API de Vendas (fallback quando Firestore client falha no Mac) ────
+// ─── API de Vendas: listagem pública removida (privacidade). Use clientPropertySalesMe ou clientSaleEligibility. ────
 exports.getPropertySales = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
-  try {
-    const db = admin.firestore();
-    const snapshot = await db.collection('propertySales').get();
-    const sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return res.json(sales);
-  } catch (err) {
-    console.error('Erro ao buscar vendas:', err);
-    return res.status(500).json({ error: err.message });
-  }
+  return res.status(410).json({
+    error: 'deprecated',
+    message: 'Use POST clientSaleEligibility ou clientPropertySalesMe com token.',
+    sales: [],
+  });
 });
+
+exports.adminPropertySalesList = functions.https.onRequest((req, res) =>
+  propertySalesHandlers.adminPropertySalesList(req, res)
+);
+exports.adminPropertySaleMutate = functions.https.onRequest((req, res) =>
+  propertySalesHandlers.adminPropertySaleMutate(req, res)
+);
+exports.adminMergeClientProperty = functions.https.onRequest((req, res) =>
+  propertySalesHandlers.adminMergeClientProperty(req, res)
+);
+exports.clientPropertySalesMe = functions.https.onRequest((req, res) =>
+  propertySalesHandlers.clientPropertySalesMe(req, res)
+);
+exports.clientSaleEligibility = functions.https.onRequest((req, res) =>
+  propertySalesHandlers.clientSaleEligibility(req, res)
+);
+exports.getPublicUnitOverrides = functions.https.onRequest((req, res) =>
+  propertySalesHandlers.getPublicUnitOverrides(req, res)
+);
+exports.adminMigrateLegacySaleSlots = functions.https.onRequest((req, res) =>
+  propertySalesHandlers.adminMigrateLegacySaleSlots(req, res)
+);
 
 // ─── API de Reparos: CRIAR (garante sync Mac/Windows - não depende do Firestore client) ──
 exports.createRepair = functions.https.onRequest(async (req, res) => {

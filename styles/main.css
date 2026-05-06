@@ -1109,6 +1109,27 @@ body {
     font-size: 0.9rem;
 }
 
+.properties-section-lead {
+    max-width: 720px;
+    margin: 0 auto 20px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #5c6b7a;
+    text-align: center;
+}
+
+.property-inventory-hint {
+    font-size: 0.82rem;
+    color: #34495e;
+    margin: -8px 0 14px;
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+.property-inventory-hint__avail {
+    color: #1e8449;
+}
+
 .property-price {
     font-size: 1.5rem;
     font-weight: 700;

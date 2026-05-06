@@ -109,6 +109,11 @@ var CONFIG = {
         retryAttempts: 3,
         enableCache: true
     },
+
+    // Cloud Functions (HTTPS) — vendas, unidades, etc.
+    cloudFunctions: {
+        baseURL: 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net'
+    },
     
     // Configurações de Analytics
     analytics: {

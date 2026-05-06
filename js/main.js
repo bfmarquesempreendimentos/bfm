@@ -34,7 +34,13 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeApp() {
-    loadProperties();
+    if (typeof fetchUnitStatusOverridesFromServer === 'function') {
+        fetchUnitStatusOverridesFromServer(function() {
+            loadProperties();
+        });
+    } else {
+        loadProperties();
+    }
     checkUserSession();
     setupEventListeners();
     setupScrollEffects();

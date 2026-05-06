@@ -85,11 +85,11 @@ async function loginClient(event) {
                 return;
             }
             
-            // Validar CPF na base de vendas
-            if (typeof getPropertySalesByEmail === 'function') {
-                const sales = await getPropertySalesByEmail(profile.email);
+            var idToken = await userCredential.user.getIdToken();
+            if (typeof fetchClientPropertySalesMe === 'function') {
+                const sales = await fetchClientPropertySalesMe(idToken);
                 if (!sales || sales.length === 0) {
-                    showMessage('CPF não encontrado em nossas vendas.', 'error');
+                    showMessage('Nenhuma venda vinculada a este email. Entre em contato com a empresa.', 'error');
                     return;
                 }
                 profile.properties = sales.map(sale => {
@@ -131,8 +131,11 @@ async function loginClient(event) {
     );
     
     if (client) {
-        // Verificar se CPF tem propriedade vendida
-        if (typeof hasPropertySale !== 'undefined' && !hasPropertySale(client.cpf)) {
+        var eligibleLocal = typeof hasPropertySale === 'function' && hasPropertySale(client.cpf);
+        if (!eligibleLocal && typeof fetchClientSaleEligibility === 'function') {
+            eligibleLocal = await fetchClientSaleEligibility(client.email, client.cpf);
+        }
+        if (!eligibleLocal) {
             showMessage('CPF não encontrado em nossas vendas. Entre em contato conosco.', 'error');
             return;
         }
@@ -183,14 +186,9 @@ async function registerClient(event) {
         return;
     }
     
-    // Verificar se CPF/email tem propriedade vendida (sempre verifica localStorage como fallback)
-    let hasSale = false;
-    if (typeof hasPropertySale === 'function') {
-        hasSale = hasPropertySale(cpf);
-    }
-    if (!hasSale && typeof getPropertySalesByEmail === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
-        const salesByEmail = await getPropertySalesByEmail(email);
-        hasSale = salesByEmail && salesByEmail.length > 0;
+    var hasSale = typeof hasPropertySale === 'function' && hasPropertySale(cpf);
+    if (!hasSale && typeof fetchClientSaleEligibility === 'function') {
+        hasSale = await fetchClientSaleEligibility(email, cpf);
     }
     if (!hasSale) {
         showMessage('CPF/Email não encontrado em nossas vendas. Registre a venda no painel admin primeiro ou entre em contato conosco.', 'error');
@@ -204,10 +202,11 @@ async function registerClient(event) {
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
             const uid = userCredential.user.uid;
             
-            let clientProperties = [];
-            if (typeof getPropertySalesByEmail === 'function') {
-                const sales = await getPropertySalesByEmail(email);
-                clientProperties = sales.map(sale => {
+            var clientProperties = [];
+            var regToken = await userCredential.user.getIdToken();
+            if (typeof fetchClientPropertySalesMe === 'function') {
+                const sales = await fetchClientPropertySalesMe(regToken);
+                clientProperties = (sales || []).map(sale => {
                     if (typeof saleToClientProperty !== 'undefined') {
                         return saleToClientProperty(sale);
                     }
@@ -695,22 +694,10 @@ async function handleClientForgotPasswordSubmit() {
     showMessage('Se o email estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também a pasta de spam.', 'success');
 }
 
-// Pré-carregar propertySales do servidor (Mac/fresh device - localStorage vazio)
+// Atualiza overrides de unidades públicos (vendas não são mais baixadas em massa por privacidade)
 function preloadClientDataFromServer() {
-    var url = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getPropertySales?t=' + Date.now();
-    if (typeof fetch === 'function') {
-        fetch(url).then(function(r) { return r.ok ? r.json() : []; }).then(function(sales) {
-            if (sales && Array.isArray(sales) && sales.length > 0) {
-                localStorage.setItem('propertySales', JSON.stringify(sales));
-                if (typeof loadPropertySales === 'function') loadPropertySales();
-            }
-        }).catch(function() {
-            if (typeof getAllPropertySalesFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
-                getAllPropertySalesFromFirestore().then(function(s) {
-                    if (s && s.length > 0) { localStorage.setItem('propertySales', JSON.stringify(s)); if (typeof loadPropertySales === 'function') loadPropertySales(); }
-                }).catch(function() {});
-            }
-        });
+    if (typeof fetchUnitStatusOverridesFromServer === 'function') {
+        fetchUnitStatusOverridesFromServer(null);
     }
 }
 

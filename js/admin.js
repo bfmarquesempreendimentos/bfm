@@ -115,8 +115,38 @@ function redirectToLogin() {
 function adminLogout() {
     if (confirm('Tem certeza que deseja sair?')) {
         localStorage.removeItem('adminUser');
+        try { sessionStorage.removeItem('adminSession'); } catch (e) {}
         window.location.href = 'admin-login.html?logout=1&t=' + Date.now();
     }
+}
+
+function getAdminApiCredentials() {
+    try {
+        var s = sessionStorage.getItem('adminSession');
+        if (s) {
+            var o = JSON.parse(s);
+            if (o && o.email && o.password) return { email: o.email, password: o.password };
+        }
+    } catch (e) {}
+    return { email: '', password: '' };
+}
+
+function runMigrateLegacySaleSlots() {
+    var creds = getAdminApiCredentials();
+    if (!creds.email || !creds.password) {
+        showMessage('Faça login novamente no painel para executar a migração.', 'error');
+        return;
+    }
+    if (!confirm('Isso atualiza no Firestore todas as vendas sem saleSlotKey (legado). Continuar?')) return;
+    adminPostJson('/adminMigrateLegacySaleSlots', { adminEmail: creds.email, adminPassword: creds.password })
+        .then(function(r) {
+            var msg = 'Migração concluída: ' + (r.updated || 0) + ' atualizadas, ' + (r.skippedAlreadyHadSlot || 0) + ' já tinham chave.';
+            showMessage(msg, 'success');
+            return loadSalesData();
+        })
+        .catch(function(err) {
+            showMessage(err.message || 'Erro na migração.', 'error');
+        });
 }
 
 // Setup admin event listeners
@@ -131,22 +161,29 @@ function setupAdminEventListeners() {
     document.getElementById('reservationSettingsForm')?.addEventListener('submit', saveReservationSettings);
 }
 
-// Load sales data - Firestore como fonte única (base de dados única para Mac/Desktop)
+// Load sales data — API admin (Firestore direto bloqueado para clientes)
 async function loadSalesData() {
     loadSalesPropertyOptions();
     setupSaleFormMasks();
     const photosGroup = document.getElementById('saleContractPhotosGroup');
     if (photosGroup) photosGroup.style.display = (typeof isSuperAdmin === 'function' && isSuperAdmin()) ? 'none' : 'block';
-    if (typeof getAllPropertySalesFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+    var creds = getAdminApiCredentials();
+    if (creds.email && creds.password) {
         try {
-            const firestoreSales = await getAllPropertySalesFromFirestore();
-            localStorage.setItem('propertySales', JSON.stringify(firestoreSales));
-            if (typeof loadPropertySales === 'function') loadPropertySales();
+            var data = await adminPostJson('/adminPropertySalesList', { adminEmail: creds.email, adminPassword: creds.password });
+            if (data && Array.isArray(data.sales)) {
+                localStorage.setItem('propertySales', JSON.stringify(data.sales));
+                if (typeof loadPropertySales === 'function') loadPropertySales();
+            }
         } catch (e) {
-            console.warn('Erro ao carregar vendas do Firestore:', e);
+            console.warn('Erro ao carregar vendas:', e);
+            showMessage('Não foi possível carregar vendas. Faça login novamente no painel (email e senha) para renovar a sessão segura.', 'error');
         }
+    } else {
+        showMessage('Para carregar vendas, saia e entre no painel novamente com email e senha (sessão segura).', 'warning');
     }
     renderSalesTable();
+    updateSaleFormModeUi();
 }
 
 // Formata CPF progressivamente ao digitar: 000.000.000-00
@@ -252,30 +289,48 @@ function getSalesData() {
     return JSON.parse(localStorage.getItem('propertySales') || '[]');
 }
 
+function maskDocForSalesTable(doc) {
+    var d = String(doc || '').replace(/\D/g, '');
+    if (d.length === 11) return '***.***.' + d.slice(6, 9) + '-' + d.slice(9) + ' <span class="sales-doc-hint" title="Documento mascarado por privacidade">ⓘ</span>';
+    if (d.length === 14) return '**.***.***/****-' + d.slice(12) + ' <span class="sales-doc-hint" title="Documento mascarado por privacidade">ⓘ</span>';
+    return String(doc || '');
+}
+
+function formatCreatedBySale(sale) {
+    var c = sale.createdBy;
+    if (!c || typeof c !== 'object') return '—';
+    return (c.name || c.email || '—') + (c.type ? ' (' + c.type + ')' : '');
+}
+
 function renderSalesTable() {
     const tbody = document.getElementById('salesTableBody');
     if (!tbody) return;
     
     const sales = getSalesData();
     if (sales.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8">Nenhuma venda cadastrada.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10">Nenhuma venda cadastrada.</td></tr>';
         return;
     }
     
     tbody.innerHTML = sales.map(sale => {
         const id = sale.id;
-        const idAttr = typeof id === 'string' ? `'${id.replace(/'/g, "\\'")}'` : id;
+        const idAttr = typeof id === 'string' ? `'${String(id).replace(/'/g, "\\'")}'` : id;
         return `
         <tr>
-            <td>${id}</td>
+            <td title="${String(sale.clientCPF || '').replace(/"/g, '&quot;')}">${id}</td>
             <td>${sale.propertyTitle || 'Imóvel'}</td>
-            <td>${sale.clientName}</td>
-            <td>${sale.clientCPF}</td>
-            <td>${sale.clientEmail}</td>
+            <td>${sale.unitCode || '—'}</td>
+            <td>${sale.clientName || ''}</td>
+            <td>${maskDocForSalesTable(sale.clientCPF)}</td>
+            <td>${sale.clientEmail || ''}</td>
             <td>R$ ${Number(sale.salePrice || 0).toLocaleString('pt-BR')}</td>
             <td>${formatDate(sale.saleDate)}</td>
+            <td style="font-size:0.85rem;max-width:140px;">${formatCreatedBySale(sale)}</td>
             <td>
-                <button class="btn-action btn-delete" onclick="deleteSale(${idAttr})">
+                <button type="button" class="btn-action btn-secondary" onclick="beginEditSale(${idAttr})" title="Editar">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-action btn-delete" onclick="deleteSale(${idAttr})" title="Excluir">
                     <i class="fas fa-trash"></i>
                 </button>
             </td>
@@ -283,39 +338,120 @@ function renderSalesTable() {
     `}).join('');
 }
 
+var editingSaleFirestoreId = null;
+
+function updateSaleFormModeUi() {
+    var titleEl = document.getElementById('saleFormTitle');
+    var cancelBtn = document.getElementById('saleFormCancelEdit');
+    var subLbl = document.getElementById('saleFormSubmitLabel');
+    var sp = document.getElementById('saleProperty');
+    var su = document.getElementById('saleUnitCode');
+    if (titleEl) titleEl.textContent = editingSaleFirestoreId ? 'Editar venda' : 'Nova venda';
+    if (cancelBtn) cancelBtn.style.display = editingSaleFirestoreId ? 'inline-flex' : 'none';
+    if (subLbl) subLbl.textContent = editingSaleFirestoreId ? 'Salvar alterações' : 'Registrar venda';
+    if (sp) sp.disabled = !!editingSaleFirestoreId;
+    if (su) su.disabled = !!editingSaleFirestoreId;
+}
+
+function cancelSaleEdit() {
+    editingSaleFirestoreId = null;
+    var formEl = document.getElementById('saleForm');
+    if (formEl) formEl.reset();
+    var fp = document.getElementById('saleContractPhotos');
+    if (fp) fp.value = '';
+    updateSaleFormModeUi();
+}
+
+function beginEditSale(saleId) {
+    var sales = getSalesData();
+    var sale = null;
+    var i;
+    for (i = 0; i < sales.length; i++) {
+        if (String(sales[i].id) === String(saleId)) {
+            sale = sales[i];
+            break;
+        }
+    }
+    if (!sale) {
+        showMessage('Venda não encontrada na lista.', 'error');
+        return;
+    }
+    editingSaleFirestoreId = String(saleId);
+    var sp = document.getElementById('saleProperty');
+    if (sp) sp.value = String(sale.propertyId);
+    var su = document.getElementById('saleUnitCode');
+    if (su) su.value = sale.unitCode || '';
+    var sn = document.getElementById('saleClientName');
+    if (sn) sn.value = sale.clientName || '';
+    var sc = document.getElementById('saleClientCPF');
+    if (sc) sc.value = sale.clientCPF || '';
+    var se = document.getElementById('saleClientEmail');
+    if (se) se.value = sale.clientEmail || '';
+    var sph = document.getElementById('saleClientPhone');
+    if (sph) sph.value = sale.clientPhone || '';
+    var spr = document.getElementById('salePrice');
+    if (spr && sale.salePrice != null && typeof formatPriceMask === 'function') {
+        var cents = Math.round(Number(sale.salePrice) * 100);
+        spr.value = formatPriceMask(String(cents));
+    } else if (spr) {
+        spr.value = '';
+    }
+    var scn = document.getElementById('saleContractNumber');
+    if (scn) scn.value = sale.contractNumber || '';
+    var notes = document.getElementById('saleNotes');
+    if (notes) notes.value = sale.notes || '';
+    updateSaleFormModeUi();
+    showSection('sales');
+    showMessage('Altere os campos e salve. Unidade e empreendimento não podem ser alterados por aqui — exclua e cadastre de novo se necessário.', 'info');
+}
+
 async function handleSaleFormSubmission(e) {
     if (e && e.preventDefault) e.preventDefault();
-    
-    const rawValue = document.getElementById('saleProperty')?.value || '';
-    const propertyId = /^\d+$/.test(rawValue) ? parseInt(rawValue, 10) : rawValue;
-    const clientCPF = (document.getElementById('saleClientCPF')?.value || '').trim();
-    
+
+    var creds = getAdminApiCredentials();
+    if (!creds.email || !creds.password) {
+        showMessage('Faça logout e login novamente no painel para registrar vendas com segurança.', 'error');
+        return;
+    }
+
+    var rawValue = (document.getElementById('saleProperty') && document.getElementById('saleProperty').value) || '';
+    var propertyId = /^\d+$/.test(rawValue) ? parseInt(rawValue, 10) : rawValue;
+    var clientCPF = (document.getElementById('saleClientCPF') && document.getElementById('saleClientCPF').value || '').trim();
+
     if (!propertyId && propertyId !== 0) {
         showMessage('Selecione um imóvel.', 'error');
         return;
     }
-    
-    const cpfClean = clientCPF.replace(/\D/g, '');
-    const validDoc = cpfClean.length === 11 ? (typeof isValidCPF === 'function' && isValidCPF(clientCPF)) : (cpfClean.length === 14 && typeof isValidCNPJ === 'function' && isValidCNPJ(clientCPF));
+
+    var cpfClean = clientCPF.replace(/\D/g, '');
+    var validDoc = cpfClean.length === 11 ? (typeof isValidCPF === 'function' && isValidCPF(clientCPF)) : (cpfClean.length === 14 && typeof isValidCNPJ === 'function' && isValidCNPJ(clientCPF));
     if (!clientCPF || !validDoc) {
         showMessage('CPF/CNPJ inválido. CPF: 11 dígitos. CNPJ: 14 dígitos.', 'error');
         return;
     }
-    
-    const isSA = typeof isSuperAdmin === 'function' && isSuperAdmin();
-    const photosInput = document.getElementById('saleContractPhotos');
-    let contractPhotos = [];
-    
-    if (!isSA && photosInput) {
-        const files = photosInput.files || [];
+
+    var priceEl = document.getElementById('salePrice');
+    var priceStr = (priceEl && priceEl.value || '').trim().replace(/\./g, '').replace(',', '.');
+    var salePrice = parseFloat(priceStr) || 0;
+    if (salePrice <= 0) {
+        showMessage('Informe um valor de venda válido.', 'error');
+        return;
+    }
+
+    var isSA = typeof isSuperAdmin === 'function' && isSuperAdmin();
+    var photosInput = document.getElementById('saleContractPhotos');
+    var contractPhotos = [];
+
+    if (!isSA && photosInput && !editingSaleFirestoreId) {
+        var files = photosInput.files || [];
         if (files.length === 0) {
             showMessage('É obrigatório anexar fotos do contrato de venda (escritura/Caixa).', 'error');
             return;
         }
         if (typeof uploadRepairAttachmentsToFirebase === 'function') {
             try {
-                const uploaded = await uploadRepairAttachmentsToFirebase(Array.from(files), 'sale-contracts');
-                contractPhotos = (uploaded || []).map(u => u.url);
+                var uploaded = await uploadRepairAttachmentsToFirebase(Array.from(files), 'sale-contracts');
+                contractPhotos = (uploaded || []).map(function(u) { return u.url; });
             } catch (err) {
                 console.error('Erro ao enviar fotos:', err);
                 showMessage('Erro ao enviar fotos do contrato. Tente novamente.', 'error');
@@ -326,72 +462,108 @@ async function handleSaleFormSubmission(e) {
             return;
         }
     }
-    
-    const property = Array.isArray(properties) && properties.find(p => p.id === propertyId || String(p.id) === String(propertyId));
-    
-    // Re-fetch vendas do Firestore antes de checar duplicidade (evitar duplicatas entre dispositivos)
-    if (typeof getAllPropertySalesFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
+
+    if (editingSaleFirestoreId) {
+        var patch = {
+            clientName: (document.getElementById('saleClientName') && document.getElementById('saleClientName').value) || '',
+            clientCPF: clientCPF,
+            clientEmail: ((document.getElementById('saleClientEmail') && document.getElementById('saleClientEmail').value) || '').trim().toLowerCase(),
+            clientPhone: (document.getElementById('saleClientPhone') && document.getElementById('saleClientPhone').value) || '',
+            salePrice: salePrice,
+            contractNumber: (document.getElementById('saleContractNumber') && document.getElementById('saleContractNumber').value) || '',
+            notes: (document.getElementById('saleNotes') && document.getElementById('saleNotes').value) || '',
+        };
+        var updPayload = {
+            adminEmail: creds.email,
+            adminPassword: creds.password,
+            action: 'update',
+            saleFirestoreId: editingSaleFirestoreId,
+            sale: patch,
+        };
+        if (typeof addUpdatedBy === 'function') addUpdatedBy(updPayload);
         try {
-            const freshSales = await getAllPropertySalesFromFirestore();
-            localStorage.setItem('propertySales', JSON.stringify(freshSales));
-            if (typeof loadPropertySales === 'function') loadPropertySales();
+            var updRes = await adminPostJson('/adminPropertySaleMutate', updPayload);
+            if (updRes && updRes.sale) {
+                showMessage('Venda atualizada.', 'success');
+                cancelSaleEdit();
+                await loadSalesData();
+            }
         } catch (err) {
-            console.warn('Erro ao verificar duplicatas:', err);
+            showMessage(err.message || 'Erro ao atualizar venda.', 'error');
         }
-    }
-    const sales = getSalesData();
-    const dupProp = sales.some(s => String(s.propertyId) === String(propertyId));
-    if (dupProp) {
-        showMessage('Este imóvel já possui venda registrada. Um imóvel só pode ter uma venda.', 'error');
         return;
     }
-    
-    const priceEl = document.getElementById('salePrice');
-    const priceStr = (priceEl?.value || '').trim().replace(/\./g, '').replace(',', '.');
-    const salePrice = parseFloat(priceStr) || 0;
-    if (salePrice <= 0) {
-        showMessage('Informe um valor de venda válido.', 'error');
+
+    var unitRaw = (document.getElementById('saleUnitCode') && document.getElementById('saleUnitCode').value || '').trim();
+    var slot = typeof getSaleSlotInfoForProperty === 'function' ? getSaleSlotInfoForProperty(propertyId, unitRaw) : { error: 'Sistema de unidades indisponível', saleSlotKey: null };
+    if (slot.error) {
+        showMessage(slot.error, 'error');
         return;
     }
-    const saleData = {
+
+    var property = Array.isArray(properties) && properties.filter(function(p) { return p.id === propertyId || String(p.id) === String(propertyId); })[0];
+
+    var adminUser = {};
+    try {
+        adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+    } catch (e2) {}
+
+    var saleData = {
         propertyId: propertyId,
-        propertyTitle: property?.title || 'Imóvel',
-        unitCode: document.getElementById('saleUnitCode').value || null,
-        clientName: document.getElementById('saleClientName').value,
+        propertyTitle: property && property.title ? property.title : 'Imóvel',
+        unitCode: slot.unitCode,
+        saleSlotKey: slot.saleSlotKey,
+        clientName: (document.getElementById('saleClientName') && document.getElementById('saleClientName').value) || '',
         clientCPF: clientCPF,
-        clientEmail: ((document.getElementById('saleClientEmail')?.value || '').trim()).toLowerCase(),
-        clientPhone: document.getElementById('saleClientPhone')?.value || '',
+        clientEmail: ((document.getElementById('saleClientEmail') && document.getElementById('saleClientEmail').value) || '').trim().toLowerCase(),
+        clientPhone: (document.getElementById('saleClientPhone') && document.getElementById('saleClientPhone').value) || '',
         salePrice: salePrice,
-        contractNumber: document.getElementById('saleContractNumber').value,
-        contractPhotos: contractPhotos.length > 0 ? contractPhotos : undefined
+        contractNumber: (document.getElementById('saleContractNumber') && document.getElementById('saleContractNumber').value) || '',
+        contractPhotos: contractPhotos.length > 0 ? contractPhotos : undefined,
+        contractPhotosSkippedBySuperAdmin: !!(isSA && contractPhotos.length === 0),
+        brokerName: adminUser.name || null,
+        brokerEmail: adminUser.email || null,
+        notes: (document.getElementById('saleNotes') && document.getElementById('saleNotes').value) || '',
     };
-    
-    if (typeof addPropertySale !== 'function') {
-        showMessage('Erro ao registrar venda. Verifique o sistema.', 'error');
-        return;
-    }
-    const result = await addPropertySale(saleData);
-    if (result) {
-        showMessage('Venda registrada com sucesso!', 'success');
-        const formEl = (e && e.target) || document.getElementById('saleForm');
-        if (formEl) {
-            formEl.reset();
-            const fp = document.getElementById('saleContractPhotos');
-            if (fp) fp.value = '';
+    if (typeof addCreatedBy === 'function') addCreatedBy(saleData);
+
+    var syncEl = document.getElementById('saleSyncUnitStatus');
+    var syncUnit = !!(syncEl && syncEl.checked);
+
+    try {
+        var result = await adminPostJson('/adminPropertySaleMutate', {
+            adminEmail: creds.email,
+            adminPassword: creds.password,
+            action: 'create',
+            sale: saleData,
+            syncUnitStatus: syncUnit && !!slot.unitCode,
+        });
+        if (result && result.sale) {
+            if (syncUnit && slot.unitCode && typeof setUnitStatusOverride === 'function') {
+                setUnitStatusOverride(propertyId, slot.unitCode, 'assinado');
+            }
+            showMessage('Venda registrada com sucesso!', 'success');
+            var formEl2 = (e && e.target) || document.getElementById('saleForm');
+            if (formEl2) {
+                formEl2.reset();
+                var fp2 = document.getElementById('saleContractPhotos');
+                if (fp2) fp2.value = '';
+            }
+            await loadSalesData();
+            await registerClientFromSaleAndSendCredentials(saleData, result.sale);
         }
-        renderSalesTable();
-        await registerClientFromSaleAndSendCredentials(saleData, result);
-    } else {
-        showMessage('Erro ao registrar venda. Verifique os dados.', 'error');
+    } catch (err2) {
+        var msg = (err2 && err2.message) ? err2.message : 'Erro ao registrar venda.';
+        showMessage(msg, 'error');
     }
 }
 
 async function registerClientFromSaleAndSendCredentials(saleData, saleResult) {
-    const email = (saleData.clientEmail || '').trim();
+    var email = (saleData.clientEmail || '').trim();
     if (!email) return;
     if (!firebaseAvailable() || typeof createClientAccountFromSale !== 'function') return;
 
-    const propertyFromSale = typeof saleToClientProperty === 'function' ? saleToClientProperty(saleResult) : {
+    var propertyFromSale = typeof saleToClientProperty === 'function' ? saleToClientProperty(saleResult) : {
         id: saleResult.id,
         propertyId: saleResult.propertyId,
         title: saleResult.propertyTitle || 'Imóvel',
@@ -401,37 +573,62 @@ async function registerClientFromSaleAndSendCredentials(saleData, saleResult) {
         unitCode: saleResult.unitCode
     };
 
-    const generatedPassword = typeof generateRandomPassword === 'function' ? generateRandomPassword() : Math.random().toString(36).slice(-10);
-    const clientName = saleData.clientName || 'Cliente';
-    const clientCpf = (saleData.clientCPF || '').replace(/\D/g, '');
-    const clientPhone = (saleData.clientPhone || '').replace(/\D/g, '');
+    var generatedPassword = typeof generateRandomPassword === 'function' ? generateRandomPassword() : Math.random().toString(36).slice(-10);
+    var clientName = saleData.clientName || 'Cliente';
+    var clientCpf = (saleData.clientCPF || '').replace(/\D/g, '');
+    var clientPhone = (saleData.clientPhone || '').replace(/\D/g, '');
 
-    const r = await createClientAccountFromSale(email, clientName, clientCpf, clientPhone, generatedPassword, propertyFromSale);
+    var r = await createClientAccountFromSale(email, clientName, clientCpf, clientPhone, generatedPassword, propertyFromSale);
 
     if (typeof sendClientCredentialsEmail !== 'function') return;
+
+    var creds = getAdminApiCredentials();
 
     if (r.created) {
         await sendClientCredentialsEmail(clientName, email, generatedPassword, true);
         showMessage('Credenciais enviadas por email ao cliente. Ele precisará alterar a senha no primeiro acesso.', 'success');
-    } else if (r.error && r.error.includes('email-already-in-use')) {
+    } else if (r.error && String(r.error).indexOf('email-already-in-use') >= 0) {
+        if (creds.email && creds.password) {
+            try {
+                await adminPostJson('/adminMergeClientProperty', {
+                    adminEmail: creds.email,
+                    adminPassword: creds.password,
+                    clientEmail: email,
+                    propertyFromSale: propertyFromSale,
+                });
+            } catch (mergeErr) {
+                console.warn('merge cliente:', mergeErr);
+            }
+        }
         await sendClientCredentialsEmail(clientName, email, null, false);
-        showMessage('Cliente já cadastrado. Email enviado informando que pode acessar com suas credenciais.', 'success');
+        showMessage('Cliente já cadastrado. Imóvel vinculado ao perfil (quando possível). Email enviado.', 'success');
     }
 }
 
 async function deleteSale(saleId) {
-    if (!confirm('Deseja remover esta venda?')) return;
-    
-    const sales = getSalesData();
-    const updated = sales.filter(sale => String(sale.id) !== String(saleId));
-    localStorage.setItem('propertySales', JSON.stringify(updated));
-    if (typeof loadPropertySales === 'function') loadPropertySales();
-    if (typeof deletePropertySaleFromFirestore === 'function') {
-        await deletePropertySaleFromFirestore(saleId);
+    if (!confirm('Deseja remover esta venda? O vínculo do imóvel será removido do perfil do cliente no servidor, quando existir.')) return;
+
+    var creds = getAdminApiCredentials();
+    if (!creds.email || !creds.password) {
+        showMessage('Faça login novamente para excluir vendas.', 'error');
+        return;
     }
-    
-    showMessage('Venda removida com sucesso!', 'success');
-    renderSalesTable();
+    try {
+        await adminPostJson('/adminPropertySaleMutate', {
+            adminEmail: creds.email,
+            adminPassword: creds.password,
+            action: 'delete',
+            saleFirestoreId: String(saleId),
+        });
+        var sales = getSalesData();
+        var updated = sales.filter(function(sale) { return String(sale.id) !== String(saleId); });
+        localStorage.setItem('propertySales', JSON.stringify(updated));
+        if (typeof loadPropertySales === 'function') loadPropertySales();
+        showMessage('Venda removida com sucesso!', 'success');
+        renderSalesTable();
+    } catch (err) {
+        showMessage(err.message || 'Erro ao remover venda.', 'error');
+    }
 }
 
 // Show section
@@ -495,7 +692,9 @@ function showSection(sectionId) {
     }
 }
 
-var ADMIN_FUNCTIONS_BASE = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+var ADMIN_FUNCTIONS_BASE = (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL)
+    ? CONFIG.cloudFunctions.baseURL
+    : 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
 
 function hasLikelyPhone(phone) {
     var digits = String(phone || '').replace(/\D/g, '');
@@ -662,6 +861,14 @@ function applyRemoteDashboardWidgets(waStats, repairsOpen, salesCount, brokersAc
     else if (elBrok) elBrok.textContent = String(localBrokersFallback);
 }
 
+function fetchDashboardSalesListForActivity() {
+    var creds = getAdminApiCredentials();
+    if (!creds.email || !creds.password) return Promise.resolve(null);
+    return adminPostJson('/adminPropertySalesList', { adminEmail: creds.email, adminPassword: creds.password }).then(function(d) {
+        return d && d.sales ? d.sales : null;
+    }).catch(function() { return null; });
+}
+
 function fetchDashboardRemoteThenActivity(localBrokers) {
     adminFetchJson('/adminDashboardBundle').then(function(bundle) {
         var repairsList = null;
@@ -673,7 +880,7 @@ function fetchDashboardRemoteThenActivity(localBrokers) {
                 adminFetchJson('/getBrokers'),
                 adminFetchJson('/chatbotInbox?action=stats'),
                 adminFetchJson('/getRepairs'),
-                adminFetchJson('/getPropertySales')
+                fetchDashboardSalesListForActivity()
             ]).then(function(results) {
                 var brokersList = results[0];
                 var waStats = results[1] || {};
@@ -701,7 +908,7 @@ function fetchDashboardRemoteThenActivity(localBrokers) {
         }
         return Promise.all([
             adminFetchJson('/getRepairs'),
-            adminFetchJson('/getPropertySales')
+            fetchDashboardSalesListForActivity()
         ]).then(function(rs) {
             renderDashboardActivityList(buildMergedDashboardActivity(rs[0], rs[1]));
         });

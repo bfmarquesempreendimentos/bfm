@@ -245,6 +245,98 @@ function setUnitStatusOverride(propertyId, unitCode, status) {
     localStorage.setItem('unitStatusOverrides', JSON.stringify(ov));
 }
 
+function normalizeUnitSlotToken(raw) {
+    if (raw == null || raw === '') return '';
+    return String(raw).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function normAlnumUnit(s) {
+    return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Chave única de venda por empreendimento + unidade (ou __single__ se há só uma unidade).
+ * @returns {{ saleSlotKey: string, unitCode: string|null, single: boolean, error: string|null }}
+ */
+function getSaleSlotInfoForProperty(propertyId, unitInputRaw) {
+    var raw = getPropertyUnitsRaw(propertyId);
+    if (!raw || !raw.units || !raw.units.length) {
+        return { saleSlotKey: null, unitCode: null, single: false, error: 'Empreendimento sem unidades cadastradas.' };
+    }
+    var units = raw.units;
+    if (units.length === 1) {
+        return {
+            saleSlotKey: String(propertyId) + '|__single__',
+            unitCode: units[0].code,
+            single: true,
+            error: null
+        };
+    }
+    var input = normalizeUnitSlotToken(unitInputRaw);
+    if (!input) {
+        return { saleSlotKey: null, unitCode: null, single: false, error: 'Informe a unidade vendida (este empreendimento tem várias unidades).' };
+    }
+    var i;
+    var u;
+    for (i = 0; i < units.length; i++) {
+        u = units[i];
+        if (normalizeUnitSlotToken(u.code) === input) {
+            return { saleSlotKey: String(propertyId) + '|' + normalizeUnitSlotToken(u.code), unitCode: u.code, single: false, error: null };
+        }
+    }
+    var inputA = normAlnumUnit(unitInputRaw);
+    for (i = 0; i < units.length; i++) {
+        u = units[i];
+        if (normAlnumUnit(u.code) === inputA) {
+            return { saleSlotKey: String(propertyId) + '|' + normalizeUnitSlotToken(u.code), unitCode: u.code, single: false, error: null };
+        }
+    }
+    return { saleSlotKey: null, unitCode: null, single: false, error: 'Unidade não encontrada neste empreendimento. Verifique o código.' };
+}
+
+function mergeRemoteUnitOverridesPayload(payload) {
+    if (!payload || typeof payload !== 'object') return;
+    var ov = getUnitStatusOverrides();
+    var pid;
+    for (pid in payload) {
+        if (!Object.prototype.hasOwnProperty.call(payload, pid)) continue;
+        var units = payload[pid];
+        if (!units || typeof units !== 'object') continue;
+        if (!ov[pid]) ov[pid] = {};
+        var code;
+        for (code in units) {
+            if (Object.prototype.hasOwnProperty.call(units, code)) {
+                ov[pid][code] = units[code];
+            }
+        }
+    }
+    localStorage.setItem('unitStatusOverrides', JSON.stringify(ov));
+}
+
+function getCloudFunctionsBaseUrlUnits() {
+    if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
+        return CONFIG.cloudFunctions.baseURL;
+    }
+    return 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+}
+
+function fetchUnitStatusOverridesFromServer(done) {
+    var url = getCloudFunctionsBaseUrlUnits() + '/getPublicUnitOverrides?_=';
+    if (typeof fetch === 'undefined') {
+        if (typeof done === 'function') done();
+        return;
+    }
+    fetch(url + Date.now(), { cache: 'no-store', credentials: 'omit' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (data && typeof data === 'object') mergeRemoteUnitOverridesPayload(data);
+            if (typeof done === 'function') done();
+        })
+        .catch(function() {
+            if (typeof done === 'function') done();
+        });
+}
+
 // Raw units (sem overrides) - para import/scripts
 function getPropertyUnitsRaw(propertyId) {
     return propertyUnits[propertyId] || null;

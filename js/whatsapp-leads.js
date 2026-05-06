@@ -13,11 +13,37 @@ function normalizeWaPhone(raw) {
 
 var waInboxBaseUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
 var waLeadsData = [];
+/** Atalho ativo nos cartões de estatística: '' | 'total' | 'pendentes' | 'humano' | 'vendas' | 'duvidas' | 'sugestoes' */
+var waInboxQuickFilter = '';
 var waInboxSelectedPhone = null;
 var waInboxPollTimer = null;
 var waInboxPollInterval = 22000;
 var waLastListSig = '';
 var waLastChatSig = '';
+var WA_SLA_FIRST_RESPONSE_MINUTES = 120;
+
+function parseDateSafe(value) {
+  if (!value) return null;
+  var d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function minutesSince(value) {
+  var d = parseDateSafe(value);
+  if (!d) return null;
+  return Math.floor((Date.now() - d.getTime()) / 60000);
+}
+
+function formatRelativeMinutes(mins) {
+  if (mins == null || mins < 0) return '';
+  if (mins < 1) return 'agora';
+  if (mins < 60) return 'há ' + mins + ' min';
+  var h = Math.floor(mins / 60);
+  var rem = mins % 60;
+  if (h < 24) return 'há ' + h + 'h' + (rem ? (' ' + rem + 'm') : '');
+  var d = Math.floor(h / 24);
+  return 'há ' + d + ' dia(s)';
+}
 
 function waInboxApi(path, options) {
   options = options || {};
@@ -92,7 +118,7 @@ function waInboxListSignature(leads) {
   var a = [];
   for (var i = 0; i < leads.length; i++) {
     var l = leads[i];
-    a.push(String(l.phone || l.id || '') + ':' + String(l.lastMessageAt || l.updatedAt || '') + ':' + String(l.adminUnreadCount || 0) + ':' + String(l.modo_humano ? 1 : 0));
+    a.push(String(l.phone || l.id || '') + ':' + String(l.lastMessageAt || l.updatedAt || '') + ':' + String(l.adminUnreadCount || 0) + ':' + String(l.modo_humano ? 1 : 0) + ':' + String(l.revisarBot ? 1 : 0));
   }
   return a.join('|');
 }
@@ -122,8 +148,12 @@ function waInboxLoadList(quiet) {
   var search = document.getElementById('waSearchInput');
 
   var q = '?action=list&limit=100';
-  if (modo && modo.value) q += '&modo_humano=' + (modo.value === 'humano' ? 'true' : 'false');
-  if (cat && cat.value) q += '&categoria=' + encodeURIComponent(cat.value);
+  if (waInboxQuickFilter === 'pendentes') {
+    q += '&unread=1';
+  } else {
+    if (modo && modo.value) q += '&modo_humano=' + (modo.value === 'humano' ? 'true' : 'false');
+    if (cat && cat.value) q += '&categoria=' + encodeURIComponent(cat.value);
+  }
   if (status && status.value) q += '&status=' + encodeURIComponent(status.value);
   if (search && search.value.trim()) q += '&search=' + encodeURIComponent(search.value.trim());
 
@@ -144,7 +174,43 @@ function waInboxLoadList(quiet) {
 }
 
 function waInboxFilter() {
+  waInboxQuickFilter = '';
+  waInboxUpdateStatCardActive('');
   waInboxLoadList();
+}
+
+function waInboxUpdateStatCardActive(key) {
+  var row = document.querySelector('.wa-stats-row');
+  if (!row) return;
+  var btns = row.querySelectorAll('[data-wa-stat]');
+  var i;
+  for (i = 0; i < btns.length; i++) {
+    var b = btns[i];
+    if (b.getAttribute('data-wa-stat') === key && key) {
+      b.classList.add('wa-stat--active');
+    } else {
+      b.classList.remove('wa-stat--active');
+    }
+  }
+}
+
+function waInboxStatClick(key) {
+  var modo = document.getElementById('waFilterModo');
+  var cat = document.getElementById('waFilterCategoria');
+  var status = document.getElementById('waFilterStatus');
+  var search = document.getElementById('waSearchInput');
+  waInboxQuickFilter = key === 'total' ? '' : key;
+  if (modo) modo.value = '';
+  if (cat) cat.value = '';
+  if (status) status.value = '';
+  if (search) search.value = '';
+  if (key === 'humano' && modo) modo.value = 'humano';
+  if (key === 'vendas' && cat) cat.value = 'vendas';
+  if (key === 'duvidas' && cat) cat.value = 'duvidas';
+  if (key === 'sugestoes' && cat) cat.value = 'sugestoes';
+  waInboxUpdateStatCardActive(key === 'total' ? '' : key);
+  waLastListSig = '';
+  waInboxLoadList(false);
 }
 
 function waInboxRenderList() {
@@ -166,19 +232,29 @@ function waInboxRenderList() {
     var cat = l.categoria || 'geral';
     var status = l.status || 'novo';
     var modoHumano = !!l.modo_humano;
+    var revisarBot = !!l.revisarBot;
     var preview = l.lastActivityPreview || l.encaminhadoMotivo || l.notes || '';
     if (preview.length > 40) preview = preview.substring(0, 37) + '...';
+    var minsFromLastLeadMsg = minutesSince(l.lastUserMessageAt || l.lastMessageAt || l.updatedAt);
+    var slaLate = minsFromLastLeadMsg != null && minsFromLastLeadMsg > WA_SLA_FIRST_RESPONSE_MINUTES;
+    var urgent = ((l.adminUnreadCount || 0) > 0 && slaLate) || l.urgencyLevel === 'alta' || !!l.needsHumanFollowup;
+    var tempoLabel = formatRelativeMinutes(minsFromLastLeadMsg);
 
-    html += '<div class="wa-inbox-item' + (active ? ' active' : '') + (unread ? ' unread' : '') + '" data-phone="' + escapeHtml(phone) + '" onclick="waInboxSelect(this.getAttribute(\'data-phone\'))">';
+    html += '<div class="wa-inbox-item' + (active ? ' active' : '') + (unread ? ' unread' : '') + (revisarBot && !modoHumano ? ' wa-item-revisar-bot' : '') + '" data-phone="' + escapeHtml(phone) + '" onclick="waInboxSelect(this.getAttribute(\'data-phone\'))">';
     html += '<div class="wa-inbox-item-avatar"><i class="fab fa-whatsapp"></i></div>';
     html += '<div class="wa-inbox-item-info">';
     html += '<div class="wa-inbox-item-name">' + escapeHtml(name) + '</div>';
     html += '<div class="wa-inbox-item-preview">' + escapeHtml(preview || formatPhoneShort(phone)) + '</div>';
     html += '<div class="wa-inbox-item-badges">';
     if (unread) html += '<span class="wa-inbox-item-unread">' + (l.adminUnreadCount || 1) + '</span>';
+    if (revisarBot && !modoHumano) {
+      html += '<span class="wa-inbox-item-badge wa-bot-review-badge" title="Há mensagens no bot após atendimento humano — abra para revisar">Pós-bot</span>';
+    }
+    if (urgent) html += '<span class="wa-inbox-item-badge" style="background:#fee2e2;color:#991b1b;" title="Lead sem retorno dentro do SLA ou marcado como urgente">Urgente</span>';
     if (modoHumano) html += '<span class="wa-inbox-item-badge" style="background:#fef3c7;color:#92400e;">Humano</span>';
     if (l.ultimaOrigem === 'anuncio') html += '<span class="wa-inbox-item-badge" style="background:#dbeafe;color:#1e40af;">Anúncio</span>';
     html += '<span class="wa-inbox-item-badge" style="background:#e2e8f0;">' + escapeHtml(cat) + '</span>';
+    if (tempoLabel) html += '<span class="wa-inbox-item-badge" style="background:#ecfeff;color:#155e75;" title="Tempo desde a última mensagem do cliente">SLA: ' + escapeHtml(tempoLabel) + '</span>';
     html += '</div>';
     html += '</div></div>';
   }

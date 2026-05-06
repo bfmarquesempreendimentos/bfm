@@ -24,3 +24,13 @@ config.local.js
 # Python
 .venv/
 venv/
+
+# Ferramentas / cache local (nunca versionar)
+.npm-cache/
+.config/
+.cursor/
+.firebase-cli-config/
+.firebase/
+.home/
+agent-transcripts/
+mcps/

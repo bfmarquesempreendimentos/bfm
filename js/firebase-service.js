@@ -407,6 +407,42 @@ async function markPasswordResetTokenUsed(tokenDocId) {
   }
 }
 
+function getCloudFunctionsBaseForSales() {
+  if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
+    return CONFIG.cloudFunctions.baseURL;
+  }
+  return 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+}
+
+async function fetchClientPropertySalesMe(idToken) {
+  var base = getCloudFunctionsBaseForSales();
+  var r = await fetch(base + '/clientPropertySalesMe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken: idToken }),
+    cache: 'no-store',
+    credentials: 'omit',
+  });
+  if (!r.ok) return [];
+  var j = await r.json();
+  if (j && Array.isArray(j.sales)) return j.sales;
+  return [];
+}
+
+async function fetchClientSaleEligibility(email, cpf) {
+  var base = getCloudFunctionsBaseForSales();
+  var r = await fetch(base + '/clientSaleEligibility', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email || '', cpf: cpf || '' }),
+    cache: 'no-store',
+    credentials: 'omit',
+  });
+  if (!r.ok) return false;
+  var j = await r.json();
+  return !!(j && j.eligible === true);
+}
+
 if (typeof window !== 'undefined') {
   window.firebaseAvailable = firebaseAvailable;
   window.getFirebaseAuth = getFirebaseAuth;
@@ -438,5 +474,7 @@ if (typeof window !== 'undefined') {
   window.getPasswordResetToken = getPasswordResetToken;
   window.markPasswordResetTokenUsed = markPasswordResetTokenUsed;
   window.registerBrokerAPI = registerBrokerAPI;
+  window.fetchClientPropertySalesMe = fetchClientPropertySalesMe;
+  window.fetchClientSaleEligibility = fetchClientSaleEligibility;
 }
 

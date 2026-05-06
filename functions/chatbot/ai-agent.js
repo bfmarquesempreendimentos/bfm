@@ -3,7 +3,7 @@ const { sendTextMessage, sendImageMessage, sendVideoMessage, sendInteractiveButt
 const { transcribeAudioBuffer } = require('./audio-transcription');
 const { getPropertyById, getPropertyMediaLists, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, properties } = require('./property-data');
 const { simulateFinancing, formatSimulationResult } = require('./finance-simulator');
-const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone } = require('./lead-manager');
+const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone, queueInboundEmailAlert } = require('./lead-manager');
 
 function delay(ms) {
   return new Promise(function(resolve) { setTimeout(resolve, ms); });
@@ -48,7 +48,7 @@ ${getPropertiesSummaryForAI()}
 7. Quando quiser agendar visita, use agendar_visita (isso encaminha para humano automaticamente)
 8. Quando o cliente enviar documentos para análise (PDF, imagem de CPF, RG, comprovante etc.) ou disser que vai enviar, use encaminhar_humano com motivo "Documentos para análise"
 9. Se o cliente pedir para falar com humano ou parecer insatisfeito, use encaminhar_humano
-10. No início: (1) nome, (2) *renda bruta familiar mensal*, (3) região ou imóvel de interesse — depois ofereça simulação ou opções com listar_imoveis
+10. No início: (1) nome, (2) *renda bruta familiar mensal*, (3) região ou imóvel de interesse e (4) *se o nome está limpo (sem restrição no CPF)* — depois ofereça simulação ou opções com listar_imoveis
 11. Crie senso de urgência: "Unidades limitadas", "Condição especial por tempo limitado"
 12. Destaque benefícios do MCMV quando aplicável: subsídio, ITBI grátis, entrada facilitada
 13. Não invente informações. Se não souber, diga que vai verificar com o Davi
@@ -59,7 +59,8 @@ ${getPropertiesSummaryForAI()}
 18. Não diga apenas “renda”; diga *renda bruta familiar* para alinhar com o programa e evitar retrabalho na análise
 19. *Nunca* encaminhe ao humano apenas porque o cliente pediu material visual do imóvel — isso é papel da ferramenta enviar_midias_imovel
 20. Depois de *enviar_midias_imovel*, sua resposta em texto deve ser *curta* (ofereça simulação ou visita) — não repita o mesmo resumo que a ferramenta já deu ao cliente
-21. Quando o cliente mandar *áudio*, a conversa pode trazer o texto *já transcrito* — responda ao conteúdo como se fosse mensagem escrita, em português natural`;
+21. Quando o cliente mandar *áudio*, a conversa pode trazer o texto *já transcrito* — responda ao conteúdo como se fosse mensagem escrita, em português natural
+22. Para leads de anúncios/WhatsApp, pergunte SEMPRE sobre *nome limpo* (CPF sem restrição). Sem essa informação, continue a qualificação até obter a resposta antes de avançar para proposta final`;
 
 const TOOLS = [
   {
@@ -100,7 +101,7 @@ const TOOLS = [
   },
   {
     name: 'salvar_dados_lead',
-    description: 'Salva dados de qualificação do lead (nome, renda bruta familiar mensal, CPF, email).',
+    description: 'Salva dados de qualificação do lead (nome, renda bruta familiar mensal, CPF, email e se o nome está limpo).',
     input_schema: {
       type: 'object',
       properties: {
@@ -108,6 +109,7 @@ const TOOLS = [
         renda: { type: 'number', description: 'Renda bruta familiar mensal informada' },
         cpf: { type: 'string', description: 'CPF do cliente' },
         email: { type: 'string', description: 'Email do cliente' },
+        nome_limpo: { type: 'string', description: 'Situação do nome para MCMV: sim, nao, nao_informado', enum: ['sim', 'nao', 'nao_informado'] },
       },
       required: [],
     },
@@ -183,6 +185,7 @@ async function executeTool(toolName, input, context) {
         income: input.renda,
         cpf: input.cpf,
         email: input.email,
+        cleanNameStatus: input.nome_limpo,
       });
       return 'Dados do cliente salvos com sucesso.';
     }
@@ -197,6 +200,7 @@ async function executeTool(toolName, input, context) {
         status: 'encaminhado',
         notes: motivo,
         modo_humano: true,
+        humanoJa: true,
         categoria: categoria,
         encaminhadoMotivo: motivo,
         assumido_por: null,
@@ -215,6 +219,7 @@ async function executeTool(toolName, input, context) {
         status: 'encaminhado',
         notes: `Encaminhado: ${input.motivo}`,
         modo_humano: true,
+        humanoJa: true,
         categoria: categoria,
         encaminhadoMotivo: input.motivo,
         assumido_por: null,
@@ -317,6 +322,16 @@ async function notifyManager(leadPhone, propertyTitle, visitDate, reason, waOpti
   }
 }
 
+function getConsecutiveUserMessages(messages) {
+  var count = 0;
+  var i;
+  for (i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') count++;
+    else break;
+  }
+  return count;
+}
+
 async function handleIncomingMessage(messageData) {
   var fromRaw = messageData.from;
   var phone = normalizeWhatsAppPhone(fromRaw) || fromRaw;
@@ -376,6 +391,27 @@ async function handleIncomingMessage(messageData) {
 
   await saveMessage(phone, 'user', userContent, undefined, userMsgMeta);
   await recordInboundActivity(phone, userContent);
+  await queueInboundEmailAlert(phone, profileName || (lead && lead.name) || '', userContent);
+
+  const escalationHistory = await getConversationHistory(phone, 12);
+  const consecutiveUserMsgs = getConsecutiveUserMessages(escalationHistory);
+  if ((type === 'audio' || consecutiveUserMsgs >= 3) && !lead.modo_humano) {
+    const escReason = type === 'audio'
+      ? 'Escalação automática: cliente enviou áudio e requer revisão humana'
+      : 'Escalação automática: 3+ mensagens seguidas do cliente sem resposta humana';
+    await updateLead(phone, {
+      revisarBot: true,
+      needsHumanFollowup: true,
+      urgencyLevel: 'alta',
+      notes: escReason,
+      updatedAt: new Date().toISOString(),
+    });
+    await notifyManager(phone, null, null, escReason, { phoneNumberId: messageData.phoneNumberId });
+  }
+
+  if (type !== 'document' && type !== 'image' && !lead.modo_humano && lead.humanoJa) {
+    await updateLead(phone, { revisarBot: true });
+  }
 
   if (lead.modo_humano) {
     await incrementAdminUnread(phone);
@@ -391,6 +427,7 @@ async function handleIncomingMessage(messageData) {
       status: 'encaminhado',
       notes: motivo,
       modo_humano: true,
+      humanoJa: true,
       categoria: categoria,
       encaminhadoMotivo: motivo,
       assumido_por: null,
@@ -448,10 +485,15 @@ async function handleIncomingMessage(messageData) {
   }
 
   try {
+    var cleanNameStatus = lead && lead.cleanNameStatus ? String(lead.cleanNameStatus) : 'nao_informado';
+    var cleanNameMissing = cleanNameStatus !== 'sim' && cleanNameStatus !== 'nao';
+    var cleanNameRule = cleanNameMissing
+      ? '\n\nQualificação obrigatória pendente nesta conversa: pergunte de forma direta se o cliente está com NOME LIMPO (CPF sem restrição), pois isso é requisito essencial para MCMV.'
+      : '';
     let response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
-      system: SYSTEM_PROMPT + `\n\nDados do lead atual: Nome: ${lead.name || 'Desconhecido'}, Status: ${lead.status}, Imóveis de interesse: ${(lead.interestedProperties || []).join(', ') || 'Nenhum ainda'}`,
+      system: SYSTEM_PROMPT + `\n\nDados do lead atual: Nome: ${lead.name || 'Desconhecido'}, Status: ${lead.status}, Nome limpo: ${cleanNameStatus}, Imóveis de interesse: ${(lead.interestedProperties || []).join(', ') || 'Nenhum ainda'}` + cleanNameRule,
       tools: TOOLS,
       messages: dedupedMessages,
     });

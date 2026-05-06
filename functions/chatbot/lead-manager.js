@@ -50,6 +50,7 @@ async function getOrCreateLead(phone, profileName) {
     phone,
     name: profileName || '',
     income: null,
+    cleanNameStatus: 'nao_informado',
     cpf: null,
     interestedProperties: [],
     status: 'novo',
@@ -137,6 +138,81 @@ async function saveMessage(phone, role, content, source, meta) {
     .doc(phone)
     .collection('messages')
     .add(msg);
+
+  // Atualiza indicadores operacionais de atendimento humano/SLA
+  if (role === 'assistant' && source === 'admin') {
+    try {
+      await db.collection('chatbot_leads').doc(phone).update({
+        lastHumanReplyAt: msg.timestamp,
+        adminUnreadCount: 0,
+        needsHumanFollowup: false,
+        urgencyLevel: null,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (_) {}
+  } else if (role === 'user') {
+    try {
+      await db.collection('chatbot_leads').doc(phone).update({
+        lastUserMessageAt: msg.timestamp,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (_) {}
+  }
+}
+
+function escapeHtmlForEmail(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+async function queueInboundEmailAlert(phone, leadName, incomingText) {
+  const db = getDb();
+  const leadRef = db.collection('chatbot_leads').doc(phone);
+  const leadDoc = await leadRef.get();
+  if (!leadDoc.exists) return;
+  const lead = leadDoc.data() || {};
+  const nowMs = Date.now();
+  const lastAlertMs = lead.lastInboundEmailAlertAt ? Date.parse(lead.lastInboundEmailAlertAt) : 0;
+  // Evita spam: no máximo 1 alerta por lead a cada 15 min
+  if (lastAlertMs && (nowMs - lastAlertMs) < 15 * 60 * 1000) return;
+
+  const history = await getConversationHistory(phone, 6);
+  var htmlLines = '';
+  var i;
+  for (i = 0; i < history.length; i++) {
+    var h = history[i];
+    var roleLabel = h.role === 'user' ? 'Cliente' : ((h.source === 'admin') ? 'Atendente' : 'Bia');
+    var ts = h.timestamp ? new Date(h.timestamp).toLocaleString('pt-BR') : '';
+    var text = escapeHtmlForEmail(h.content || '');
+    if (text.length > 500) text = text.substring(0, 497) + '...';
+    htmlLines += '<li><strong>' + roleLabel + '</strong> [' + escapeHtmlForEmail(ts) + ']: ' + text + '</li>';
+  }
+
+  const name = leadName || lead.name || 'Sem nome';
+  const previewRaw = (incomingText || '').trim();
+  const preview = previewRaw.length > 220 ? previewRaw.substring(0, 217) + '...' : previewRaw;
+  const adminUrl = 'https://site-interativo-b-f-marques.web.app/admin.html#whatsapp-leads';
+
+  await db.collection('emailQueue').add({
+    to: 'bfmarquesempreendimentos@gmail.com',
+    subject: 'Novo contato WhatsApp: ' + name + ' (' + phone + ')',
+    body:
+      '<h3>Novo contato no WhatsApp do painel</h3>' +
+      '<p><strong>Lead:</strong> ' + escapeHtmlForEmail(name) + '</p>' +
+      '<p><strong>Telefone:</strong> ' + escapeHtmlForEmail(phone) + '</p>' +
+      '<p><strong>Última mensagem recebida:</strong> ' + escapeHtmlForEmail(preview) + '</p>' +
+      '<p><a href="' + adminUrl + '">Abrir painel de atendimento</a></p>' +
+      '<h4>Últimas mensagens</h4><ul>' + htmlLines + '</ul>',
+    createdAt: new Date().toISOString(),
+    status: 'pending',
+  });
+
+  await leadRef.update({
+    lastInboundEmailAlertAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 function inferCategoryFromMotivo(motivo) {
@@ -151,10 +227,16 @@ function inferCategoryFromMotivo(motivo) {
 
 async function setModoHumano(phone, adminEmail) {
   const db = getDb();
+  var now = new Date();
+  var due = new Date(now.getTime() + 2 * 60 * 60 * 1000);
   await db.collection('chatbot_leads').doc(phone).update({
     modo_humano: true,
+    humanoJa: true,
     assumido_por: adminEmail || 'admin',
-    assumido_em: new Date().toISOString(),
+    assumido_em: now.toISOString(),
+    humanSlaDueAt: due.toISOString(),
+    needsHumanFollowup: false,
+    urgencyLevel: null,
     adminUnreadCount: 0,
     updatedAt: new Date().toISOString(),
   });
@@ -167,6 +249,7 @@ async function returnToBot(phone) {
     assumido_por: null,
     assumido_em: null,
     adminUnreadCount: 0,
+    revisarBot: true,
     updatedAt: new Date().toISOString(),
   });
 }
@@ -177,10 +260,18 @@ async function incrementAdminUnread(phone) {
   const doc = await ref.get();
   if (!doc.exists) return;
   const current = doc.data().adminUnreadCount || 0;
-  await ref.update({
-    adminUnreadCount: current + 1,
+  var next = current + 1;
+  var updates = {
+    adminUnreadCount: next,
     lastMessageAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+  };
+  if (next >= 3) {
+    updates.needsHumanFollowup = true;
+    updates.urgencyLevel = 'alta';
+  }
+  await ref.update({
+    ...updates,
   });
 }
 
@@ -188,6 +279,7 @@ async function markAdminRead(phone) {
   const db = getDb();
   await db.collection('chatbot_leads').doc(phone).update({
     adminUnreadCount: 0,
+    revisarBot: false,
     updatedAt: new Date().toISOString(),
   });
 }
@@ -218,6 +310,7 @@ async function qualifyLead(phone, data) {
   if (data.income) updates.income = data.income;
   if (data.cpf) updates.cpf = data.cpf;
   if (data.email) updates.email = data.email;
+  if (data.cleanNameStatus) updates.cleanNameStatus = data.cleanNameStatus;
 
   const hasQualifyingData = data.name && (data.income || data.cpf);
   if (hasQualifyingData) updates.status = 'qualificado';
@@ -265,7 +358,8 @@ async function getAllLeads(filters = {}) {
 async function getLeadStats() {
   const db = getDb();
   const snapshot = await db.collection('chatbot_leads').get();
-  const stats = { total: 0, novo: 0, qualificado: 0, agendado: 0, convertido: 0, encaminhado: 0, emAtendimento: 0, pendentesLeitura: 0, vendas: 0, duvidas: 0, sugestoes: 0 };
+  const stats = { total: 0, novo: 0, qualificado: 0, agendado: 0, convertido: 0, encaminhado: 0, emAtendimento: 0, pendentesLeitura: 0, vendas: 0, duvidas: 0, sugestoes: 0, urgentes: 0, slaAtrasado: 0, nomeLimpoOk: 0, nomeLimpoPendente: 0 };
+  var nowMs = Date.now();
   snapshot.forEach(doc => {
     stats.total++;
     const d = doc.data();
@@ -273,6 +367,16 @@ async function getLeadStats() {
     if (stats[s] !== undefined) stats[s]++;
     if (d.modo_humano) stats.emAtendimento++;
     if ((d.adminUnreadCount || 0) > 0) stats.pendentesLeitura++;
+    if (d.needsHumanFollowup || d.urgencyLevel === 'alta') stats.urgentes++;
+    if (d.cleanNameStatus === 'sim') stats.nomeLimpoOk++;
+    else stats.nomeLimpoPendente++;
+    var lastUser = d.lastUserMessageAt || d.lastMessageAt || d.updatedAt;
+    if (lastUser) {
+      var ms = Date.parse(lastUser);
+      if (!isNaN(ms) && (nowMs - ms) > 2 * 60 * 60 * 1000 && (d.adminUnreadCount || 0) > 0) {
+        stats.slaAtrasado++;
+      }
+    }
     const cat = d.categoria || 'geral';
     if (stats[cat] !== undefined) stats[cat]++;
   });
@@ -299,4 +403,5 @@ module.exports = {
   inferCategoryFromMotivo,
   normalizeWhatsAppPhone,
   recordInboundActivity,
+  queueInboundEmailAlert,
 };
