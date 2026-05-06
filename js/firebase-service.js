@@ -252,6 +252,7 @@ async function saveBrokerToFirestore(broker) {
     creci: broker.creci || '',
     password: broker.password || '',
     isActive: broker.isActive !== undefined ? broker.isActive : false,
+    whatsappCampaignOptOut: !!broker.whatsappCampaignOptOut,
     createdAt: broker.createdAt ? (broker.createdAt.toISOString ? broker.createdAt.toISOString() : broker.createdAt) : new Date().toISOString()
   };
   const docRef = await db.collection(BROKERS_COLLECTION).add(data);
@@ -319,6 +320,7 @@ async function getBrokersFromFirestore() {
         creci: d.creci,
         password: d.password,
         isActive: d.isActive !== undefined ? d.isActive : false,
+        whatsappCampaignOptOut: !!d.whatsappCampaignOptOut,
         isAdmin: d.isAdmin || false,
         createdAt: d.createdAt ? new Date(d.createdAt) : new Date()
       };
@@ -341,6 +343,7 @@ async function updateBrokerInFirestore(brokerId, updates) {
   if (updates.creci !== undefined) data.creci = updates.creci;
   if (updates.password !== undefined) data.password = updates.password;
   if (updates.isActive !== undefined) data.isActive = updates.isActive;
+  if (updates.whatsappCampaignOptOut !== undefined) data.whatsappCampaignOptOut = !!updates.whatsappCampaignOptOut;
   await ref.update(data);
   return true;
 }

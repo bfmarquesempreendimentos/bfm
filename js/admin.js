@@ -529,6 +529,25 @@ function adminFetchJson(path) {
         .catch(function() { return null; });
 }
 
+function adminPostJson(path, payload) {
+    return fetch(ADMIN_FUNCTIONS_BASE + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload || {}),
+        cache: 'no-store',
+        credentials: 'omit'
+    }).then(function(res) {
+        return res.text().then(function(txt) {
+            var data = null;
+            try { data = txt ? JSON.parse(txt) : null; } catch (_) { data = null; }
+            if (!res.ok) {
+                throw new Error((data && data.error) ? data.error : ('Erro ' + res.status));
+            }
+            return data || { success: true };
+        });
+    });
+}
+
 function formatDashboardRelativeTime(d) {
     var dt = d instanceof Date ? d : new Date(d);
     if (isNaN(dt.getTime())) return '';
@@ -1165,7 +1184,8 @@ async function loadBrokersData() {
     if (!tbody) return;
     const btnAdd = document.getElementById('btnAddBroker');
     if (btnAdd) btnAdd.style.display = (typeof isSuperAdmin === 'function' && isSuperAdmin()) ? '' : 'none';
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Carregando corretores...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">Carregando corretores...</td></tr>';
+    loadBrokerCampaignConfig();
     
     if (typeof loadBrokersFromFirestore === 'function') {
         await loadBrokersFromFirestore();
@@ -1182,6 +1202,11 @@ async function loadBrokersData() {
             <td>${broker.phone || ''}</td>
             <td>${broker.creci || ''}</td>
             <td><span class="status-badge status-${broker.isActive ? 'ativo' : 'inativo'}">${broker.isActive ? 'Ativo' : 'Inativo'}</span></td>
+            <td>
+                <span class="status-badge status-${broker.whatsappCampaignOptOut ? 'inativo' : 'ativo'}">
+                    ${broker.whatsappCampaignOptOut ? 'Opt-out' : 'Ativo'}
+                </span>
+            </td>
             <td>${formatDate(broker.createdAt)}</td>
             <td>
                 <div class="action-buttons">
@@ -1198,6 +1223,9 @@ async function loadBrokersData() {
                         </button>
                     `}
                     ${typeof isSuperAdmin === 'function' && isSuperAdmin() ? `
+                    <button class="btn-action btn-edit" title="${broker.whatsappCampaignOptOut ? 'Reativar na campanha semanal' : 'Retirar da campanha semanal'}" onclick="toggleBrokerCampaignOptOut(${brokerId(broker.id)}, ${broker.whatsappCampaignOptOut ? 'false' : 'true'})">
+                        <i class="fas ${broker.whatsappCampaignOptOut ? 'fa-bell' : 'fa-bell-slash'}"></i>
+                    </button>
                     <button class="btn-action btn-trash" onclick="deleteBroker(${brokerId(broker.id)})" title="Remover cadastro">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -1206,6 +1234,60 @@ async function loadBrokersData() {
             </td>
         </tr>
     `).join('');
+}
+
+function loadBrokerCampaignConfig() {
+    adminFetchJson('/brokerCampaignConfig').then(function(cfg) {
+        if (!cfg) return;
+        var check = document.getElementById('brokerCampaignEnabled');
+        if (check) check.checked = !!cfg.enabled;
+    }).catch(function(err) {
+        if (typeof console !== 'undefined' && console.warn) console.warn('brokerCampaignConfig:', err);
+    });
+}
+
+function saveBrokerCampaignConfig() {
+    var check = document.getElementById('brokerCampaignEnabled');
+    var enabled = !!(check && check.checked);
+    adminPostJson('/brokerCampaignConfig', { enabled: enabled }).then(function() {
+        if (typeof showMessage === 'function') {
+            showMessage('Configuração da campanha semanal salva com sucesso.', 'success');
+        }
+    }).catch(function(err) {
+        if (typeof showMessage === 'function') showMessage('Erro ao salvar campanha: ' + (err.message || ''), 'error');
+    });
+}
+
+function sendBrokerCampaignNow() {
+    if (!confirm('Disparar agora a mensagem semanal para todos os corretores ativos (sem opt-out)?')) return;
+    adminPostJson('/brokerCampaignSendNow', { type: 'manual' }).then(function(result) {
+        var txt = 'Disparo concluído. Enviados: ' + (result.sent || 0) + ', erros: ' + (result.errors || 0) + ', pulados: ' + (result.skipped || 0) + '.';
+        if (typeof showMessage === 'function') showMessage(txt, 'success');
+    }).catch(function(err) {
+        if (typeof showMessage === 'function') showMessage('Erro no disparo: ' + (err.message || ''), 'error');
+    });
+}
+
+function toggleBrokerCampaignOptOut(brokerId, optOut) {
+    var willOptOut = !!optOut;
+    var msg = willOptOut
+        ? 'Retirar este corretor da campanha semanal de WhatsApp?'
+        : 'Reativar este corretor na campanha semanal de WhatsApp?';
+    if (!confirm(msg)) return;
+    adminPostJson('/brokerCampaignOptOut', {
+        brokerId: brokerId,
+        optOut: willOptOut
+    }).then(function() {
+        if (typeof updateBrokerInFirestore === 'function' && typeof brokerId === 'string') {
+            updateBrokerInFirestore(brokerId, { whatsappCampaignOptOut: willOptOut }).catch(function(){});
+        }
+        var found = (typeof findBrokerById === 'function') ? findBrokerById(brokerId) : null;
+        if (found) found.whatsappCampaignOptOut = willOptOut;
+        if (typeof showMessage === 'function') showMessage('Preferência da campanha atualizada.', 'success');
+        loadBrokersData();
+    }).catch(function(err) {
+        if (typeof showMessage === 'function') showMessage('Erro ao atualizar preferência: ' + (err.message || ''), 'error');
+    });
 }
 
 // Show add broker modal (apenas superAdmin pode adicionar corretor manualmente)

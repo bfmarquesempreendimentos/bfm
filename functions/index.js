@@ -34,6 +34,144 @@ function getTransporter() {
   });
 }
 
+function normalizePhoneDigits(phone) {
+  return String(phone || '').replace(/\D/g, '');
+}
+
+function normalizeBrazilWhatsApp(phone) {
+  const digits = normalizePhoneDigits(phone);
+  if (!digits) return null;
+  if (digits.length >= 12 && digits.indexOf('55') === 0) return digits;
+  if (digits.length === 11 || digits.length === 10) return '55' + digits;
+  return null;
+}
+
+function getWeekOfYearNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+function getDefaultBrokerCampaignConfig() {
+  return {
+    enabled: true,
+    siteUrl: 'https://bfmarquesempreendimentos.github.io/bfm/',
+    whatsappContato: '(21) 99759-0814',
+    weeklyTitle: 'Atualização semanal B F Marques',
+    ctaText: 'Divulgue as ofertas da semana para seus leads e traga sua visita agendada.',
+    usefulTips: [
+      'Dica MCMV: confirme renda bruta familiar e nome limpo antes da simulação.',
+      'Sempre responda o lead no mesmo dia. Rapidez aumenta conversão.',
+      'Ao enviar opções, termine com convite objetivo para visita.',
+      'Use prova social: destaque entregas e qualidade de acabamento.',
+      'Reforce benefício: ITBI e registro grátis quando aplicável.'
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function getBrokerCampaignConfig(db) {
+  const ref = db.collection('broker_campaign').doc('config');
+  const snap = await ref.get();
+  if (!snap.exists) {
+    const defaults = getDefaultBrokerCampaignConfig();
+    await ref.set(defaults, { merge: true });
+    return defaults;
+  }
+  const current = snap.data() || {};
+  return { ...getDefaultBrokerCampaignConfig(), ...current };
+}
+
+function buildBrokerCampaignMessage(config, broker, now) {
+  const week = getWeekOfYearNumber(now);
+  const tips = Array.isArray(config.usefulTips) ? config.usefulTips : [];
+  const tip = tips.length ? tips[(week - 1) % tips.length] : '';
+  const firstName = String((broker && broker.name) || '').trim().split(' ')[0] || 'Corretor(a)';
+  return (
+    '🏡 *' + (config.weeklyTitle || 'Atualização semanal B F Marques') + '*\n\n' +
+    'Olá, ' + firstName + '! Boa semana de vendas. 🚀\n\n' +
+    '📢 Site atualizado: ' + (config.siteUrl || 'https://bfmarquesempreendimentos.github.io/bfm/') + '\n' +
+    '🔥 Ofertas e imóveis disponíveis já estão no ar.\n' +
+    (tip ? ('💡 ' + tip + '\n') : '') +
+    '✅ ' + (config.ctaText || 'Fale com seus leads hoje e acelere os agendamentos.') + '\n\n' +
+    'Suporte comercial: ' + (config.whatsappContato || '(21) 99759-0814')
+  );
+}
+
+async function sendWeeklyBrokerCampaignInternal(payload) {
+  const db = admin.firestore();
+  const now = new Date();
+  const config = await getBrokerCampaignConfig(db);
+  if (!config.enabled && !payload.force) {
+    return { ok: true, skipped: true, reason: 'Campanha desativada no painel/configuração.' };
+  }
+
+  let brokersQuery = db.collection('brokers').where('isActive', '==', true);
+  const snapshot = await brokersQuery.get();
+  const brokers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+  let targetList = brokers.filter(function(b) {
+    return !b.whatsappCampaignOptOut;
+  });
+  if (payload.brokerId) {
+    targetList = targetList.filter(function(b) { return String(b.id) === String(payload.brokerId); });
+  } else if (payload.phone) {
+    const normPhone = normalizeBrazilWhatsApp(payload.phone);
+    targetList = targetList.filter(function(b) {
+      return normalizeBrazilWhatsApp(b.phone) === normPhone;
+    });
+  }
+
+  const runRef = db.collection('broker_campaign_logs').doc();
+  await runRef.set({
+    type: payload.type || 'weekly',
+    forced: !!payload.force,
+    startedAt: new Date().toISOString(),
+    totalTargets: targetList.length,
+    status: 'running',
+  }, { merge: true });
+
+  const results = [];
+  for (const broker of targetList) {
+    const waPhone = normalizeBrazilWhatsApp(broker.phone);
+    if (!waPhone) {
+      results.push({ brokerId: broker.id, name: broker.name || '', status: 'skipped', reason: 'Telefone inválido' });
+      continue;
+    }
+    const message = buildBrokerCampaignMessage(config, broker, now);
+    try {
+      await sendTextMessage(waPhone, message);
+      results.push({ brokerId: broker.id, name: broker.name || '', status: 'sent', phone: waPhone });
+    } catch (err) {
+      results.push({ brokerId: broker.id, name: broker.name || '', status: 'error', phone: waPhone, error: err.message || 'Falha ao enviar' });
+    }
+  }
+
+  const sent = results.filter(r => r.status === 'sent').length;
+  const errors = results.filter(r => r.status === 'error').length;
+  const skipped = results.filter(r => r.status === 'skipped').length;
+
+  await runRef.set({
+    finishedAt: new Date().toISOString(),
+    status: 'done',
+    sent: sent,
+    errors: errors,
+    skipped: skipped,
+    results: results,
+  }, { merge: true });
+
+  return {
+    ok: true,
+    sent: sent,
+    errors: errors,
+    skipped: skipped,
+    totalTargets: targetList.length,
+    runId: runRef.id,
+  };
+}
+
 exports.sendQueuedEmail = functions
   .runWith({ secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'] })
   .firestore.document('emailQueue/{docId}')
@@ -126,6 +264,7 @@ exports.getBrokers = functions.https.onRequest(async (req, res) => {
         creci: d.creci || '',
         password: d.password || '',
         isActive: d.isActive !== undefined ? d.isActive : false,
+        whatsappCampaignOptOut: !!d.whatsappCampaignOptOut,
         isAdmin: d.isAdmin || false,
         createdAt: d.createdAt ? d.createdAt : new Date().toISOString()
       };
@@ -167,6 +306,7 @@ exports.registerBroker = functions.https.onRequest(async (req, res) => {
       creci: creci || '',
       password: password || '',
       isActive: false,
+      whatsappCampaignOptOut: false,
       createdAt: new Date().toISOString()
     });
     return res.json({ success: true, id: docRef.id });
@@ -261,6 +401,44 @@ exports.getRepairs = functions.https.onRequest(async (req, res) => {
   }
 });
 
+/** Painel admin: um GET com leads WhatsApp, reparos, vendas e corretores (evita várias chamadas no browser). */
+exports.adminDashboardBundle = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+
+  try {
+    const wa = await getLeadStats();
+    const db = admin.firestore();
+    const [repSnap, salesSnap, brokerSnap] = await Promise.all([
+      db.collection('repairRequests').get(),
+      db.collection('propertySales').get(),
+      db.collection('brokers').get(),
+    ]);
+    let repairsOpen = 0;
+    repSnap.forEach((doc) => {
+      const st = String(doc.data().status || '').toLowerCase();
+      if (st !== 'concluido' && st !== 'cancelado') repairsOpen++;
+    });
+    let brokersActive = 0;
+    brokerSnap.forEach((doc) => {
+      if (doc.data().isActive === true) brokersActive++;
+    });
+    return res.json({
+      wa,
+      repairsOpen,
+      salesCount: salesSnap.size,
+      brokersActive,
+      brokersTotal: brokerSnap.size,
+    });
+  } catch (err) {
+    console.error('adminDashboardBundle:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── API de Leads para o painel admin ─────────────────────────────
 exports.chatbotLeads = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
@@ -342,6 +520,8 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
     const statusFilter = req.query.status;
     const categoriaFilter = req.query.categoria;
     const modoHumanoFilter = req.query.modo_humano;
+    const unreadOnly = req.query.unread === '1' || req.query.unread === 'true';
+    const revisarBotOnly = req.query.revisar_bot === '1' || req.query.revisar_bot === 'true';
     const search = (req.query.search || '').trim().toLowerCase();
     const limit = Math.min(parseInt(req.query.limit) || 100, 200);
 
@@ -354,6 +534,8 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
     if (categoriaFilter) leads = leads.filter(l => (l.categoria || 'geral') === categoriaFilter);
     if (modoHumanoFilter === 'true') leads = leads.filter(l => !!l.modo_humano);
     else if (modoHumanoFilter === 'false') leads = leads.filter(l => !l.modo_humano);
+    if (unreadOnly) leads = leads.filter(l => (l.adminUnreadCount || 0) > 0);
+    if (revisarBotOnly) leads = leads.filter(l => !!l.revisarBot);
     if (search) {
       leads = leads.filter(function(l) {
         return (l.name || '').toLowerCase().indexOf(search) >= 0 ||
@@ -658,3 +840,99 @@ exports.chatbotFollowUp = functions
 
     return null;
   });
+
+// ─── Campanha semanal WhatsApp para corretores ───────────────────
+exports.brokerWeeklyCampaign = functions
+  .runWith({
+    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
+    timeoutSeconds: 300,
+    memory: '512MB',
+  })
+  .pubsub.schedule('every monday 08:00')
+  .timeZone('America/Sao_Paulo')
+  .onRun(async () => {
+    const result = await sendWeeklyBrokerCampaignInternal({ type: 'weekly', force: false });
+    console.log('brokerWeeklyCampaign:', JSON.stringify(result));
+    return null;
+  });
+
+exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+
+  try {
+    const db = admin.firestore();
+    const ref = db.collection('broker_campaign').doc('config');
+    if (req.method === 'GET') {
+      const config = await getBrokerCampaignConfig(db);
+      return res.json(config);
+    }
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+
+    const body = req.body || {};
+    const allowed = {
+      enabled: body.enabled === true || body.enabled === false ? body.enabled : undefined,
+      siteUrl: body.siteUrl ? String(body.siteUrl).trim() : undefined,
+      whatsappContato: body.whatsappContato ? String(body.whatsappContato).trim() : undefined,
+      weeklyTitle: body.weeklyTitle ? String(body.weeklyTitle).trim() : undefined,
+      ctaText: body.ctaText ? String(body.ctaText).trim() : undefined,
+      usefulTips: Array.isArray(body.usefulTips) ? body.usefulTips.map(function(t) { return String(t || '').trim(); }).filter(Boolean) : undefined,
+      updatedAt: new Date().toISOString(),
+    };
+    const payload = {};
+    Object.keys(allowed).forEach(function(k) {
+      if (allowed[k] !== undefined) payload[k] = allowed[k];
+    });
+    await ref.set(payload, { merge: true });
+    const config = await getBrokerCampaignConfig(db);
+    return res.json({ success: true, config: config });
+  } catch (err) {
+    console.error('brokerCampaignConfig:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+exports.brokerCampaignSendNow = functions
+  .runWith({
+    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
+    timeoutSeconds: 300,
+    memory: '512MB',
+  })
+  .https.onRequest(async (req, res) => {
+    allowCors(res);
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+    try {
+      const body = req.body || {};
+      const result = await sendWeeklyBrokerCampaignInternal({
+        type: body.type || 'manual',
+        force: true,
+        brokerId: body.brokerId || '',
+        phone: body.phone || '',
+      });
+      return res.json(result);
+    } catch (err) {
+      console.error('brokerCampaignSendNow:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+exports.brokerCampaignOptOut = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const body = req.body || {};
+    const brokerId = String(body.brokerId || '').trim();
+    if (!brokerId) return res.status(400).json({ error: 'brokerId obrigatório' });
+    const optOut = !!body.optOut;
+    await admin.firestore().collection('brokers').doc(brokerId).set({
+      whatsappCampaignOptOut: optOut,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+    return res.json({ success: true, brokerId: brokerId, whatsappCampaignOptOut: optOut });
+  } catch (err) {
+    console.error('brokerCampaignOptOut:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});

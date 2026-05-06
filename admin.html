@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
     <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/admin.css?v=6">
+    <link rel="stylesheet" href="styles/admin.css?v=7">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -511,6 +511,28 @@
                 </div>
             </div>
 
+            <div class="admin-table-container admin-table-container--elevated" style="margin-bottom:16px;">
+                <div style="padding:16px;">
+                    <h3 style="margin:0 0 10px 0;">Campanha semanal no WhatsApp (Corretores)</h3>
+                    <p style="margin:0 0 12px 0;color:#64748b;">Envio automático semanal com incentivo de vendas, site atualizado e dica útil.</p>
+                    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" id="brokerCampaignEnabled">
+                            <span>Ativar envio automático (segunda às 08:00)</span>
+                        </label>
+                        <button type="button" class="btn btn-secondary" onclick="loadBrokerCampaignConfig()">
+                            <i class="fas fa-sync-alt" aria-hidden="true"></i> Recarregar
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="saveBrokerCampaignConfig()">
+                            <i class="fas fa-save" aria-hidden="true"></i> Salvar configuração
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="sendBrokerCampaignNow()">
+                            <i class="fas fa-paper-plane" aria-hidden="true"></i> Disparar agora (todos ativos)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Brokers Table -->
             <div class="admin-table-container admin-table-container--elevated">
                 <table class="admin-table" id="brokersTable">
@@ -522,6 +544,7 @@
                             <th>Telefone</th>
                             <th>CRECI</th>
                             <th>Status</th>
+                            <th>Campanha WhatsApp</th>
                             <th>Data Cadastro</th>
                             <th>Ações</th>
                         </tr>
@@ -610,31 +633,31 @@
                 </div>
             </div>
 
-            <div class="wa-stats-row">
-                <div class="stat-card wa-stat" title="Total de contatos">
+            <div class="wa-stats-row" role="toolbar" aria-label="Atalhos de filtro da lista">
+                <button type="button" class="stat-card wa-stat wa-stat--click" data-wa-stat="total" onclick="waInboxStatClick('total')" title="Mostrar todos os contatos">
                     <span class="wa-stat-n" id="waStatTotal">0</span>
                     <span class="wa-stat-l">Total</span>
-                </div>
-                <div class="stat-card wa-stat wa-stat-alert" title="Aguardando leitura">
+                </button>
+                <button type="button" class="stat-card wa-stat wa-stat-alert wa-stat--click" data-wa-stat="pendentes" onclick="waInboxStatClick('pendentes')" title="Só conversas com mensagem não lida pelo painel">
                     <span class="wa-stat-n" id="waStatPendentes">0</span>
                     <span class="wa-stat-l">Pendentes</span>
-                </div>
-                <div class="stat-card wa-stat" title="Em atendimento humano">
+                </button>
+                <button type="button" class="stat-card wa-stat wa-stat--click" data-wa-stat="humano" onclick="waInboxStatClick('humano')" title="Em atendimento humano (bot pausado)">
                     <span class="wa-stat-n" id="waStatAtendimento">0</span>
                     <span class="wa-stat-l">Em atendimento</span>
-                </div>
-                <div class="stat-card wa-stat" title="Categoria: vendas">
+                </button>
+                <button type="button" class="stat-card wa-stat wa-stat--click" data-wa-stat="vendas" onclick="waInboxStatClick('vendas')" title="Filtrar categoria Vendas">
                     <span class="wa-stat-n" id="waStatVendas">0</span>
                     <span class="wa-stat-l">Vendas</span>
-                </div>
-                <div class="stat-card wa-stat" title="Categoria: dúvidas">
+                </button>
+                <button type="button" class="stat-card wa-stat wa-stat--click" data-wa-stat="duvidas" onclick="waInboxStatClick('duvidas')" title="Filtrar categoria Dúvidas">
                     <span class="wa-stat-n" id="waStatDuvidas">0</span>
                     <span class="wa-stat-l">Dúvidas</span>
-                </div>
-                <div class="stat-card wa-stat" title="Categoria: sugestões">
+                </button>
+                <button type="button" class="stat-card wa-stat wa-stat--click" data-wa-stat="sugestoes" onclick="waInboxStatClick('sugestoes')" title="Filtrar categoria Sugestões">
                     <span class="wa-stat-n" id="waStatSugestoes">0</span>
                     <span class="wa-stat-l">Sugestões</span>
-                </div>
+                </button>
             </div>
 
             <div class="wa-inbox-filters">
@@ -1069,7 +1092,7 @@
     <script src="js/documents.js"></script>
     <script src="js/sample-data.js"></script>
     <script src="js/property-sales.js"></script>
-    <script src="js/whatsapp-leads.js"></script>
+    <script src="js/whatsapp-leads.js?v=2"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
     <script src="js/admin.js?v=5"></script>
