@@ -1192,6 +1192,17 @@ async function loadBrokersData() {
     }
     
     const allBrokers = getAllBrokers();
+    var testSelect = document.getElementById('brokerCampaignTestSelect');
+    if (testSelect) {
+        var activeBrokers = allBrokers.filter(function(b) { return !!b.isActive; });
+        var opts = ['<option value="">Selecione um corretor ativo</option>'];
+        activeBrokers.forEach(function(b) {
+            opts.push('<option value="' + String(b.id).replace(/"/g, '&quot;') + '">' +
+                (b.name || b.email || ('Corretor ' + b.id)) + ' - ' + (b.phone || 'sem telefone') +
+                '</option>');
+        });
+        testSelect.innerHTML = opts.join('');
+    }
     
     const brokerId = (id) => typeof id === 'string' ? `'${id.replace(/'/g, "\\'")}'` : id;
     tbody.innerHTML = allBrokers.map(broker => `
@@ -1241,6 +1252,16 @@ function loadBrokerCampaignConfig() {
         if (!cfg) return;
         var check = document.getElementById('brokerCampaignEnabled');
         if (check) check.checked = !!cfg.enabled;
+        var title = document.getElementById('brokerCampaignTitle');
+        var siteUrl = document.getElementById('brokerCampaignSiteUrl');
+        var contact = document.getElementById('brokerCampaignContact');
+        var cta = document.getElementById('brokerCampaignCta');
+        var tips = document.getElementById('brokerCampaignTips');
+        if (title) title.value = cfg.weeklyTitle || '';
+        if (siteUrl) siteUrl.value = cfg.siteUrl || '';
+        if (contact) contact.value = cfg.whatsappContato || '';
+        if (cta) cta.value = cfg.ctaText || '';
+        if (tips) tips.value = Array.isArray(cfg.usefulTips) ? cfg.usefulTips.join('\n') : '';
     }).catch(function(err) {
         if (typeof console !== 'undefined' && console.warn) console.warn('brokerCampaignConfig:', err);
     });
@@ -1249,7 +1270,23 @@ function loadBrokerCampaignConfig() {
 function saveBrokerCampaignConfig() {
     var check = document.getElementById('brokerCampaignEnabled');
     var enabled = !!(check && check.checked);
-    adminPostJson('/brokerCampaignConfig', { enabled: enabled }).then(function() {
+    var title = document.getElementById('brokerCampaignTitle');
+    var siteUrl = document.getElementById('brokerCampaignSiteUrl');
+    var contact = document.getElementById('brokerCampaignContact');
+    var cta = document.getElementById('brokerCampaignCta');
+    var tips = document.getElementById('brokerCampaignTips');
+    var usefulTips = [];
+    if (tips && tips.value) {
+        usefulTips = tips.value.split('\n').map(function(t) { return String(t || '').trim(); }).filter(Boolean);
+    }
+    adminPostJson('/brokerCampaignConfig', {
+        enabled: enabled,
+        weeklyTitle: title ? title.value : '',
+        siteUrl: siteUrl ? siteUrl.value : '',
+        whatsappContato: contact ? contact.value : '',
+        ctaText: cta ? cta.value : '',
+        usefulTips: usefulTips
+    }).then(function() {
         if (typeof showMessage === 'function') {
             showMessage('Configuração da campanha semanal salva com sucesso.', 'success');
         }
@@ -1265,6 +1302,25 @@ function sendBrokerCampaignNow() {
         if (typeof showMessage === 'function') showMessage(txt, 'success');
     }).catch(function(err) {
         if (typeof showMessage === 'function') showMessage('Erro no disparo: ' + (err.message || ''), 'error');
+    });
+}
+
+function sendBrokerCampaignTestSingle() {
+    var sel = document.getElementById('brokerCampaignTestSelect');
+    var brokerId = sel ? String(sel.value || '').trim() : '';
+    if (!brokerId) {
+        if (typeof showMessage === 'function') showMessage('Selecione um corretor para teste.', 'error');
+        return;
+    }
+    if (!confirm('Enviar teste agora apenas para o corretor selecionado?')) return;
+    adminPostJson('/brokerCampaignSendNow', {
+        type: 'manual_test_single',
+        brokerId: brokerId
+    }).then(function(result) {
+        var txt = 'Teste enviado. Enviados: ' + (result.sent || 0) + ', erros: ' + (result.errors || 0) + ', pulados: ' + (result.skipped || 0) + '.';
+        if (typeof showMessage === 'function') showMessage(txt, 'success');
+    }).catch(function(err) {
+        if (typeof showMessage === 'function') showMessage('Erro no teste: ' + (err.message || ''), 'error');
     });
 }
 

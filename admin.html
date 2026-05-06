@@ -515,6 +515,28 @@
                 <div style="padding:16px;">
                     <h3 style="margin:0 0 10px 0;">Campanha semanal no WhatsApp (Corretores)</h3>
                     <p style="margin:0 0 12px 0;color:#64748b;">Envio automático semanal com incentivo de vendas, site atualizado e dica útil.</p>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:12px;">
+                        <label style="display:flex;flex-direction:column;gap:4px;">
+                            <span>Título semanal</span>
+                            <input type="text" id="brokerCampaignTitle" placeholder="Atualização semanal B F Marques">
+                        </label>
+                        <label style="display:flex;flex-direction:column;gap:4px;">
+                            <span>URL do site</span>
+                            <input type="text" id="brokerCampaignSiteUrl" placeholder="https://bfmarquesempreendimentos.github.io/bfm/">
+                        </label>
+                        <label style="display:flex;flex-direction:column;gap:4px;">
+                            <span>WhatsApp de contato</span>
+                            <input type="text" id="brokerCampaignContact" placeholder="(21) 99759-0814">
+                        </label>
+                    </div>
+                    <label style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;">
+                        <span>Chamada comercial (CTA)</span>
+                        <input type="text" id="brokerCampaignCta" placeholder="Divulgue as ofertas da semana para seus leads e traga sua visita agendada.">
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;">
+                        <span>Dicas úteis (uma por linha)</span>
+                        <textarea id="brokerCampaignTips" rows="4" placeholder="Dica 1&#10;Dica 2&#10;Dica 3"></textarea>
+                    </label>
                     <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
                         <label style="display:flex;align-items:center;gap:8px;">
                             <input type="checkbox" id="brokerCampaignEnabled">
@@ -528,6 +550,15 @@
                         </button>
                         <button type="button" class="btn btn-success" onclick="sendBrokerCampaignNow()">
                             <i class="fas fa-paper-plane" aria-hidden="true"></i> Disparar agora (todos ativos)
+                        </button>
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <span>Teste em 1 corretor:</span>
+                            <select id="brokerCampaignTestSelect" style="min-width:220px;">
+                                <option value="">Selecione um corretor ativo</option>
+                            </select>
+                        </label>
+                        <button type="button" class="btn btn-primary" onclick="sendBrokerCampaignTestSingle()">
+                            <i class="fas fa-vial" aria-hidden="true"></i> Enviar teste
                         </button>
                     </div>
                 </div>
