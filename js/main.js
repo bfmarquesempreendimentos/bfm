@@ -448,14 +448,22 @@ function loadProperties() {
         }
     ];
     
+    var visibleProperties = getVisibleProperties(properties);
+    updatePropertiesEnterpriseCount(visibleProperties.length);
     setTimeout(function() { displayProperties(properties); }, 0);
-    startHeroSlideshow(getVisibleProperties(properties));
+    startHeroSlideshow(visibleProperties);
 }
 
 function getVisibleProperties(list) {
     return (list || []).filter(function(property) {
         return !property.hideFromSite;
     });
+}
+
+function updatePropertiesEnterpriseCount(total) {
+    var countEl = document.getElementById('propertiesEnterpriseCount');
+    if (!countEl) return;
+    countEl.textContent = String(total || 0);
 }
 
 function startHeroSlideshow(list) {

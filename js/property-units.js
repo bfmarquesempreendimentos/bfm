@@ -307,7 +307,7 @@ function getEnterpriseInventorySummary(propertyId) {
 }
 
 /**
- * Painel admin / métricas: agrega todas as unidades dos empreendimentos (ids 1–8).
+ * Painel admin / métricas: agrega todas as unidades dos empreendimentos.
  * O status no nível do card em `properties` não reflete unidade a unidade.
  */
 function getAggregatedUnitInventoryForDashboard() {
@@ -319,7 +319,9 @@ function getAggregatedUnitInventoryForDashboard() {
         assinado: 0,
         valorDisponiveis: 0,
     };
-    if (typeof properties !== 'undefined' && properties && properties.length) {
+    if (typeof getVisibleProperties === 'function' && typeof properties !== 'undefined' && properties && properties.length) {
+        out.empreendimentos = getVisibleProperties(properties).length;
+    } else if (typeof properties !== 'undefined' && properties && properties.length) {
         out.empreendimentos = properties.length;
     }
     var pid;
@@ -344,7 +346,7 @@ function getAggregatedUnitInventoryForDashboard() {
         }
     }
     if (out.empreendimentos === 0 && out.unidadesTotal > 0) {
-        out.empreendimentos = 8;
+        out.empreendimentos = 7;
     }
     return out;
 }
