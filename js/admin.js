@@ -1200,15 +1200,16 @@ async function loadBrokersData() {
     var testSelect = document.getElementById('brokerCampaignTestSelect');
     if (testSelect) {
         var activeBrokers = allBrokers.filter(function(b) {
-            return !!b.isActive && !b.isAdmin && hasLikelyPhone(b.phone);
+            return !!b.isActive && hasLikelyPhone(b.phone);
         });
         if (activeBrokers.length === 0) {
             activeBrokers = allBrokers.filter(function(b) { return !!b.isActive; });
         }
         var opts = ['<option value="">Selecione um corretor ativo</option>'];
         activeBrokers.forEach(function(b) {
+            var adminTag = b.isAdmin ? ' [Admin]' : '';
             opts.push('<option value="' + String(b.id).replace(/"/g, '&quot;') + '">' +
-                (b.name || b.email || ('Corretor ' + b.id)) + ' - ' + (b.phone || 'sem telefone') +
+                (b.name || b.email || ('Corretor ' + b.id)) + adminTag + ' - ' + (b.phone || 'sem telefone') +
                 '</option>');
         });
         if (activeBrokers.length === 0) {
