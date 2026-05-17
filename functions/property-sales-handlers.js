@@ -414,6 +414,29 @@ async function adminMigrateLegacySaleSlots(req, res) {
   }
 }
 
+async function adminSetUnitStatusOverrides(req, res) {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  var body = parseJsonBody(req);
+  if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+  var items = Array.isArray(body.items) ? body.items : [];
+  if (!items.length) return res.status(400).json({ error: 'items obrigatório' });
+  try {
+    var db = admin.firestore();
+    var i;
+    for (i = 0; i < items.length; i++) {
+      var item = items[i];
+      if (!item || item.propertyId == null || !item.unitCode) continue;
+      await applyUnitStatusOverride(db, item.propertyId, item.unitCode, item.status || 'reservado');
+    }
+    return res.json({ success: true, count: items.length });
+  } catch (err) {
+    console.error('adminSetUnitStatusOverrides:', err);
+    return res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   allowCors,
   adminPropertySalesList,
@@ -423,4 +446,5 @@ module.exports = {
   clientSaleEligibility,
   getPublicUnitOverrides,
   adminMigrateLegacySaleSlots,
+  adminSetUnitStatusOverrides,
 };

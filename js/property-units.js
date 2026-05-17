@@ -1,5 +1,18 @@
 // Property units management system for B F Marques Empreendimentos
 
+/** Ao mudar o inventário no código, incremente esta versão para limpar overrides antigos no navegador. */
+var UNIT_INVENTORY_VERSION = '2026-05-17-reservas-itauna-laranjal-cacador';
+(function clearStaleUnitOverridesIfNeeded() {
+    try {
+        if (typeof localStorage === 'undefined') return;
+        var key = 'unitInventoryVersion';
+        if (localStorage.getItem(key) !== UNIT_INVENTORY_VERSION) {
+            localStorage.removeItem('unitStatusOverrides');
+            localStorage.setItem(key, UNIT_INVENTORY_VERSION);
+        }
+    } catch (e) {}
+})();
+
 // Property units data based on the spreadsheet provided
 const propertyUnits = {
     1: { // Porto Novo

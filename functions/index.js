@@ -352,6 +352,9 @@ exports.getPublicUnitOverrides = functions.https.onRequest((req, res) =>
 exports.adminMigrateLegacySaleSlots = functions.https.onRequest((req, res) =>
   propertySalesHandlers.adminMigrateLegacySaleSlots(req, res)
 );
+exports.adminSetUnitStatusOverrides = functions.https.onRequest((req, res) =>
+  propertySalesHandlers.adminSetUnitStatusOverrides(req, res)
+);
 
 // ─── API de Reparos: CRIAR (garante sync Mac/Windows - não depende do Firestore client) ──
 exports.createRepair = functions.https.onRequest(async (req, res) => {
