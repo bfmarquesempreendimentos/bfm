@@ -62,8 +62,8 @@ const propertyUnits = {
             { code: "casa 01", price: 155000, bedrooms: 1, status: "disponivel" },
             { code: "casa 06", price: 155000, bedrooms: 1, status: "disponivel" },
             { code: "casa 02", price: 155000, bedrooms: 1, status: "disponivel" },
-            { code: "casa 07", price: 155000, bedrooms: 1, status: "disponivel" },
-            { code: "casa 03", price: 155000, bedrooms: 1, status: "disponivel" },
+            { code: "casa 07", price: 155000, bedrooms: 1, status: "reservado" },
+            { code: "casa 03", price: 155000, bedrooms: 1, status: "reservado" },
             { code: "cassa 08", price: 155000, bedrooms: 1, status: "assinado" },
             { code: "casa 04", price: 160000, bedrooms: 1, status: "assinado" },
             { code: "casa 09", price: 160000, bedrooms: 1, status: "assinado" }
@@ -130,7 +130,7 @@ const propertyUnits = {
             { code: "CS 13", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "CS 04", price: 150000, bedrooms: 1, status: "reservado" },
             { code: "CS 09", price: 150000, bedrooms: 1, status: "disponivel" },
-            { code: "CS 14", price: 150000, bedrooms: 1, status: "disponivel" }
+            { code: "CS 14", price: 150000, bedrooms: 1, status: "reservado" }
         ]
     },
     
@@ -186,7 +186,7 @@ const propertyUnits = {
         }
     },
     
-    7: { // Edifício Caçador - APTO 102 reservado; APTO 207 disponível
+    7: { // Edifício Caçador - APTO 102 assinado; APTO 205 reservado
         name: "EDIFÍCIO CAÇADOR - RUA ALCIO SOUTO, 576",
         units: [
             { code: "APTO 101", price: 160000, bedrooms: 2, status: "disponivel" },
@@ -198,7 +198,7 @@ const propertyUnits = {
             { code: "APTO 104", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 204", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 105", price: 165000, bedrooms: 2, status: "disponivel" },
-            { code: "APTO 205", price: 160000, bedrooms: 2, status: "disponivel" },
+            { code: "APTO 205", price: 160000, bedrooms: 2, status: "reservado" },
             { code: "APTO 106", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 206", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 107", price: 165000, bedrooms: 2, status: "disponivel" },
