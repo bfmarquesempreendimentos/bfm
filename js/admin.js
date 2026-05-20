@@ -1468,7 +1468,84 @@ async function loadBrokersData() {
     `).join('');
 }
 
+function formatBrokerCampaignPreviewLine(preview) {
+    if (!preview) return '';
+    var autoNote = preview.nextWeeklyNote ? (' ' + preview.nextWeeklyNote) : '';
+    return 'Destinatários: ' + (preview.eligible || 0) + ' com WhatsApp válido, ' +
+        (preview.invalidPhone || 0) + ' ativos sem telefone válido, ' +
+        (preview.optOut || 0) + ' em opt-out.' + autoNote;
+}
+
+function loadBrokerCampaignPreview() {
+    var el = document.getElementById('brokerCampaignPreviewStats');
+    if (el) el.textContent = 'Carregando resumo de destinatários...';
+    adminFetchJson('/brokerCampaignPreview').then(function(preview) {
+        if (!preview) {
+            if (el) el.textContent = 'Não foi possível carregar o resumo de destinatários.';
+            return;
+        }
+        if (el) el.textContent = formatBrokerCampaignPreviewLine(preview);
+    }).catch(function() {
+        if (el) el.textContent = 'Não foi possível carregar o resumo de destinatários.';
+    });
+}
+
+function showBrokerCampaignResult(result, isError) {
+    var sent = result && result.sent ? result.sent : 0;
+    var errors = result && result.errors ? result.errors : 0;
+    var skipped = result && result.skipped ? result.skipped : 0;
+    var eligible = result && result.eligible !== undefined ? result.eligible : null;
+    var txt = 'Disparo concluído. Enviados: ' + sent + ', erros: ' + errors + ', pulados (telefone inválido): ' + skipped + '.';
+    if (eligible !== null) txt += ' Elegíveis: ' + eligible + '.';
+    if (skipped > 0 && sent === 0) {
+        txt += ' Nenhuma mensagem enviada: revise os telefones dos corretores ativos (DDD + 9 dígitos).';
+    } else if (skipped > 0) {
+        txt += ' Corretores pulados precisam de telefone no formato 21987654321.';
+    }
+    if (typeof showMessage === 'function') showMessage(txt, isError ? 'error' : (errors > 0 ? 'warning' : 'success'));
+    loadBrokerCampaignPreview();
+}
+
+function setBrokerCampaignButtonsBusy(busy) {
+    var ids = ['brokerCampaignBtnSendNow', 'brokerCampaignBtnTest'];
+    for (var i = 0; i < ids.length; i++) {
+        var btn = document.getElementById(ids[i]);
+        if (btn) btn.disabled = !!busy;
+    }
+}
+
+function pollBrokerCampaignRun(runId, attempt) {
+    if (attempt > 150) {
+        setBrokerCampaignButtonsBusy(false);
+        if (typeof showMessage === 'function') {
+            showMessage('O disparo ainda está em processamento no servidor. Atualize a página em alguns minutos.', 'warning');
+        }
+        return;
+    }
+    adminFetchJson('/brokerCampaignRunStatus?runId=' + encodeURIComponent(runId)).then(function(st) {
+        if (!st || st.status === 'queued' || st.status === 'running') {
+            var waitEl = document.getElementById('brokerCampaignPreviewStats');
+            if (waitEl) {
+                waitEl.textContent = 'Disparo em andamento... (' + (attempt + 1) + 's) Aguarde.';
+            }
+            setTimeout(function() { pollBrokerCampaignRun(runId, attempt + 1); }, 2000);
+            return;
+        }
+        setBrokerCampaignButtonsBusy(false);
+        if (st.status === 'error') {
+            if (typeof showMessage === 'function') showMessage('Erro no disparo: ' + (st.error || 'falha no servidor'), 'error');
+            loadBrokerCampaignPreview();
+            return;
+        }
+        showBrokerCampaignResult(st, false);
+    }).catch(function(err) {
+        setBrokerCampaignButtonsBusy(false);
+        if (typeof showMessage === 'function') showMessage('Erro ao acompanhar disparo: ' + (err.message || ''), 'error');
+    });
+}
+
 function loadBrokerCampaignConfig() {
+    loadBrokerCampaignPreview();
     adminFetchJson('/brokerCampaignConfig').then(function(cfg) {
         if (!cfg) return;
         var check = document.getElementById('brokerCampaignEnabled');
@@ -1511,17 +1588,28 @@ function saveBrokerCampaignConfig() {
         if (typeof showMessage === 'function') {
             showMessage('Configuração da campanha semanal salva com sucesso.', 'success');
         }
+        loadBrokerCampaignPreview();
     }).catch(function(err) {
         if (typeof showMessage === 'function') showMessage('Erro ao salvar campanha: ' + (err.message || ''), 'error');
     });
 }
 
 function sendBrokerCampaignNow() {
-    if (!confirm('Disparar agora a mensagem semanal para todos os corretores ativos (sem opt-out)?')) return;
+    if (!confirm('Disparar agora a mensagem semanal para todos os corretores ativos com WhatsApp válido (sem opt-out)?')) return;
+    setBrokerCampaignButtonsBusy(true);
+    if (typeof showMessage === 'function') showMessage('Iniciando disparo em massa...', 'info');
     adminPostJson('/brokerCampaignSendNow', { type: 'manual' }).then(function(result) {
-        var txt = 'Disparo concluído. Enviados: ' + (result.sent || 0) + ', erros: ' + (result.errors || 0) + ', pulados: ' + (result.skipped || 0) + '.';
-        if (typeof showMessage === 'function') showMessage(txt, 'success');
+        if (result && result.async && result.runId) {
+            if (typeof showMessage === 'function') {
+                showMessage('Disparo iniciado para ' + (result.eligible || 0) + ' corretor(es). Aguarde...', 'info');
+            }
+            pollBrokerCampaignRun(result.runId, 0);
+            return;
+        }
+        setBrokerCampaignButtonsBusy(false);
+        showBrokerCampaignResult(result, false);
     }).catch(function(err) {
+        setBrokerCampaignButtonsBusy(false);
         if (typeof showMessage === 'function') showMessage('Erro no disparo: ' + (err.message || ''), 'error');
     });
 }
@@ -1534,13 +1622,15 @@ function sendBrokerCampaignTestSingle() {
         return;
     }
     if (!confirm('Enviar teste agora apenas para o corretor selecionado?')) return;
+    setBrokerCampaignButtonsBusy(true);
     adminPostJson('/brokerCampaignSendNow', {
         type: 'manual_test_single',
         brokerId: brokerId
     }).then(function(result) {
-        var txt = 'Teste enviado. Enviados: ' + (result.sent || 0) + ', erros: ' + (result.errors || 0) + ', pulados: ' + (result.skipped || 0) + '.';
-        if (typeof showMessage === 'function') showMessage(txt, 'success');
+        setBrokerCampaignButtonsBusy(false);
+        showBrokerCampaignResult(result, false);
     }).catch(function(err) {
+        setBrokerCampaignButtonsBusy(false);
         if (typeof showMessage === 'function') showMessage('Erro no teste: ' + (err.message || ''), 'error');
     });
 }

@@ -39,12 +39,74 @@ function normalizePhoneDigits(phone) {
   return String(phone || '').replace(/\D/g, '');
 }
 
+function isBrokerActiveFlag(value) {
+  if (value === true || value === 1) return true;
+  if (typeof value === 'string') {
+    const s = value.trim().toLowerCase();
+    return s === 'true' || s === '1' || s === 'sim' || s === 'ativo';
+  }
+  return false;
+}
+
 function normalizeBrazilWhatsApp(phone) {
-  const digits = normalizePhoneDigits(phone);
+  let digits = normalizePhoneDigits(phone);
   if (!digits) return null;
-  if (digits.length >= 12 && digits.indexOf('55') === 0) return digits;
+  while (digits.charAt(0) === '0') digits = digits.substring(1);
+  if (digits.indexOf('5555') === 0) digits = digits.substring(2);
+  if (digits.length >= 12 && digits.indexOf('55') === 0) {
+    if (digits.length === 12 || digits.length === 13) return digits;
+    if (digits.length > 13) return digits.substring(0, 13);
+  }
   if (digits.length === 11 || digits.length === 10) return '55' + digits;
   return null;
+}
+
+async function listBrokerCampaignTargets(db, payload) {
+  const snapshot = await db.collection('brokers').get();
+  const brokers = snapshot.docs.map(function(doc) {
+    return { id: doc.id, ...doc.data() };
+  });
+  let targetList = brokers.filter(function(b) {
+    return isBrokerActiveFlag(b.isActive) && !b.whatsappCampaignOptOut;
+  });
+  if (payload && payload.brokerId) {
+    targetList = targetList.filter(function(b) {
+      return String(b.id) === String(payload.brokerId);
+    });
+  } else if (payload && payload.phone) {
+    const normPhone = normalizeBrazilWhatsApp(payload.phone);
+    targetList = targetList.filter(function(b) {
+      return normalizeBrazilWhatsApp(b.phone) === normPhone;
+    });
+  }
+  return targetList;
+}
+
+async function getBrokerCampaignPreview(db) {
+  const config = await getBrokerCampaignConfig(db);
+  const targetList = await listBrokerCampaignTargets(db, {});
+  let eligible = 0;
+  let invalidPhone = 0;
+  targetList.forEach(function(b) {
+    if (normalizeBrazilWhatsApp(b.phone)) eligible += 1;
+    else invalidPhone += 1;
+  });
+  let optOutCount = 0;
+  const allSnap = await db.collection('brokers').get();
+  allSnap.docs.forEach(function(doc) {
+    const d = doc.data() || {};
+    if (d.whatsappCampaignOptOut && isBrokerActiveFlag(d.isActive)) optOutCount += 1;
+  });
+  return {
+    enabled: !!config.enabled,
+    totalActiveNotOptOut: targetList.length,
+    eligible: eligible,
+    invalidPhone: invalidPhone,
+    optOut: optOutCount,
+    nextWeeklyNote: config.enabled
+      ? 'Próximo envio automático: segunda-feira às 08:00 (horário de Brasília).'
+      : 'Envio automático desativado. Marque a opção acima e clique em Salvar.',
+  };
 }
 
 function getWeekOfYearNumber(date) {
@@ -109,23 +171,11 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     return { ok: true, skipped: true, reason: 'Campanha desativada no painel/configuração.' };
   }
 
-  let brokersQuery = db.collection('brokers').where('isActive', '==', true);
-  const snapshot = await brokersQuery.get();
-  const brokers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const targetList = await listBrokerCampaignTargets(db, payload);
+  const runRef = payload.runId
+    ? db.collection('broker_campaign_logs').doc(payload.runId)
+    : db.collection('broker_campaign_logs').doc();
 
-  let targetList = brokers.filter(function(b) {
-    return !b.whatsappCampaignOptOut;
-  });
-  if (payload.brokerId) {
-    targetList = targetList.filter(function(b) { return String(b.id) === String(payload.brokerId); });
-  } else if (payload.phone) {
-    const normPhone = normalizeBrazilWhatsApp(payload.phone);
-    targetList = targetList.filter(function(b) {
-      return normalizeBrazilWhatsApp(b.phone) === normPhone;
-    });
-  }
-
-  const runRef = db.collection('broker_campaign_logs').doc();
   await runRef.set({
     type: payload.type || 'weekly',
     forced: !!payload.force,
@@ -135,24 +185,50 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
   }, { merge: true });
 
   const results = [];
-  for (const broker of targetList) {
+  const sendable = [];
+  targetList.forEach(function(broker) {
     const waPhone = normalizeBrazilWhatsApp(broker.phone);
     if (!waPhone) {
-      results.push({ brokerId: broker.id, name: broker.name || '', status: 'skipped', reason: 'Telefone inválido' });
-      continue;
+      results.push({
+        brokerId: broker.id,
+        name: broker.name || '',
+        status: 'skipped',
+        reason: 'Telefone inválido ou incompleto (use DDD + número, ex: 21987654321)',
+      });
+      return;
     }
-    const message = buildBrokerCampaignMessage(config, broker, now);
+    sendable.push({ broker: broker, waPhone: waPhone });
+  });
+
+  for (let i = 0; i < sendable.length; i++) {
+    const item = sendable[i];
+    const message = buildBrokerCampaignMessage(config, item.broker, now);
     try {
-      await sendTextMessage(waPhone, message);
-      results.push({ brokerId: broker.id, name: broker.name || '', status: 'sent', phone: waPhone });
+      await sendTextMessage(item.waPhone, message);
+      results.push({
+        brokerId: item.broker.id,
+        name: item.broker.name || '',
+        status: 'sent',
+        phone: item.waPhone,
+      });
     } catch (err) {
-      results.push({ brokerId: broker.id, name: broker.name || '', status: 'error', phone: waPhone, error: err.message || 'Falha ao enviar' });
+      results.push({
+        brokerId: item.broker.id,
+        name: item.broker.name || '',
+        status: 'error',
+        phone: item.waPhone,
+        error: err.message || 'Falha ao enviar',
+      });
+    }
+    if (i < sendable.length - 1) {
+      await new Promise(function(resolve) { setTimeout(resolve, 350); });
     }
   }
 
-  const sent = results.filter(r => r.status === 'sent').length;
-  const errors = results.filter(r => r.status === 'error').length;
-  const skipped = results.filter(r => r.status === 'skipped').length;
+  const sent = results.filter(function(r) { return r.status === 'sent'; }).length;
+  const errors = results.filter(function(r) { return r.status === 'error'; }).length;
+  const skipped = results.filter(function(r) { return r.status === 'skipped'; }).length;
+  const issues = results.filter(function(r) { return r.status !== 'sent'; }).slice(0, 80);
 
   await runRef.set({
     finishedAt: new Date().toISOString(),
@@ -160,7 +236,9 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     sent: sent,
     errors: errors,
     skipped: skipped,
-    results: results,
+    eligible: sendable.length,
+    issues: issues,
+    issuesTruncated: results.length - sent > issues.length,
   }, { merge: true });
 
   return {
@@ -169,7 +247,9 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     errors: errors,
     skipped: skipped,
     totalTargets: targetList.length,
+    eligible: sendable.length,
     runId: runRef.id,
+    status: 'done',
   };
 }
 
@@ -914,6 +994,49 @@ exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
   }
 });
 
+exports.brokerCampaignPreview = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const preview = await getBrokerCampaignPreview(admin.firestore());
+    return res.json(preview);
+  } catch (err) {
+    console.error('brokerCampaignPreview:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+exports.brokerCampaignRunStatus = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const runId = String((req.query && req.query.runId) || '').trim();
+    if (!runId) return res.status(400).json({ error: 'runId obrigatório' });
+    const snap = await admin.firestore().collection('broker_campaign_logs').doc(runId).get();
+    if (!snap.exists) return res.status(404).json({ error: 'Disparo não encontrado' });
+    const data = snap.data() || {};
+    return res.json({
+      ok: true,
+      runId: runId,
+      status: data.status || 'unknown',
+      sent: data.sent || 0,
+      errors: data.errors || 0,
+      skipped: data.skipped || 0,
+      totalTargets: data.totalTargets || 0,
+      eligible: data.eligible,
+      issues: data.issues || [],
+      startedAt: data.startedAt,
+      finishedAt: data.finishedAt,
+      error: data.error || null,
+    });
+  } catch (err) {
+    console.error('brokerCampaignRunStatus:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 exports.brokerCampaignSendNow = functions
   .runWith({
     secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
@@ -926,13 +1049,57 @@ exports.brokerCampaignSendNow = functions
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
     try {
       const body = req.body || {};
-      const result = await sendWeeklyBrokerCampaignInternal({
+      const brokerId = String(body.brokerId || '').trim();
+      const internalPayload = {
         type: body.type || 'manual',
         force: true,
-        brokerId: body.brokerId || '',
+        brokerId: brokerId,
         phone: body.phone || '',
+      };
+
+      if (brokerId) {
+        const result = await sendWeeklyBrokerCampaignInternal(internalPayload);
+        return res.json(result);
+      }
+
+      const db = admin.firestore();
+      const runRef = db.collection('broker_campaign_logs').doc();
+      const preview = await getBrokerCampaignPreview(db);
+      await runRef.set({
+        type: internalPayload.type,
+        forced: true,
+        status: 'queued',
+        startedAt: new Date().toISOString(),
+        totalTargets: preview.totalActiveNotOptOut,
+        eligible: preview.eligible,
+      }, { merge: true });
+
+      res.json({
+        ok: true,
+        async: true,
+        runId: runRef.id,
+        sent: 0,
+        errors: 0,
+        skipped: 0,
+        totalTargets: preview.totalActiveNotOptOut,
+        eligible: preview.eligible,
+        invalidPhone: preview.invalidPhone,
+        message: 'Disparo em massa iniciado. Aguarde o resultado na tela.',
       });
-      return res.json(result);
+
+      sendWeeklyBrokerCampaignInternal({
+        type: internalPayload.type,
+        force: true,
+        runId: runRef.id,
+      }).catch(function(err) {
+        console.error('brokerCampaignSendNow async:', err);
+        return runRef.set({
+          status: 'error',
+          finishedAt: new Date().toISOString(),
+          error: err.message || String(err),
+        }, { merge: true });
+      });
+      return null;
     } catch (err) {
       console.error('brokerCampaignSendNow:', err);
       return res.status(500).json({ error: err.message });
