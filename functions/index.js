@@ -7,6 +7,7 @@ const { sendFollowUp } = require('./chatbot/templates');
 const { getPropertyById } = require('./chatbot/property-data');
 const { sendTextMessage, uploadMediaBuffer, sendMediaById, getWhatsAppMediaBuffer } = require('./chatbot/whatsapp-api');
 const propertySalesHandlers = require('./property-sales-handlers');
+const { verifyAdminFromBody } = require('./admin-accounts');
 
 admin.initializeApp();
 
@@ -61,12 +62,35 @@ function normalizeBrazilWhatsApp(phone) {
   return null;
 }
 
+function pickBetterBrokerRow(a, b) {
+  const phoneA = normalizeBrazilWhatsApp(a.phone) ? 1 : 0;
+  const phoneB = normalizeBrazilWhatsApp(b.phone) ? 1 : 0;
+  if (phoneB !== phoneA) return phoneB > phoneA ? b : a;
+  const adminA = a.isAdmin ? 1 : 0;
+  const adminB = b.isAdmin ? 1 : 0;
+  if (adminB !== adminA) return adminB > adminA ? b : a;
+  const timeA = new Date(a.createdAt || 0).getTime();
+  const timeB = new Date(b.createdAt || 0).getTime();
+  return timeB >= timeA ? b : a;
+}
+
+function dedupeBrokersByEmail(brokers) {
+  const byEmail = {};
+  brokers.forEach(function(b) {
+    const email = String(b.email || '').trim().toLowerCase();
+    if (!email) return;
+    if (!byEmail[email]) byEmail[email] = b;
+    else byEmail[email] = pickBetterBrokerRow(byEmail[email], b);
+  });
+  return Object.keys(byEmail).map(function(email) { return byEmail[email]; });
+}
+
 async function listBrokerCampaignTargets(db, payload) {
   const snapshot = await db.collection('brokers').get();
   const brokers = snapshot.docs.map(function(doc) {
     return { id: doc.id, ...doc.data() };
   });
-  let targetList = brokers.filter(function(b) {
+  let targetList = dedupeBrokersByEmail(brokers).filter(function(b) {
     return isBrokerActiveFlag(b.isActive) && !b.whatsappCampaignOptOut;
   });
   if (payload && payload.brokerId) {
@@ -82,6 +106,76 @@ async function listBrokerCampaignTargets(db, payload) {
   return targetList;
 }
 
+async function cleanupBrokerDuplicatesInternal(db) {
+  const snapshot = await db.collection('brokers').get();
+  const byEmail = {};
+  snapshot.docs.forEach(function(doc) {
+    const d = doc.data() || {};
+    const email = String(d.email || '').trim().toLowerCase();
+    if (!email) return;
+    if (!byEmail[email]) byEmail[email] = [];
+    byEmail[email].push({ id: doc.id, ref: doc.ref, data: d });
+  });
+
+  let deactivated = 0;
+  let batch = db.batch();
+  let ops = 0;
+  const keeperIds = {};
+
+  Object.keys(byEmail).forEach(function(email) {
+    const rows = byEmail[email];
+    if (rows.length <= 1) {
+      keeperIds[email] = rows[0].id;
+      return;
+    }
+    rows.sort(function(a, b) {
+      const pa = normalizeBrazilWhatsApp(a.data.phone) ? 1 : 0;
+      const pb = normalizeBrazilWhatsApp(b.data.phone) ? 1 : 0;
+      if (pb !== pa) return pb - pa;
+      const aa = a.data.isAdmin ? 1 : 0;
+      const ab = b.data.isAdmin ? 1 : 0;
+      if (ab !== aa) return ab - aa;
+      return new Date(b.data.createdAt || 0).getTime() - new Date(a.data.createdAt || 0).getTime();
+    });
+    const keeper = rows[0];
+    keeperIds[email] = keeper.id;
+    rows.forEach(function(row) {
+      if (row.id === keeper.id) return;
+      batch.update(row.ref, {
+        isActive: false,
+        duplicateOf: keeper.id,
+        updatedAt: new Date().toISOString(),
+      });
+      deactivated += 1;
+      ops += 1;
+      if (ops >= 400) {
+        throw new Error('Muitas duplicatas para um único lote. Execute novamente.');
+      }
+    });
+  });
+
+  snapshot.docs.forEach(function(doc) {
+    const d = doc.data() || {};
+    const email = String(d.email || '').trim().toLowerCase();
+    if (!email || keeperIds[email] !== doc.id) return;
+    if (!isBrokerActiveFlag(d.isActive)) return;
+    if (normalizeBrazilWhatsApp(d.phone)) return;
+    batch.update(doc.ref, {
+      isActive: false,
+      inactiveReason: 'sem_telefone_whatsapp',
+      updatedAt: new Date().toISOString(),
+    });
+    deactivated += 1;
+    ops += 1;
+  });
+
+  if (ops > 0) await batch.commit();
+  return {
+    uniqueEmails: Object.keys(byEmail).length,
+    duplicatesDeactivated: deactivated,
+  };
+}
+
 async function getBrokerCampaignPreview(db) {
   const config = await getBrokerCampaignConfig(db);
   const targetList = await listBrokerCampaignTargets(db, {});
@@ -92,20 +186,25 @@ async function getBrokerCampaignPreview(db) {
     else invalidPhone += 1;
   });
   let optOutCount = 0;
-  const allSnap = await db.collection('brokers').get();
-  allSnap.docs.forEach(function(doc) {
-    const d = doc.data() || {};
-    if (d.whatsappCampaignOptOut && isBrokerActiveFlag(d.isActive)) optOutCount += 1;
+  dedupeBrokersByEmail(
+    (await db.collection('brokers').get()).docs.map(function(doc) {
+      return { id: doc.id, ...doc.data() };
+    })
+  ).forEach(function(b) {
+    if (b.whatsappCampaignOptOut && isBrokerActiveFlag(b.isActive)) optOutCount += 1;
   });
+  const allSnap = await db.collection('brokers').get();
+  const duplicateRows = Math.max(0, allSnap.size - targetList.length);
   return {
     enabled: !!config.enabled,
     totalActiveNotOptOut: targetList.length,
     eligible: eligible,
     invalidPhone: invalidPhone,
     optOut: optOutCount,
+    duplicateRecordsInDb: duplicateRows,
     nextWeeklyNote: config.enabled
-      ? 'Próximo envio automático: segunda-feira às 08:00 (horário de Brasília).'
-      : 'Envio automático desativado. Marque a opção acima e clique em Salvar.',
+      ? 'Envio automático: segunda-feira às 08:00 (Brasília). O botão Disparar agora envia imediatamente para os elegíveis abaixo.'
+      : 'Envio automático desativado. Marque a opção acima e clique em Salvar. Disparar agora continua funcionando manualmente.',
   };
 }
 
@@ -186,6 +285,7 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
 
   const results = [];
   const sendable = [];
+  const sentPhones = {};
   targetList.forEach(function(broker) {
     const waPhone = normalizeBrazilWhatsApp(broker.phone);
     if (!waPhone) {
@@ -197,6 +297,16 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
       });
       return;
     }
+    if (sentPhones[waPhone]) {
+      results.push({
+        brokerId: broker.id,
+        name: broker.name || '',
+        status: 'skipped',
+        reason: 'Telefone duplicado no cadastro',
+      });
+      return;
+    }
+    sentPhones[waPhone] = true;
     sendable.push({ broker: broker, waPhone: waPhone });
   });
 
@@ -1057,54 +1167,28 @@ exports.brokerCampaignSendNow = functions
         phone: body.phone || '',
       };
 
-      if (brokerId) {
-        const result = await sendWeeklyBrokerCampaignInternal(internalPayload);
-        return res.json(result);
-      }
-
-      const db = admin.firestore();
-      const runRef = db.collection('broker_campaign_logs').doc();
-      const preview = await getBrokerCampaignPreview(db);
-      await runRef.set({
-        type: internalPayload.type,
-        forced: true,
-        status: 'queued',
-        startedAt: new Date().toISOString(),
-        totalTargets: preview.totalActiveNotOptOut,
-        eligible: preview.eligible,
-      }, { merge: true });
-
-      res.json({
-        ok: true,
-        async: true,
-        runId: runRef.id,
-        sent: 0,
-        errors: 0,
-        skipped: 0,
-        totalTargets: preview.totalActiveNotOptOut,
-        eligible: preview.eligible,
-        invalidPhone: preview.invalidPhone,
-        message: 'Disparo em massa iniciado. Aguarde o resultado na tela.',
-      });
-
-      sendWeeklyBrokerCampaignInternal({
-        type: internalPayload.type,
-        force: true,
-        runId: runRef.id,
-      }).catch(function(err) {
-        console.error('brokerCampaignSendNow async:', err);
-        return runRef.set({
-          status: 'error',
-          finishedAt: new Date().toISOString(),
-          error: err.message || String(err),
-        }, { merge: true });
-      });
-      return null;
+      const result = await sendWeeklyBrokerCampaignInternal(internalPayload);
+      return res.json(result);
     } catch (err) {
       console.error('brokerCampaignSendNow:', err);
       return res.status(500).json({ error: err.message });
     }
   });
+
+exports.adminCleanupBrokerDuplicates = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const body = req.body || {};
+    if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+    const result = await cleanupBrokerDuplicatesInternal(admin.firestore());
+    return res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('adminCleanupBrokerDuplicates:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 exports.brokerCampaignOptOut = functions.https.onRequest(async (req, res) => {
   allowCors(res);

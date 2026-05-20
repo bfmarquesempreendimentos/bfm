@@ -66,9 +66,12 @@ ensureAdminBroker();
 setTimeout(function() { loadBrokersFromFirestore(); }, 800);
 
 function ensureAdminBroker() {
-    const exists = brokers.some(b => b.email === ADMIN_BROKER.email);
+    var adminEmail = (ADMIN_BROKER.email || '').toLowerCase();
+    var exists = brokers.some(function(b) {
+        return (b.email || '').toLowerCase() === adminEmail;
+    });
     if (!exists) {
-        const admin = {
+        var admin = {
             id: brokers.length + 1,
             name: ADMIN_BROKER.name,
             cpf: ADMIN_BROKER.cpf,
@@ -82,8 +85,17 @@ function ensureAdminBroker() {
         };
         brokers.push(admin);
         saveBrokersToStorage();
-        if (typeof saveBrokerToFirestore === 'function') {
-            saveBrokerToFirestore(admin).catch(function() {});
+        if (typeof getBrokersFromFirestore === 'function' && typeof saveBrokerToFirestore === 'function') {
+            getBrokersFromFirestore().then(function(fromDb) {
+                var inDb = (fromDb || []).some(function(b) {
+                    return (b.email || '').toLowerCase() === adminEmail;
+                });
+                if (!inDb) {
+                    saveBrokerToFirestore(admin).then(function(docId) {
+                        if (docId) admin.id = docId;
+                    }).catch(function() {});
+                }
+            }).catch(function() {});
         }
     }
 }

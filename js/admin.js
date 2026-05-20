@@ -1470,10 +1470,15 @@ async function loadBrokersData() {
 
 function formatBrokerCampaignPreviewLine(preview) {
     if (!preview) return '';
-    var autoNote = preview.nextWeeklyNote ? (' ' + preview.nextWeeklyNote) : '';
-    return 'Destinatários: ' + (preview.eligible || 0) + ' com WhatsApp válido, ' +
-        (preview.invalidPhone || 0) + ' ativos sem telefone válido, ' +
-        (preview.optOut || 0) + ' em opt-out.' + autoNote;
+    var line = 'Disparo agora e semanal: ' + (preview.eligible || 0) + ' corretor(es) com WhatsApp válido.';
+    if (preview.invalidPhone > 0) {
+        line += ' ' + (preview.invalidPhone || 0) + ' ativo(s) sem telefone no cadastro.';
+    }
+    if (preview.duplicateRecordsInDb > 0) {
+        line += ' Há ' + preview.duplicateRecordsInDb + ' cadastro(s) duplicado(s) no servidor — use Limpar duplicatas.';
+    }
+    if (preview.nextWeeklyNote) line += ' ' + preview.nextWeeklyNote;
+    return line;
 }
 
 function loadBrokerCampaignPreview() {
@@ -1595,22 +1600,39 @@ function saveBrokerCampaignConfig() {
 }
 
 function sendBrokerCampaignNow() {
-    if (!confirm('Disparar agora a mensagem semanal para todos os corretores ativos com WhatsApp válido (sem opt-out)?')) return;
+    if (!confirm('Disparar AGORA a mensagem para todos os corretores com WhatsApp válido (pode levar até 2 minutos)?')) return;
     setBrokerCampaignButtonsBusy(true);
-    if (typeof showMessage === 'function') showMessage('Iniciando disparo em massa...', 'info');
+    var waitEl = document.getElementById('brokerCampaignPreviewStats');
+    if (waitEl) waitEl.textContent = 'Enviando mensagens... Aguarde até aparecer o resultado.';
+    if (typeof showMessage === 'function') showMessage('Enviando campanha agora. Aguarde até 2 minutos...', 'info');
     adminPostJson('/brokerCampaignSendNow', { type: 'manual' }).then(function(result) {
-        if (result && result.async && result.runId) {
-            if (typeof showMessage === 'function') {
-                showMessage('Disparo iniciado para ' + (result.eligible || 0) + ' corretor(es). Aguarde...', 'info');
-            }
-            pollBrokerCampaignRun(result.runId, 0);
-            return;
-        }
         setBrokerCampaignButtonsBusy(false);
         showBrokerCampaignResult(result, false);
     }).catch(function(err) {
         setBrokerCampaignButtonsBusy(false);
         if (typeof showMessage === 'function') showMessage('Erro no disparo: ' + (err.message || ''), 'error');
+        loadBrokerCampaignPreview();
+    });
+}
+
+function cleanupBrokerDuplicatesAdmin() {
+    var creds = typeof getAdminApiCredentials === 'function' ? getAdminApiCredentials() : null;
+    if (!creds || !creds.email || !creds.password) {
+        if (typeof showMessage === 'function') showMessage('Faça login no painel com email e senha para limpar duplicatas.', 'error');
+        return;
+    }
+    if (!confirm('Desativar cadastros duplicados no Firestore (ex.: várias cópias do admin) e ativos sem telefone?')) return;
+    adminPostJson('/adminCleanupBrokerDuplicates', {
+        adminEmail: creds.email,
+        adminPassword: creds.password
+    }).then(function(r) {
+        var msg = 'Limpeza concluída. E-mails únicos: ' + (r.uniqueEmails || 0) +
+            '. Registros desativados: ' + (r.duplicatesDeactivated || 0) + '.';
+        if (typeof showMessage === 'function') showMessage(msg, 'success');
+        loadBrokerCampaignPreview();
+        if (typeof loadBrokersData === 'function') loadBrokersData();
+    }).catch(function(err) {
+        if (typeof showMessage === 'function') showMessage(err.message || 'Erro na limpeza.', 'error');
     });
 }
 
