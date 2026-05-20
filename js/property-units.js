@@ -166,12 +166,14 @@ const propertyUnits = {
             "Cs 5": "R$ 130.000,00",
             "Cs 1": "R$ 177.714,59",
             "Cs 2": "R$ 140.000,00",
+            "Cs 3": "R$ 159.000,00",
+            "Cs 6": "R$ 130.000,00",
             "Cs 7": "R$ 140.000,00",
             "Cs 4": "R$ 134.000,00",
             "Cs 9": "R$ 201.000,00"
         }
     },
-    
+
     6: { // Coelho - PDF: cs base Eduardo Neves; cs 4 Click (não cadastrado) = reservado amarelo
         name: "RESIDENCIAL COELHO - RUA DR LOPES DA CRUZ",
         units: [
