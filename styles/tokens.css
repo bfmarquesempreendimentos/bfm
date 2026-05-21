@@ -1,0 +1,18 @@
+/* Design tokens — site público, área do cliente e admin */
+:root {
+    --bf-navy: #0b1f3a;
+    --bf-navy-mid: #1f4e79;
+    --bf-blue: #3498db;
+    --bf-blue-dark: #2980b9;
+    --bf-bg: #eef2f7;
+    --bf-surface: #ffffff;
+    --bf-border: #e2e8f0;
+    --bf-text: #0f172a;
+    --bf-text-muted: #64748b;
+    --bf-success: #16a34a;
+    --bf-warning: #d97706;
+    --bf-danger: #dc2626;
+    --bf-radius: 12px;
+    --bf-radius-sm: 8px;
+    --bf-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+}

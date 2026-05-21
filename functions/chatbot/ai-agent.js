@@ -3,7 +3,7 @@ const { sendTextMessage, sendImageMessage, sendVideoMessage, sendInteractiveButt
 const { transcribeAudioBuffer } = require('./audio-transcription');
 const { getPropertyById, getPropertyMediaLists, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, properties } = require('./property-data');
 const { simulateFinancing, formatSimulationResult } = require('./finance-simulator');
-const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone, queueInboundEmailAlert } = require('./lead-manager');
+const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone, queueInboundEmailAlert, getBiaTrainingPromptExtra } = require('./lead-manager');
 
 function delay(ms) {
   return new Promise(function(resolve) { setTimeout(resolve, ms); });
@@ -53,14 +53,15 @@ ${getPropertiesSummaryForAI()}
 12. Destaque benefícios do MCMV quando aplicável: subsídio, ITBI grátis, entrada facilitada
 13. Não invente informações. Se não souber, diga que vai verificar com o Davi
 14. Respostas concisas (máximo 3–4 parágrafos), sempre com foco em *aprovação de crédito* e próximo passo claro
-15. Pedido de *fotos, imagens ou vídeos* do empreendimento: use *enviar_midias_imovel* na hora — envia até *3 fotos* e *1 vídeo* (se houver na pasta do imóvel). Se o cliente pedir *mais*, chame de novo com *enviar_mais: true*. *Não* use encaminhar_humano só por isso; a conversa segue com você
+15. Ao falar de um imóvel específico (*detalhes_imovel*), o sistema *envia automaticamente* fotos e vídeos — *nunca* pergunte "quer ver fotos?" ou "posso enviar imagens?". Só use *enviar_midias_imovel* com *enviar_mais: true* se o cliente pedir *mais* mídias depois do lote inicial
 16. Ao final de qualquer interação significativa, sugira agendar uma visita
 17. Documentos enviados ou visita solicitada SEMPRE exigem atendimento humano – use encaminhar_humano
 18. Não diga apenas “renda”; diga *renda bruta familiar* para alinhar com o programa e evitar retrabalho na análise
 19. *Nunca* encaminhe ao humano apenas porque o cliente pediu material visual do imóvel — isso é papel da ferramenta enviar_midias_imovel
-20. Depois de *enviar_midias_imovel*, sua resposta em texto deve ser *curta* (ofereça simulação ou visita) — não repita o mesmo resumo que a ferramenta já deu ao cliente
-21. Quando o cliente mandar *áudio*, a conversa pode trazer o texto *já transcrito* — responda ao conteúdo como se fosse mensagem escrita, em português natural
-22. Para leads de anúncios/WhatsApp, pergunte SEMPRE sobre *nome limpo* (CPF sem restrição). Sem essa informação, continue a qualificação até obter a resposta antes de avançar para proposta final`;
+20. Depois que as mídias forem enviadas (automático ou ferramenta), sua resposta em texto deve ser *curta* (simulação ou visita) — não repita descrições longas do imóvel
+21. Use as *orientações do atendente* no contexto do sistema quando existirem — elas refletem como a equipe quer que você escreva
+22. Quando o cliente mandar *áudio*, a conversa pode trazer o texto *já transcrito* — responda ao conteúdo como se fosse mensagem escrita, em português natural
+23. Para leads de anúncios/WhatsApp, pergunte SEMPRE sobre *nome limpo* (CPF sem restrição). Sem essa informação, continue a qualificação até obter a resposta antes de avançar para proposta final`;
 
 const TOOLS = [
   {
@@ -152,6 +153,83 @@ const TOOLS = [
   },
 ];
 
+/** Envia fotos/vídeos do imóvel. fullGallery=true na primeira apresentação (detalhes). */
+async function sendPropertyMedias(property, context, opts) {
+  opts = opts || {};
+  const lists = getPropertyMediaLists(property);
+  const images = lists.images;
+  const videos = lists.videos;
+  if (images.length === 0 && videos.length === 0) {
+    return { sent: false, summary: 'Não há fotos ou vídeos cadastrados para este imóvel.' };
+  }
+
+  const lead = await getLeadByPhone(context.from);
+  var cur = lead && lead.mediaGalleryCursor;
+  const pid = property.id;
+  const mais = !!opts.enviar_mais;
+  const fullGallery = !!opts.fullGallery;
+
+  if (!mais || !cur || cur.propertyId !== pid) {
+    cur = { propertyId: pid, imageIdx: 0, videoIdx: 0 };
+  }
+
+  var maxImg = fullGallery && !mais ? Math.min(images.length, 8) : 3;
+  const batchImages = images.slice(cur.imageIdx, cur.imageIdx + maxImg);
+  var batchVideos = [];
+  if (videos.length > 0 && cur.videoIdx < videos.length) {
+    if (fullGallery && !mais) {
+      batchVideos = videos.slice(cur.videoIdx, Math.min(videos.length, cur.videoIdx + 2));
+    } else if (batchImages.length > 0) {
+      batchVideos = videos.slice(cur.videoIdx, cur.videoIdx + 1);
+    } else if (cur.imageIdx >= images.length) {
+      batchVideos = videos.slice(cur.videoIdx, cur.videoIdx + 1);
+    }
+  }
+
+  if (batchImages.length === 0 && batchVideos.length === 0) {
+    return {
+      sent: false,
+      summary: 'Já enviei todas as fotos e vídeos que temos deste imóvel. Peça "manda de novo as fotos" para recomeçar.',
+    };
+  }
+
+  const waOpt = { phoneNumberId: context.phoneNumberId };
+  var imgN = 0;
+  var ii;
+  for (ii = 0; ii < batchImages.length; ii++) {
+    var cap = imgN === 0 ? '📸 ' + property.title : '';
+    await sendImageMessage(context.from, batchImages[ii], cap, waOpt);
+    imgN++;
+    await delay(650);
+  }
+  var jj;
+  for (jj = 0; jj < batchVideos.length; jj++) {
+    await sendVideoMessage(context.from, batchVideos[jj], '🎬 ' + property.title, waOpt);
+    await delay(900);
+  }
+
+  const newCursor = {
+    propertyId: pid,
+    imageIdx: cur.imageIdx + batchImages.length,
+    videoIdx: cur.videoIdx + batchVideos.length,
+  };
+  await updateLead(context.from, { mediaGalleryCursor: newCursor });
+
+  const summaryParts = [];
+  if (batchImages.length) summaryParts.push(batchImages.length + ' foto(s)');
+  if (batchVideos.length) summaryParts.push(batchVideos.length + ' vídeo(s)');
+  const line = 'Enviei ' + summaryParts.join(' e ') + ' de ' + property.title + '.';
+  await saveMessage(context.from, 'assistant', line, 'bot');
+  await recordInboundActivity(context.from, line);
+
+  var aindaTem = newCursor.imageIdx < images.length || newCursor.videoIdx < videos.length;
+  return {
+    sent: true,
+    summary: line + (aindaTem && !fullGallery ? ' Se quiser mais, é só pedir.' : ''),
+    aindaTem: aindaTem,
+  };
+}
+
 async function executeTool(toolName, input, context) {
   switch (toolName) {
     case 'listar_imoveis': {
@@ -168,7 +246,12 @@ async function executeTool(toolName, input, context) {
       const property = getPropertyById(input.imovel_id);
       if (!property) return 'Imóvel não encontrado.';
       await addInterestedProperty(context.from, property.id);
-      return formatPropertyFull(property);
+      var mediaResult = await sendPropertyMedias(property, context, { fullGallery: true, enviar_mais: false });
+      var detailText = formatPropertyFull(property);
+      if (mediaResult.sent) {
+        return detailText + '\n\n[Mídias enviadas automaticamente: ' + mediaResult.summary + ']';
+      }
+      return detailText + '\n\n[' + mediaResult.summary + ']';
     }
 
     case 'simular_financiamento': {
@@ -235,65 +318,11 @@ async function executeTool(toolName, input, context) {
     case 'enviar_midias_imovel': {
       const property = getPropertyById(input.imovel_id);
       if (!property) return 'Imóvel não encontrado.';
-      const lists = getPropertyMediaLists(property);
-      const images = lists.images;
-      const videos = lists.videos;
-      if (images.length === 0 && videos.length === 0) return 'Não há fotos ou vídeos cadastrados para este imóvel.';
-
-      const lead = await getLeadByPhone(context.from);
-      var cur = lead && lead.mediaGalleryCursor;
-      const pid = property.id;
-      const mais = !!input.enviar_mais;
-      if (!mais || !cur || cur.propertyId !== pid) {
-        cur = { propertyId: pid, imageIdx: 0, videoIdx: 0 };
-      }
-
-      const maxImg = 3;
-      const batchImages = images.slice(cur.imageIdx, cur.imageIdx + maxImg);
-      var batchVideos = [];
-      if (videos.length > 0 && cur.videoIdx < videos.length) {
-        if (batchImages.length > 0) {
-          batchVideos = videos.slice(cur.videoIdx, cur.videoIdx + 1);
-        } else if (cur.imageIdx >= images.length) {
-          batchVideos = videos.slice(cur.videoIdx, cur.videoIdx + 1);
-        }
-      }
-
-      if (batchImages.length === 0 && batchVideos.length === 0) {
-        return 'Já enviei todas as fotos e vídeos que temos deste imóvel. Se quiser, posso recomeçar do início — é só pedir "manda de novo as fotos".';
-      }
-
-      const waOpt = { phoneNumberId: context.phoneNumberId };
-      var imgN = 0;
-      var ii;
-      for (ii = 0; ii < batchImages.length; ii++) {
-        var cap = imgN === 0 ? `📸 ${property.title}` : '';
-        await sendImageMessage(context.from, batchImages[ii], cap, waOpt);
-        imgN++;
-        await delay(650);
-      }
-      var jj;
-      for (jj = 0; jj < batchVideos.length; jj++) {
-        await sendVideoMessage(context.from, batchVideos[jj], `🎬 ${property.title}`, waOpt);
-        await delay(900);
-      }
-
-      const newCursor = {
-        propertyId: pid,
-        imageIdx: cur.imageIdx + batchImages.length,
-        videoIdx: cur.videoIdx + batchVideos.length,
-      };
-      await updateLead(context.from, { mediaGalleryCursor: newCursor });
-
-      const summary = [];
-      if (batchImages.length) summary.push(batchImages.length + ' foto(s)');
-      if (batchVideos.length) summary.push('1 vídeo');
-      const line = `Enviei ${summary.join(' e ')} de ${property.title}.`;
-      await saveMessage(context.from, 'assistant', line, 'bot');
-      await recordInboundActivity(context.from, line);
-
-      var aindaTem = newCursor.imageIdx < images.length || newCursor.videoIdx < videos.length;
-      return line + (aindaTem ? ' Se quiser mais, é só pedir.' : '');
+      const mediaOut = await sendPropertyMedias(property, context, {
+        fullGallery: !input.enviar_mais,
+        enviar_mais: !!input.enviar_mais,
+      });
+      return mediaOut.summary;
     }
 
     default:
@@ -490,10 +519,19 @@ async function handleIncomingMessage(messageData) {
     var cleanNameRule = cleanNameMissing
       ? '\n\nQualificação obrigatória pendente nesta conversa: pergunte de forma direta se o cliente está com NOME LIMPO (CPF sem restrição), pois isso é requisito essencial para MCMV.'
       : '';
+    var trainingExtra = '';
+    try {
+      trainingExtra = await getBiaTrainingPromptExtra(phone);
+    } catch (te) {
+      console.warn('getBiaTrainingPromptExtra:', te.message);
+    }
+    var leadContext = SYSTEM_PROMPT +
+      `\n\nDados do lead atual: Nome: ${lead.name || 'Desconhecido'}, Status: ${lead.status}, Nome limpo: ${cleanNameStatus}, Imóveis de interesse: ${(lead.interestedProperties || []).join(', ') || 'Nenhum ainda'}` +
+      cleanNameRule + trainingExtra;
     let response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
-      system: SYSTEM_PROMPT + `\n\nDados do lead atual: Nome: ${lead.name || 'Desconhecido'}, Status: ${lead.status}, Nome limpo: ${cleanNameStatus}, Imóveis de interesse: ${(lead.interestedProperties || []).join(', ') || 'Nenhum ainda'}` + cleanNameRule,
+      system: leadContext,
       tools: TOOLS,
       messages: dedupedMessages,
     });
@@ -527,7 +565,7 @@ async function handleIncomingMessage(messageData) {
       response = await client.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1024,
-        system: SYSTEM_PROMPT,
+        system: leadContext,
         tools: TOOLS,
         messages: dedupedMessages,
       });

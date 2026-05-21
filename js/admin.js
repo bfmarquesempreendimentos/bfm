@@ -717,6 +717,9 @@ function syncAdminDashboardLocalData() {
 }
 
 function adminFetchJson(path) {
+    if (typeof ApiClient !== 'undefined' && ApiClient.get) {
+        return ApiClient.get(path).catch(function() { return null; });
+    }
     var sep = path.indexOf('?') >= 0 ? '&' : '?';
     return fetch(ADMIN_FUNCTIONS_BASE + path + sep + '_=' + Date.now(), { cache: 'no-store', credentials: 'omit' })
         .then(function(res) {
@@ -733,7 +736,10 @@ function adminFetchJson(path) {
         .catch(function() { return null; });
 }
 
-function adminPostJson(path, payload) {
+function adminPostJson(path, payload, extra) {
+    if (typeof ApiClient !== 'undefined' && ApiClient.post) {
+        return ApiClient.post(path, payload || {}, extra || {});
+    }
     return fetch(ADMIN_FUNCTIONS_BASE + path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

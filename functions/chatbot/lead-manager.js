@@ -149,6 +149,7 @@ async function saveMessage(phone, role, content, source, meta) {
         urgencyLevel: null,
         updatedAt: new Date().toISOString(),
       });
+      await recordAdminBiaTraining(phone, content, (meta && meta.adminEmail) ? meta.adminEmail : 'admin');
     } catch (_) {}
   } else if (role === 'user') {
     try {
@@ -165,6 +166,78 @@ function escapeHtmlForEmail(s) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+async function recordAdminBiaTraining(phone, text, adminEmail) {
+  const line = String(text || '').trim();
+  if (line.length < 2) return;
+  const db = getDb();
+  const snippet = {
+    text: line.substring(0, 800),
+    phone: phone || '',
+    admin: adminEmail || 'admin',
+    at: new Date().toISOString(),
+  };
+  const globalRef = db.collection('bia_training').doc('global');
+  const globalSnap = await globalRef.get();
+  let snippets = (globalSnap.exists && globalSnap.data().snippets) ? globalSnap.data().snippets.slice() : [];
+  snippets.push(snippet);
+  if (snippets.length > 40) snippets = snippets.slice(-40);
+  await globalRef.set({ snippets: snippets, updatedAt: new Date().toISOString() }, { merge: true });
+  if (phone) {
+    await db.collection('chatbot_leads').doc(phone).set({
+      lastAdminGuidance: snippet.text,
+      lastAdminGuidanceAt: snippet.at,
+      lastAdminGuidanceBy: snippet.admin,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+  }
+}
+
+async function getBiaTrainingPromptExtra(phone) {
+  const db = getDb();
+  const parts = [];
+  try {
+    const globalSnap = await db.collection('bia_training').doc('global').get();
+    if (globalSnap.exists) {
+      const snippets = (globalSnap.data().snippets || []).slice(-15);
+      if (snippets.length) {
+        parts.push('\n\n## ORIENTAÇÕES DO ATENDENTE (aprendizado — priorize ao responder)');
+        snippets.forEach(function(s) {
+          parts.push('- [' + (s.admin || 'admin') + ']: ' + (s.text || ''));
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('getBiaTrainingPromptExtra global:', e.message);
+  }
+  if (!phone) return parts.join('\n');
+  try {
+    const leadSnap = await db.collection('chatbot_leads').doc(phone).get();
+    if (leadSnap.exists) {
+      const d = leadSnap.data() || {};
+      if (d.lastAdminGuidance) {
+        parts.push('\n\n## CONTEXTO DESTE LEAD (atendente humano orientou):');
+        parts.push(String(d.lastAdminGuidance));
+      }
+    }
+    const hist = await getConversationHistory(phone, 30);
+    const adminLines = [];
+    hist.forEach(function(m) {
+      if (m.role === 'assistant' && m.source === 'admin' && m.content) {
+        adminLines.push(String(m.content).trim());
+      }
+    });
+    if (adminLines.length) {
+      parts.push('\n\n## O QUE O ATENDENTE JÁ DISSE NESTA CONVERSA (mantenha o mesmo tom e fatos):');
+      adminLines.slice(-10).forEach(function(line) {
+        parts.push('- ' + line);
+      });
+    }
+  } catch (e2) {
+    console.warn('getBiaTrainingPromptExtra lead:', e2.message);
+  }
+  return parts.join('\n');
 }
 
 async function queueInboundEmailAlert(phone, leadName, incomingText) {
@@ -404,4 +477,6 @@ module.exports = {
   normalizeWhatsAppPhone,
   recordInboundActivity,
   queueInboundEmailAlert,
+  recordAdminBiaTraining,
+  getBiaTrainingPromptExtra,
 };

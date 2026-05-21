@@ -2,7 +2,7 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 const { verifyWebhook, processWebhook } = require('./chatbot/webhook');
-const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveMessage, deleteConversationMessage, setModoHumano, returnToBot, markAdminRead, getLastConversationMessage, normalizeWhatsAppPhone, recordInboundActivity } = require('./chatbot/lead-manager');
+const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveMessage, deleteConversationMessage, setModoHumano, returnToBot, markAdminRead, getLastConversationMessage, normalizeWhatsAppPhone, recordInboundActivity, recordAdminBiaTraining } = require('./chatbot/lead-manager');
 const { sendFollowUp } = require('./chatbot/templates');
 const { getPropertyById } = require('./chatbot/property-data');
 const { sendTextMessage, uploadMediaBuffer, sendMediaById, getWhatsAppMediaBuffer } = require('./chatbot/whatsapp-api');
@@ -787,6 +787,10 @@ exports.chatbotInboxAssume = functions
       if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
 
       await setModoHumano(phone, adminEmail);
+      const guidance = String(body.guidance || body.notaParaBia || body.initialMessage || '').trim();
+      if (guidance.length >= 3) {
+        await recordAdminBiaTraining(phone, guidance, adminEmail);
+      }
       return res.json({ success: true, message: 'Conversa assumida' });
     } catch (err) {
       console.error('Erro ao assumir conversa:', err);
@@ -849,6 +853,7 @@ exports.chatbotInboxSend = functions
           fileName: mediaName,
           whatsappMediaId: up.id,
           mimeType: mediaMime,
+          adminEmail: (body.adminEmail || body.admin || 'admin').trim(),
         });
         await recordInboundActivity(phone, line);
         return res.json({ success: true, message: 'Mídia enviada' });
@@ -857,7 +862,9 @@ exports.chatbotInboxSend = functions
       if (!text) return res.status(400).json({ error: 'Digite uma mensagem ou anexe um arquivo' });
 
       await sendTextMessage(phone, text);
-      await saveMessage(phone, 'assistant', text, 'admin');
+      await saveMessage(phone, 'assistant', text, 'admin', {
+        adminEmail: (body.adminEmail || body.admin || 'admin').trim(),
+      });
       await recordInboundActivity(phone, text);
       return res.json({ success: true, message: 'Mensagem enviada' });
     } catch (err) {

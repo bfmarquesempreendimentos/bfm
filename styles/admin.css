@@ -1,4 +1,6 @@
-/* Admin Panel — layout e tema (v5) */
+@import url('tokens.css');
+
+/* Admin Panel — layout e tema (v6) */
 :root {
     --admin-header-h: 64px;
     --admin-sidebar-w: 268px;
@@ -2782,3 +2784,24 @@ button.wa-stat.wa-stat--click:focus {
     min-width: 280px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
+
+/* Campanha WhatsApp corretores */
+.campaign-panel-title { margin: 0 0 10px 0; }
+.campaign-panel-intro { margin: 0 0 12px 0; color: var(--bf-text-muted, #64748b); }
+.campaign-preview-stats { margin: 0 0 12px 0; color: var(--bf-text, #334155); font-size: 0.95rem; line-height: 1.5; }
+.campaign-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.campaign-field-col { display: flex; flex-direction: column; gap: 4px; }
+.campaign-field-full { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.campaign-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+.campaign-test-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.campaign-test-select { min-width: 220px; }

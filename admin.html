@@ -6,8 +6,8 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
-    <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/admin.css?v=7">
+    <link rel="stylesheet" href="styles/main.css?v=9">
+    <link rel="stylesheet" href="styles/admin.css?v=8">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -534,33 +534,33 @@
 
             <div class="admin-table-container admin-table-container--elevated" style="margin-bottom:16px;">
                 <div style="padding:16px;">
-                    <h3 style="margin:0 0 10px 0;">Campanha semanal no WhatsApp (Corretores)</h3>
-                    <p style="margin:0 0 12px 0;color:#64748b;">Envio automático semanal com incentivo de vendas, site atualizado e dica útil.</p>
-                    <p id="brokerCampaignPreviewStats" style="margin:0 0 12px 0;color:#334155;font-size:0.95rem;">Carregando resumo de destinatários...</p>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:12px;">
-                        <label style="display:flex;flex-direction:column;gap:4px;">
+                    <h3 class="campaign-panel-title">Campanha semanal no WhatsApp (Corretores)</h3>
+                    <p class="campaign-panel-intro">Envio automático semanal com incentivo de vendas, site atualizado e dica útil.</p>
+                    <p id="brokerCampaignPreviewStats" class="campaign-preview-stats">Carregando resumo de destinatários...</p>
+                    <div class="campaign-form-grid">
+                        <label class="campaign-field-col">
                             <span>Título semanal</span>
                             <input type="text" id="brokerCampaignTitle" placeholder="Atualização semanal B F Marques">
                         </label>
-                        <label style="display:flex;flex-direction:column;gap:4px;">
+                        <label class="campaign-field-col">
                             <span>URL do site</span>
                             <input type="text" id="brokerCampaignSiteUrl" placeholder="https://bfmarquesempreendimentos.github.io/bfm/">
                         </label>
-                        <label style="display:flex;flex-direction:column;gap:4px;">
+                        <label class="campaign-field-col">
                             <span>WhatsApp de contato</span>
                             <input type="text" id="brokerCampaignContact" placeholder="(21) 99759-0814">
                         </label>
                     </div>
-                    <label style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;">
+                    <label class="campaign-field-full">
                         <span>Chamada comercial (CTA)</span>
                         <input type="text" id="brokerCampaignCta" placeholder="Divulgue as ofertas da semana para seus leads e traga sua visita agendada.">
                     </label>
-                    <label style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;">
+                    <label class="campaign-field-full">
                         <span>Dicas úteis (uma por linha)</span>
                         <textarea id="brokerCampaignTips" rows="4" placeholder="Dica 1&#10;Dica 2&#10;Dica 3"></textarea>
                     </label>
-                    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
-                        <label style="display:flex;align-items:center;gap:8px;">
+                    <div class="campaign-actions-row">
+                        <label class="campaign-test-row">
                             <input type="checkbox" id="brokerCampaignEnabled">
                             <span>Ativar envio automático (segunda às 08:00)</span>
                         </label>
@@ -576,9 +576,9 @@
                         <button type="button" class="btn btn-secondary" onclick="cleanupBrokerDuplicatesAdmin()" title="Remove centenas de cadastros duplicados do admin no Firestore">
                             <i class="fas fa-broom" aria-hidden="true"></i> Limpar duplicatas
                         </button>
-                        <label style="display:flex;align-items:center;gap:8px;">
+                        <label class="campaign-test-row">
                             <span>Teste em 1 corretor:</span>
-                            <select id="brokerCampaignTestSelect" style="min-width:220px;">
+                            <select id="brokerCampaignTestSelect" class="campaign-test-select">
                                 <option value="">Selecione um corretor ativo</option>
                             </select>
                         </label>
@@ -1128,6 +1128,8 @@
     <!-- Scripts -->
     <script src="js/compat-polyfills.js"></script>
     <script src="config.js"></script>
+    <script src="js/dom-utils.js"></script>
+    <script src="js/api-client.js"></script>
     <script src="js/audit.js"></script>
     <script src="js/email-service.js"></script>
     <!-- Firebase (Compat) -->
@@ -1151,7 +1153,7 @@
     <script src="js/whatsapp-leads.js?v=2"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=8"></script>
+    <script src="js/admin.js?v=9"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

@@ -80,10 +80,10 @@ var CONFIG = {
     
     // Configurações de SEO
     seo: {
-        siteName: 'Construtora Premium - Imóveis de Qualidade',
-        siteDescription: 'Encontre o imóvel dos seus sonhos com a Construtora Premium. Apartamentos, casas e coberturas com qualidade e localização privilegiada.',
-        keywords: 'imóveis, apartamentos, casas, construtora, venda, Rio de Janeiro',
-        ogImage: 'assets/images/og-image.jpg'
+        siteName: 'B F Marques Empreendimentos - Imóveis de Qualidade',
+        siteDescription: 'Casas e apartamentos com MCMV em São Gonçalo, Itaboraí e Maricá. Construtora com 15 anos de experiência.',
+        keywords: 'imóveis, MCMV, casas, apartamentos, São Gonçalo, Itaboraí, Maricá, B F Marques',
+        ogImage: 'assets/images/logo-bf-marques.png'
     },
     
     // Configurações de Mapa (se implementar)
@@ -145,8 +145,11 @@ var CONFIG = {
         enableDebugMode: false,
         showConsoleErrors: true,
         enablePerformanceMetrics: false,
-        mockAPIResponses: true
-    }
+        mockAPIResponses: false
+    },
+
+    /** Versão de cache para CSS/JS (incrementar a cada deploy público) */
+    assetVersion: '9'
 };
 
 // Função para obter configuração
