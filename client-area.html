@@ -142,6 +142,7 @@
                 <div class="client-dashboard-tabs">
                     <button class="dashboard-tab-btn active" onclick="showDashboardTab('properties')">Meus Imóveis</button>
                     <button class="dashboard-tab-btn" onclick="showDashboardTab('documents')">Documentos</button>
+                    <button class="dashboard-tab-btn" onclick="showDashboardTab('boletos')">Boletos</button>
                     <button class="dashboard-tab-btn" onclick="showDashboardTab('repairs')">Reparos</button>
                     <button class="dashboard-tab-btn" onclick="showDashboardTab('manual')">
                         <i class="fas fa-book"></i> Manual
@@ -162,6 +163,13 @@
                     <h4>Documentos</h4>
                     <div id="clientDocumentsList">
                         <p>Nenhum documento disponível no momento.</p>
+                    </div>
+                </div>
+                <div id="clientBoletosTab" class="dashboard-tab-content">
+                    <h4>Boletos e parcelas</h4>
+                    <p class="form-hint">Parcelas do financiamento cadastradas pela construtora.</p>
+                    <div id="clientBoletosList">
+                        <p>Nenhum boleto disponível no momento.</p>
                     </div>
                 </div>
                 <div id="clientRepairsTab" class="dashboard-tab-content">
@@ -228,7 +236,8 @@
                     </div>
                 </div>
                 <div id="clientHistoryTab" class="dashboard-tab-content">
-                    <h4>Histórico de Relacionamento</h4>
+                    <h4>Linha do tempo do imóvel</h4>
+                    <p class="form-hint">Reserva, compra, reparos e atualizações da obra.</p>
                     <div id="clientHistoryList">
                         <p>Nenhum histórico disponível.</p>
                     </div>
@@ -410,6 +419,15 @@
                             </div>
                         </div>
                         <div class="form-group">
+                            <label>Tipo da solicitação</label>
+                            <select id="repairTipo">
+                                <option value="geral">Geral</option>
+                                <option value="manutencao">Manutenção</option>
+                                <option value="reclamacao">Reclamação</option>
+                                <option value="sugestao">Sugestão</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label>Descrição do Problema *</label>
                             <textarea id="repairDescription" rows="4" required placeholder="Descreva detalhadamente o problema que precisa ser reparado..."></textarea>
                         </div>
@@ -480,6 +498,7 @@
     <script src="js/property-sales.js"></script>
     <script src="js/email-service.js"></script>
     <script src="js/storage.js"></script>
+    <script src="js/dom-utils.js"></script>
     <script src="js/client-area.js"></script>
     <script src="js/repair-requests.js"></script>
     <script src="js/client-manual.js"></script>

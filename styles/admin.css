@@ -1879,6 +1879,25 @@ button.wa-stat.wa-stat--click:focus {
     font-weight: 700;
 }
 
+.wa-followup-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: 6px;
+    vertical-align: middle;
+    background: #ede9fe;
+    color: #5b21b6;
+}
+.wa-followup-badge.wa-followup-off {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+.wa-followup-badge.wa-followup-done {
+    background: #ecfdf5;
+    color: #047857;
+}
+
 .wa-inbox-filters {
     display: flex;
     flex-wrap: wrap;

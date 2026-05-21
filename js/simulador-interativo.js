@@ -376,6 +376,20 @@ function finalizarSimulacao() {
     document.getElementById('resultadoFinal').innerHTML = resultadoHTML;
     document.getElementById('gameResult').style.display = 'block';
     showResultOverlay();
+    try {
+        var base = (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL)
+            ? CONFIG.cloudFunctions.baseURL
+            : 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+        fetch(base + '/saveSimulatorLead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                renda: simuladorData.renda,
+                valorImovel: simuladorData.valorImovel,
+                source: 'simulador_site',
+            }),
+        }).catch(function() {});
+    } catch (e) {}
 }
 
 // Reiniciar simulador

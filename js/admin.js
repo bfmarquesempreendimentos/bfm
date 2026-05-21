@@ -847,7 +847,7 @@ function buildMergedDashboardActivity(repairsList, salesList) {
     return items.slice(0, 12);
 }
 
-function applyRemoteDashboardWidgets(waStats, repairsOpen, salesCount, brokersActive, localBrokersFallback) {
+function applyRemoteDashboardWidgets(waStats, repairsOpen, salesCount, brokersActive, localBrokersFallback, bundleExtras) {
     var waEl = document.getElementById('dashboardWaLeads');
     var waSub = document.getElementById('dashboardWaLeadsSub');
     var repEl = document.getElementById('dashboardRepairsOpen');
@@ -859,6 +859,9 @@ function applyRemoteDashboardWidgets(waStats, repairsOpen, salesCount, brokersAc
         var bits = [];
         if (waStats && waStats.pendentesLeitura > 0) bits.push(waStats.pendentesLeitura + ' sem leitura');
         if (waStats && waStats.emAtendimento > 0) bits.push(waStats.emAtendimento + ' em atendimento');
+        if (waStats && waStats.followUpElegivel > 0) bits.push(waStats.followUpElegivel + ' follow-up ativo');
+        if (waStats && waStats.followUpExcluded > 0) bits.push(waStats.followUpExcluded + ' sem follow-up');
+        if (bundleExtras && bundleExtras.funnelReservas > 0) bits.push(bundleExtras.funnelReservas + ' reservas');
         waSub.textContent = bits.join(' · ');
     }
     if (repEl) repEl.textContent = repairsOpen != null ? String(repairsOpen) : '0';
@@ -880,7 +883,7 @@ function fetchDashboardRemoteThenActivity(localBrokers) {
         var repairsList = null;
         var salesList = null;
         if (bundle && !bundle.error && bundle.wa) {
-            applyRemoteDashboardWidgets(bundle.wa, bundle.repairsOpen, bundle.salesCount, bundle.brokersActive, localBrokers);
+            applyRemoteDashboardWidgets(bundle.wa, bundle.repairsOpen, bundle.salesCount, bundle.brokersActive, localBrokers, bundle);
         } else {
             return Promise.all([
                 adminFetchJson('/getBrokers'),

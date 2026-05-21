@@ -62,6 +62,16 @@ async function getOrCreateLead(phone, profileName) {
     updatedAt: now,
     lastMessageAt: now,
     lastActivityPreview: '',
+    firstUserMessageAt: null,
+    lastUserMessageAt: null,
+    lastBotMessageAt: null,
+    followUpStage: '',
+    followUpExcluded: false,
+    followUpExcludeReason: '',
+    followUpPaused: false,
+    followUpLog: [],
+    lastFollowUpAt: null,
+    welcomeSent: false,
   };
 
   await ref.set(newLead);
@@ -138,6 +148,20 @@ async function saveMessage(phone, role, content, source, meta) {
     .doc(phone)
     .collection('messages')
     .add(msg);
+
+  var leadPatch = { lastMessageAt: msg.timestamp, updatedAt: msg.timestamp };
+  if (role === 'user') {
+    leadPatch.lastUserMessageAt = msg.timestamp;
+    var leadSnap = await db.collection('chatbot_leads').doc(phone).get();
+    if (leadSnap.exists && !leadSnap.data().firstUserMessageAt) {
+      leadPatch.firstUserMessageAt = msg.timestamp;
+    }
+  } else if (role === 'assistant') {
+    leadPatch.lastBotMessageAt = msg.timestamp;
+  }
+  try {
+    await db.collection('chatbot_leads').doc(phone).set(leadPatch, { merge: true });
+  } catch (_) {}
 
   // Atualiza indicadores operacionais de atendimento humano/SLA
   if (role === 'assistant' && source === 'admin') {
@@ -431,7 +455,7 @@ async function getAllLeads(filters = {}) {
 async function getLeadStats() {
   const db = getDb();
   const snapshot = await db.collection('chatbot_leads').get();
-  const stats = { total: 0, novo: 0, qualificado: 0, agendado: 0, convertido: 0, encaminhado: 0, emAtendimento: 0, pendentesLeitura: 0, vendas: 0, duvidas: 0, sugestoes: 0, urgentes: 0, slaAtrasado: 0, nomeLimpoOk: 0, nomeLimpoPendente: 0 };
+  const stats = { total: 0, novo: 0, qualificado: 0, agendado: 0, convertido: 0, encaminhado: 0, emAtendimento: 0, pendentesLeitura: 0, vendas: 0, duvidas: 0, sugestoes: 0, urgentes: 0, slaAtrasado: 0, nomeLimpoOk: 0, nomeLimpoPendente: 0, followUpExcluded: 0, followUpElegivel: 0 };
   var nowMs = Date.now();
   snapshot.forEach(doc => {
     stats.total++;
@@ -452,6 +476,10 @@ async function getLeadStats() {
     }
     const cat = d.categoria || 'geral';
     if (stats[cat] !== undefined) stats[cat]++;
+    if (d.followUpExcluded) stats.followUpExcluded++;
+    else if (d.firstUserMessageAt && !d.modo_humano && d.followUpStage !== 'completed') {
+      stats.followUpElegivel++;
+    }
   });
   return stats;
 }
@@ -479,4 +507,8 @@ module.exports = {
   queueInboundEmailAlert,
   recordAdminBiaTraining,
   getBiaTrainingPromptExtra,
+  setFollowUpExclusion: function(phone, excluded, reason, by) {
+    var apply = require('./follow-up-engine').setFollowUpExclusion;
+    return apply(getDb(), phone, excluded, reason, by);
+  },
 };

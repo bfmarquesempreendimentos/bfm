@@ -3,7 +3,8 @@ const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 const { verifyWebhook, processWebhook } = require('./chatbot/webhook');
 const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveMessage, deleteConversationMessage, setModoHumano, returnToBot, markAdminRead, getLastConversationMessage, normalizeWhatsAppPhone, recordInboundActivity, recordAdminBiaTraining } = require('./chatbot/lead-manager');
-const { sendFollowUp } = require('./chatbot/templates');
+const { processAllFollowUps } = require('./chatbot/follow-up-engine');
+const { setFollowUpExclusion: leadSetFollowUpExclusion } = require('./chatbot/lead-manager');
 const { getPropertyById } = require('./chatbot/property-data');
 const { sendTextMessage, uploadMediaBuffer, sendMediaById, getWhatsAppMediaBuffer } = require('./chatbot/whatsapp-api');
 const propertySalesHandlers = require('./property-sales-handlers');
@@ -461,7 +462,7 @@ exports.getBrokers = functions.https.onRequest(async (req, res) => {
       };
     });
     brokers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    return res.json(brokers);
+    return res.json(dedupeBrokersByEmail(brokers));
   } catch (err) {
     console.error('Erro ao buscar corretores:', err);
     return res.status(500).json({ error: err.message });
@@ -574,6 +575,13 @@ exports.createRepair = functions.https.onRequest(async (req, res) => {
       attachmentsCount: body.attachmentsCount || 0,
       attachmentsTotalSize: body.attachmentsTotalSize || 0,
       status: body.status || 'pendente',
+      tipo: body.tipo || 'geral',
+      responsavelId: body.responsavelId || '',
+      responsavelNome: body.responsavelNome || '',
+      custoEstimado: body.custoEstimado != null ? Number(body.custoEstimado) : null,
+      custoTotal: body.custoTotal != null ? Number(body.custoTotal) : null,
+      slaDueAt: body.slaDueAt || null,
+      comentarios: Array.isArray(body.comentarios) ? body.comentarios : [],
       createdAt: body.createdAt || new Date().toISOString(),
       updatedAt: body.updatedAt || new Date().toISOString(),
       responses: Array.isArray(body.responses) ? body.responses : []
@@ -638,12 +646,41 @@ exports.adminDashboardBundle = functions.https.onRequest(async (req, res) => {
     brokerSnap.forEach((doc) => {
       if (doc.data().isActive === true) brokersActive++;
     });
+    var unitsDisponivel = 0;
+    var unitsReservado = 0;
+    var unitsAssinado = 0;
+    var ovSnap = await db.collection('unit_status_overrides').get();
+    ovSnap.forEach(function(doc) {
+      var map = (doc.data() && doc.data().map) || {};
+      var code;
+      for (code in map) {
+        if (!Object.prototype.hasOwnProperty.call(map, code)) continue;
+        var st = String(map[code] || '').toLowerCase();
+        if (st === 'disponivel') unitsDisponivel++;
+        else if (st === 'reservado') unitsReservado++;
+        else if (st === 'assinado' || st === 'vendido' || st === 'entregue') unitsAssinado++;
+      }
+    });
+    var visitas = 0;
+    var reservas = 0;
+    salesSnap.forEach(function(doc) {
+      var d = doc.data() || {};
+      if (d.visitScheduled || d.status === 'visita') visitas++;
+      if (d.status === 'reservado' || d.reservationAt) reservas++;
+    });
     return res.json({
-      wa,
-      repairsOpen,
+      wa: wa,
+      repairsOpen: repairsOpen,
       salesCount: salesSnap.size,
-      brokersActive,
+      brokersActive: brokersActive,
       brokersTotal: brokerSnap.size,
+      unitsDisponivel: unitsDisponivel,
+      unitsReservado: unitsReservado,
+      unitsAssinado: unitsAssinado,
+      funnelVisitas: visitas,
+      funnelReservas: reservas,
+      followUpExcluded: wa.followUpExcluded || 0,
+      followUpElegivel: wa.followUpElegivel || 0,
     });
   } catch (err) {
     console.error('adminDashboardBundle:', err);
@@ -963,6 +1000,26 @@ exports.chatbotInboxUpdateStatus = functions.https.onRequest(async (req, res) =>
   }
 });
 
+exports.chatbotInboxFollowUp = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const body = req.body || {};
+    const raw = (body.phone || '').trim();
+    const phone = normalizeWhatsAppPhone(raw) || raw;
+    if (!phone) return res.status(400).json({ error: 'phone obrigatório' });
+    const excluded = body.excluded !== false && body.excluded !== 'false';
+    const reason = String(body.reason || (excluded ? 'manual_admin' : '')).trim();
+    const by = String(body.by || body.adminEmail || 'admin').trim();
+    await leadSetFollowUpExclusion(phone, excluded, reason, by);
+    return res.json({ success: true, phone: phone, followUpExcluded: excluded });
+  } catch (err) {
+    console.error('chatbotInboxFollowUp:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 exports.chatbotInboxUpdateCategory = functions.https.onRequest(async (req, res) => {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
@@ -987,76 +1044,19 @@ exports.chatbotInboxUpdateCategory = functions.https.onRequest(async (req, res) 
   }
 });
 
-// ─── Follow-up automático (roda a cada 6 horas) ──────────────────
+// ─── Follow-up automático sequencial (opção B — a cada 2 horas) ───
 exports.chatbotFollowUp = functions
   .runWith({
     secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
-    timeoutSeconds: 120,
-    memory: '256MB',
+    timeoutSeconds: 300,
+    memory: '512MB',
   })
-  .pubsub.schedule('every 6 hours')
+  .pubsub.schedule('every 2 hours')
   .timeZone('America/Sao_Paulo')
   .onRun(async () => {
     const db = admin.firestore();
-    const now = new Date();
-    const HOUR = 1000 * 60 * 60;
-    const DAY = HOUR * 24;
-
-    const leadsSnap = await db.collection('chatbot_leads')
-      .where('status', 'in', ['novo', 'qualificado'])
-      .get();
-
-    for (const doc of leadsSnap.docs) {
-      const lead = doc.data();
-      if (lead.modo_humano) continue;
-
-      const created = new Date(lead.createdAt);
-      const hoursElapsed = (now - created) / HOUR;
-      const lastFollowUp = lead.lastFollowUp ? new Date(lead.lastFollowUp) : null;
-      const hoursSinceFollowUp = lastFollowUp ? (now - lastFollowUp) / HOUR : Infinity;
-
-      try {
-        let propertyTitle = null;
-        if (lead.interestedProperties && lead.interestedProperties.length > 0) {
-          const prop = getPropertyById(lead.interestedProperties[0]);
-          if (prop) propertyTitle = prop.title;
-        }
-
-        if (hoursSinceFollowUp < 20) continue;
-
-        if (hoursElapsed >= 20 && hoursElapsed < 48 && !lead.followUp24hSent) {
-          await sendFollowUp(lead.phone, lead.name, propertyTitle, '24h');
-          await doc.ref.update({ followUp24hSent: true, lastFollowUp: now.toISOString() });
-          console.log(`Follow-up 24h enviado para ${lead.phone}`);
-        } else if (hoursElapsed >= 68 && !lead.followUp72hSent) {
-          await sendFollowUp(lead.phone, lead.name, propertyTitle, '72h');
-          await doc.ref.update({ followUp72hSent: true, lastFollowUp: now.toISOString() });
-          console.log(`Follow-up 72h enviado para ${lead.phone}`);
-        } else {
-          const lastMsg = await getLastConversationMessage(lead.phone);
-          if (!lastMsg || lastMsg.role === 'user') continue;
-          const lastMsgAt = new Date(lastMsg.timestamp);
-          const daysSinceLastBotMsg = (now - lastMsgAt) / DAY;
-
-          if (daysSinceLastBotMsg >= 30 && !lead.followUp30dSent) {
-            await sendFollowUp(lead.phone, lead.name, null, '30d');
-            await doc.ref.update({ followUp30dSent: true, lastFollowUp: now.toISOString() });
-            console.log(`Follow-up 30d enviado para ${lead.phone}`);
-          } else if (daysSinceLastBotMsg >= 14 && !lead.followUp14dSent) {
-            await sendFollowUp(lead.phone, lead.name, null, '14d');
-            await doc.ref.update({ followUp14dSent: true, lastFollowUp: now.toISOString() });
-            console.log(`Follow-up 14d enviado para ${lead.phone}`);
-          } else if (daysSinceLastBotMsg >= 7 && !lead.followUp7dSent) {
-            await sendFollowUp(lead.phone, lead.name, propertyTitle, '7d');
-            await doc.ref.update({ followUp7dSent: true, lastFollowUp: now.toISOString() });
-            console.log(`Follow-up 7d enviado para ${lead.phone}`);
-          }
-        }
-      } catch (err) {
-        console.error(`Erro follow-up para ${lead.phone}:`, err.message);
-      }
-    }
-
+    const result = await processAllFollowUps(db);
+    console.log('chatbotFollowUp:', JSON.stringify(result));
     return null;
   });
 
@@ -1193,6 +1193,193 @@ exports.adminCleanupBrokerDuplicates = functions.https.onRequest(async (req, res
     return res.json({ ok: true, ...result });
   } catch (err) {
     console.error('adminCleanupBrokerDuplicates:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Atualiza reparo (comentários, responsável, custos, status) */
+exports.patchRepair = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var body = req.body || {};
+    var repairId = body.id != null ? Number(body.id) : null;
+    var firestoreId = String(body.firestoreId || '').trim();
+    if (!repairId && !firestoreId) return res.status(400).json({ error: 'id ou firestoreId obrigatório' });
+    var db = admin.firestore();
+    var ref = null;
+    if (firestoreId) {
+      ref = db.collection('repairRequests').doc(firestoreId);
+    } else {
+      var snap = await db.collection('repairRequests').where('id', '==', repairId).limit(1).get();
+      if (snap.empty) return res.status(404).json({ error: 'Reparo não encontrado' });
+      ref = snap.docs[0].ref;
+    }
+    var patch = { updatedAt: new Date().toISOString() };
+    if (body.status) patch.status = body.status;
+    if (body.tipo) patch.tipo = body.tipo;
+    if (body.responsavelId != null) patch.responsavelId = body.responsavelId;
+    if (body.responsavelNome != null) patch.responsavelNome = body.responsavelNome;
+    if (body.custoEstimado != null) patch.custoEstimado = Number(body.custoEstimado);
+    if (body.custoTotal != null) patch.custoTotal = Number(body.custoTotal);
+    if (body.slaDueAt != null) patch.slaDueAt = body.slaDueAt;
+    if (body.comentario && body.comentario.texto) {
+      var doc = await ref.get();
+      var data = doc.data() || {};
+      var list = Array.isArray(data.comentarios) ? data.comentarios.slice() : [];
+      list.push({
+        id: 'c_' + Date.now(),
+        texto: String(body.comentario.texto),
+        autorId: body.comentario.autorId || '',
+        autorNome: body.comentario.autorNome || 'Equipe',
+        dataCriacao: new Date().toISOString(),
+      });
+      patch.comentarios = list;
+    }
+    await ref.set(patch, { merge: true });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('patchRepair:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Boletos do cliente (email ou uid) */
+exports.clientBoletosMe = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var email = String(req.query.email || '').trim().toLowerCase();
+    var uid = String(req.query.uid || '').trim();
+    if (!email && !uid) return res.status(400).json({ error: 'email ou uid obrigatório' });
+    var db = admin.firestore();
+    var q = db.collection('boletos');
+    var snap;
+    if (uid) {
+      snap = await q.where('clientUid', '==', uid).get();
+    } else {
+      snap = await q.where('clientEmail', '==', email).get();
+    }
+    var list = [];
+    snap.forEach(function(doc) {
+      list.push({ id: doc.id, ...doc.data() });
+    });
+    list.sort(function(a, b) {
+      return new Date(a.vencimento || 0) - new Date(b.vencimento || 0);
+    });
+    return res.json(list);
+  } catch (err) {
+    console.error('clientBoletosMe:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Timeline do imóvel (venda + reparos + eventos manuais) */
+exports.clientTimelineMe = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var email = String(req.query.email || '').trim().toLowerCase();
+    if (!email) return res.status(400).json({ error: 'email obrigatório' });
+    var db = admin.firestore();
+    var events = [];
+    var sales = await db.collection('propertySales').where('clientEmail', '==', email).get();
+    sales.forEach(function(doc) {
+      var d = doc.data() || {};
+      events.push({
+        type: 'venda',
+        title: 'Compra registrada',
+        description: (d.propertyTitle || 'Imóvel') + (d.unitCode ? ' — ' + d.unitCode : ''),
+        date: d.saleDate || d.createdAt || '',
+      });
+      if (d.reservationAt) {
+        events.push({
+          type: 'reserva',
+          title: 'Reserva',
+          description: d.propertyTitle || '',
+          date: d.reservationAt,
+        });
+      }
+    });
+    var repairs = await db.collection('repairRequests').where('clientEmail', '==', email).get();
+    repairs.forEach(function(doc) {
+      var r = doc.data() || {};
+      events.push({
+        type: 'reparo',
+        title: 'Reparo: ' + (r.status || 'aberto'),
+        description: (r.description || '').slice(0, 120),
+        date: r.createdAt || '',
+      });
+      if (r.status === 'concluido' && r.updatedAt) {
+        events.push({
+          type: 'reparo_concluido',
+          title: 'Reparo concluído',
+          description: r.propertyTitle || '',
+          date: r.updatedAt,
+        });
+      }
+    });
+    var manual = await db.collection('client_timeline').where('clientEmail', '==', email).get();
+    manual.forEach(function(doc) {
+      var m = doc.data() || {};
+      events.push({
+        type: m.type || 'evento',
+        title: m.title || 'Atualização',
+        description: m.description || '',
+        date: m.date || m.createdAt || '',
+      });
+    });
+    events.sort(function(a, b) {
+      return new Date(b.date || 0) - new Date(a.date || 0);
+    });
+    return res.json(events);
+  } catch (err) {
+    console.error('clientTimelineMe:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Lead do simulador do site (vínculo empreendimento + renda + telefone) */
+exports.saveSimulatorLead = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var body = req.body || {};
+    var phone = normalizePhoneForWhatsApp(body.phone || body.telefone || '');
+    var record = {
+      name: String(body.name || body.nome || '').trim(),
+      phone: phone || String(body.phone || '').trim(),
+      email: String(body.email || '').trim().toLowerCase(),
+      income: body.renda != null ? Number(body.renda) : (body.income != null ? Number(body.income) : null),
+      propertyId: body.propertyId != null ? Number(body.propertyId) : null,
+      propertyTitle: String(body.propertyTitle || '').trim(),
+      valorImovel: body.valorImovel != null ? Number(body.valorImovel) : null,
+      source: 'simulador_site',
+      createdAt: new Date().toISOString(),
+    };
+    var db = admin.firestore();
+    await db.collection('simulator_leads').add(record);
+    if (phone) {
+      var { getOrCreateLead, qualifyLead, addInterestedProperty } = require('./chatbot/lead-manager');
+      await getOrCreateLead(phone, record.name);
+      await qualifyLead(phone, { name: record.name, income: record.income, email: record.email });
+      if (record.propertyId) await addInterestedProperty(phone, record.propertyId);
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('saveSimulatorLead:', err);
     return res.status(500).json({ error: err.message });
   }
 });

@@ -253,6 +253,11 @@ function waInboxRenderList() {
     if (urgent) html += '<span class="wa-inbox-item-badge" style="background:#fee2e2;color:#991b1b;" title="Lead sem retorno dentro do SLA ou marcado como urgente">Urgente</span>';
     if (modoHumano) html += '<span class="wa-inbox-item-badge" style="background:#fef3c7;color:#92400e;">Humano</span>';
     if (l.ultimaOrigem === 'anuncio') html += '<span class="wa-inbox-item-badge" style="background:#dbeafe;color:#1e40af;">Anúncio</span>';
+    if (l.followUpExcluded) {
+      html += '<span class="wa-inbox-item-badge" style="background:#f3f4f6;color:#4b5563;" title="Sem follow-up automático">Sem FU</span>';
+    } else if (l.followUpStage && l.followUpStage !== 'completed') {
+      html += '<span class="wa-inbox-item-badge" style="background:#ede9fe;color:#5b21b6;" title="Estágio follow-up">FU ' + escapeHtml(String(l.followUpStage)) + '</span>';
+    }
     html += '<span class="wa-inbox-item-badge" style="background:#e2e8f0;">' + escapeHtml(cat) + '</span>';
     if (tempoLabel) html += '<span class="wa-inbox-item-badge" style="background:#ecfeff;color:#155e75;" title="Tempo desde a última mensagem do cliente">SLA: ' + escapeHtml(tempoLabel) + '</span>';
     html += '</div>';
@@ -320,6 +325,29 @@ function waInboxLoadChat(phone, opts) {
     if (link2) { link2.href = waLink; }
 
     var modoHumano = !!lead.modo_humano;
+    var fuBadge = document.getElementById('waChatFollowUpBadge');
+    var fuExcludeBtn = document.getElementById('waBtnFollowUpExclude');
+    var fuResumeBtn = document.getElementById('waBtnFollowUpResume');
+    if (fuBadge) {
+      if (lead.followUpExcluded) {
+        fuBadge.textContent = 'Follow-up: desligado (' + (lead.followUpExcludeReason || 'excluído') + ')';
+        fuBadge.className = 'wa-followup-badge wa-followup-off';
+      } else if (lead.followUpStage === 'completed') {
+        fuBadge.textContent = 'Follow-up: sequência concluída';
+        fuBadge.className = 'wa-followup-badge wa-followup-done';
+      } else if (lead.followUpStage) {
+        fuBadge.textContent = 'Follow-up: estágio ' + lead.followUpStage;
+        fuBadge.className = 'wa-followup-badge wa-followup-on';
+      } else if (lead.firstUserMessageAt || lead.lastUserMessageAt) {
+        fuBadge.textContent = 'Follow-up: elegível (insiste se parar de responder)';
+        fuBadge.className = 'wa-followup-badge wa-followup-on';
+      } else {
+        fuBadge.textContent = 'Follow-up: aguardando 1ª mensagem do cliente';
+        fuBadge.className = 'wa-followup-badge';
+      }
+    }
+    if (fuExcludeBtn) fuExcludeBtn.style.display = lead.followUpExcluded ? 'none' : 'inline-block';
+    if (fuResumeBtn) fuResumeBtn.style.display = lead.followUpExcluded ? 'inline-block' : 'none';
     var assumirBtn = document.getElementById('waBtnAssumir');
     var devolverBtn = document.getElementById('waBtnDevolver');
     var sendBox = document.getElementById('waChatSendBox');
@@ -446,6 +474,33 @@ function waInboxReturnToBot() {
     waInboxLoadList();
   }).catch(function(err) {
     if (typeof showMessage === 'function') showMessage('Erro: ' + (err.message || 'Tente novamente.'), 'error');
+  });
+}
+
+function waInboxSetFollowUp(excluded, reason) {
+  if (!waInboxSelectedPhone) return;
+  var adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
+  var msg = excluded
+    ? 'Marcar este lead para NÃO receber follow-up automático (ex.: idade / banco)?'
+    : 'Reativar follow-up automático para este lead?';
+  if (!confirm(msg)) return;
+  waInboxApi('/chatbotInboxFollowUp', {
+    method: 'POST',
+    body: {
+      phone: waInboxSelectedPhone,
+      excluded: !!excluded,
+      reason: reason || (excluded ? 'manual_admin' : ''),
+      by: adminUser.email || 'admin',
+    },
+  }).then(function() {
+    if (typeof showMessage === 'function') {
+      showMessage(excluded ? 'Follow-up desligado para este lead.' : 'Follow-up reativado.', 'success');
+    }
+    waLastChatSig = '';
+    waInboxLoadChat(waInboxSelectedPhone, { quiet: false });
+    waInboxLoadList(false);
+  }).catch(function(err) {
+    if (typeof showMessage === 'function') showMessage('Erro: ' + (err.message || ''), 'error');
   });
 }
 

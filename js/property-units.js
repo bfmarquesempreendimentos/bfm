@@ -258,6 +258,32 @@ function setUnitStatusOverride(propertyId, unitCode, status) {
     if (!ov[propertyId]) ov[propertyId] = {};
     ov[propertyId][unitCode] = status;
     localStorage.setItem('unitStatusOverrides', JSON.stringify(ov));
+    pushUnitStatusToServer(propertyId, unitCode, status);
+}
+
+function pushUnitStatusToServer(propertyId, unitCode, status) {
+    var creds = null;
+    try {
+        if (typeof getAdminApiCredentials === 'function') creds = getAdminApiCredentials();
+        else {
+            var raw = localStorage.getItem('adminUser');
+            if (raw) {
+                var u = JSON.parse(raw);
+                creds = { email: u.email, password: u.password || '' };
+            }
+        }
+    } catch (e) {}
+    if (!creds || !creds.email || !creds.password || typeof fetch === 'undefined') return;
+    var url = getCloudFunctionsBaseUrlUnits() + '/adminSetUnitStatusOverrides';
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            adminEmail: creds.email,
+            adminPassword: creds.password,
+            items: [{ propertyId: propertyId, unitCode: unitCode, status: status }],
+        }),
+    }).catch(function() {});
 }
 
 function normalizeUnitSlotToken(raw) {

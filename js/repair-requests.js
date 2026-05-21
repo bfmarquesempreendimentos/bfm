@@ -303,6 +303,7 @@ async function submitRepairRequest(event) {
             propertyId: propertyId,
             propertyTitle: propertyInfo?.title || propertyInfo?.name || 'Meu Imóvel',
             unitCode: propertyInfo?.unitCode || null,
+            tipo: (document.getElementById('repairTipo') && document.getElementById('repairTipo').value) || 'geral',
             description: description,
             location: location,
             priority: priority,

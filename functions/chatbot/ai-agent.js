@@ -3,7 +3,9 @@ const { sendTextMessage, sendImageMessage, sendVideoMessage, sendInteractiveButt
 const { transcribeAudioBuffer } = require('./audio-transcription');
 const { getPropertyById, getPropertyMediaLists, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, properties } = require('./property-data');
 const { simulateFinancing, formatSimulationResult } = require('./finance-simulator');
-const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone, queueInboundEmailAlert, getBiaTrainingPromptExtra } = require('./lead-manager');
+const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone, queueInboundEmailAlert, getBiaTrainingPromptExtra, setFollowUpExclusion } = require('./lead-manager');
+const { detectAgeFinancingBlock } = require('./follow-up-engine');
+const { sendWelcomeMessage } = require('./templates');
 
 function delay(ms) {
   return new Promise(function(resolve) { setTimeout(resolve, ms); });
@@ -61,7 +63,9 @@ ${getPropertiesSummaryForAI()}
 20. Depois que as mídias forem enviadas (automático ou ferramenta), sua resposta em texto deve ser *curta* (simulação ou visita) — não repita descrições longas do imóvel
 21. Use as *orientações do atendente* no contexto do sistema quando existirem — elas refletem como a equipe quer que você escreva
 22. Quando o cliente mandar *áudio*, a conversa pode trazer o texto *já transcrito* — responda ao conteúdo como se fosse mensagem escrita, em português natural
-23. Para leads de anúncios/WhatsApp, pergunte SEMPRE sobre *nome limpo* (CPF sem restrição). Sem essa informação, continue a qualificação até obter a resposta antes de avançar para proposta final`;
+23. Para leads de anúncios/WhatsApp, pergunte SEMPRE sobre *nome limpo* (CPF sem restrição). Sem essa informação, continue a qualificação até obter a resposta antes de avançar para proposta final
+24. Se o cliente disser que *não passa na idade*, que o *banco não libera por idade*, que tem *idade avançada* ou similar, use *marcar_sem_follow_up* — não insista com follow-up automático
+25. Não pressione financiamento para quem já indicou bloqueio por idade; ofereça apenas informações gerais ou encaminhe ao humano se pedir`;
 
 const TOOLS = [
   {
@@ -135,6 +139,17 @@ const TOOLS = [
       type: 'object',
       properties: {
         motivo: { type: 'string', description: 'Motivo do encaminhamento' },
+      },
+      required: ['motivo'],
+    },
+  },
+  {
+    name: 'marcar_sem_follow_up',
+    description: 'Marca o lead para NÃO receber mensagens automáticas de follow-up. Use quando idade impede financiamento, banco não libera por idade, ou cliente pediu para não ser contatado.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        motivo: { type: 'string', description: 'Ex: idade_financiamento, pedido_cliente' },
       },
       required: ['motivo'],
     },
@@ -284,6 +299,7 @@ async function executeTool(toolName, input, context) {
         notes: motivo,
         modo_humano: true,
         humanoJa: true,
+        followUpPaused: true,
         categoria: categoria,
         encaminhadoMotivo: motivo,
         assumido_por: null,
@@ -296,6 +312,12 @@ async function executeTool(toolName, input, context) {
       return `Visita agendada para ${property.title} em ${input.data_sugerida}. Um atendente vai assumir nossa conversa agora para confirmar o horário com você – continue enviando mensagens aqui mesmo.`;
     }
 
+    case 'marcar_sem_follow_up': {
+      var motivoFu = input.motivo || 'idade_financiamento';
+      await setFollowUpExclusion(context.from, true, motivoFu, 'bia');
+      return 'Lead marcado sem follow-up automático (' + motivoFu + ').';
+    }
+
     case 'encaminhar_humano': {
       const categoria = inferCategoryFromMotivo(input.motivo);
       await updateLead(context.from, {
@@ -303,6 +325,7 @@ async function executeTool(toolName, input, context) {
         notes: `Encaminhado: ${input.motivo}`,
         modo_humano: true,
         humanoJa: true,
+        followUpPaused: true,
         categoria: categoria,
         encaminhadoMotivo: input.motivo,
         assumido_por: null,
@@ -421,6 +444,20 @@ async function handleIncomingMessage(messageData) {
   await saveMessage(phone, 'user', userContent, undefined, userMsgMeta);
   await recordInboundActivity(phone, userContent);
   await queueInboundEmailAlert(phone, profileName || (lead && lead.name) || '', userContent);
+
+  var ageBlockReason = detectAgeFinancingBlock(userContent);
+  if (ageBlockReason) {
+    await setFollowUpExclusion(phone, true, ageBlockReason, 'bia_auto');
+  }
+
+  if (!lead.welcomeSent && type !== 'document' && type !== 'image') {
+    try {
+      await sendWelcomeMessage(phone, lead.name || profileName);
+      await updateLead(phone, { welcomeSent: true });
+    } catch (welcomeErr) {
+      console.error('[Bia] welcome:', welcomeErr.message);
+    }
+  }
 
   const escalationHistory = await getConversationHistory(phone, 12);
   const consecutiveUserMsgs = getConsecutiveUserMessages(escalationHistory);

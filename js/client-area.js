@@ -399,6 +399,7 @@ function showClientDashboard() {
     loadClientProperties();
     loadClientDocuments();
     loadClientHistory();
+    loadClientBoletos();
     loadClientProfile();
     
     showDashboardTab('properties');
@@ -409,14 +410,61 @@ function showDashboardTab(tab) {
     document.querySelectorAll('.dashboard-tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.dashboard-tab-btn').forEach(btn => btn.classList.remove('active'));
     
-    const tabs = ['properties', 'documents', 'repairs', 'manual', 'newsletter', 'history', 'profile'];
+    const tabs = ['properties', 'documents', 'boletos', 'repairs', 'manual', 'newsletter', 'history', 'profile'];
     document.getElementById(`client${tab.charAt(0).toUpperCase() + tab.slice(1)}Tab`).classList.add('active');
     document.querySelectorAll('.dashboard-tab-btn')[tabs.indexOf(tab)].classList.add('active');
     
     // Carregar dados específicos da tab
     if (tab === 'repairs') {
         loadClientRepairs();
+    } else if (tab === 'boletos') {
+        loadClientBoletos();
+    } else if (tab === 'history') {
+        loadClientHistory();
     }
+}
+
+function getClientCloudBaseUrl() {
+    if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
+        return CONFIG.cloudFunctions.baseURL;
+    }
+    return 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+}
+
+function loadClientBoletos() {
+    var listEl = document.getElementById('clientBoletosList');
+    if (!listEl || !currentClient) return;
+    var email = (currentClient.email || '').trim().toLowerCase();
+    var uid = currentClient.uid || '';
+    if (!email && !uid) {
+        listEl.innerHTML = '<p>Nenhum boleto disponível.</p>';
+        return;
+    }
+    var q = email ? ('email=' + encodeURIComponent(email)) : ('uid=' + encodeURIComponent(uid));
+    fetch(getClientCloudBaseUrl() + '/clientBoletosMe?' + q, { cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : []; })
+        .then(function(rows) {
+            if (!rows || !rows.length) {
+                listEl.innerHTML = '<p>Nenhum boleto cadastrado pela construtora ainda. Em caso de dúvida, fale conosco pelo WhatsApp.</p>';
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < rows.length; i++) {
+                var b = rows[i];
+                var st = String(b.status || 'pendente');
+                var stLabel = st === 'pago' ? 'Pago' : (st === 'vencido' ? 'Vencido' : 'Pendente');
+                html += '<div class="client-document-card">' +
+                    '<h5>Parcela — ' + escapeHtml(stLabel) + '</h5>' +
+                    '<p><strong>Vencimento:</strong> ' + escapeHtml(formatDate(b.vencimento)) + '</p>' +
+                    '<p><strong>Valor:</strong> R$ ' + Number(b.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '</p>' +
+                    (b.comprovanteUrl ? '<a href="' + escapeHtml(b.comprovanteUrl) + '" target="_blank" rel="noopener" class="btn btn-primary">Comprovante</a>' : '') +
+                    '</div>';
+            }
+            listEl.innerHTML = html;
+        })
+        .catch(function() {
+            listEl.innerHTML = '<p>Não foi possível carregar boletos agora.</p>';
+        });
 }
 
 // Funções auxiliares para o manual
@@ -495,28 +543,48 @@ function loadClientDocuments() {
     `).join('');
 }
 
-// Carregar histórico do cliente
+// Carregar histórico / linha do tempo do cliente
 function loadClientHistory() {
-    const history = currentClient.history || [];
     const historyList = document.getElementById('clientHistoryList');
-    
-    if (history.length === 0) {
-        historyList.innerHTML = '<p>Nenhum histórico disponível.</p>';
+    if (!historyList || !currentClient) return;
+    var email = (currentClient.email || '').trim().toLowerCase();
+    var local = currentClient.history || [];
+    function renderItems(items) {
+        if (!items.length) {
+            historyList.innerHTML = '<p>Nenhum evento na linha do tempo ainda.</p>';
+            return;
+        }
+        historyList.innerHTML = items.map(function(item) {
+            return '<div class="client-history-item">' +
+                '<div class="history-icon"><i class="fas ' + getHistoryIcon(item.type) + '"></i></div>' +
+                '<div class="history-content">' +
+                '<h5>' + escapeHtml(item.title || '') + '</h5>' +
+                '<p>' + escapeHtml(item.description || '') + '</p>' +
+                '<small>' + escapeHtml(formatDate(item.date)) + '</small>' +
+                '</div></div>';
+        }).join('');
+    }
+    if (!email) {
+        renderItems(local.slice().reverse());
         return;
     }
-    
-    historyList.innerHTML = history.reverse().map(item => `
-        <div class="client-history-item">
-            <div class="history-icon">
-                <i class="fas ${getHistoryIcon(item.type)}"></i>
-            </div>
-            <div class="history-content">
-                <h5>${item.title}</h5>
-                <p>${item.description}</p>
-                <small>${formatDate(item.date)}</small>
-            </div>
-        </div>
-    `).join('');
+    fetch(getClientCloudBaseUrl() + '/clientTimelineMe?email=' + encodeURIComponent(email), { cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : []; })
+        .then(function(remote) {
+            var merged = [];
+            var i;
+            if (Array.isArray(remote)) {
+                for (i = 0; i < remote.length; i++) merged.push(remote[i]);
+            }
+            for (i = 0; i < local.length; i++) merged.push(local[i]);
+            merged.sort(function(a, b) {
+                return new Date(b.date || 0) - new Date(a.date || 0);
+            });
+            renderItems(merged);
+        })
+        .catch(function() {
+            renderItems(local.slice().reverse());
+        });
 }
 
 // Obter ícone do histórico

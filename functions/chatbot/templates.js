@@ -19,6 +19,15 @@ Como posso te ajudar hoje?
 _Basta digitar o número ou escrever sua dúvida!_`;
   },
 
+  followUp2h: (name, propertyTitle) => {
+    var msg = 'Oi' + (name ? (', ' + name) : '') + '! 😊\n\nVi que você nos chamou no WhatsApp';
+    if (propertyTitle) {
+      msg += ' sobre o *' + propertyTitle + '*';
+    }
+    msg += ' — ficou alguma dúvida? Posso te ajudar com valores, fotos ou uma simulação MCMV agora mesmo.\n\n_É só responder aqui!_';
+    return msg;
+  },
+
   followUp24h: (name, propertyTitle) => {
     let msg = `Olá, ${name || ''}! 👋
 
@@ -150,6 +159,9 @@ async function sendWelcomeMessage(phone, name) {
 async function sendFollowUp(phone, name, propertyTitle, type = '24h') {
   let text;
   switch (type) {
+    case '2h':
+      text = TEMPLATES.followUp2h(name, propertyTitle);
+      break;
     case '24h':
       text = TEMPLATES.followUp24h(name, propertyTitle);
       break;

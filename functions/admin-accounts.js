@@ -5,18 +5,53 @@
  * Ao alterar senhas no login, atualize esta lista ou migre para Firebase Auth.
  */
 const ADMIN_ACCOUNTS = [
-  { email: 'brunoferreiramarques@gmail.com', password: '123456' },
-  { email: 'raphaelmonteirodasilva@yahoo.com.br', password: '123456' },
+  { email: 'brunoferreiramarques@gmail.com', password: '123456', role: 'super' },
+  { email: 'raphaelmonteirodasilva@yahoo.com.br', password: '123456', role: 'comercial' },
 ];
+
+/** super: tudo | comercial: vendas/leads/campanha | posvenda: reparos/clientes | financeiro: leitura */
+const ROLE_PERMISSIONS = {
+  super: ['*'],
+  comercial: ['sales', 'leads', 'campaign', 'units', 'brokers', 'repairs_read'],
+  posvenda: ['repairs', 'clients', 'leads_read', 'units_read'],
+  financeiro: ['sales_read', 'repairs_read', 'dashboard'],
+};
+
+function getAdminAccount(email) {
+  var e = String(email || '').trim().toLowerCase();
+  var i;
+  for (i = 0; i < ADMIN_ACCOUNTS.length; i++) {
+    if (ADMIN_ACCOUNTS[i].email === e) return ADMIN_ACCOUNTS[i];
+  }
+  return null;
+}
 
 function verifyAdminFromBody(body) {
   if (!body || typeof body !== 'object') return false;
   var email = String(body.adminEmail || '').trim().toLowerCase();
   var password = String(body.adminPassword || '');
-  for (var i = 0; i < ADMIN_ACCOUNTS.length; i++) {
-    if (ADMIN_ACCOUNTS[i].email === email && ADMIN_ACCOUNTS[i].password === password) return true;
-  }
-  return false;
+  var acc = getAdminAccount(email);
+  return !!(acc && acc.password === password);
 }
 
-module.exports = { ADMIN_ACCOUNTS, verifyAdminFromBody };
+function getAdminRoleFromBody(body) {
+  var email = String((body && body.adminEmail) || '').trim().toLowerCase();
+  var acc = getAdminAccount(email);
+  return acc ? (acc.role || 'comercial') : null;
+}
+
+function adminHasPermission(body, permission) {
+  if (!verifyAdminFromBody(body)) return false;
+  var role = getAdminRoleFromBody(body);
+  var list = ROLE_PERMISSIONS[role] || [];
+  if (list.indexOf('*') >= 0) return true;
+  return list.indexOf(permission) >= 0;
+}
+
+module.exports = {
+  ADMIN_ACCOUNTS,
+  ROLE_PERMISSIONS,
+  verifyAdminFromBody,
+  getAdminRoleFromBody,
+  adminHasPermission,
+};
