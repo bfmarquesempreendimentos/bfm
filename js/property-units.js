@@ -101,7 +101,7 @@ const propertyUnits = {
             { code: "APTO 101", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 201", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 102", price: 165000, bedrooms: 2, status: "disponivel" },
-            { code: "APTO 202", price: 160000, bedrooms: 2, status: "disponivel" },
+            { code: "APTO 202", price: 160000, bedrooms: 2, status: "reservado" },
             { code: "APTO 103", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 203", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 104", price: 165000, bedrooms: 2, status: "disponivel" },
@@ -141,22 +141,27 @@ const propertyUnits = {
             { code: "CS 03", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "CS 08", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "CS 13", price: 145000, bedrooms: 1, status: "disponivel" },
-            { code: "CS 04", price: 150000, bedrooms: 1, status: "reservado" },
+            { code: "CS 04", price: 150000, bedrooms: 1, status: "disponivel" },
             { code: "CS 09", price: 150000, bedrooms: 1, status: "disponivel" },
             { code: "CS 14", price: 150000, bedrooms: 1, status: "reservado" }
-        ]
+        ],
+        engineeringValues: {
+            "Cs 6": "R$ 167.000,00",
+            "Cs 7": "R$ 150.000,00",
+            "Cs 4": "R$ 190.000,00"
+        }
     },
     
     5: { // Apolo - PDF: Cs 9 Eduardo (sac1consultoria@gmail.com), casa 04 assinado
         name: "APOLO - RUA MARIA JOSÉ ARRUDA BARBOSA LT 02 QD 18 - ITABORAÍ",
         units: [
             { code: "casa base", price: 135000, bedrooms: 1, status: "assinado" },
-            { code: "casa 05", price: 130000, bedrooms: 1, status: "disponivel" },
+            { code: "casa 05", price: 130000, bedrooms: 1, status: "reservado" },
             { code: "casa 01", price: 135000, bedrooms: 1, status: "disponivel" },
             { code: "casa 06", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 02", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 07", price: 145000, bedrooms: 1, status: "disponivel" },
-            { code: "casa 03", price: 145000, bedrooms: 1, status: "disponivel" },
+            { code: "casa 03", price: 145000, bedrooms: 1, status: "reservado" },
             { code: "cassa 08", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 04", price: 140000, bedrooms: 1, status: "assinado" },
             { code: "casa 09", price: 150000, bedrooms: 1, status: "disponivel" }
