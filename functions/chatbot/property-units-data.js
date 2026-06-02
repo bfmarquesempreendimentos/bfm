@@ -62,7 +62,7 @@ module.exports = {
             { code: "casa 06", price: 155000, bedrooms: 1, status: "disponivel" },
             { code: "casa 02", price: 155000, bedrooms: 1, status: "disponivel" },
             { code: "casa 07", price: 155000, bedrooms: 1, status: "reservado" },
-            { code: "casa 03", price: 155000, bedrooms: 1, status: "reservado" },
+            { code: "casa 03", price: 155000, bedrooms: 1, status: "assinado" },
             { code: "cassa 08", price: 155000, bedrooms: 1, status: "assinado" },
             { code: "casa 04", price: 160000, bedrooms: 1, status: "assinado" },
             { code: "casa 09", price: 160000, bedrooms: 1, status: "assinado" }
@@ -192,7 +192,7 @@ module.exports = {
         }
     },
     
-    7: { // Edifício Caçador - APTO 102 assinado; APTO 205 reservado
+    7: { // Edifício Caçador - APTO 102 e APTO 205 assinados; APTO 110 reservado
         name: "EDIFÍCIO CAÇADOR - RUA ALCIO SOUTO, 576",
         units: [
             { code: "APTO 101", price: 160000, bedrooms: 2, status: "disponivel" },
@@ -204,7 +204,7 @@ module.exports = {
             { code: "APTO 104", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 204", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 105", price: 165000, bedrooms: 2, status: "disponivel" },
-            { code: "APTO 205", price: 160000, bedrooms: 2, status: "reservado" },
+            { code: "APTO 205", price: 160000, bedrooms: 2, status: "assinado" },
             { code: "APTO 106", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 206", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 107", price: 165000, bedrooms: 2, status: "disponivel" },

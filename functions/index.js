@@ -477,16 +477,19 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
     let lastErr = null;
     let li;
     let ci;
-    const componentSets = [fullComponents, singleBody, []];
+    // campanha_corretor_msg usa só {{1}} — tentar texto único antes de 5 parâmetros
+    const componentSets = [singleBody, [], fullComponents];
     for (li = 0; li < langCandidates.length; li++) {
       for (ci = 0; ci < componentSets.length; ci++) {
         try {
-          await sendTemplateMessage(waPhone, templateName, langCandidates[li], componentSets[ci]);
+          const sendResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li], componentSets[ci]);
           return {
             mode: 'template',
             templateName: templateName,
             language: langCandidates[li],
-            componentsVariant: ci === 0 ? 'full' : (ci === 1 ? 'single' : 'none'),
+            componentsVariant: ci === 0 ? 'single' : (ci === 1 ? 'none' : 'full'),
+            waMessageId: sendResp && sendResp.messageId ? sendResp.messageId : '',
+            sentTo: waPhone,
           };
         } catch (err) {
           lastErr = err;
@@ -619,6 +622,9 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
         phone: item.waPhone,
         mode: sendMeta.mode,
         templateName: sendMeta.templateName || '',
+        waMessageId: sendMeta.waMessageId || '',
+        componentsVariant: sendMeta.componentsVariant || '',
+        templateFallback: !!sendMeta.templateFallback,
       });
     } catch (err) {
       results.push({
@@ -638,6 +644,7 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
   const errors = results.filter(function(r) { return r.status === 'error'; }).length;
   const skipped = results.filter(function(r) { return r.status === 'skipped'; }).length;
   const issues = results.filter(function(r) { return r.status !== 'sent'; }).slice(0, 80);
+  const sentDetails = results.filter(function(r) { return r.status === 'sent'; }).slice(0, 5);
 
   await runRef.set({
     finishedAt: new Date().toISOString(),
@@ -660,6 +667,7 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     runId: runRef.id,
     status: 'done',
     issues: issues,
+    sentDetails: sentDetails,
     templateName: config.templateName || '',
   };
 }
@@ -850,6 +858,9 @@ exports.adminMigrateLegacySaleSlots = functions.https.onRequest((req, res) =>
 );
 exports.adminSetUnitStatusOverrides = functions.https.onRequest((req, res) =>
   propertySalesHandlers.adminSetUnitStatusOverrides(req, res)
+);
+exports.adminSyncCatalogUnitStatuses = functions.https.onRequest((req, res) =>
+  propertySalesHandlers.adminSyncCatalogUnitStatuses(req, res)
 );
 
 // ─── API de Reparos: CRIAR (garante sync Mac/Windows - não depende do Firestore client) ──

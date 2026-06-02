@@ -437,6 +437,48 @@ async function adminSetUnitStatusOverrides(req, res) {
   }
 }
 
+/** Grava no Firestore o mapa completo de status por empreendimento (espelho de property-units-data.js). */
+async function adminSyncCatalogUnitStatuses(req, res) {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  var body = parseJsonBody(req);
+  if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+  try {
+    var catalog = require('./chatbot/property-units-data');
+    var db = admin.firestore();
+    var pid;
+    var prop;
+    var map;
+    var i;
+    var u;
+    var unitsWritten = 0;
+    var propertiesWritten = 0;
+    for (pid in catalog) {
+      if (!Object.prototype.hasOwnProperty.call(catalog, pid)) continue;
+      prop = catalog[pid];
+      if (!prop || !Array.isArray(prop.units) || !prop.units.length) continue;
+      map = {};
+      for (i = 0; i < prop.units.length; i++) {
+        u = prop.units[i];
+        if (!u || !u.code) continue;
+        map[u.code] = u.status || 'disponivel';
+        unitsWritten++;
+      }
+      await db.collection('unit_status_overrides').doc(String(pid)).set({
+        map: map,
+        updatedAt: new Date().toISOString(),
+        source: 'catalog-sync',
+      }, { merge: true });
+      propertiesWritten++;
+    }
+    return res.json({ success: true, propertiesWritten: propertiesWritten, unitsWritten: unitsWritten });
+  } catch (err) {
+    console.error('adminSyncCatalogUnitStatuses:', err);
+    return res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   allowCors,
   adminPropertySalesList,
@@ -447,4 +489,5 @@ module.exports = {
   getPublicUnitOverrides,
   adminMigrateLegacySaleSlots,
   adminSetUnitStatusOverrides,
+  adminSyncCatalogUnitStatuses,
 };

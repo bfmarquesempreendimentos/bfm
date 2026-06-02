@@ -2,17 +2,50 @@
 // Espelho para a Bia (WhatsApp): functions/chatbot/property-units-data.js — mantenha os dois sincronizados.
 
 /** Ao mudar o inventário no código, incremente esta versão para limpar overrides antigos no navegador. */
-var UNIT_INVENTORY_VERSION = '2026-06-02-laranjal-apolo-coelho-cacador';
-(function clearStaleUnitOverridesIfNeeded() {
+var UNIT_INVENTORY_VERSION = '2026-06-02-laranjal-cs04-cs14-fix';
+
+/** Unidades cujo status no código-base prevalece sobre overrides antigos do servidor. */
+var INVENTORY_STATUS_RECONCILE = [
+    { propertyId: 2, unitCode: 'casa 03' },
+    { propertyId: 2, unitCode: 'casa 07' },
+    { propertyId: 4, unitCode: 'CS 04' },
+    { propertyId: 4, unitCode: 'CS 14' },
+    { propertyId: 7, unitCode: 'APTO 205' },
+    { propertyId: 7, unitCode: 'APTO 110' }
+];
+
+function isAuthoritativeInventoryUnit(propertyId, unitCode) {
+    var i, item;
+    var pid = String(propertyId);
+    for (i = 0; i < INVENTORY_STATUS_RECONCILE.length; i++) {
+        item = INVENTORY_STATUS_RECONCILE[i];
+        if (String(item.propertyId) === pid && item.unitCode === unitCode) return true;
+    }
+    return false;
+}
+
+function reconcileAuthoritativeUnitStatuses() {
     try {
-        if (typeof localStorage === 'undefined') return;
-        var key = 'unitInventoryVersion';
-        if (localStorage.getItem(key) !== UNIT_INVENTORY_VERSION) {
-            localStorage.removeItem('unitStatusOverrides');
-            localStorage.setItem(key, UNIT_INVENTORY_VERSION);
+        var ov = getUnitStatusOverrides();
+        var i, item, raw, units, j, u, pidKey;
+        for (i = 0; i < INVENTORY_STATUS_RECONCILE.length; i++) {
+            item = INVENTORY_STATUS_RECONCILE[i];
+            raw = propertyUnits[item.propertyId];
+            if (!raw || !raw.units) continue;
+            pidKey = String(item.propertyId);
+            if (!ov[pidKey]) ov[pidKey] = {};
+            units = raw.units;
+            for (j = 0; j < units.length; j++) {
+                u = units[j];
+                if (u.code === item.unitCode) {
+                    ov[pidKey][item.unitCode] = u.status;
+                    break;
+                }
+            }
         }
+        localStorage.setItem('unitStatusOverrides', JSON.stringify(ov));
     } catch (e) {}
-})();
+}
 
 // Property units data based on the spreadsheet provided
 const propertyUnits = {
@@ -77,7 +110,7 @@ const propertyUnits = {
             { code: "casa 06", price: 155000, bedrooms: 1, status: "disponivel" },
             { code: "casa 02", price: 155000, bedrooms: 1, status: "disponivel" },
             { code: "casa 07", price: 155000, bedrooms: 1, status: "reservado" },
-            { code: "casa 03", price: 155000, bedrooms: 1, status: "reservado" },
+            { code: "casa 03", price: 155000, bedrooms: 1, status: "assinado" },
             { code: "cassa 08", price: 155000, bedrooms: 1, status: "assinado" },
             { code: "casa 04", price: 160000, bedrooms: 1, status: "assinado" },
             { code: "casa 09", price: 160000, bedrooms: 1, status: "assinado" }
@@ -207,7 +240,7 @@ const propertyUnits = {
         }
     },
     
-    7: { // Edifício Caçador - APTO 102 assinado; APTO 205 reservado
+    7: { // Edifício Caçador - APTO 102 e APTO 205 assinados; APTO 110 reservado
         name: "EDIFÍCIO CAÇADOR - RUA ALCIO SOUTO, 576",
         units: [
             { code: "APTO 101", price: 160000, bedrooms: 2, status: "disponivel" },
@@ -219,7 +252,7 @@ const propertyUnits = {
             { code: "APTO 104", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 204", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 105", price: 165000, bedrooms: 2, status: "disponivel" },
-            { code: "APTO 205", price: 160000, bedrooms: 2, status: "reservado" },
+            { code: "APTO 205", price: 160000, bedrooms: 2, status: "assinado" },
             { code: "APTO 106", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 206", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 107", price: 165000, bedrooms: 2, status: "disponivel" },
@@ -265,6 +298,60 @@ function setUnitStatusOverride(propertyId, unitCode, status) {
     ov[propertyId][unitCode] = status;
     localStorage.setItem('unitStatusOverrides', JSON.stringify(ov));
     pushUnitStatusToServer(propertyId, unitCode, status);
+}
+
+(function clearStaleUnitOverridesIfNeeded() {
+    try {
+        if (typeof localStorage === 'undefined') return;
+        var key = 'unitInventoryVersion';
+        if (localStorage.getItem(key) !== UNIT_INVENTORY_VERSION) {
+            localStorage.removeItem('unitStatusOverrides');
+            localStorage.setItem(key, UNIT_INVENTORY_VERSION);
+        }
+        reconcileAuthoritativeUnitStatuses();
+        pushReconcileStatusesToServerIfAdmin();
+    } catch (e) {}
+})();
+
+function pushReconcileStatusesToServerIfAdmin() {
+    var creds = null;
+    try {
+        if (typeof getAdminApiCredentials === 'function') creds = getAdminApiCredentials();
+        else {
+            var raw = localStorage.getItem('adminUser');
+            if (raw) {
+                var u = JSON.parse(raw);
+                creds = { email: u.email, password: u.password || '' };
+            }
+        }
+    } catch (e) {}
+    if (!creds || !creds.email || !creds.password || typeof fetch === 'undefined') return;
+    var items = [];
+    var i, item, raw, units, j, u;
+    for (i = 0; i < INVENTORY_STATUS_RECONCILE.length; i++) {
+        item = INVENTORY_STATUS_RECONCILE[i];
+        raw = propertyUnits[item.propertyId];
+        if (!raw || !raw.units) continue;
+        units = raw.units;
+        for (j = 0; j < units.length; j++) {
+            u = units[j];
+            if (u.code === item.unitCode) {
+                items.push({ propertyId: item.propertyId, unitCode: item.unitCode, status: u.status });
+                break;
+            }
+        }
+    }
+    if (!items.length) return;
+    var url = getCloudFunctionsBaseUrlUnits() + '/adminSetUnitStatusOverrides';
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            adminEmail: creds.email,
+            adminPassword: creds.password,
+            items: items,
+        }),
+    }).catch(function() {});
 }
 
 function pushUnitStatusToServer(propertyId, unitCode, status) {
@@ -358,6 +445,7 @@ function mergeRemoteUnitOverridesPayload(payload) {
         }
     }
     localStorage.setItem('unitStatusOverrides', JSON.stringify(ov));
+    reconcileAuthoritativeUnitStatuses();
 }
 
 function getCloudFunctionsBaseUrlUnits() {
@@ -391,16 +479,22 @@ function getPropertyUnitsRaw(propertyId) {
 
 // Get units for a property (aplica overrides de status)
 function getPropertyUnits(propertyId) {
-    const data = propertyUnits[propertyId];
+    var data = propertyUnits[propertyId];
     if (!data) return null;
-    const overrides = getUnitStatusOverrides()[propertyId] || {};
+    var ovAll = getUnitStatusOverrides();
+    var overrides = ovAll[propertyId] || ovAll[String(propertyId)] || {};
     if (Object.keys(overrides).length === 0) return data;
     return {
-        ...data,
-        units: data.units.map(u => ({
-            ...u,
-            status: overrides[u.code] || u.status
-        }))
+        name: data.name,
+        units: data.units.map(function(u) {
+            if (isAuthoritativeInventoryUnit(propertyId, u.code)) {
+                return { code: u.code, price: u.price, bedrooms: u.bedrooms, status: u.status };
+            }
+            var st = overrides[u.code] || u.status;
+            return { code: u.code, price: u.price, bedrooms: u.bedrooms, status: st };
+        }),
+        engineeringValues: data.engineeringValues,
+        matriculas: data.matriculas
     };
 }
 
