@@ -15,6 +15,8 @@ const {
   listApprovedMessageTemplates,
   findApprovedTemplate,
   getWhatsAppAccountInfo,
+  resolveWabaId,
+  resolveWabaIdViaDebugToken,
   uploadMediaBuffer,
   sendMediaById,
   getWhatsAppMediaBuffer,
@@ -275,7 +277,38 @@ async function buildBrokerPhoneIndex(db) {
   return index;
 }
 
-async function getBrokerCampaignTemplateStatus(config) {
+async function loadWhatsappWabaId(db) {
+  if (!db) return '';
+  try {
+    const snap = await db.collection('settings').doc('whatsapp').get();
+    if (snap.exists && snap.data().wabaId) return String(snap.data().wabaId).trim();
+  } catch (e) {
+    console.warn('loadWhatsappWabaId:', e.message || e);
+  }
+  return '';
+}
+
+async function saveWhatsappWabaId(db, wabaId, source) {
+  if (!db || !wabaId) return;
+  await db.collection('settings').doc('whatsapp').set({
+    wabaId: String(wabaId).trim(),
+    source: source || '',
+    updatedAt: new Date().toISOString(),
+  }, { merge: true });
+}
+
+async function getOrResolveWabaId(db) {
+  const cached = await loadWhatsappWabaId(db);
+  if (cached) return { wabaId: cached, source: 'firestore' };
+  const resolved = await resolveWabaId();
+  if (resolved.wabaId) {
+    await saveWhatsappWabaId(db, resolved.wabaId, resolved.source);
+    return resolved;
+  }
+  return resolved;
+}
+
+async function getBrokerCampaignTemplateStatus(config, db) {
   const rawName = String(config.templateName || '').trim();
   const templateName = normalizeTemplateName(rawName);
   if (!templateName) {
@@ -286,20 +319,25 @@ async function getBrokerCampaignTemplateStatus(config) {
       approvedTemplates: [],
     };
   }
-  const listed = await listApprovedMessageTemplates();
+  const wabaResolved = await getOrResolveWabaId(db);
+  const listed = await listApprovedMessageTemplates({
+    wabaId: wabaResolved.wabaId || '',
+  });
   const approved = listed.ok ? listed.templates : [];
   const match = findApprovedTemplate(approved, templateName, config.templateLanguage || 'pt_BR');
   var hint = '';
   if (!listed.ok) {
-    hint = 'Não foi possível validar na Meta: ' + (listed.error || '') + '. Confira o nome exato no painel da Meta (minúsculas, ex: campanha_corretor_msg).';
-    if (templateName === 'campanha_corretor_msg') {
+    hint = 'Não foi possível validar na Meta: ' + (listed.error || '') +
+      '. Cole o ID da conta (WABA) do WhatsApp Manager no campo abaixo e clique Salvar WABA.';
+    if (templateName === 'campanha_corretor_msg' && wabaResolved.wabaId) {
       return {
         templateName: templateName,
         templateValid: true,
         templateLanguageResolved: config.templateLanguage || 'pt_BR',
-        templateHint: hint + ' O envio seguirá com campanha_corretor_msg (aprovado no seu WhatsApp Manager).',
+        templateHint: 'WABA ' + wabaResolved.wabaId + ' — envio com campanha_corretor_msg.',
         approvedTemplates: [],
-        templateValidationSoft: true,
+        wabaId: wabaResolved.wabaId,
+        wabaSource: wabaResolved.source || '',
       };
     }
   } else if (!match) {
@@ -321,12 +359,14 @@ async function getBrokerCampaignTemplateStatus(config) {
     templateLanguageResolved: match ? match.language : (config.templateLanguage || 'pt_BR'),
     templateHint: hint,
     approvedTemplates: approved.slice(0, 40),
+    wabaId: wabaResolved.wabaId || '',
+    wabaSource: wabaResolved.source || '',
   };
 }
 
 async function getBrokerCampaignPreview(db) {
   const config = await getBrokerCampaignConfig(db);
-  const templateStatus = await getBrokerCampaignTemplateStatus(config);
+  const templateStatus = await getBrokerCampaignTemplateStatus(config, db);
   const targetList = await listBrokerCampaignTargets(db, {});
   let eligible = 0;
   let invalidPhone = 0;
@@ -366,6 +406,8 @@ async function getBrokerCampaignPreview(db) {
     templateHint: templateStatus.templateHint,
     templateLanguageResolved: templateStatus.templateLanguageResolved || '',
     approvedTemplateNames: (templateStatus.approvedTemplates || []).map(function(t) { return t.name; }),
+    wabaId: templateStatus.wabaId || (await loadWhatsappWabaId(db)) || '',
+    wabaSource: templateStatus.wabaSource || '',
     whatsappTestAccount: !!(waAccount.ok && waAccount.isLikelyTestAccount),
     whatsappAccountName: waAccount.ok ? (waAccount.wabaName || waAccount.verifiedName || '') : '',
     whatsappTestAccountHint: waAccount.ok && waAccount.isLikelyTestAccount
@@ -520,18 +562,12 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
         }
       }
     }
-    try {
-      await sendTextMessage(waPhone, message);
-      return { mode: 'text', templateFallback: true, templateError: lastErr ? (lastErr.message || '') : '' };
-    } catch (textErr) {
-      const textMsg = extractMetaError(textErr);
-      throw new Error(
-        (lastErr ? (lastErr.message || '') : 'Template inválido') +
-        ' — O template "' + templateName + '" não existe na Meta (código 132001) ou o idioma está errado. ' +
-        'Crie um template Marketing aprovado (corpo com {{1}} a {{5}} ou só {{1}} com o texto completo) e use o nome exato em minúsculas. ' +
-        'Sem template válido, a Meta bloqueia mensagem para quem nunca falou com a Bia. Detalhe texto: ' + textMsg
-      );
-    }
+    const detail = lastErr ? (lastErr.message || String(lastErr)) : 'erro desconhecido';
+    throw new Error(
+      'Template "' + templateName + '" não foi enviado pela Meta: ' + detail +
+      ' Mensagem em texto livre NÃO chega a corretor que nunca falou com a Bia. ' +
+      'Confira campanha_corretor_msg (pt_BR) e cadastre o WABA ID no painel.'
+    );
   }
   try {
     await sendTextMessage(waPhone, message);
@@ -568,7 +604,7 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
   const db = admin.firestore();
   const now = new Date();
   let config = await getBrokerCampaignConfig(db);
-  const templateStatus = await getBrokerCampaignTemplateStatus(config);
+  const templateStatus = await getBrokerCampaignTemplateStatus(config, db);
   if (templateStatus.templateName) {
     config = Object.assign({}, config, {
       templateName: templateStatus.templateName,
@@ -635,17 +671,27 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     const item = sendable[i];
     try {
       const sendMeta = await sendBrokerCampaignWhatsApp(config, item.broker, item.waPhone, now);
-      results.push({
-        brokerId: item.broker.id,
-        name: item.broker.name || '',
-        status: 'sent',
-        phone: item.waPhone,
-        mode: sendMeta.mode,
-        templateName: sendMeta.templateName || '',
-        waMessageId: sendMeta.waMessageId || '',
-        componentsVariant: sendMeta.componentsVariant || '',
-        templateFallback: !!sendMeta.templateFallback,
-      });
+      if (sendMeta.mode === 'text' || sendMeta.templateFallback) {
+        results.push({
+          brokerId: item.broker.id,
+          name: item.broker.name || '',
+          status: 'error',
+          phone: item.waPhone,
+          error: 'Envio caiu em texto livre (não entrega fora da janela 24h). Erro template: ' +
+            (sendMeta.templateError || 'configure WABA e campanha_corretor_msg'),
+        });
+      } else {
+        results.push({
+          brokerId: item.broker.id,
+          name: item.broker.name || '',
+          status: 'sent',
+          phone: item.waPhone,
+          mode: sendMeta.mode,
+          templateName: sendMeta.templateName || '',
+          waMessageId: sendMeta.waMessageId || '',
+          componentsVariant: sendMeta.componentsVariant || '',
+        });
+      }
     } catch (err) {
       results.push({
         brokerId: item.broker.id,
@@ -1504,6 +1550,60 @@ exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
     return res.json({ success: true, config: config });
   } catch (err) {
     console.error('brokerCampaignConfig:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+exports.brokerCampaignDiscoverWaba = functions
+  .runWith({ secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'] })
+  .https.onRequest(async (req, res) => {
+    allowCors(res);
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+    try {
+      const body = req.body || {};
+      if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+      const db = admin.firestore();
+      const resolved = await getOrResolveWabaId(db);
+      const listed = resolved.wabaId
+        ? await listApprovedMessageTemplates({ wabaId: resolved.wabaId })
+        : { ok: false, templates: [], error: resolved.error || 'WABA não encontrado' };
+      return res.json({
+        ok: !!resolved.wabaId,
+        wabaId: resolved.wabaId || '',
+        source: resolved.source || '',
+        templates: listed.ok ? listed.templates : [],
+        templateError: listed.ok ? '' : (listed.error || ''),
+      });
+    } catch (err) {
+      console.error('brokerCampaignDiscoverWaba:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+exports.brokerCampaignSaveWaba = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const body = req.body || {};
+    if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+    const wabaId = String(body.wabaId || '').replace(/\D/g, '');
+    if (!wabaId || wabaId.length < 8) {
+      return res.status(400).json({ error: 'Informe o ID da conta WhatsApp (WABA), só números.' });
+    }
+    const db = admin.firestore();
+    await saveWhatsappWabaId(db, wabaId, 'admin_manual');
+    const listed = await listApprovedMessageTemplates({ wabaId: wabaId });
+    return res.json({
+      success: true,
+      wabaId: wabaId,
+      templatesOk: !!listed.ok,
+      templates: listed.ok ? listed.templates.slice(0, 20) : [],
+      error: listed.ok ? '' : (listed.error || ''),
+    });
+  } catch (err) {
+    console.error('brokerCampaignSaveWaba:', err);
     return res.status(500).json({ error: err.message });
   }
 });

@@ -2835,6 +2835,21 @@ button.wa-stat.wa-stat--click:focus {
     color: #047857;
     font-weight: 600;
 }
+.broker-waba-row {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -ms-flex-wrap: wrap;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+}
+.broker-waba-row input {
+    -webkit-box-flex: 1;
+    -ms-flex: 1 1 180px;
+    flex: 1 1 180px;
+    min-width: 140px;
+}
 .broker-campaign-weekly-bar {
     display: -webkit-box;
     display: -ms-flexbox;

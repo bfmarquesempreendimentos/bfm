@@ -257,14 +257,49 @@ function normalizeTemplateName(raw) {
   return String(raw || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
 }
 
+/** Extrai WABA ID do token (granular_scopes do debug_token). */
+async function resolveWabaIdViaDebugToken(token) {
+  if (!token) return null;
+  try {
+    const resp = await axios.get(GRAPH_API + '/debug_token', {
+      params: { input_token: token },
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const granular = resp.data && resp.data.data && resp.data.data.granular_scopes;
+    if (!granular || !granular.length) return null;
+    var i;
+    var scope;
+    var ids;
+    for (i = 0; i < granular.length; i++) {
+      scope = granular[i];
+      if (!scope || !scope.scope) continue;
+      if (scope.scope.indexOf('whatsapp') < 0) continue;
+      ids = scope.target_ids;
+      if (ids && ids.length) return String(ids[0]);
+    }
+  } catch (e) {
+    console.warn('[WA-API] debug_token WABA:', e.message || e);
+  }
+  return null;
+}
+
 /** Resolve WABA ID (vários caminhos — a Meta mudou campos entre versões da API). */
 async function resolveWabaId(options) {
   options = options || {};
   const { token, phoneNumberId } = getConfig(options.phoneNumberId);
   if (!token || !phoneNumberId) return { wabaId: null, error: 'WhatsApp não configurado' };
 
+  if (options.wabaId) {
+    return { wabaId: String(options.wabaId).trim(), source: 'option' };
+  }
+
   if (process.env.WHATSAPP_WABA_ID) {
     return { wabaId: String(process.env.WHATSAPP_WABA_ID).trim(), source: 'env' };
+  }
+
+  const debugWaba = await resolveWabaIdViaDebugToken(token);
+  if (debugWaba) {
+    return { wabaId: debugWaba, source: 'debug_token' };
   }
 
   try {
@@ -387,7 +422,12 @@ async function listApprovedMessageTemplates(options) {
   const { token, phoneNumberId } = getConfig(options.phoneNumberId);
   if (!token || !phoneNumberId) return { ok: false, templates: [], error: 'WhatsApp não configurado' };
   try {
-    const resolved = await resolveWabaId(options);
+    var resolved = null;
+    if (options.wabaId) {
+      resolved = { wabaId: String(options.wabaId).trim(), source: 'option' };
+    } else {
+      resolved = await resolveWabaId(options);
+    }
     if (!resolved.wabaId) {
       return { ok: false, templates: [], error: resolved.error || 'WABA não encontrado' };
     }
@@ -495,6 +535,7 @@ module.exports = {
   normalizeTemplateName,
   getWhatsAppAccountInfo,
   resolveWabaId,
+  resolveWabaIdViaDebugToken,
   listApprovedMessageTemplates,
   findApprovedTemplate,
   sendImageMessage,

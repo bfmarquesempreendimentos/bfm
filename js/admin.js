@@ -1646,6 +1646,14 @@ function applyBrokerCampaignConfigFields(cfg) {
 function loadBrokerCampaignPreview() {
     return adminFetchJson('/brokerCampaignPreview').then(function(preview) {
         renderBrokerCampaignKpis(preview);
+        var wabaEl = document.getElementById('brokerCampaignWabaId');
+        var wabaHint = document.getElementById('brokerCampaignWabaHint');
+        if (wabaEl && preview && preview.wabaId && !wabaEl.value) wabaEl.value = preview.wabaId;
+        if (wabaHint && preview) {
+            wabaHint.textContent = preview.wabaId
+                ? ('WABA configurado: ' + preview.wabaId + (preview.wabaSource ? ' (' + preview.wabaSource + ')' : '') + '.')
+                : 'Cole o ID da conta WhatsApp (WABA) e clique Salvar WABA — senão a mensagem não chega.';
+        }
         return preview;
     }).catch(function() {
         var hint = document.getElementById('brokerCampaignPreviewStats');
@@ -1706,6 +1714,7 @@ function showBrokerCampaignResult(result, isError) {
     var errors = result && result.errors ? result.errors : 0;
     var skipped = result && result.skipped ? result.skipped : 0;
     var eligible = result && result.eligible !== undefined ? result.eligible : null;
+    var msgType = 'success';
     var txt = 'Disparo concluído. Enviados: ' + sent + ', erros: ' + errors + ', pulados (telefone inválido): ' + skipped + '.';
     if (eligible !== null) txt += ' Elegíveis: ' + eligible + '.';
     if (result && result.templateName) txt += ' Template: ' + result.templateName + '.';
@@ -1733,13 +1742,17 @@ function showBrokerCampaignResult(result, isError) {
     if (sent > 0 && result && result.sentDetails && result.sentDetails.length) {
         var row = result.sentDetails[0];
         txt += ' Destino: ' + (row.phone || '?') + '.';
-        if (row.mode) txt += ' Modo: ' + row.mode + '.';
+        if (row.mode) txt += ' Modo: ' + row.mode + ' (precisa ser template).';
         if (row.waMessageId) txt += ' ID Meta: ' + row.waMessageId + '.';
+        if (row.mode === 'text') {
+            txt += ' Texto livre não entrega a quem nunca falou com a Bia — configure WABA e campanha_corretor_msg.';
+            msgType = 'warning';
+        }
     }
-    var msgType = 'success';
     if (isError) msgType = 'error';
     else if (errors > 0) msgType = 'warning';
     else if (result && result.deliveryWarning) msgType = 'warning';
+    else if (sent === 0 && errors > 0) msgType = 'error';
     if (result && result.deliveryWarning) {
         txt = result.deliveryWarning + ' ' + txt;
     }
@@ -1859,6 +1872,39 @@ function saveBrokerCampaignConfig() {
 
 function saveBrokerCampaignConfigSilent() {
     return adminPostJson('/brokerCampaignConfig', collectBrokerCampaignConfigPayload());
+}
+
+function discoverBrokerCampaignWaba() {
+    adminPostJson('/brokerCampaignDiscoverWaba', brokerCampaignRequestPayload({})).then(function(data) {
+        var wabaEl = document.getElementById('brokerCampaignWabaId');
+        if (wabaEl && data && data.wabaId) wabaEl.value = data.wabaId;
+        var msg = data && data.wabaId
+            ? ('Conta detectada: ' + data.wabaId + '. Templates na Meta: ' + ((data.templates && data.templates.length) || 0) + '.')
+            : ('Não detectou WABA. ' + (data && data.templateError ? data.templateError : 'Cole o ID manualmente do WhatsApp Manager.'));
+        if (typeof showMessage === 'function') showMessage(msg, data && data.wabaId ? 'success' : 'warning');
+        loadBrokerCampaignPreview();
+    }).catch(function(err) {
+        if (typeof showMessage === 'function') showMessage('Erro ao detectar WABA: ' + (err.message || ''), 'error');
+    });
+}
+
+function saveBrokerCampaignWaba() {
+    var wabaEl = document.getElementById('brokerCampaignWabaId');
+    var wabaId = wabaEl ? String(wabaEl.value || '').replace(/\D/g, '') : '';
+    if (!wabaId) {
+        if (typeof showMessage === 'function') showMessage('Informe o ID da conta WhatsApp (WABA).', 'error');
+        return;
+    }
+    adminPostJson('/brokerCampaignSaveWaba', brokerCampaignRequestPayload({ wabaId: wabaId })).then(function(data) {
+        var tplCount = (data && data.templates) ? data.templates.length : 0;
+        var msg = 'WABA salvo: ' + wabaId + '.';
+        if (data && data.templatesOk) msg += ' Templates aprovados encontrados: ' + tplCount + '.';
+        else if (data && data.error) msg += ' Aviso: ' + data.error;
+        if (typeof showMessage === 'function') showMessage(msg, data && data.templatesOk ? 'success' : 'warning');
+        loadBrokerCampaignPreview();
+    }).catch(function(err) {
+        if (typeof showMessage === 'function') showMessage('Erro ao salvar WABA: ' + (err.message || ''), 'error');
+    });
 }
 
 function sendBrokerCampaignNow() {
