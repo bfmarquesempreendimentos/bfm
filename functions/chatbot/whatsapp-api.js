@@ -417,10 +417,121 @@ async function getWhatsAppAccountInfo(options) {
   }
 }
 
+async function listWabaPhoneNumbers(token, wabaId) {
+  if (!token || !wabaId) return [];
+  try {
+    const resp = await axios.get(GRAPH_API + '/' + wabaId + '/phone_numbers', {
+      params: { fields: 'id,display_phone_number,verified_name' },
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    return (resp.data && resp.data.data) || [];
+  } catch (e) {
+    console.warn('[WA-API] listWabaPhoneNumbers:', extractMetaError(e));
+    return [];
+  }
+}
+
+async function phoneBelongsToWaba(token, wabaId, phoneNumberId) {
+  if (!token || !wabaId || !phoneNumberId) return false;
+  const phones = await listWabaPhoneNumbers(token, wabaId);
+  var i;
+  for (i = 0; i < phones.length; i++) {
+    if (String(phones[i].id) === String(phoneNumberId)) return true;
+  }
+  return false;
+}
+
+/** IDs de WABA no token (debug_token). */
+async function resolveAllWabaIdsFromDebugToken(token) {
+  if (!token) return [];
+  try {
+    const resp = await axios.get(GRAPH_API + '/debug_token', {
+      params: { input_token: token },
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const granular = resp.data && resp.data.data && resp.data.data.granular_scopes;
+    if (!granular || !granular.length) return [];
+    var out = [];
+    var seen = {};
+    var i;
+    var scope;
+    var ids;
+    var j;
+    for (i = 0; i < granular.length; i++) {
+      scope = granular[i];
+      if (!scope || scope.scope.indexOf('whatsapp') < 0) continue;
+      ids = scope.target_ids || [];
+      for (j = 0; j < ids.length; j++) {
+        if (ids[j] && !seen[ids[j]]) {
+          seen[ids[j]] = true;
+          out.push(String(ids[j]));
+        }
+      }
+    }
+    return out;
+  } catch (e) {
+    return [];
+  }
+}
+
+/** WABA onde o phone_number_id da Cloud API está cadastrado (obrigatório para template). */
+async function resolveWabaForCloudApiPhone(options) {
+  options = options || {};
+  const { token, phoneNumberId } = getConfig(options.phoneNumberId);
+  if (!token || !phoneNumberId) {
+    return { wabaId: null, phoneMatch: false, error: 'WHATSAPP_TOKEN ou WHATSAPP_PHONE_NUMBER_ID não configurado no Firebase.' };
+  }
+  var preferred = options.preferredWabaId ? String(options.preferredWabaId).trim() : '';
+  var candidates = [];
+  if (preferred) candidates.push(preferred);
+  var debugList = await resolveAllWabaIdsFromDebugToken(token);
+  var di;
+  for (di = 0; di < debugList.length; di++) {
+    if (candidates.indexOf(debugList[di]) < 0) candidates.push(debugList[di]);
+  }
+  var resolved = await resolveWabaId({ wabaId: preferred });
+  if (resolved.wabaId && candidates.indexOf(resolved.wabaId) < 0) candidates.push(resolved.wabaId);
+
+  for (di = 0; di < candidates.length; di++) {
+    if (await phoneBelongsToWaba(token, candidates[di], phoneNumberId)) {
+      return {
+        wabaId: candidates[di],
+        phoneMatch: true,
+        phoneNumberId: phoneNumberId,
+        source: candidates[di] === preferred ? 'preferred_match' : 'debug_match',
+      };
+    }
+  }
+
+  var phonesOnPreferred = preferred ? await listWabaPhoneNumbers(token, preferred) : [];
+  return {
+    wabaId: preferred || (candidates[0] || null),
+    phoneMatch: false,
+    phoneNumberId: phoneNumberId,
+    phonesOnPreferred: phonesOnPreferred,
+    error: 'O número da API (phone_number_id ' + phoneNumberId + ') não está na conta WABA ' +
+      (preferred || '?') + '. O template existe na WABA, mas o envio usa outro número. ' +
+      'Ajuste WHATSAPP_PHONE_NUMBER_ID no Firebase para um ID listado na conta ou use o WABA correto.',
+  };
+}
+
+function findApprovedTemplatesByName(templates, name) {
+  if (!name || !templates || !templates.length) return [];
+  var out = [];
+  var i;
+  for (i = 0; i < templates.length; i++) {
+    if (templates[i].name === name) out.push(templates[i]);
+  }
+  return out;
+}
+
 async function listApprovedMessageTemplates(options) {
   options = options || {};
   const { token, phoneNumberId } = getConfig(options.phoneNumberId);
-  if (!token || !phoneNumberId) return { ok: false, templates: [], error: 'WhatsApp não configurado' };
+  if (!token) return { ok: false, templates: [], error: 'WHATSAPP_TOKEN não configurado' };
+  if (!phoneNumberId && !options.wabaId) {
+    return { ok: false, templates: [], error: 'WHATSAPP_PHONE_NUMBER_ID não configurado' };
+  }
   try {
     var resolved = null;
     if (options.wabaId) {
@@ -536,8 +647,13 @@ module.exports = {
   getWhatsAppAccountInfo,
   resolveWabaId,
   resolveWabaIdViaDebugToken,
+  resolveWabaForCloudApiPhone,
+  resolveAllWabaIdsFromDebugToken,
+  listWabaPhoneNumbers,
+  phoneBelongsToWaba,
   listApprovedMessageTemplates,
   findApprovedTemplate,
+  findApprovedTemplatesByName,
   sendImageMessage,
   sendVideoMessage,
   sendDocumentMessage,

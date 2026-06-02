@@ -1650,9 +1650,18 @@ function loadBrokerCampaignPreview() {
         var wabaHint = document.getElementById('brokerCampaignWabaHint');
         if (wabaEl && preview && preview.wabaId && !wabaEl.value) wabaEl.value = preview.wabaId;
         if (wabaHint && preview) {
-            wabaHint.textContent = preview.wabaId
-                ? ('WABA configurado: ' + preview.wabaId + (preview.wabaSource ? ' (' + preview.wabaSource + ')' : '') + '.')
-                : 'Cole o ID da conta WhatsApp (WABA) e clique Salvar WABA — senão a mensagem não chega.';
+            if (preview.wabaId && preview.phoneMatch === false) {
+                wabaHint.textContent = (preview.templateHint || 'Número da API não pertence a este WABA.') +
+                    ' Ajuste WHATSAPP_PHONE_NUMBER_ID no Firebase.';
+                wabaHint.style.color = '#b45309';
+            } else if (preview.wabaId) {
+                wabaHint.textContent = 'WABA ' + preview.wabaId + ' vinculado ao número da Bia' +
+                    (preview.cloudPhoneNumberId ? ' (ID ' + preview.cloudPhoneNumberId + ').' : '.');
+                wabaHint.style.color = '#047857';
+            } else {
+                wabaHint.textContent = 'Cole o ID da conta WhatsApp (WABA) e clique Salvar WABA — senão a mensagem não chega.';
+                wabaHint.style.color = '';
+            }
         }
         return preview;
     }).catch(function() {
@@ -1898,9 +1907,22 @@ function saveBrokerCampaignWaba() {
     adminPostJson('/brokerCampaignSaveWaba', brokerCampaignRequestPayload({ wabaId: wabaId })).then(function(data) {
         var tplCount = (data && data.templates) ? data.templates.length : 0;
         var msg = 'WABA salvo: ' + wabaId + '.';
-        if (data && data.templatesOk) msg += ' Templates aprovados encontrados: ' + tplCount + '.';
+        if (data && data.templatesOk) msg += ' Templates aprovados: ' + tplCount + '.';
+        if (data && data.campanhaCorretorLanguages && data.campanhaCorretorLanguages.length) {
+            msg += ' Idioma campanha_corretor_msg: ' + data.campanhaCorretorLanguages.join(', ') + '.';
+        }
+        if (data && data.phoneMatch === false) {
+            msg += ' ATENÇÃO: o número da Bia na API NÃO está nesta conta WABA.' +
+                (data.phoneLinkWarning ? ' ' + data.phoneLinkWarning : '');
+            if (data.phonesOnWaba && data.phonesOnWaba.length) {
+                msg += ' Números nesta WABA: ' + data.phonesOnWaba.map(function(p) {
+                    return p.id;
+                }).join(', ') + '.';
+            }
+        }
         else if (data && data.error) msg += ' Aviso: ' + data.error;
-        if (typeof showMessage === 'function') showMessage(msg, data && data.templatesOk ? 'success' : 'warning');
+        var ok = data && data.templatesOk && data.phoneMatch !== false;
+        if (typeof showMessage === 'function') showMessage(msg, ok ? 'success' : 'warning');
         loadBrokerCampaignPreview();
     }).catch(function(err) {
         if (typeof showMessage === 'function') showMessage('Erro ao salvar WABA: ' + (err.message || ''), 'error');

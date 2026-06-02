@@ -17,6 +17,9 @@ const {
   getWhatsAppAccountInfo,
   resolveWabaId,
   resolveWabaIdViaDebugToken,
+  resolveWabaForCloudApiPhone,
+  findApprovedTemplatesByName,
+  listWabaPhoneNumbers,
   uploadMediaBuffer,
   sendMediaById,
   getWhatsAppMediaBuffer,
@@ -299,13 +302,34 @@ async function saveWhatsappWabaId(db, wabaId, source) {
 
 async function getOrResolveWabaId(db) {
   const cached = await loadWhatsappWabaId(db);
-  if (cached) return { wabaId: cached, source: 'firestore' };
+  const linked = await resolveWabaForCloudApiPhone({ preferredWabaId: cached });
+  if (linked.wabaId && linked.phoneMatch) {
+    if (linked.wabaId !== cached) {
+      await saveWhatsappWabaId(db, linked.wabaId, linked.source || 'phone_match');
+    }
+    return {
+      wabaId: linked.wabaId,
+      source: linked.source || 'phone_match',
+      phoneMatch: true,
+      phoneNumberId: linked.phoneNumberId,
+    };
+  }
+  if (cached) {
+    return {
+      wabaId: cached,
+      source: 'firestore',
+      phoneMatch: false,
+      phoneNumberId: linked.phoneNumberId || '',
+      phoneLinkError: linked.error || '',
+      phonesOnWaba: linked.phonesOnPreferred || [],
+    };
+  }
   const resolved = await resolveWabaId();
   if (resolved.wabaId) {
     await saveWhatsappWabaId(db, resolved.wabaId, resolved.source);
-    return resolved;
+    return Object.assign({}, resolved, { phoneMatch: false });
   }
-  return resolved;
+  return Object.assign({}, resolved, { phoneMatch: false, phoneLinkError: linked.error || '' });
 }
 
 async function getBrokerCampaignTemplateStatus(config, db) {
@@ -320,26 +344,37 @@ async function getBrokerCampaignTemplateStatus(config, db) {
     };
   }
   const wabaResolved = await getOrResolveWabaId(db);
+  if (wabaResolved.wabaId && !wabaResolved.phoneMatch) {
+    var phoneList = '';
+    if (wabaResolved.phonesOnWaba && wabaResolved.phonesOnWaba.length) {
+      phoneList = ' IDs de número nesta conta: ' + wabaResolved.phonesOnWaba.map(function(p) {
+        return p.id + (p.display_phone_number ? ' (' + p.display_phone_number + ')' : '');
+      }).join(', ') + '.';
+    }
+    return {
+      templateName: templateName,
+      templateValid: false,
+      templateHint: (wabaResolved.phoneLinkError || 'Número da API não pertence a este WABA.') + phoneList +
+        ' Ajuste o secret WHATSAPP_PHONE_NUMBER_ID no Firebase para um desses IDs.',
+      approvedTemplates: [],
+      wabaId: wabaResolved.wabaId,
+      wabaSource: wabaResolved.source || '',
+      phoneMatch: false,
+      cloudPhoneNumberId: wabaResolved.phoneNumberId || '',
+    };
+  }
   const listed = await listApprovedMessageTemplates({
     wabaId: wabaResolved.wabaId || '',
   });
   const approved = listed.ok ? listed.templates : [];
-  const match = findApprovedTemplate(approved, templateName, config.templateLanguage || 'pt_BR');
+  const nameMatches = findApprovedTemplatesByName(approved, templateName);
+  const match = nameMatches.length
+    ? nameMatches[0]
+    : findApprovedTemplate(approved, templateName, config.templateLanguage || 'pt_BR');
   var hint = '';
   if (!listed.ok) {
     hint = 'Não foi possível validar na Meta: ' + (listed.error || '') +
       '. Cole o ID da conta (WABA) do WhatsApp Manager no campo abaixo e clique Salvar WABA.';
-    if (templateName === 'campanha_corretor_msg' && wabaResolved.wabaId) {
-      return {
-        templateName: templateName,
-        templateValid: true,
-        templateLanguageResolved: config.templateLanguage || 'pt_BR',
-        templateHint: 'WABA ' + wabaResolved.wabaId + ' — envio com campanha_corretor_msg.',
-        approvedTemplates: [],
-        wabaId: wabaResolved.wabaId,
-        wabaSource: wabaResolved.source || '',
-      };
-    }
   } else if (!match) {
     hint = 'Template "' + templateName + '" não encontrado como APROVADO em pt_BR. O nome no painel deve ser idêntico ao da Meta (só minúsculas e _).';
     if (approved.length) {
@@ -351,16 +386,31 @@ async function getBrokerCampaignTemplateStatus(config, db) {
       if (names.length) hint += ' Aprovados: ' + names.join(', ') + '.';
     }
   } else {
-    hint = 'Template OK: ' + match.name + ' (' + match.language + ').';
+    hint = 'Template OK: ' + match.name + ' (' + match.language + '). Número API vinculado à conta.';
+    if (match.language && db) {
+      await db.collection('broker_campaign').doc('config').set({
+        templateLanguageResolved: match.language,
+      }, { merge: true });
+    }
+  }
+  var templateLanguages = [];
+  var mi;
+  for (mi = 0; mi < nameMatches.length; mi++) {
+    if (nameMatches[mi].language && templateLanguages.indexOf(nameMatches[mi].language) < 0) {
+      templateLanguages.push(nameMatches[mi].language);
+    }
   }
   return {
     templateName: templateName,
-    templateValid: !!match,
+    templateValid: !!match && wabaResolved.phoneMatch !== false,
     templateLanguageResolved: match ? match.language : (config.templateLanguage || 'pt_BR'),
+    templateLanguages: templateLanguages,
     templateHint: hint,
     approvedTemplates: approved.slice(0, 40),
     wabaId: wabaResolved.wabaId || '',
     wabaSource: wabaResolved.source || '',
+    phoneMatch: wabaResolved.phoneMatch !== false,
+    cloudPhoneNumberId: wabaResolved.phoneNumberId || '',
   };
 }
 
@@ -524,14 +574,19 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
     langSeen[c] = true;
     langCandidates.push(c);
   }
+  if (Array.isArray(config.templateLanguages)) {
+    var tli;
+    for (tli = 0; tli < config.templateLanguages.length; tli++) {
+      pushLang(config.templateLanguages[tli]);
+    }
+  }
   pushLang(config.templateLanguageResolved);
   pushLang(config.templateLanguage);
-  pushLang('pt_BR');
-  pushLang('pt');
-  pushLang('en_US');
+  if (!langCandidates.length) {
+    pushLang('pt_BR');
+  }
 
   if (templateName) {
-    const fullComponents = buildBrokerCampaignTemplateComponents(config, broker, now);
     const singleBody = [{
       type: 'body',
       parameters: [{ type: 'text', text: message.substring(0, 900) }],
@@ -539,8 +594,7 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
     let lastErr = null;
     let li;
     let ci;
-    // campanha_corretor_msg usa só {{1}} — tentar texto único antes de 5 parâmetros
-    const componentSets = [singleBody, [], fullComponents];
+    var componentSets = [singleBody, []];
     for (li = 0; li < langCandidates.length; li++) {
       for (ci = 0; ci < componentSets.length; ci++) {
         try {
@@ -609,6 +663,7 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     config = Object.assign({}, config, {
       templateName: templateStatus.templateName,
       templateLanguageResolved: templateStatus.templateLanguageResolved,
+      templateLanguages: templateStatus.templateLanguages || [],
     });
     if (!templateStatus.templateValid && !templateStatus.templateValidationSoft) {
       return {
@@ -1581,7 +1636,9 @@ exports.brokerCampaignDiscoverWaba = functions
     }
   });
 
-exports.brokerCampaignSaveWaba = functions.https.onRequest(async (req, res) => {
+exports.brokerCampaignSaveWaba = functions
+  .runWith({ secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'] })
+  .https.onRequest(async (req, res) => {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
@@ -1594,13 +1651,23 @@ exports.brokerCampaignSaveWaba = functions.https.onRequest(async (req, res) => {
     }
     const db = admin.firestore();
     await saveWhatsappWabaId(db, wabaId, 'admin_manual');
+    const linked = await resolveWabaForCloudApiPhone({ preferredWabaId: wabaId });
     const listed = await listApprovedMessageTemplates({ wabaId: wabaId });
+    var campTpl = findApprovedTemplatesByName(
+      listed.ok ? listed.templates : [],
+      'campanha_corretor_msg'
+    );
     return res.json({
       success: true,
       wabaId: wabaId,
       templatesOk: !!listed.ok,
       templates: listed.ok ? listed.templates.slice(0, 20) : [],
       error: listed.ok ? '' : (listed.error || ''),
+      phoneMatch: !!linked.phoneMatch,
+      cloudPhoneNumberId: linked.phoneNumberId || '',
+      phoneLinkWarning: linked.phoneMatch ? '' : (linked.error || ''),
+      phonesOnWaba: linked.phonesOnPreferred || [],
+      campanhaCorretorLanguages: campTpl.map(function(t) { return t.language; }),
     });
   } catch (err) {
     console.error('brokerCampaignSaveWaba:', err);
