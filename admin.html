@@ -520,11 +520,11 @@
             <div class="section-header">
                 <div class="section-header-main">
                     <h2>Corretores</h2>
-                    <p class="section-subtitle">Cadastro e status no Firestore; uso em reservas e importações.</p>
+                    <p class="section-subtitle">Cadastro no Firestore, campanha WhatsApp e reservas.</p>
                 </div>
                 <div class="header-actions">
-                    <button type="button" class="btn btn-primary" onclick="loadBrokersData()" title="Atualizar lista do Firestore">
-                        <i class="fas fa-refresh" aria-hidden="true"></i> Atualizar
+                    <button type="button" class="btn btn-secondary" onclick="loadBrokersData()" title="Atualizar lista e preparar campanha">
+                        <i class="fas fa-sync-alt" aria-hidden="true"></i> Atualizar
                     </button>
                     <button type="button" id="btnAddBroker" class="btn btn-success" onclick="showAddBrokerModal()" style="display:none">
                         <i class="fas fa-plus" aria-hidden="true"></i> Adicionar
@@ -532,89 +532,121 @@
                 </div>
             </div>
 
-            <div class="admin-table-container admin-table-container--elevated" style="margin-bottom:16px;">
-                <div style="padding:16px;">
-                    <h3 class="campaign-panel-title">Campanha semanal no WhatsApp (Corretores)</h3>
-                    <p class="campaign-panel-intro">Envio automático semanal com incentivo de vendas, site atualizado e dica útil.</p>
-                    <p id="brokerCampaignPreviewStats" class="campaign-preview-stats">Carregando resumo de destinatários...</p>
-                    <div class="campaign-form-grid">
-                        <label class="campaign-field-col">
-                            <span>Título semanal</span>
-                            <input type="text" id="brokerCampaignTitle" placeholder="Atualização semanal B F Marques">
-                        </label>
-                        <label class="campaign-field-col">
-                            <span>URL do site</span>
-                            <input type="text" id="brokerCampaignSiteUrl" placeholder="https://bfmarquesempreendimentos.github.io/bfm/">
-                        </label>
-                        <label class="campaign-field-col">
-                            <span>WhatsApp de contato</span>
-                            <input type="text" id="brokerCampaignContact" placeholder="(21) 99759-0814">
-                        </label>
-                        <label class="campaign-field-col campaign-field-col--wide">
-                            <span>Template WhatsApp (Meta, aprovado)</span>
-                            <input type="text" id="brokerCampaignTemplate" placeholder="ex: atualizacao_semanal_corretor">
-                            <small class="form-hint">Obrigatório para corretor que não falou com o número Business nas últimas 24h.</small>
-                        </label>
+            <div id="brokerCampaignHub" class="broker-campaign-hub admin-table-container admin-table-container--elevated">
+                <div class="broker-campaign-hub__inner">
+                    <div class="broker-campaign-hub__head">
+                        <div>
+                            <h3 class="broker-campaign-hub__title">Campanha WhatsApp</h3>
+                            <p class="broker-campaign-hub__intro">Disparo para corretores <strong>ativos</strong>, com <strong>campanha ligada</strong> e telefone válido.</p>
+                        </div>
+                        <p id="brokerCampaignPrepareStatus" class="broker-campaign-prepare-status">Preparando...</p>
                     </div>
-                    <label class="campaign-field-full">
-                        <span>Chamada comercial (CTA)</span>
-                        <input type="text" id="brokerCampaignCta" placeholder="Divulgue as ofertas da semana para seus leads e traga sua visita agendada.">
-                    </label>
-                    <label class="campaign-field-full">
-                        <span>Dicas úteis (uma por linha)</span>
-                        <textarea id="brokerCampaignTips" rows="4" placeholder="Dica 1&#10;Dica 2&#10;Dica 3"></textarea>
-                    </label>
-                    <div class="campaign-actions-row">
-                        <label class="campaign-test-row">
-                            <input type="checkbox" id="brokerCampaignEnabled">
-                            <span>Ativar envio automático (segunda às 08:00)</span>
-                        </label>
-                        <button type="button" class="btn btn-secondary" onclick="loadBrokerCampaignConfig()">
-                            <i class="fas fa-sync-alt" aria-hidden="true"></i> Recarregar
-                        </button>
-                        <button type="button" class="btn btn-primary" onclick="saveBrokerCampaignConfig()">
-                            <i class="fas fa-save" aria-hidden="true"></i> Salvar configuração
-                        </button>
-                        <button type="button" id="brokerCampaignBtnSendNow" class="btn btn-success" onclick="sendBrokerCampaignNow()">
+
+                    <div class="broker-campaign-kpis">
+                        <div class="broker-kpi broker-kpi--ready">
+                            <span class="broker-kpi__label">Prontos para disparo</span>
+                            <strong id="brokerKpiReady" class="broker-kpi__value" data-value="0">—</strong>
+                        </div>
+                        <div class="broker-kpi">
+                            <span class="broker-kpi__label">Ativos na campanha</span>
+                            <strong id="brokerKpiActive" class="broker-kpi__value">—</strong>
+                        </div>
+                        <div class="broker-kpi">
+                            <span class="broker-kpi__label">Opt-out</span>
+                            <strong id="brokerKpiOptOut" class="broker-kpi__value">—</strong>
+                        </div>
+                        <div class="broker-kpi">
+                            <span class="broker-kpi__label">Sem telefone</span>
+                            <strong id="brokerKpiNoPhone" class="broker-kpi__value">—</strong>
+                        </div>
+                    </div>
+
+                    <p id="brokerCampaignPreviewStats" class="broker-campaign-hint">Carregando...</p>
+
+                    <div class="broker-campaign-primary">
+                        <button type="button" id="brokerCampaignBtnSendNow" class="btn btn-success btn-lg broker-btn-send-now" onclick="sendBrokerCampaignNow()" disabled>
                             <i class="fas fa-paper-plane" aria-hidden="true"></i> Disparar agora
                         </button>
-                        <button type="button" class="btn btn-secondary" onclick="cleanupBrokerDuplicatesAdmin(false)" title="Desativa duplicatas ativas e corretores sem telefone">
-                            <i class="fas fa-broom" aria-hidden="true"></i> Limpar duplicatas
-                        </button>
-                        <button type="button" class="btn btn-secondary" onclick="cleanupBrokerDuplicatesAdmin(true)" title="Desativa duplicatas e apaga do Firestore os cadastros inativos arquivados">
-                            <i class="fas fa-trash-alt" aria-hidden="true"></i> Excluir arquivados
-                        </button>
-                        <label class="campaign-test-row">
-                            <span>Teste em 1 corretor:</span>
-                            <select id="brokerCampaignTestSelect" class="campaign-test-select">
-                                <option value="">Selecione um corretor ativo</option>
+                        <div class="broker-campaign-test-inline">
+                            <select id="brokerCampaignTestSelect" class="campaign-test-select" aria-label="Corretor para teste">
+                                <option value="">Teste em 1 corretor</option>
                             </select>
-                        </label>
-                        <button type="button" id="brokerCampaignBtnTest" class="btn btn-primary" onclick="sendBrokerCampaignTestSingle()">
-                            <i class="fas fa-vial" aria-hidden="true"></i> Enviar teste
-                        </button>
+                            <button type="button" id="brokerCampaignBtnTest" class="btn btn-secondary" onclick="sendBrokerCampaignTestSingle()">
+                                <i class="fas fa-vial" aria-hidden="true"></i> Testar
+                            </button>
+                        </div>
                     </div>
+
+                    <details class="broker-campaign-details">
+                        <summary>Configuração da mensagem</summary>
+                        <div class="broker-campaign-details__body">
+                            <div class="campaign-form-grid">
+                                <label class="campaign-field-col">
+                                    <span>Título semanal</span>
+                                    <input type="text" id="brokerCampaignTitle" placeholder="Atualização semanal B F Marques">
+                                </label>
+                                <label class="campaign-field-col">
+                                    <span>URL do site</span>
+                                    <input type="text" id="brokerCampaignSiteUrl" placeholder="https://bfmarquesempreendimentos.github.io/bfm/">
+                                </label>
+                                <label class="campaign-field-col">
+                                    <span>WhatsApp suporte</span>
+                                    <input type="text" id="brokerCampaignContact" placeholder="(21) 99759-0814">
+                                </label>
+                                <label class="campaign-field-col campaign-field-col--wide">
+                                    <span>Template Meta (recomendado)</span>
+                                    <input type="text" id="brokerCampaignTemplate" placeholder="nome_do_template_aprovado">
+                                    <small class="form-hint">Fora da janela de 24h a Meta só entrega com template aprovado.</small>
+                                </label>
+                            </div>
+                            <label class="campaign-field-full">
+                                <span>Chamada comercial (CTA)</span>
+                                <input type="text" id="brokerCampaignCta" placeholder="Divulgue as ofertas da semana...">
+                            </label>
+                            <label class="campaign-field-full">
+                                <span>Dicas (uma por linha)</span>
+                                <textarea id="brokerCampaignTips" rows="3" placeholder="Dica 1"></textarea>
+                            </label>
+                            <label class="campaign-test-row">
+                                <input type="checkbox" id="brokerCampaignEnabled">
+                                <span>Envio automático às segundas, 08h (Brasília)</span>
+                            </label>
+                            <button type="button" class="btn btn-primary" onclick="saveBrokerCampaignConfig()">
+                                <i class="fas fa-save" aria-hidden="true"></i> Salvar configuração
+                            </button>
+                        </div>
+                    </details>
+
+                    <details class="broker-campaign-details">
+                        <summary>Manutenção do cadastro</summary>
+                        <div class="broker-campaign-details__body">
+                            <p class="form-hint">A base é preparada automaticamente ao abrir esta página. Use só se precisar forçar nova limpeza.</p>
+                            <button type="button" class="btn btn-secondary" onclick="prepareBrokersPanelManual(true)">
+                                <i class="fas fa-broom" aria-hidden="true"></i> Preparar base novamente
+                            </button>
+                        </div>
+                    </details>
                 </div>
             </div>
 
-            <!-- Brokers Table -->
+            <div class="brokers-list-toolbar">
+                <span class="brokers-list-toolbar__label">Lista de corretores ativos</span>
+            </div>
+
             <div class="admin-table-container admin-table-container--elevated">
                 <table class="admin-table" id="brokersTable">
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Nome</th>
                             <th>Email</th>
                             <th>Telefone</th>
                             <th>CRECI</th>
-                            <th>Status</th>
-                            <th>Campanha WhatsApp</th>
-                            <th>Data Cadastro</th>
+                            <th>Campanha</th>
+                            <th>Cadastro</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody id="brokersTableBody">
-                        <!-- Broker rows will be loaded here -->
                     </tbody>
                 </table>
             </div>
@@ -1168,7 +1200,7 @@
     <script src="js/whatsapp-leads.js?v=2"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=11"></script>
+    <script src="js/admin.js?v=12"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

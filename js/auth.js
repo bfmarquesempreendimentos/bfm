@@ -41,10 +41,10 @@ function saveBrokersToStorage() {
     localStorage.setItem('brokers', JSON.stringify(brokers));
 }
 
-async function loadBrokersFromFirestore() {
+async function loadBrokersFromFirestore(opts) {
     if (typeof getBrokersFromFirestore !== 'function') return false;
     try {
-        const fromDb = await getBrokersFromFirestore();
+        const fromDb = await getBrokersFromFirestore(opts || {});
         const local = JSON.parse(localStorage.getItem('brokers') || '[]').map(b => ({
             ...b,
             createdAt: b.createdAt ? new Date(b.createdAt) : new Date()

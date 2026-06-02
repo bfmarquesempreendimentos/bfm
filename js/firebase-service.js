@@ -286,9 +286,11 @@ async function registerBrokerAPI(broker) {
   }
 }
 
-async function getBrokersFromAPI() {
+async function getBrokersFromAPI(activeOnly) {
   try {
-    const res = await fetch(GET_BROKERS_API);
+    var url = GET_BROKERS_API + '?_=' + Date.now();
+    if (activeOnly) url += '&activeOnly=1';
+    const res = await fetch(url);
     if (!res.ok) throw new Error('API erro ' + res.status);
     const list = await res.json();
     return (list || []).map(b => ({
@@ -302,8 +304,9 @@ async function getBrokersFromAPI() {
   }
 }
 
-async function getBrokersFromFirestore() {
-  const fromApi = await getBrokersFromAPI();
+async function getBrokersFromFirestore(opts) {
+  opts = opts || {};
+  const fromApi = await getBrokersFromAPI(!!opts.activeOnly);
   if (fromApi !== null) return fromApi;
   const db = getFirebaseDb();
   if (!db) return [];

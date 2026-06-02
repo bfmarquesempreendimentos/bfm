@@ -270,18 +270,54 @@ async function getBrokerCampaignPreview(db) {
   const archivedInactiveRecords = allBrokers.filter(function(b) {
     return !isBrokerActiveFlag(b.isActive);
   }).length;
+  const readyToSend = eligible;
+  const isReady = readyToSend > 0 && activeDuplicateRecords === 0;
   return {
     enabled: !!config.enabled,
     totalActiveNotOptOut: targetList.length,
     eligible: eligible,
+    readyToSend: readyToSend,
+    isReady: isReady,
     invalidPhone: invalidPhone,
     optOut: optOutCount,
     duplicateRecordsInDb: activeDuplicateRecords,
     archivedInactiveRecords: archivedInactiveRecords,
     templateName: config.templateName || '',
+    hasTemplate: !!(config.templateName && String(config.templateName).trim()),
     nextWeeklyNote: config.enabled
-      ? 'Envio automático: segunda-feira às 08:00 (Brasília). O botão Disparar agora envia imediatamente para os elegíveis abaixo.'
-      : 'Envio automático desativado. Marque a opção acima e clique em Salvar. Disparar agora continua funcionando manualmente.',
+      ? 'Segunda-feira 08:00 (Brasília): envio automático para quem está ativo, com campanha ligada e telefone válido.'
+      : 'Envio automático desligado. Disparar agora envia manualmente quando você quiser.',
+  };
+}
+
+async function prepareBrokersCampaignBase(db, options) {
+  options = options || {};
+  const previewBefore = await getBrokerCampaignPreview(db);
+  let cleanupResult = null;
+  if (options.runCleanup !== false) {
+    const needCleanup = previewBefore.duplicateRecordsInDb > 0 ||
+      previewBefore.archivedInactiveRecords > 0 ||
+      !!options.forceCleanup;
+    if (needCleanup) {
+      cleanupResult = await cleanupBrokerDuplicatesInternal(db, {
+        purgeArchived: previewBefore.archivedInactiveRecords > 0 || !!options.purgeArchived,
+      });
+    }
+  }
+  const defaults = getDefaultBrokerCampaignConfig();
+  await db.collection('broker_campaign').doc('config').set({
+    siteUrl: defaults.siteUrl,
+    whatsappContato: defaults.whatsappContato,
+    weeklyTitle: defaults.weeklyTitle,
+    ctaText: defaults.ctaText,
+    usefulTips: defaults.usefulTips,
+    templateLanguage: defaults.templateLanguage,
+    updatedAt: new Date().toISOString(),
+  }, { merge: true });
+  const preview = await getBrokerCampaignPreview(db);
+  return {
+    preview: preview,
+    cleanup: cleanupResult,
   };
 }
 
@@ -590,7 +626,12 @@ exports.getBrokers = functions.https.onRequest(async (req, res) => {
       };
     });
     brokers.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    return res.json(dedupeBrokersByEmail(brokers));
+    const deduped = dedupeBrokersByEmail(brokers);
+    const activeOnly = req.query.activeOnly === '1' || req.query.activeOnly === 'true';
+    if (activeOnly) {
+      return res.json(deduped.filter(function(b) { return isBrokerActiveFlag(b.isActive); }));
+    }
+    return res.json(deduped);
   } catch (err) {
     console.error('Erro ao buscar corretores:', err);
     return res.status(500).json({ error: err.message });
@@ -1311,6 +1352,27 @@ exports.brokerCampaignSendNow = functions
       return res.status(500).json({ error: err.message });
     }
   });
+
+/** Prepara base (limpa duplicatas/arquivados) e devolve preview pronto para disparo */
+exports.brokerCampaignPrepare = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const body = req.body || {};
+    if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+    const db = admin.firestore();
+    const result = await prepareBrokersCampaignBase(db, {
+      forceCleanup: !!body.forceCleanup,
+      purgeArchived: body.purgeArchived !== false,
+      runCleanup: true,
+    });
+    return res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('brokerCampaignPrepare:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 exports.adminCleanupBrokerDuplicates = functions.https.onRequest(async (req, res) => {
   allowCors(res);

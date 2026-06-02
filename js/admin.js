@@ -1399,20 +1399,31 @@ function cancelReservationAdmin(reservationId) {
     }
 }
 
+var _brokerCampaignPreview = null;
+
+function isAdminPanelLoggedIn() {
+    try {
+        return !!localStorage.getItem('adminUser');
+    } catch (e) {
+        return false;
+    }
+}
+
 // Load brokers data
 async function loadBrokersData() {
     const tbody = document.getElementById('brokersTableBody');
     if (!tbody) return;
     const btnAdd = document.getElementById('btnAddBroker');
     if (btnAdd) btnAdd.style.display = (typeof isSuperAdmin === 'function' && isSuperAdmin()) ? '' : 'none';
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">Carregando corretores...</td></tr>';
-    loadBrokerCampaignConfig();
-    
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Carregando corretores...</td></tr>';
+
+    await prepareBrokersPanelIfNeeded(false);
+
     if (typeof loadBrokersFromFirestore === 'function') {
-        await loadBrokersFromFirestore();
+        await loadBrokersFromFirestore({ activeOnly: true });
     }
-    
-    const allBrokers = getAllBrokers();
+
+    const allBrokers = getAllBrokers().filter(function(b) { return !!b.isActive; });
     var testSelect = document.getElementById('brokerCampaignTestSelect');
     if (testSelect) {
         var activeBrokers = allBrokers.filter(function(b) {
@@ -1435,80 +1446,167 @@ async function loadBrokersData() {
     }
     
     const brokerId = (id) => typeof id === 'string' ? `'${id.replace(/'/g, "\\'")}'` : id;
-    tbody.innerHTML = allBrokers.map(broker => `
-        <tr>
-            <td>${broker.id}</td>
-            <td>${broker.name || broker.email}</td>
-            <td>${broker.email}</td>
-            <td>${broker.phone || ''}</td>
-            <td>${broker.creci || ''}</td>
-            <td><span class="status-badge status-${broker.isActive ? 'ativo' : 'inativo'}">${broker.isActive ? 'Ativo' : 'Inativo'}</span></td>
-            <td>
-                <span class="status-badge status-${broker.whatsappCampaignOptOut ? 'inativo' : 'ativo'}">
-                    ${broker.whatsappCampaignOptOut ? 'Opt-out' : 'Ativo'}
-                </span>
-            </td>
-            <td>${formatDate(broker.createdAt)}</td>
-            <td>
-                <div class="action-buttons">
-                    <button class="btn-action btn-edit" onclick="editBroker(${brokerId(broker.id)})">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    ${!broker.isActive ? `
-                        <button class="btn-action btn-approve" onclick="approveBroker(${brokerId(broker.id)})">
-                            <i class="fas fa-check"></i>
-                        </button>
-                    ` : `
-                        <button class="btn-action btn-delete" onclick="deactivateBroker(${brokerId(broker.id)})">
-                            <i class="fas fa-ban"></i>
-                        </button>
-                    `}
-                    ${typeof isSuperAdmin === 'function' && isSuperAdmin() ? `
-                    <button class="btn-action btn-edit" title="${broker.whatsappCampaignOptOut ? 'Reativar na campanha semanal' : 'Retirar da campanha semanal'}" onclick="toggleBrokerCampaignOptOut(${brokerId(broker.id)}, ${broker.whatsappCampaignOptOut ? 'false' : 'true'})">
-                        <i class="fas ${broker.whatsappCampaignOptOut ? 'fa-bell' : 'fa-bell-slash'}"></i>
-                    </button>
-                    <button class="btn-action btn-trash" onclick="deleteBroker(${brokerId(broker.id)})" title="Remover cadastro">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    ` : ''}
-                </div>
-            </td>
-        </tr>
-    `).join('');
+    if (allBrokers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Nenhum corretor ativo. Aprove cadastros pendentes ou atualize a lista.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = allBrokers.map(function(broker) {
+        var campOn = !broker.whatsappCampaignOptOut;
+        var phoneOk = typeof hasLikelyPhone === 'function' ? hasLikelyPhone(broker.phone) : !!(broker.phone && String(broker.phone).replace(/\D/g, '').length >= 10);
+        var rowClass = campOn && phoneOk ? '' : ' class="broker-row-muted"';
+        var actions = '<select class="broker-action-select" onchange="brokerRowAction(this, ' + brokerId(broker.id) + ')" aria-label="Ações do corretor">' +
+            '<option value="">Ações</option>' +
+            '<option value="edit">Editar</option>' +
+            '<option value="toggle_campaign">' + (campOn ? 'Retirar da campanha' : 'Incluir na campanha') + '</option>' +
+            '<option value="deactivate">Desativar corretor</option>';
+        if (typeof isSuperAdmin === 'function' && isSuperAdmin()) {
+            actions += '<option value="delete">Excluir cadastro</option>';
+        }
+        actions += '</select>';
+        return '<tr' + rowClass + '>' +
+            '<td><strong>' + (broker.name || '—') + '</strong></td>' +
+            '<td>' + (broker.email || '') + '</td>' +
+            '<td>' + (broker.phone || '—') + '</td>' +
+            '<td>' + (broker.creci || '—') + '</td>' +
+            '<td><span class="status-badge status-' + (campOn ? 'ativo' : 'inativo') + '">' + (campOn ? 'Recebe' : 'Opt-out') + '</span></td>' +
+            '<td>' + formatDate(broker.createdAt) + '</td>' +
+            '<td>' + actions + '</td>' +
+            '</tr>';
+    }).join('');
 }
 
-function formatBrokerCampaignPreviewLine(preview) {
-    if (!preview) return '';
-    var line = 'Disparo agora e semanal: ' + (preview.eligible || 0) + ' corretor(es) com WhatsApp válido.';
-    if (preview.invalidPhone > 0) {
-        line += ' ' + (preview.invalidPhone || 0) + ' ativo(s) sem telefone no cadastro.';
+function brokerRowAction(selectEl, id) {
+    var action = selectEl ? selectEl.value : '';
+    if (selectEl) selectEl.value = '';
+    if (!action || !id) return;
+    if (action === 'edit') {
+        editBroker(id);
+        return;
     }
-    if (preview.duplicateRecordsInDb > 0) {
-        line += ' Há ' + preview.duplicateRecordsInDb + ' duplicata(s) ATIVA(s) no servidor — use Limpar duplicatas.';
-    } else if (preview.archivedInactiveRecords > 0) {
-        line += ' ' + preview.archivedInactiveRecords + ' cadastro(s) inativo(s) arquivado(s) (já limpos).';
+    if (action === 'toggle_campaign') {
+        var b = typeof findBrokerById === 'function' ? findBrokerById(id) : null;
+        toggleBrokerCampaignOptOut(id, !(b && b.whatsappCampaignOptOut));
+        return;
     }
-    if (preview.templateName) {
-        line += ' Template Meta: ' + preview.templateName + '.';
-    } else {
-        line += ' Sem template Meta: só entrega se o corretor falou com o WhatsApp Business nas últimas 24h (ou cadastre template abaixo).';
+    if (action === 'deactivate') {
+        deactivateBroker(id);
+        return;
     }
-    if (preview.nextWeeklyNote) line += ' ' + preview.nextWeeklyNote;
-    return line;
+    if (action === 'delete') {
+        deleteBroker(id);
+    }
+}
+
+function renderBrokerCampaignKpis(preview) {
+    _brokerCampaignPreview = preview || null;
+    var ready = preview ? (preview.readyToSend != null ? preview.readyToSend : preview.eligible) : 0;
+    var active = preview ? (preview.totalActiveNotOptOut || 0) : 0;
+    var optOut = preview ? (preview.optOut || 0) : 0;
+    var noPhone = preview ? (preview.invalidPhone || 0) : 0;
+
+    var elReady = document.getElementById('brokerKpiReady');
+    var elActive = document.getElementById('brokerKpiActive');
+    var elOpt = document.getElementById('brokerKpiOptOut');
+    var elPhone = document.getElementById('brokerKpiNoPhone');
+    if (elReady) { elReady.textContent = String(ready); elReady.setAttribute('data-value', String(ready)); }
+    if (elActive) elActive.textContent = String(active);
+    if (elOpt) elOpt.textContent = String(optOut);
+    if (elPhone) elPhone.textContent = String(noPhone);
+
+    var btn = document.getElementById('brokerCampaignBtnSendNow');
+    if (btn) btn.disabled = !(preview && preview.isReady && ready > 0);
+
+    var hint = document.getElementById('brokerCampaignPreviewStats');
+    if (hint) {
+        if (preview && preview.isReady && ready > 0) {
+            hint.textContent = 'Pronto: ao clicar em Disparar agora, ' + ready + ' corretor(es) ativos com campanha ligada recebem WhatsApp.';
+            if (!preview.hasTemplate) {
+                hint.textContent += ' Cadastre template Meta na configuração para entregar fora da janela de 24h.';
+            }
+        } else if (preview && preview.duplicateRecordsInDb > 0) {
+            hint.textContent = 'Há duplicatas ativas. Abra Manutenção → Preparar base novamente.';
+        } else if (ready === 0) {
+            hint.textContent = 'Nenhum destinatário elegível. Confira telefone (DDD+9) e coluna Campanha = Recebe.';
+        } else {
+            hint.textContent = preview && preview.nextWeeklyNote ? preview.nextWeeklyNote : '';
+        }
+    }
+}
+
+function applyBrokerCampaignConfigFields(cfg) {
+    if (!cfg) return;
+    var check = document.getElementById('brokerCampaignEnabled');
+    if (check) check.checked = !!cfg.enabled;
+    var title = document.getElementById('brokerCampaignTitle');
+    var siteUrl = document.getElementById('brokerCampaignSiteUrl');
+    var contact = document.getElementById('brokerCampaignContact');
+    var cta = document.getElementById('brokerCampaignCta');
+    var tips = document.getElementById('brokerCampaignTips');
+    var tpl = document.getElementById('brokerCampaignTemplate');
+    if (title && cfg.weeklyTitle) title.value = cfg.weeklyTitle;
+    if (siteUrl && cfg.siteUrl) siteUrl.value = cfg.siteUrl;
+    if (contact && cfg.whatsappContato) contact.value = cfg.whatsappContato;
+    if (cta && cfg.ctaText) cta.value = cfg.ctaText;
+    if (tpl && cfg.templateName) tpl.value = cfg.templateName;
+    if (tips && Array.isArray(cfg.usefulTips)) tips.value = cfg.usefulTips.join('\n');
 }
 
 function loadBrokerCampaignPreview() {
-    var el = document.getElementById('brokerCampaignPreviewStats');
-    if (el) el.textContent = 'Carregando resumo de destinatários...';
-    adminFetchJson('/brokerCampaignPreview').then(function(preview) {
-        if (!preview) {
-            if (el) el.textContent = 'Não foi possível carregar o resumo de destinatários.';
-            return;
-        }
-        if (el) el.textContent = formatBrokerCampaignPreviewLine(preview);
+    return adminFetchJson('/brokerCampaignPreview').then(function(preview) {
+        renderBrokerCampaignKpis(preview);
+        return preview;
     }).catch(function() {
-        if (el) el.textContent = 'Não foi possível carregar o resumo de destinatários.';
+        var hint = document.getElementById('brokerCampaignPreviewStats');
+        if (hint) hint.textContent = 'Não foi possível carregar o resumo.';
+        return null;
     });
+}
+
+function prepareBrokersPanelIfNeeded(force) {
+    var statusEl = document.getElementById('brokerCampaignPrepareStatus');
+    var creds = typeof getAdminApiCredentials === 'function' ? getAdminApiCredentials() : null;
+    if (!creds || !creds.email || !creds.password) {
+        if (statusEl) statusEl.textContent = 'Entre com email e senha do admin para preparar a campanha.';
+        return loadBrokerCampaignPreview();
+    }
+    if (!force) {
+        try {
+            if (sessionStorage.getItem('brokerCampaignPrepared') === '1') {
+                if (statusEl) statusEl.textContent = 'Base preparada.';
+                return loadBrokerCampaignPreview().then(function() {
+                    return adminFetchJson('/brokerCampaignConfig').then(applyBrokerCampaignConfigFields);
+                });
+            }
+        } catch (e) {}
+    }
+    if (statusEl) statusEl.textContent = 'Preparando base automaticamente...';
+    return adminPostJson('/brokerCampaignPrepare', {
+        adminEmail: creds.email,
+        adminPassword: creds.password,
+        purgeArchived: true,
+        forceCleanup: !!force
+    }, { timeoutMs: 300000 }).then(function(r) {
+        try { sessionStorage.setItem('brokerCampaignPrepared', '1'); } catch (e) {}
+        if (r && r.preview) renderBrokerCampaignKpis(r.preview);
+        if (statusEl) {
+            var msg = 'Pronto. Pode usar Disparar agora quando quiser.';
+            if (r && r.cleanup && r.cleanup.archivedPurged > 0) {
+                msg += ' (' + r.cleanup.archivedPurged + ' arquivados removidos.)';
+            } else if (r && r.cleanup && r.cleanup.duplicatesDeactivated > 0) {
+                msg += ' (' + r.cleanup.duplicatesDeactivated + ' duplicatas desativadas.)';
+            }
+            statusEl.textContent = msg;
+        }
+        return adminFetchJson('/brokerCampaignConfig').then(applyBrokerCampaignConfigFields);
+    }).catch(function(err) {
+        if (statusEl) statusEl.textContent = 'Erro na preparação: ' + (err.message || '');
+        return loadBrokerCampaignPreview();
+    });
+}
+
+function prepareBrokersPanelManual(force) {
+    try { sessionStorage.removeItem('brokerCampaignPrepared'); } catch (e) {}
+    prepareBrokersPanelIfNeeded(true);
 }
 
 function showBrokerCampaignResult(result, isError) {
@@ -1580,31 +1678,11 @@ function pollBrokerCampaignRun(runId, attempt) {
 }
 
 function loadBrokerCampaignConfig() {
-    loadBrokerCampaignPreview();
-    adminFetchJson('/brokerCampaignConfig').then(function(cfg) {
-        if (!cfg) return;
-        var check = document.getElementById('brokerCampaignEnabled');
-        if (check) check.checked = !!cfg.enabled;
-        var title = document.getElementById('brokerCampaignTitle');
-        var siteUrl = document.getElementById('brokerCampaignSiteUrl');
-        var contact = document.getElementById('brokerCampaignContact');
-        var cta = document.getElementById('brokerCampaignCta');
-        var tips = document.getElementById('brokerCampaignTips');
-        var tpl = document.getElementById('brokerCampaignTemplate');
-        if (title) title.value = cfg.weeklyTitle || '';
-        if (siteUrl) siteUrl.value = cfg.siteUrl || '';
-        if (contact) contact.value = cfg.whatsappContato || '';
-        if (cta) cta.value = cfg.ctaText || '';
-        if (tpl) tpl.value = cfg.templateName || '';
-        if (tips) tips.value = Array.isArray(cfg.usefulTips) ? cfg.usefulTips.join('\n') : '';
-    }).catch(function(err) {
-        if (typeof console !== 'undefined' && console.warn) console.warn('brokerCampaignConfig:', err);
-    });
+    prepareBrokersPanelIfNeeded(false);
 }
 
-function saveBrokerCampaignConfig() {
+function collectBrokerCampaignConfigPayload() {
     var check = document.getElementById('brokerCampaignEnabled');
-    var enabled = !!(check && check.checked);
     var title = document.getElementById('brokerCampaignTitle');
     var siteUrl = document.getElementById('brokerCampaignSiteUrl');
     var contact = document.getElementById('brokerCampaignContact');
@@ -1615,8 +1693,8 @@ function saveBrokerCampaignConfig() {
     if (tips && tips.value) {
         usefulTips = tips.value.split('\n').map(function(t) { return String(t || '').trim(); }).filter(Boolean);
     }
-    adminPostJson('/brokerCampaignConfig', {
-        enabled: enabled,
+    return {
+        enabled: !!(check && check.checked),
         weeklyTitle: title ? title.value : '',
         siteUrl: siteUrl ? siteUrl.value : '',
         whatsappContato: contact ? contact.value : '',
@@ -1624,55 +1702,45 @@ function saveBrokerCampaignConfig() {
         templateLanguage: 'pt_BR',
         ctaText: cta ? cta.value : '',
         usefulTips: usefulTips
-    }).then(function() {
+    };
+}
+
+function saveBrokerCampaignConfig() {
+    adminPostJson('/brokerCampaignConfig', collectBrokerCampaignConfigPayload()).then(function() {
         if (typeof showMessage === 'function') {
-            showMessage('Configuração da campanha semanal salva com sucesso.', 'success');
+            showMessage('Configuração da campanha salva.', 'success');
         }
-        loadBrokerCampaignPreview();
+        return loadBrokerCampaignPreview();
     }).catch(function(err) {
         if (typeof showMessage === 'function') showMessage('Erro ao salvar campanha: ' + (err.message || ''), 'error');
     });
 }
 
+function saveBrokerCampaignConfigSilent() {
+    return adminPostJson('/brokerCampaignConfig', collectBrokerCampaignConfigPayload());
+}
+
 function sendBrokerCampaignNow() {
-    if (!confirm('Disparar AGORA a mensagem para todos os corretores com WhatsApp válido (pode levar até 2 minutos)?')) return;
+    var ready = _brokerCampaignPreview ? (_brokerCampaignPreview.readyToSend || _brokerCampaignPreview.eligible || 0) : 0;
+    if (!ready) {
+        if (typeof showMessage === 'function') showMessage('Nenhum corretor elegível para disparo.', 'error');
+        return;
+    }
+    if (!confirm('Disparar AGORA para ' + ready + ' corretor(es) ativos com campanha ligada e telefone válido?')) return;
     setBrokerCampaignButtonsBusy(true);
     var waitEl = document.getElementById('brokerCampaignPreviewStats');
     if (waitEl) waitEl.textContent = 'Enviando mensagens... Aguarde até aparecer o resultado.';
     if (typeof showMessage === 'function') showMessage('Enviando campanha agora. Aguarde até 2 minutos...', 'info');
-    adminPostJson('/brokerCampaignSendNow', { type: 'manual' }, { timeoutMs: 300000 }).then(function(result) {
+    saveBrokerCampaignConfigSilent().then(function() {
+        return adminPostJson('/brokerCampaignSendNow', { type: 'manual' }, { timeoutMs: 300000 });
+    }).then(function(result) {
         setBrokerCampaignButtonsBusy(false);
         showBrokerCampaignResult(result, false);
+        try { sessionStorage.setItem('brokerCampaignPrepared', '1'); } catch (e) {}
     }).catch(function(err) {
         setBrokerCampaignButtonsBusy(false);
         if (typeof showMessage === 'function') showMessage('Erro no disparo: ' + (err.message || ''), 'error');
         loadBrokerCampaignPreview();
-    });
-}
-
-function cleanupBrokerDuplicatesAdmin(purgeArchived) {
-    var creds = typeof getAdminApiCredentials === 'function' ? getAdminApiCredentials() : null;
-    if (!creds || !creds.email || !creds.password) {
-        if (typeof showMessage === 'function') showMessage('Faça login no painel com email e senha para limpar duplicatas.', 'error');
-        return;
-    }
-    var msgConfirm = purgeArchived
-        ? 'Desativar duplicatas, apagar do servidor os cadastros inativos arquivados e limpar a contagem?'
-        : 'Desativar cadastros duplicados no Firestore (ex.: várias cópias do admin) e ativos sem telefone?';
-    if (!confirm(msgConfirm)) return;
-    adminPostJson('/adminCleanupBrokerDuplicates', {
-        adminEmail: creds.email,
-        adminPassword: creds.password,
-        purgeArchived: !!purgeArchived
-    }, { timeoutMs: 300000 }).then(function(r) {
-        var msg = 'Limpeza concluída. E-mails únicos: ' + (r.uniqueEmails || 0) +
-            '. Registros desativados: ' + (r.duplicatesDeactivated || 0) + '.';
-        if (r.archivedPurged > 0) msg += ' Excluídos do servidor: ' + r.archivedPurged + '.';
-        if (typeof showMessage === 'function') showMessage(msg, 'success');
-        loadBrokerCampaignPreview();
-        if (typeof loadBrokersData === 'function') loadBrokersData();
-    }).catch(function(err) {
-        if (typeof showMessage === 'function') showMessage(err.message || 'Erro na limpeza.', 'error');
     });
 }
 
@@ -1713,7 +1781,8 @@ function toggleBrokerCampaignOptOut(brokerId, optOut) {
         var found = (typeof findBrokerById === 'function') ? findBrokerById(brokerId) : null;
         if (found) found.whatsappCampaignOptOut = willOptOut;
         if (typeof showMessage === 'function') showMessage('Preferência da campanha atualizada.', 'success');
-        loadBrokersData();
+        loadBrokerCampaignPreview();
+        if (typeof loadBrokersData === 'function') loadBrokersData();
     }).catch(function(err) {
         if (typeof showMessage === 'function') showMessage('Erro ao atualizar preferência: ' + (err.message || ''), 'error');
     });
