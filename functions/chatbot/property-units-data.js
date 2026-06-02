@@ -235,3 +235,4 @@ module.exports = {
             { code: "Casa única", price: 1180000, bedrooms: 3, status: "disponivel" }
         ]
     }
+};
