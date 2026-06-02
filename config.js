@@ -149,7 +149,7 @@ var CONFIG = {
     },
 
     /** Versão de cache para CSS/JS (incrementar a cada deploy público) */
-    assetVersion: '17'
+    assetVersion: '18'
 };
 
 // Função para obter configuração

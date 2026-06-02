@@ -14,6 +14,7 @@ const {
   normalizeTemplateName,
   listApprovedMessageTemplates,
   findApprovedTemplate,
+  getWhatsAppAccountInfo,
   uploadMediaBuffer,
   sendMediaById,
   getWhatsAppMediaBuffer,
@@ -338,6 +339,7 @@ async function getBrokerCampaignPreview(db) {
   const hasTpl = !!(templateStatus.templateName);
   const isReady = readyToSend > 0 && activeDuplicateRecords === 0 &&
     (!hasTpl || templateStatus.templateValid);
+  const waAccount = await getWhatsAppAccountInfo();
   return {
     enabled: !!config.enabled,
     totalActiveNotOptOut: targetList.length,
@@ -354,6 +356,11 @@ async function getBrokerCampaignPreview(db) {
     templateHint: templateStatus.templateHint,
     templateLanguageResolved: templateStatus.templateLanguageResolved || '',
     approvedTemplateNames: (templateStatus.approvedTemplates || []).map(function(t) { return t.name; }),
+    whatsappTestAccount: !!(waAccount.ok && waAccount.isLikelyTestAccount),
+    whatsappAccountName: waAccount.ok ? (waAccount.wabaName || waAccount.verifiedName || '') : '',
+    whatsappTestAccountHint: waAccount.ok && waAccount.isLikelyTestAccount
+      ? 'Conta Meta de TESTE: cadastre cada celular de corretor em developers.facebook.com → seu app → WhatsApp → API Setup → números de teste. Sem isso a API aceita mas não entrega (0 no painel Meta).'
+      : '',
     nextWeeklyNote: config.enabled
       ? 'Segunda-feira 08:00 (Brasília): envio automático para quem está ativo, com campanha ligada e telefone válido.'
       : 'Envio automático desligado. Disparar agora envia manualmente quando você quiser.',
@@ -382,6 +389,7 @@ async function prepareBrokersCampaignBase(db, options) {
     ctaText: defaults.ctaText,
     usefulTips: defaults.usefulTips,
     templateLanguage: defaults.templateLanguage,
+    templateName: defaults.templateName,
     updatedAt: new Date().toISOString(),
   }, { merge: true });
   const preview = await getBrokerCampaignPreview(db);
@@ -404,7 +412,7 @@ function getDefaultBrokerCampaignConfig() {
     enabled: true,
     siteUrl: 'https://bfmarquesempreendimentos.github.io/bfm/',
     whatsappContato: '(21) 99759-0814',
-    templateName: '',
+    templateName: 'campanha_corretor_msg',
     templateLanguage: 'pt_BR',
     weeklyTitle: 'Atualização semanal B F Marques',
     ctaText: 'Divulgue as ofertas da semana para seus leads e traga sua visita agendada.',
@@ -645,6 +653,16 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
   const skipped = results.filter(function(r) { return r.status === 'skipped'; }).length;
   const issues = results.filter(function(r) { return r.status !== 'sent'; }).slice(0, 80);
   const sentDetails = results.filter(function(r) { return r.status === 'sent'; }).slice(0, 5);
+  const waAccount = await getWhatsAppAccountInfo();
+  var deliveryWarning = '';
+  if (waAccount.ok && waAccount.isLikelyTestAccount && sent > 0) {
+    deliveryWarning =
+      'A Meta aceitou o envio (API OK), mas esta é uma conta WhatsApp de TESTE ("' +
+      (waAccount.wabaName || 'Test') +
+      '"). Só entrega para números cadastrados em API Setup → números de teste. ' +
+      'Por isso o painel Meta mostra 0 entregues e o corretor não recebe. ' +
+      'Cadastre o celular do corretor lá ou migre para conta Business de produção.';
+  }
 
   await runRef.set({
     finishedAt: new Date().toISOString(),
@@ -669,6 +687,10 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     issues: issues,
     sentDetails: sentDetails,
     templateName: config.templateName || '',
+    whatsappTestAccount: !!(waAccount.ok && waAccount.isLikelyTestAccount),
+    whatsappAccountName: waAccount.ok ? (waAccount.wabaName || '') : '',
+    deliveryWarning: deliveryWarning,
+    deliveryLikely: sent > 0 && !deliveryWarning,
   };
 }
 
@@ -1546,6 +1568,9 @@ exports.brokerCampaignSendNow = functions
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
     try {
       const body = req.body || {};
+      if (!verifyAdminFromBody(body)) {
+        return res.status(403).json({ error: 'Acesso negado. Faça login no painel admin.' });
+      }
       const brokerId = String(body.brokerId || '').trim();
       const internalPayload = {
         type: body.type || 'manual',

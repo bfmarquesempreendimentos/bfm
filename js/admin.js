@@ -1577,6 +1577,9 @@ function renderBrokerCampaignKpis(preview) {
     if (hint) {
         if (preview && preview.hasTemplate && preview.templateValid === false) {
             hint.textContent = 'Corrija o template Meta antes de disparar. ' + (preview.templateHint || '');
+        } else if (preview && preview.whatsappTestAccount) {
+            hint.textContent = (preview.whatsappTestAccountHint || 'Conta WhatsApp de TESTE na Meta.') +
+                ' Cadastre o celular do corretor em API Setup → números de teste antes do teste.';
         } else if (preview && preview.isReady && ready > 0) {
             hint.textContent = 'Pronto: ao clicar em Disparar agora, ' + ready + ' corretor(es) ativos com campanha ligada recebem WhatsApp.';
             if (!preview.hasTemplate) {
@@ -1606,7 +1609,7 @@ function applyBrokerCampaignConfigFields(cfg) {
     if (siteUrl && cfg.siteUrl) siteUrl.value = cfg.siteUrl;
     if (contact && cfg.whatsappContato) contact.value = cfg.whatsappContato;
     if (cta && cfg.ctaText) cta.value = cfg.ctaText;
-    if (tpl && cfg.templateName) tpl.value = cfg.templateName;
+    if (tpl) tpl.value = cfg.templateName || 'campanha_corretor_msg';
     if (tips && Array.isArray(cfg.usefulTips)) tips.value = cfg.usefulTips.join('\n');
 }
 
@@ -1697,7 +1700,20 @@ function showBrokerCampaignResult(result, isError) {
     } else if (skipped > 0) {
         txt += ' Corretores pulados precisam de telefone no formato 21987654321.';
     }
-    if (typeof showMessage === 'function') showMessage(txt, isError ? 'error' : (errors > 0 ? 'warning' : 'success'));
+    if (sent > 0 && result && result.sentDetails && result.sentDetails.length) {
+        var row = result.sentDetails[0];
+        txt += ' Destino: ' + (row.phone || '?') + '.';
+        if (row.mode) txt += ' Modo: ' + row.mode + '.';
+        if (row.waMessageId) txt += ' ID Meta: ' + row.waMessageId + '.';
+    }
+    var msgType = 'success';
+    if (isError) msgType = 'error';
+    else if (errors > 0) msgType = 'warning';
+    else if (result && result.deliveryWarning) msgType = 'warning';
+    if (result && result.deliveryWarning) {
+        txt = result.deliveryWarning + ' ' + txt;
+    }
+    if (typeof showMessage === 'function') showMessage(txt, msgType);
     loadBrokerCampaignPreview();
 }
 
@@ -1762,6 +1778,16 @@ function loadBrokerCampaignConfig() {
     prepareBrokersPanelIfNeeded(false);
 }
 
+function brokerCampaignRequestPayload(extra) {
+    var p = extra || {};
+    var creds = typeof getAdminApiCredentials === 'function' ? getAdminApiCredentials() : null;
+    if (creds && creds.email) {
+        p.adminEmail = creds.email;
+        p.adminPassword = creds.password || '';
+    }
+    return p;
+}
+
 function collectBrokerCampaignConfigPayload() {
     var check = document.getElementById('brokerCampaignEnabled');
     var title = document.getElementById('brokerCampaignTitle');
@@ -1813,7 +1839,7 @@ function sendBrokerCampaignNow() {
     if (waitEl) waitEl.textContent = 'Enviando mensagens... Aguarde até aparecer o resultado.';
     if (typeof showMessage === 'function') showMessage('Enviando campanha agora. Aguarde até 2 minutos...', 'info');
     saveBrokerCampaignConfigSilent().then(function() {
-        return adminPostJson('/brokerCampaignSendNow', { type: 'manual' }, { timeoutMs: 300000 });
+        return adminPostJson('/brokerCampaignSendNow', brokerCampaignRequestPayload({ type: 'manual' }), { timeoutMs: 300000 });
     }).then(function(result) {
         setBrokerCampaignButtonsBusy(false);
         showBrokerCampaignResult(result, false);
@@ -1834,10 +1860,12 @@ function sendBrokerCampaignTestSingle() {
     }
     if (!confirm('Enviar teste agora apenas para o corretor selecionado?')) return;
     setBrokerCampaignButtonsBusy(true);
-    adminPostJson('/brokerCampaignSendNow', {
-        type: 'manual_test_single',
-        brokerId: brokerId
-    }, { timeoutMs: 300000 }).then(function(result) {
+    saveBrokerCampaignConfigSilent().then(function() {
+        return adminPostJson('/brokerCampaignSendNow', brokerCampaignRequestPayload({
+            type: 'manual_test_single',
+            brokerId: brokerId
+        }), { timeoutMs: 300000 });
+    }).then(function(result) {
         setBrokerCampaignButtonsBusy(false);
         showBrokerCampaignResult(result, false);
     }).catch(function(err) {

@@ -258,6 +258,45 @@ function normalizeTemplateName(raw) {
 }
 
 /** Lista templates aprovados na conta WhatsApp Business (via phone_number_id). */
+/** Conta/número WhatsApp Business ligado ao phone_number_id (detecta conta de teste). */
+async function getWhatsAppAccountInfo(options) {
+  options = options || {};
+  const { token, phoneNumberId } = getConfig(options.phoneNumberId);
+  if (!token || !phoneNumberId) {
+    return { ok: false, error: 'WhatsApp não configurado' };
+  }
+  try {
+    const phoneResp = await axios.get(GRAPH_API + '/' + phoneNumberId, {
+      params: { fields: 'whatsapp_business_account,display_phone_number,verified_name,quality_rating' },
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const wabaRef = phoneResp.data && phoneResp.data.whatsapp_business_account;
+    const wabaId = wabaRef && wabaRef.id;
+    let wabaName = '';
+    if (wabaId) {
+      const wabaResp = await axios.get(GRAPH_API + '/' + wabaId, {
+        params: { fields: 'name,account_review_status' },
+        headers: { Authorization: 'Bearer ' + token },
+      });
+      wabaName = (wabaResp.data && wabaResp.data.name) || '';
+    }
+    const verifiedName = (phoneResp.data && phoneResp.data.verified_name) || '';
+    const displayPhone = (phoneResp.data && phoneResp.data.display_phone_number) || '';
+    const haystack = (wabaName + ' ' + verifiedName).toLowerCase();
+    const isLikelyTestAccount = haystack.indexOf('test') >= 0;
+    return {
+      ok: true,
+      wabaId: wabaId || '',
+      wabaName: wabaName,
+      verifiedName: verifiedName,
+      displayPhone: displayPhone,
+      isLikelyTestAccount: isLikelyTestAccount,
+    };
+  } catch (err) {
+    return { ok: false, error: extractMetaError(err) };
+  }
+}
+
 async function listApprovedMessageTemplates(options) {
   options = options || {};
   const { token, phoneNumberId } = getConfig(options.phoneNumberId);
@@ -333,6 +372,11 @@ async function sendTemplateMessage(to, templateName, languageCode, components, o
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     });
     console.log('[WA-API] Template enviado:', JSON.stringify(resp.data));
+    var mid = '';
+    if (resp.data && resp.data.messages && resp.data.messages[0]) {
+      mid = resp.data.messages[0].id || '';
+    }
+    return { messageId: mid, to: to, templateName: templateName, language: languageCode || 'pt_BR' };
   } catch (err) {
     console.error('[WA-API] Erro template:', extractMetaError(err));
     throw new Error(extractMetaError(err));
@@ -362,6 +406,7 @@ module.exports = {
   extractMetaError,
   isTemplateNameOrLanguageError,
   normalizeTemplateName,
+  getWhatsAppAccountInfo,
   listApprovedMessageTemplates,
   findApprovedTemplate,
   sendImageMessage,
