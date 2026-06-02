@@ -280,56 +280,159 @@ async function buildBrokerPhoneIndex(db) {
   return index;
 }
 
-async function loadWhatsappWabaId(db) {
-  if (!db) return '';
+async function loadWhatsappSettings(db) {
+  if (!db) return {};
   try {
     const snap = await db.collection('settings').doc('whatsapp').get();
-    if (snap.exists && snap.data().wabaId) return String(snap.data().wabaId).trim();
+    return snap.exists ? (snap.data() || {}) : {};
   } catch (e) {
-    console.warn('loadWhatsappWabaId:', e.message || e);
+    return {};
   }
-  return '';
+}
+
+async function loadWhatsappWabaId(db) {
+  const s = await loadWhatsappSettings(db);
+  return s.wabaId ? String(s.wabaId).trim() : '';
+}
+
+async function loadWhatsappCampaignPhoneId(db) {
+  const s = await loadWhatsappSettings(db);
+  return s.phoneNumberId ? String(s.phoneNumberId).trim() : '';
+}
+
+async function saveWhatsappSettings(db, patch) {
+  if (!db || !patch) return;
+  await db.collection('settings').doc('whatsapp').set(
+    Object.assign({}, patch, { updatedAt: new Date().toISOString() }),
+    { merge: true }
+  );
 }
 
 async function saveWhatsappWabaId(db, wabaId, source) {
   if (!db || !wabaId) return;
-  await db.collection('settings').doc('whatsapp').set({
-    wabaId: String(wabaId).trim(),
-    source: source || '',
-    updatedAt: new Date().toISOString(),
-  }, { merge: true });
+  await saveWhatsappSettings(db, { wabaId: String(wabaId).trim(), wabaSource: source || '' });
+}
+
+function normalizePhoneDigitsForMatch(raw) {
+  return String(raw || '').replace(/\D/g, '');
+}
+
+function pickBiaPhoneNumberId(phones, preferId, hintDigits) {
+  if (!phones || !phones.length) return '';
+  var i;
+  var p;
+  if (preferId) {
+    for (i = 0; i < phones.length; i++) {
+      if (String(phones[i].id) === String(preferId)) return String(phones[i].id);
+    }
+  }
+  if (hintDigits && hintDigits.length >= 8) {
+    for (i = 0; i < phones.length; i++) {
+      p = phones[i];
+      var disp = normalizePhoneDigitsForMatch(p.display_phone_number);
+      if (disp && disp.indexOf(hintDigits.slice(-8)) >= 0) return String(p.id);
+    }
+  }
+  return phones[0] && phones[0].id ? String(phones[0].id) : '';
+}
+
+/**
+ * Descobre o par correto: WABA (conta) + phone_number_id (número da Bia).
+ * A Bia no webhook já grava lastWebhookPhoneNumberId — é a fonte mais confiável.
+ */
+async function syncWhatsAppCloudSettings(db, options) {
+  options = options || {};
+  const settings = await loadWhatsappSettings(db);
+  const wabaId = String(options.wabaId || settings.wabaId || '').trim();
+  const envPhoneId = String(process.env.WHATSAPP_PHONE_NUMBER_ID || '').trim();
+  const lastWebhookPhone = String(settings.lastWebhookPhoneNumberId || '').trim();
+  const token = process.env.WHATSAPP_TOKEN;
+  const hintDigits = normalizePhoneDigitsForMatch(
+    options.supportPhone || settings.supportPhoneHint || '21995557010'
+  );
+
+  if (!token) {
+    return { ok: false, error: 'WHATSAPP_TOKEN não configurado no Firebase.' };
+  }
+  if (!wabaId) {
+    return { ok: false, error: 'Informe o ID da conta (WABA) no painel e clique Salvar WABA.' };
+  }
+
+  const phones = await listWabaPhoneNumbers(token, wabaId);
+  var resolvedPhoneId = '';
+  var syncSource = '';
+  var envMisconfiguredAsWaba = envPhoneId && envPhoneId === wabaId;
+
+  if (lastWebhookPhone && await phoneBelongsToWaba(token, wabaId, lastWebhookPhone)) {
+    resolvedPhoneId = lastWebhookPhone;
+    syncSource = 'bia_webhook';
+  } else if (envPhoneId && !envMisconfiguredAsWaba && await phoneBelongsToWaba(token, wabaId, envPhoneId)) {
+    resolvedPhoneId = envPhoneId;
+    syncSource = 'firebase_secret';
+  } else if (envMisconfiguredAsWaba || !envPhoneId || !(await phoneBelongsToWaba(token, wabaId, envPhoneId))) {
+    resolvedPhoneId = pickBiaPhoneNumberId(phones, lastWebhookPhone, hintDigits);
+    syncSource = envMisconfiguredAsWaba ? 'auto_fix_waba_confused_with_phone' : 'auto_from_waba_list';
+  }
+
+  var phoneMatch = !!(resolvedPhoneId && await phoneBelongsToWaba(token, wabaId, resolvedPhoneId));
+  var phoneDisplay = '';
+  if (resolvedPhoneId && phones.length) {
+    for (var pi = 0; pi < phones.length; pi++) {
+      if (String(phones[pi].id) === String(resolvedPhoneId)) {
+        phoneDisplay = phones[pi].display_phone_number || '';
+        break;
+      }
+    }
+  }
+
+  if (resolvedPhoneId && phoneMatch) {
+    await saveWhatsappSettings(db, {
+      wabaId: wabaId,
+      phoneNumberId: resolvedPhoneId,
+      phoneDisplay: phoneDisplay,
+      syncSource: syncSource,
+      envPhoneNumberId: envPhoneId,
+      envMisconfiguredAsWaba: envMisconfiguredAsWaba,
+    });
+  }
+
+  return {
+    ok: phoneMatch,
+    wabaId: wabaId,
+    phoneNumberId: resolvedPhoneId,
+    phoneDisplay: phoneDisplay,
+    phoneMatch: phoneMatch,
+    syncSource: syncSource,
+    envPhoneNumberId: envPhoneId,
+    envMisconfiguredAsWaba: envMisconfiguredAsWaba,
+    lastWebhookPhoneNumberId: lastWebhookPhone,
+    phonesOnWaba: phones,
+    phoneLinkError: phoneMatch ? '' : 'Não foi possível vincular o número da Bia a esta conta WABA.',
+  };
 }
 
 async function getOrResolveWabaId(db) {
   const cached = await loadWhatsappWabaId(db);
-  const linked = await resolveWabaForCloudApiPhone({ preferredWabaId: cached });
-  if (linked.wabaId && linked.phoneMatch) {
-    if (linked.wabaId !== cached) {
-      await saveWhatsappWabaId(db, linked.wabaId, linked.source || 'phone_match');
-    }
-    return {
-      wabaId: linked.wabaId,
-      source: linked.source || 'phone_match',
-      phoneMatch: true,
-      phoneNumberId: linked.phoneNumberId,
-    };
-  }
-  if (cached) {
-    return {
-      wabaId: cached,
-      source: 'firestore',
-      phoneMatch: false,
-      phoneNumberId: linked.phoneNumberId || '',
-      phoneLinkError: linked.error || '',
-      phonesOnWaba: linked.phonesOnPreferred || [],
-    };
-  }
-  const resolved = await resolveWabaId();
-  if (resolved.wabaId) {
-    await saveWhatsappWabaId(db, resolved.wabaId, resolved.source);
-    return Object.assign({}, resolved, { phoneMatch: false });
-  }
-  return Object.assign({}, resolved, { phoneMatch: false, phoneLinkError: linked.error || '' });
+  const campaignPhone = await loadWhatsappCampaignPhoneId(db);
+  const sync = await syncWhatsAppCloudSettings(db, { wabaId: cached });
+  const phoneId = sync.phoneNumberId || campaignPhone;
+  const phoneMatch = sync.phoneMatch;
+  return {
+    wabaId: sync.wabaId || cached,
+    source: sync.syncSource || 'sync',
+    phoneMatch: phoneMatch,
+    phoneNumberId: phoneId,
+    campaignPhoneNumberId: phoneId,
+    phoneDisplay: sync.phoneDisplay || '',
+    envMisconfiguredAsWaba: sync.envMisconfiguredAsWaba,
+    phonesOnWaba: sync.phonesOnWaba || [],
+    phoneLinkError: sync.phoneLinkError || '',
+    syncHint: sync.envMisconfiguredAsWaba
+      ? 'O secret WHATSAPP_PHONE_NUMBER_ID no Firebase estava com o ID da CONTA (WABA), não do número. A campanha usará automaticamente o número da Bia detectado.'
+      : (sync.syncSource === 'bia_webhook'
+        ? 'Número da Bia detectado pelas mensagens que ela já atende (webhook).'
+        : ''),
+  };
 }
 
 async function getBrokerCampaignTemplateStatus(config, db) {
@@ -347,20 +450,21 @@ async function getBrokerCampaignTemplateStatus(config, db) {
   if (wabaResolved.wabaId && !wabaResolved.phoneMatch) {
     var phoneList = '';
     if (wabaResolved.phonesOnWaba && wabaResolved.phonesOnWaba.length) {
-      phoneList = ' IDs de número nesta conta: ' + wabaResolved.phonesOnWaba.map(function(p) {
+      phoneList = ' Números nesta conta: ' + wabaResolved.phonesOnWaba.map(function(p) {
         return p.id + (p.display_phone_number ? ' (' + p.display_phone_number + ')' : '');
       }).join(', ') + '.';
     }
+    var waitWebhook = ' Envie qualquer mensagem para a Bia no WhatsApp e clique Salvar WABA de novo (o sistema captura o número certo).';
     return {
       templateName: templateName,
       templateValid: false,
-      templateHint: (wabaResolved.phoneLinkError || 'Número da API não pertence a este WABA.') + phoneList +
-        ' Ajuste o secret WHATSAPP_PHONE_NUMBER_ID no Firebase para um desses IDs.',
+      templateHint: (wabaResolved.phoneLinkError || 'Aguardando vínculo do número da Bia.') + phoneList + waitWebhook,
       approvedTemplates: [],
       wabaId: wabaResolved.wabaId,
       wabaSource: wabaResolved.source || '',
       phoneMatch: false,
       cloudPhoneNumberId: wabaResolved.phoneNumberId || '',
+      biaPhoneNumberId: wabaResolved.campaignPhoneNumberId || '',
     };
   }
   const listed = await listApprovedMessageTemplates({
@@ -386,7 +490,11 @@ async function getBrokerCampaignTemplateStatus(config, db) {
       if (names.length) hint += ' Aprovados: ' + names.join(', ') + '.';
     }
   } else {
-    hint = 'Template OK: ' + match.name + ' (' + match.language + '). Número API vinculado à conta.';
+    hint = 'Template OK: ' + match.name + ' (' + match.language + ').';
+    if (wabaResolved.syncHint) hint += ' ' + wabaResolved.syncHint;
+    if (wabaResolved.phoneDisplay) {
+      hint += ' Número da Bia: ' + wabaResolved.phoneDisplay + ' (ID ' + wabaResolved.campaignPhoneNumberId + ').';
+    }
     if (match.language && db) {
       await db.collection('broker_campaign').doc('config').set({
         templateLanguageResolved: match.language,
@@ -410,7 +518,11 @@ async function getBrokerCampaignTemplateStatus(config, db) {
     wabaId: wabaResolved.wabaId || '',
     wabaSource: wabaResolved.source || '',
     phoneMatch: wabaResolved.phoneMatch !== false,
-    cloudPhoneNumberId: wabaResolved.phoneNumberId || '',
+    cloudPhoneNumberId: wabaResolved.campaignPhoneNumberId || wabaResolved.phoneNumberId || '',
+    biaPhoneNumberId: wabaResolved.campaignPhoneNumberId || '',
+    biaPhoneDisplay: wabaResolved.phoneDisplay || '',
+    envMisconfiguredAsWaba: !!wabaResolved.envMisconfiguredAsWaba,
+    syncHint: wabaResolved.syncHint || '',
   };
 }
 
@@ -566,6 +678,12 @@ function buildBrokerCampaignTemplateComponents(config, broker, now) {
 async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
   const message = buildBrokerCampaignMessage(config, broker, now);
   const templateName = normalizeTemplateName(config.templateName);
+  const waSendOpts = config.campaignPhoneNumberId
+    ? { phoneNumberId: config.campaignPhoneNumberId }
+    : {};
+  if (templateName && !config.campaignPhoneNumberId) {
+    throw new Error('Número da Bia (phone_number_id) não configurado. Abra Corretores → Salvar WABA ou envie uma mensagem para a Bia e tente de novo.');
+  }
   const langCandidates = [];
   const langSeen = {};
   function pushLang(code) {
@@ -598,7 +716,7 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
     for (li = 0; li < langCandidates.length; li++) {
       for (ci = 0; ci < componentSets.length; ci++) {
         try {
-          const sendResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li], componentSets[ci]);
+          const sendResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li], componentSets[ci], waSendOpts);
           return {
             mode: 'template',
             templateName: templateName,
@@ -624,7 +742,7 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
     );
   }
   try {
-    await sendTextMessage(waPhone, message);
+    await sendTextMessage(waPhone, message, waSendOpts);
     return { mode: 'text' };
   } catch (err) {
     const errMsg = extractMetaError(err);
@@ -658,12 +776,14 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
   const db = admin.firestore();
   const now = new Date();
   let config = await getBrokerCampaignConfig(db);
+  const wabaSync = await getOrResolveWabaId(db);
   const templateStatus = await getBrokerCampaignTemplateStatus(config, db);
   if (templateStatus.templateName) {
     config = Object.assign({}, config, {
       templateName: templateStatus.templateName,
       templateLanguageResolved: templateStatus.templateLanguageResolved,
       templateLanguages: templateStatus.templateLanguages || [],
+      campaignPhoneNumberId: wabaSync.campaignPhoneNumberId || templateStatus.biaPhoneNumberId || '',
     });
     if (!templateStatus.templateValid && !templateStatus.templateValidationSoft) {
       return {
@@ -1651,7 +1771,10 @@ exports.brokerCampaignSaveWaba = functions
     }
     const db = admin.firestore();
     await saveWhatsappWabaId(db, wabaId, 'admin_manual');
-    const linked = await resolveWabaForCloudApiPhone({ preferredWabaId: wabaId });
+    const sync = await syncWhatsAppCloudSettings(db, {
+      wabaId: wabaId,
+      supportPhone: (await getBrokerCampaignConfig(db)).whatsappContato,
+    });
     const listed = await listApprovedMessageTemplates({ wabaId: wabaId });
     var campTpl = findApprovedTemplatesByName(
       listed.ok ? listed.templates : [],
@@ -1663,10 +1786,16 @@ exports.brokerCampaignSaveWaba = functions
       templatesOk: !!listed.ok,
       templates: listed.ok ? listed.templates.slice(0, 20) : [],
       error: listed.ok ? '' : (listed.error || ''),
-      phoneMatch: !!linked.phoneMatch,
-      cloudPhoneNumberId: linked.phoneNumberId || '',
-      phoneLinkWarning: linked.phoneMatch ? '' : (linked.error || ''),
-      phonesOnWaba: linked.phonesOnPreferred || [],
+      phoneMatch: !!sync.phoneMatch,
+      biaPhoneNumberId: sync.phoneNumberId || '',
+      biaPhoneDisplay: sync.phoneDisplay || '',
+      cloudPhoneNumberId: sync.phoneNumberId || '',
+      envMisconfiguredAsWaba: !!sync.envMisconfiguredAsWaba,
+      syncHint: sync.envMisconfiguredAsWaba
+        ? 'Corrigido: o Firebase tinha o ID da conta no lugar do número. Campanha usará o número da Bia automaticamente.'
+        : (sync.syncSource === 'bia_webhook' ? 'Número da Bia capturado do atendimento (webhook).' : ''),
+      phoneLinkWarning: sync.phoneMatch ? '' : (sync.phoneLinkError || ''),
+      phonesOnWaba: sync.phonesOnWaba || [],
       campanhaCorretorLanguages: campTpl.map(function(t) { return t.language; }),
     });
   } catch (err) {

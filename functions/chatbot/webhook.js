@@ -1,7 +1,21 @@
 const crypto = require('crypto');
+const admin = require('firebase-admin');
 const { handleIncomingMessage } = require('./ai-agent');
 const { markAsRead } = require('./whatsapp-api');
 const { normalizeWhatsAppPhone } = require('./lead-manager');
+
+function rememberWebhookPhoneNumberId(phoneNumberId) {
+  if (!phoneNumberId) return;
+  try {
+    if (!admin.apps.length) admin.initializeApp();
+    admin.firestore().collection('settings').doc('whatsapp').set({
+      lastWebhookPhoneNumberId: String(phoneNumberId),
+      lastWebhookPhoneAt: new Date().toISOString(),
+    }, { merge: true }).catch(function() {});
+  } catch (e) {
+    /* opcional */
+  }
+}
 
 function verifyWebhook(req, res) {
   const mode = req.query['hub.mode'];
@@ -49,6 +63,9 @@ async function processWebhook(req, res) {
         if (!extracted) continue;
 
         var waId = normalizeWhatsAppPhone(from) || from;
+        if (metadata.phone_number_id) {
+          rememberWebhookPhoneNumberId(metadata.phone_number_id);
+        }
         messagesToProcess.push({
           from: waId,
           profileName,

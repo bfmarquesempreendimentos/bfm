@@ -2850,6 +2850,11 @@ button.wa-stat.wa-stat--click:focus {
     flex: 1 1 180px;
     min-width: 140px;
 }
+.input-readonly {
+    background: #f1f5f9;
+    color: #334155;
+    cursor: default;
+}
 .broker-campaign-weekly-bar {
     display: -webkit-box;
     display: -ms-flexbox;

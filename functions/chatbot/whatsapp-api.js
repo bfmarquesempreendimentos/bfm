@@ -302,17 +302,7 @@ async function resolveWabaId(options) {
     return { wabaId: debugWaba, source: 'debug_token' };
   }
 
-  try {
-    const tplProbe = await axios.get(GRAPH_API + '/' + phoneNumberId + '/message_templates', {
-      params: { limit: 1 },
-      headers: { Authorization: 'Bearer ' + token },
-    });
-    if (tplProbe.data) {
-      return { wabaId: phoneNumberId, source: 'phone_id_as_waba' };
-    }
-  } catch (probeErr) {
-    /* phone_number_id não é WABA — seguir */
-  }
+  /* Não tratar phone_number_id como WABA só porque /message_templates responde — isso gerava falso positivo. */
 
   const fieldAttempts = [
     'whatsapp_business_account{id}',

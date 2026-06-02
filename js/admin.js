@@ -1647,21 +1647,35 @@ function loadBrokerCampaignPreview() {
     return adminFetchJson('/brokerCampaignPreview').then(function(preview) {
         renderBrokerCampaignKpis(preview);
         var wabaEl = document.getElementById('brokerCampaignWabaId');
+        var biaEl = document.getElementById('brokerCampaignBiaPhoneId');
         var wabaHint = document.getElementById('brokerCampaignWabaHint');
         if (wabaEl && preview && preview.wabaId && !wabaEl.value) wabaEl.value = preview.wabaId;
+        if (biaEl && preview) {
+            biaEl.value = preview.biaPhoneNumberId || preview.cloudPhoneNumberId || '';
+            if (preview.biaPhoneDisplay) {
+                biaEl.value += ' — ' + preview.biaPhoneDisplay;
+            }
+        }
         if (wabaHint && preview) {
+            var hintTxt = '';
+            if (preview.envMisconfiguredAsWaba) {
+                hintTxt = 'Corrigido automaticamente: o Firebase tinha o ID da CONTA no lugar do número da Bia. ';
+            }
+            if (preview.syncHint) hintTxt += preview.syncHint + ' ';
             if (preview.wabaId && preview.phoneMatch === false) {
-                wabaHint.textContent = (preview.templateHint || 'Número da API não pertence a este WABA.') +
-                    ' Ajuste WHATSAPP_PHONE_NUMBER_ID no Firebase.';
+                hintTxt += (preview.templateHint || 'Envie qualquer mensagem para a Bia no WhatsApp e clique Salvar WABA de novo.');
                 wabaHint.style.color = '#b45309';
-            } else if (preview.wabaId) {
-                wabaHint.textContent = 'WABA ' + preview.wabaId + ' vinculado ao número da Bia' +
-                    (preview.cloudPhoneNumberId ? ' (ID ' + preview.cloudPhoneNumberId + ').' : '.');
+            } else if (preview.biaPhoneNumberId) {
+                hintTxt += 'Conta WABA ' + preview.wabaId + '. Número da Bia: ' + preview.biaPhoneNumberId + '.';
                 wabaHint.style.color = '#047857';
+            } else if (preview.wabaId) {
+                hintTxt += 'Salve o WABA e envie uma mensagem para a Bia para detectar o número.';
+                wabaHint.style.color = '#b45309';
             } else {
-                wabaHint.textContent = 'Cole o ID da conta WhatsApp (WABA) e clique Salvar WABA — senão a mensagem não chega.';
+                hintTxt += 'Cole o ID da conta (WABA) do WhatsApp Manager e clique Salvar WABA.';
                 wabaHint.style.color = '';
             }
+            wabaHint.textContent = hintTxt;
         }
         return preview;
     }).catch(function() {
@@ -1911,17 +1925,18 @@ function saveBrokerCampaignWaba() {
         if (data && data.campanhaCorretorLanguages && data.campanhaCorretorLanguages.length) {
             msg += ' Idioma campanha_corretor_msg: ' + data.campanhaCorretorLanguages.join(', ') + '.';
         }
+        if (data && data.syncHint) msg += ' ' + data.syncHint;
+        if (data && data.biaPhoneNumberId) msg += ' Número da Bia: ' + data.biaPhoneNumberId + '.';
         if (data && data.phoneMatch === false) {
-            msg += ' ATENÇÃO: o número da Bia na API NÃO está nesta conta WABA.' +
-                (data.phoneLinkWarning ? ' ' + data.phoneLinkWarning : '');
-            if (data.phonesOnWaba && data.phonesOnWaba.length) {
-                msg += ' Números nesta WABA: ' + data.phonesOnWaba.map(function(p) {
-                    return p.id;
-                }).join(', ') + '.';
-            }
+            msg += ' Envie uma mensagem para a Bia no WhatsApp e clique Salvar WABA de novo.';
+            if (data.phoneLinkWarning) msg += ' ' + data.phoneLinkWarning;
         }
         else if (data && data.error) msg += ' Aviso: ' + data.error;
         var ok = data && data.templatesOk && data.phoneMatch !== false;
+        var biaEl = document.getElementById('brokerCampaignBiaPhoneId');
+        if (biaEl && data && data.biaPhoneNumberId) {
+            biaEl.value = data.biaPhoneNumberId + (data.biaPhoneDisplay ? ' — ' + data.biaPhoneDisplay : '');
+        }
         if (typeof showMessage === 'function') showMessage(msg, ok ? 'success' : 'warning');
         loadBrokerCampaignPreview();
     }).catch(function(err) {
