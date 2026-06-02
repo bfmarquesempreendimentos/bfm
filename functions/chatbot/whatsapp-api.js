@@ -275,6 +275,40 @@ function isTemplateParamCountError(msg) {
     s.indexOf('expected number of params') >= 0;
 }
 
+function isTemplateParamValidationError(msg) {
+  var s = String(msg || '').toLowerCase();
+  return isTemplateParamCountError(msg) ||
+    s.indexOf('132018') >= 0 || s.indexOf('132012') >= 0 || s.indexOf('132005') >= 0 ||
+    s.indexOf('issue with the parameters') >= 0 ||
+    s.indexOf('parameter format') >= 0 || s.indexOf('hydrated text') >= 0;
+}
+
+/** Meta rejeita alguns caracteres em variáveis de template (132018). */
+function sanitizeWhatsAppTemplateParam(text) {
+  var s = String(text || '');
+  s = s.replace(/\u00a0/g, ' ');
+  s = s.replace(/\r\n/g, '\n');
+  s = s.replace(/\r/g, '\n');
+  s = s.replace(/\n{4,}/g, '\n\n\n');
+  s = s.replace(/\*/g, '');
+  s = s.replace(/\t/g, ' ');
+  s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+  s = s.replace(/ {2,}/g, ' ');
+  s = s.trim();
+  if (!s) s = 'Atualizacao semanal B F Marques.';
+  if (s.length > 1024) s = s.substring(0, 1024);
+  return s;
+}
+
+function templateHasImageHeader(metaComponents) {
+  if (!metaComponents || !metaComponents.length) return false;
+  var i;
+  for (i = 0; i < metaComponents.length; i++) {
+    if (metaComponents[i].type === 'HEADER' && metaComponents[i].format === 'IMAGE') return true;
+  }
+  return false;
+}
+
 function extractTemplateVarTokens(text) {
   var matches = String(text || '').match(/\{\{([^}]+)\}\}/g);
   if (!matches) return [];
@@ -799,7 +833,7 @@ function buildTemplateSendComponents(metaComponents, fill) {
         for (pi = 0; pi < n; pi++) {
           params.push({
             type: 'text',
-            text: String(fill.headerTexts && fill.headerTexts[pi] != null
+            text: sanitizeWhatsAppTemplateParam(fill.headerTexts && fill.headerTexts[pi] != null
               ? fill.headerTexts[pi]
               : (fill.weeklyTitle || 'B F Marques')).substring(0, 60),
           });
@@ -814,19 +848,22 @@ function buildTemplateSendComponents(metaComponents, fill) {
       params = [];
       if (fill.bodyTexts && fill.bodyTexts.length >= n) {
         for (pi = 0; pi < n; pi++) {
+          var txtBody = sanitizeWhatsAppTemplateParam(fill.bodyTexts[pi]);
           params.push(useNamed && varTokens[pi]
-            ? { type: 'text', parameter_name: varTokens[pi], text: String(fill.bodyTexts[pi]).substring(0, 1024) }
-            : { type: 'text', text: String(fill.bodyTexts[pi]).substring(0, 1024) });
+            ? { type: 'text', parameter_name: varTokens[pi], text: txtBody }
+            : { type: 'text', text: txtBody });
         }
       } else if (n === 1 && fill.singleBody) {
+        var txtSingle = sanitizeWhatsAppTemplateParam(fill.singleBody);
         params.push(useNamed && varTokens[0]
-          ? { type: 'text', parameter_name: varTokens[0], text: String(fill.singleBody).substring(0, 1024) }
-          : { type: 'text', text: String(fill.singleBody).substring(0, 1024) });
+          ? { type: 'text', parameter_name: varTokens[0], text: txtSingle }
+          : { type: 'text', text: txtSingle });
       } else if (fill.namedParams && fill.namedParams.length >= n) {
         for (pi = 0; pi < n; pi++) {
+          var txtNamed = sanitizeWhatsAppTemplateParam(fill.namedParams[pi]);
           params.push(useNamed && varTokens[pi]
-            ? { type: 'text', parameter_name: varTokens[pi], text: String(fill.namedParams[pi]).substring(0, 1024) }
-            : { type: 'text', text: String(fill.namedParams[pi]).substring(0, 1024) });
+            ? { type: 'text', parameter_name: varTokens[pi], text: txtNamed }
+            : { type: 'text', text: txtNamed });
         }
       }
       if (params.length === n) out.push({ type: 'body', parameters: params });
@@ -931,6 +968,9 @@ module.exports = {
   extractMetaError,
   isTemplateNameOrLanguageError,
   isTemplateParamCountError,
+  isTemplateParamValidationError,
+  sanitizeWhatsAppTemplateParam,
+  templateHasImageHeader,
   templateUsesNamedParameters,
   extractTemplateVarTokens,
   normalizeTemplateName,

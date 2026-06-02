@@ -6,9 +6,9 @@ const {
   properties,
   getPropertyById,
   getPropertyMediaLists,
-  formatPropertyShort,
   SITE_BASE_URL,
 } = require('./property-data');
+const { sanitizeWhatsAppTemplateParam } = require('./whatsapp-api');
 
 const MARKET_SNIPPETS = [
   {
@@ -74,8 +74,21 @@ function getFeaturedPropertyForWeek(week, overrideId) {
 }
 
 function formatPriceBr(price) {
-  if (!price || price <= 0) return 'Consulte condições comerciais';
-  return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  if (!price || price <= 0) return 'Consulte condicoes comerciais';
+  var n = Math.round(Number(price));
+  var parts = String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return 'R$ ' + parts + ',00';
+}
+
+function formatPropertyShortForTemplate(p) {
+  var priceStr = formatPriceBr(p.price);
+  var areaStr = p.area ? (String(p.area) + ' m2') : 'Consulte';
+  return (
+    p.title + '\n' +
+    p.location + '\n' +
+    priceStr + '\n' +
+    p.bedrooms + ' | ' + areaStr
+  );
 }
 
 function brokerFirstName(broker) {
@@ -96,45 +109,60 @@ function buildRichCampaignSingleBody(config, broker, now) {
   var contato = config.whatsappContato || '(21) 99759-0814';
 
   if (!featured) {
-    return (
-      'Olá, ' + firstName + '! 🏡 Atualização semanal B F Marques\n\n' +
-      '🌐 Portfólio completo: ' + siteUrl + '\n' +
-      (tip ? ('💡 ' + tip + '\n') : '') +
-      '📰 ' + market.title + ': ' + market.text + '\n\n' +
-      '✅ ' + (config.ctaText || 'Divulgue nossos empreendimentos para seus leads.') + '\n' +
+    return sanitizeWhatsAppTemplateParam(
+      'Ola, ' + firstName + '! Atualizacao semanal B F Marques\n\n' +
+      'Portfolio: ' + siteUrl + '\n' +
+      (tip ? ('Dica: ' + tip + '\n') : '') +
+      market.title + ': ' + market.text + '\n\n' +
+      (config.ctaText || 'Divulgue nossos empreendimentos.') + '\n' +
       'Suporte: ' + contato
-    ).substring(0, 1024);
+    );
   }
 
   var priceStr = formatPriceBr(featured.price);
-  var mcmvLine = featured.mcmv ? '✅ Aceita Minha Casa Minha Vida\n' : '';
+  var mcmvLine = featured.mcmv ? 'Aceita Minha Casa Minha Vida\n' : '';
   var descShort = String(featured.description || '').substring(0, 140);
-  if (featured.description && featured.description.length > 140) descShort += '…';
+  if (featured.description && featured.description.length > 140) descShort += '...';
+  descShort = descShort.replace(/[^\x20-\x7E\u00C0-\u00FF\n]/g, '');
 
   var text = (
-    'Olá, ' + firstName + '! Semana B F Marques 🏡\n\n' +
-    '⭐ *DESTAQUE DA SEMANA*\n' +
-    formatPropertyShort(featured) + '\n' +
+    'Ola, ' + firstName + '! Semana B F Marques\n\n' +
+    'DESTAQUE DA SEMANA\n' +
+    formatPropertyShortForTemplate(featured) + '\n' +
     mcmvLine +
-    (descShort ? ('📝 ' + descShort + '\n') : '') +
-    '🗺️ ' + (featured.mapsUrl || siteUrl) + '\n\n' +
-    '📰 *' + market.title + '*\n' + market.text + '\n\n' +
-    '🌐 Todos os imóveis: ' + siteUrl + '\n' +
-    (tip ? ('💡 ' + tip + '\n') : '') +
-    '✅ ' + (config.ctaText || 'Use as fotos/vídeo a seguir na divulgação.') + '\n\n' +
-    '📷 Em seguida enviamos fotos' +
-    (featured.videos && featured.videos.length ? ' e vídeo' : '') +
-    ' deste empreendimento.\n' +
-    'Suporte comercial: ' + contato
+    (descShort ? ('Resumo: ' + descShort + '\n') : '') +
+    'Mapa: ' + (featured.mapsUrl || siteUrl) + '\n\n' +
+    market.title + ': ' + market.text + '\n\n' +
+    'Site com todos os imoveis: ' + siteUrl + '\n' +
+    (tip ? ('Dica: ' + tip + '\n') : '') +
+    (config.ctaText || 'Divulgue para seus leads e agende visitas.') + '\n\n' +
+    'Fotos e video deste empreendimento na sequencia.\n' +
+    'Suporte: ' + contato
   );
 
-  return text.substring(0, 1024);
+  return sanitizeWhatsAppTemplateParam(text);
 }
 
-function buildCampanhaCorretorBodyComponents(config, broker, now) {
+function buildSimpleCampaignSingleBody(config, broker, now) {
+  var week = getWeekOfYearNumber(now);
+  var featured = getFeaturedPropertyForWeek(week, config.featuredPropertyId);
+  var firstName = brokerFirstName(broker);
+  var siteUrl = config.siteUrl || SITE_BASE_URL + '/';
+  var line = featured
+    ? ('Destaque: ' + featured.title + ' - ' + formatPriceBr(featured.price) + '. Mapa e fotos no site.')
+    : 'Novidades no site.';
+  var text = 'Ola, ' + firstName + '! B F Marques Empreendimentos.\n\n' +
+    line + '\n\nSite: ' + siteUrl + '\nSuporte: ' + (config.whatsappContato || '(21) 99759-0814');
+  return sanitizeWhatsAppTemplateParam(text);
+}
+
+function buildCampanhaCorretorBodyComponents(config, broker, now, useSimple) {
+  var bodyText = useSimple
+    ? buildSimpleCampaignSingleBody(config, broker, now)
+    : buildRichCampaignSingleBody(config, broker, now);
   return [{
     type: 'body',
-    parameters: [{ type: 'text', text: buildRichCampaignSingleBody(config, broker, now) }],
+    parameters: [{ type: 'text', text: bodyText }],
   }];
 }
 
@@ -225,8 +253,10 @@ function getCampaignWeekPreview(now, config) {
 
 module.exports = {
   buildRichCampaignSingleBody,
+  buildSimpleCampaignSingleBody,
   buildCampanhaCorretorBodyComponents,
   buildCampanhaWithImageHeader,
+  sanitizeWhatsAppTemplateParam,
   sendBrokerCampaignFollowUpMedia,
   getFeaturedPropertyForWeek,
   getCampaignWeekPreview,

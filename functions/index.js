@@ -14,6 +14,8 @@ const {
   extractMetaError,
   isTemplateNameOrLanguageError,
   isTemplateParamCountError,
+  isTemplateParamValidationError,
+  templateHasImageHeader,
   normalizeTemplateName,
   listApprovedMessageTemplates,
   findApprovedTemplate,
@@ -865,24 +867,22 @@ async function bruteForceBrokerTemplateSend(waPhone, templateName, langCandidate
       };
     } catch (richErr) {
       var richMsg = richErr.message || extractMetaError(richErr);
-      if (!isTemplateParamCountError(richMsg) && !isTemplateNameOrLanguageError(richMsg)) throw new Error(richMsg);
+      if (!isTemplateParamValidationError(richMsg) && !isTemplateNameOrLanguageError(richMsg)) throw new Error(richMsg);
     }
     try {
-      var withImg = brokerCampaignContent.buildCampanhaWithImageHeader(config, broker, now);
-      if (withImg) {
-        richResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li0], withImg, waSendOpts);
-        return {
-          mode: 'template',
-          templateName: templateName,
-          language: langCandidates[li0],
-          componentsVariant: 'rich_header_image',
-          waMessageId: richResp && richResp.messageId ? richResp.messageId : '',
-          sentTo: waPhone,
-        };
-      }
-    } catch (imgTplErr) {
-      richMsg = imgTplErr.message || extractMetaError(imgTplErr);
-      if (!isTemplateParamCountError(richMsg) && !isTemplateNameOrLanguageError(richMsg)) throw new Error(richMsg);
+      var simpleComps = brokerCampaignContent.buildCampanhaCorretorBodyComponents(config, broker, now, true);
+      richResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li0], simpleComps, waSendOpts);
+      return {
+        mode: 'template',
+        templateName: templateName,
+        language: langCandidates[li0],
+        componentsVariant: 'simple_single_var',
+        waMessageId: richResp && richResp.messageId ? richResp.messageId : '',
+        sentTo: waPhone,
+      };
+    } catch (simpleErr) {
+      richMsg = simpleErr.message || extractMetaError(simpleErr);
+      if (!isTemplateParamValidationError(richMsg) && !isTemplateNameOrLanguageError(richMsg)) throw new Error(richMsg);
     }
   }
   var bodyCounts = tplNorm === 'campanha_corretor_msg' ? [1, 2, 3, 4, 5, 6] : [0, 1, 2, 3, 4, 5, 6];
@@ -905,7 +905,7 @@ async function bruteForceBrokerTemplateSend(waPhone, templateName, langCandidate
         };
       } catch (errTry) {
         var errMsg = errTry.message || extractMetaError(errTry);
-        if (!isTemplateParamCountError(errMsg) && !isTemplateNameOrLanguageError(errMsg)) throw new Error(errMsg);
+        if (!isTemplateParamValidationError(errMsg) && !isTemplateNameOrLanguageError(errMsg)) throw new Error(errMsg);
       }
       if (bodyCounts[bi] === 1) {
         for (ni = 0; ni < namedNames.length; ni++) {
@@ -929,7 +929,7 @@ async function bruteForceBrokerTemplateSend(waPhone, templateName, langCandidate
             };
           } catch (errNamed) {
             errMsg = errNamed.message || extractMetaError(errNamed);
-            if (!isTemplateParamCountError(errMsg) && !isTemplateNameOrLanguageError(errMsg)) throw new Error(errMsg);
+            if (!isTemplateParamValidationError(errMsg) && !isTemplateNameOrLanguageError(errMsg)) throw new Error(errMsg);
           }
         }
         try {
@@ -950,7 +950,7 @@ async function bruteForceBrokerTemplateSend(waPhone, templateName, langCandidate
           };
         } catch (errBtn) {
           errMsg = errBtn.message || extractMetaError(errBtn);
-          if (!isTemplateParamCountError(errMsg) && !isTemplateNameOrLanguageError(errMsg)) throw new Error(errMsg);
+          if (!isTemplateParamValidationError(errMsg) && !isTemplateNameOrLanguageError(errMsg)) throw new Error(errMsg);
         }
       }
     }
@@ -1038,26 +1038,31 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
         return tplResult;
       } catch (richFirstErr) {
         lastErr = richFirstErr;
-      }
-      try {
-        var imgHdr = brokerCampaignContent.buildCampanhaWithImageHeader(config, broker, now);
-        if (imgHdr) {
-          richSend = await sendTemplateMessage(waPhone, templateName, langCandidates[liMeta], imgHdr, waSendOpts);
-          tplResult = {
-            mode: 'template',
-            templateName: templateName,
-            language: langCandidates[liMeta],
-            componentsVariant: 'rich_header_image',
-            waMessageId: richSend && richSend.messageId ? richSend.messageId : '',
-            sentTo: waPhone,
-          };
-          tplResult.media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
-            waPhone, config, now, waSendOpts, sendImageMessage, sendVideoMessage
-          );
-          return tplResult;
+        var richErrMsg = richFirstErr.message || extractMetaError(richFirstErr);
+        if (isTemplateParamValidationError(richErrMsg)) {
+          try {
+            var simpleCompsMain = brokerCampaignContent.buildCampanhaCorretorBodyComponents(
+              config, broker, now, true
+            );
+            richSend = await sendTemplateMessage(
+              waPhone, templateName, langCandidates[liMeta], simpleCompsMain, waSendOpts
+            );
+            tplResult = {
+              mode: 'template',
+              templateName: templateName,
+              language: langCandidates[liMeta],
+              componentsVariant: 'simple_single_var',
+              waMessageId: richSend && richSend.messageId ? richSend.messageId : '',
+              sentTo: waPhone,
+            };
+            tplResult.media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
+              waPhone, config, now, waSendOpts, sendImageMessage, sendVideoMessage
+            );
+            return tplResult;
+          } catch (simpleMainErr) {
+            lastErr = simpleMainErr;
+          }
         }
-      } catch (imgHdrErr) {
-        lastErr = imgHdrErr;
       }
     }
 
