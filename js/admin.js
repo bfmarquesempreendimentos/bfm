@@ -1658,8 +1658,8 @@ function loadBrokerCampaignPreview() {
         }
         if (wabaHint && preview) {
             var hintTxt = '';
-            if (preview.envMisconfiguredAsWaba) {
-                hintTxt = 'Corrigido automaticamente: o Firebase tinha o ID da CONTA no lugar do número da Bia. ';
+            if (preview.envMisconfiguredAsWaba && !preview.biaPhoneNumberId) {
+                hintTxt = 'Ajuste o secret WHATSAPP_PHONE_NUMBER_ID no Firebase (Phone number ID da Meta). ';
             }
             if (preview.syncHint) hintTxt += preview.syncHint + ' ';
             if (preview.wabaId && preview.phoneMatch === false) {

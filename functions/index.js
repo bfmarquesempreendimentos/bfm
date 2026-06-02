@@ -456,6 +456,27 @@ async function syncWhatsAppCloudSettings(db, options) {
     }
   }
 
+  /* Meta envia phone_number_id no webhook — se a Bia já responde, confiar mesmo sem listar /phone_numbers */
+  var webhookTrusted = !!(lastWebhookPhone && settings.lastWebhookPhoneAt);
+  if (!phoneMatch && webhookTrusted && lastWebhookPhone) {
+    resolvedPhoneId = lastWebhookPhone;
+    syncSource = syncSource || 'bia_webhook_trusted';
+    phoneMatch = true;
+    envMisconfiguredAsWaba = false;
+    if (!phoneDisplay) {
+      try {
+        const axios = require('axios');
+        const pr = await axios.get('https://graph.facebook.com/v22.0/' + resolvedPhoneId, {
+          params: { fields: 'display_phone_number,verified_name' },
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        phoneDisplay = (pr.data && pr.data.display_phone_number) || '';
+      } catch (dispErr) {
+        /* opcional */
+      }
+    }
+  }
+
   if (resolvedPhoneId && phoneMatch) {
     await saveWhatsappSettings(db, {
       wabaId: wabaId,
@@ -478,6 +499,7 @@ async function syncWhatsAppCloudSettings(db, options) {
     envMisconfiguredAsWaba: envMisconfiguredAsWaba,
     lastWebhookPhoneNumberId: lastWebhookPhone,
     phonesOnWaba: phones,
+    webhookTrusted: webhookTrusted,
     phoneLinkError: phoneMatch ? '' : 'Não foi possível vincular o número da Bia a esta conta WABA.',
   };
 }
@@ -499,10 +521,10 @@ async function getOrResolveWabaId(db) {
     phonesOnWaba: sync.phonesOnWaba || [],
     phoneLinkError: sync.phoneLinkError || '',
     syncSource: sync.syncSource || '',
-    syncHint: sync.envMisconfiguredAsWaba
-      ? 'O secret WHATSAPP_PHONE_NUMBER_ID no Firebase estava com o ID da CONTA (WABA), não do número. A campanha usará automaticamente o número da Bia detectado.'
-      : (sync.syncSource === 'bia_webhook'
-        ? 'Número da Bia detectado pelas mensagens que ela já atende (webhook).'
+    syncHint: sync.syncSource === 'bia_webhook_trusted' || sync.syncSource === 'bia_webhook'
+      ? 'Número da Bia confirmado pelo WhatsApp (webhook). Campanha usará o mesmo número do atendimento.'
+      : (sync.envMisconfiguredAsWaba
+        ? 'Ajuste WHATSAPP_PHONE_NUMBER_ID no Firebase para o Phone number ID da Meta (API Setup).'
         : ''),
   };
 }
@@ -544,6 +566,7 @@ async function getBrokerCampaignTemplateStatus(config, db) {
   }
   const listed = await listApprovedMessageTemplates({
     wabaId: wabaResolved.wabaId || '',
+    phoneNumberId: wabaResolved.campaignPhoneNumberId || wabaResolved.phoneNumberId || '',
   });
   const approved = listed.ok ? listed.templates : [];
   const nameMatches = findApprovedTemplatesByName(approved, templateName);
