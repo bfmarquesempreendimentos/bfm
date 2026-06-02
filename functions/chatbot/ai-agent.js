@@ -2,6 +2,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { sendTextMessage, sendImageMessage, sendVideoMessage, sendInteractiveButtons, getWhatsAppMediaBuffer } = require('./whatsapp-api');
 const { transcribeAudioBuffer } = require('./audio-transcription');
 const { getPropertyById, getPropertyMediaLists, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, properties } = require('./property-data');
+const { formatPropertyInventory, formatUnitDetail } = require('./property-inventory');
 const { simulateFinancing, formatSimulationResult } = require('./finance-simulator');
 const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone, queueInboundEmailAlert, getBiaTrainingPromptExtra, setFollowUpExclusion, findRegisteredBrokerByPhone, getBrokerBiaPromptBlock, BRUNO_CORRETOR_PHONE_DISPLAY } = require('./lead-manager');
 const { detectAgeFinancingBlock } = require('./follow-up-engine');
@@ -34,7 +35,7 @@ ${getPropertiesSummaryForAI()}
 
 ## PÚBLICO-ALVO, MCMV E RENDA (2026)
 - Sempre que for qualificar ou simular, peça explicitamente a *renda bruta familiar mensal* — soma do que a família ganha *antes* de descontos (salários, informal fixo que declarar, benefícios que entram na conta, etc.). Se o cliente só souber líquido, diga que o ideal para o programa é o *bruto familiar* e que o time humano pode ajudar a conferir.
-- Tetos de renda *urbanos* usados na simulação do sistema (ampliação divulgada em 2026): Faixa 1 até *R$ 3.200*; Faixa 2 até *R$ 5.000*; Faixa 3 até *R$ 9.600*; Faixa 4 até *R$ 13.000*. Tetos de valor de imóvel (referência geral): Faixas 3 e 4 chegam a até *R$ 400 mil* e *R$ 600 mil* conforme programa — não invente valores de unidade; use listar_imoveis / detalhes_imovel.
+- Tetos de renda *urbanos* usados na simulação do sistema (ampliação divulgada em 2026): Faixa 1 até *R$ 3.200*; Faixa 2 até *R$ 5.000*; Faixa 3 até *R$ 9.600*; Faixa 4 até *R$ 13.000*. Tetos de valor de imóvel (referência geral): Faixas 3 e 4 chegam a até *R$ 400 mil* e *R$ 600 mil* conforme programa — não invente status de unidade nem valor de engenharia; use estoque_empreendimento / consultar_unidade.
 - Faixa 1 e 2: subsídio *até* R$ 55.000 na simulação (confirmar na contratação). Taxas no simulador: Faixa 1 ~4,25% a.a.; Faixa 2 ~6,5%; Faixas 3 e 4 estimativas maiores — resultado traz o número calculado.
 - Prazo: até 360 meses. Parcela referência até 30% da renda bruta.
 - Exceto Casa Luxo Maricá (id 8), os demais empreendimentos são perfil MCMV.
@@ -66,7 +67,8 @@ ${getPropertiesSummaryForAI()}
 23. Para leads de anúncios/WhatsApp, pergunte SEMPRE sobre *nome limpo* (CPF sem restrição). Sem essa informação, continue a qualificação até obter a resposta antes de avançar para proposta final
 24. Se o cliente disser que *não passa na idade*, que o *banco não libera por idade*, que tem *idade avançada* ou similar, use *marcar_sem_follow_up* — não insista com follow-up automático
 25. Não pressione financiamento para quem já indicou bloqueio por idade; ofereça apenas informações gerais ou encaminhe ao humano se pedir
-26. *NUNCA* informe o telefone do Bruno Marques (21) 99555-7010 para clientes/leads — esse contato é *exclusivo* para corretores cadastrados (o sistema ativa o modo corretor automaticamente quando aplicável)`;
+26. *NUNCA* informe o telefone do Bruno Marques (21) 99555-7010 para clientes/leads — esse contato é *exclusivo* para corretores cadastrados (o sistema ativa o modo corretor automaticamente quando aplicável)
+27. Perguntas sobre unidade específica, reservada ou disponível: use estoque_empreendimento ou consultar_unidade — nunca chute status. Valor de engenharia só informe se a ferramenta retornar (modo corretor)`;
 
 const TOOLS = [
   {
@@ -165,6 +167,34 @@ const TOOLS = [
         enviar_mais: { type: 'boolean', description: 'True se o cliente já recebeu um lote e pediu mais mídias.' },
       },
       required: ['imovel_id'],
+    },
+  },
+  {
+    name: 'estoque_empreendimento',
+    description: 'Lista TODAS as unidades de um empreendimento com status oficial (disponível/reservado/assinado) e preço de venda. Corretores cadastrados também veem valor de engenharia quando existir no sistema. Use para dúvidas sobre unidades reservadas ou disponíveis.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        imovel_id: { type: 'number', description: 'ID do empreendimento (1 a 8)' },
+        filtro_status: {
+          type: 'string',
+          description: 'Opcional: disponivel, reservado ou assinado — filtra a lista',
+          enum: ['', 'disponivel', 'reservado', 'assinado'],
+        },
+      },
+      required: ['imovel_id'],
+    },
+  },
+  {
+    name: 'consultar_unidade',
+    description: 'Consulta uma unidade específica pelo código (ex: APTO 202, casa 03, CS 4). Retorna status, preço de venda e valor de engenharia (corretores).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        imovel_id: { type: 'number', description: 'ID do empreendimento (1 a 8)' },
+        codigo_unidade: { type: 'string', description: 'Código da unidade como no estoque' },
+      },
+      required: ['imovel_id', 'codigo_unidade'],
     },
   },
 ];
@@ -337,6 +367,20 @@ async function executeTool(toolName, input, context) {
       });
       await notifyManager(context.from, null, null, input.motivo, { phoneNumberId: context.phoneNumberId });
       return `Pronto! Um atendente vai assumir nossa conversa em instantes. Enquanto isso, você pode continuar enviando mensagens aqui mesmo – não precisa ligar nem mudar de número.`;
+    }
+
+    case 'estoque_empreendimento': {
+      var invOpts = {
+        includeEngineering: !!context.isBroker,
+        statusFilter: input.filtro_status || '',
+      };
+      return formatPropertyInventory(input.imovel_id, invOpts);
+    }
+
+    case 'consultar_unidade': {
+      return formatUnitDetail(input.imovel_id, input.codigo_unidade, {
+        includeEngineering: !!context.isBroker,
+      });
     }
 
     case 'enviar_midias_imovel': {
@@ -617,7 +661,11 @@ async function handleIncomingMessage(messageData) {
 
       const toolResults = [];
       for (const tool of toolBlocks) {
-        const result = await executeTool(tool.name, tool.input, { from: phone, phoneNumberId: messageData.phoneNumberId });
+        const result = await executeTool(tool.name, tool.input, {
+          from: phone,
+          phoneNumberId: messageData.phoneNumberId,
+          isBroker: !!registeredBroker,
+        });
         toolResults.push({
           type: 'tool_result',
           tool_use_id: tool.id,

@@ -1,4 +1,5 @@
 // Property units management system for B F Marques Empreendimentos
+// Espelho para a Bia (WhatsApp): functions/chatbot/property-units-data.js — mantenha os dois sincronizados.
 
 /** Ao mudar o inventário no código, incremente esta versão para limpar overrides antigos no navegador. */
 var UNIT_INVENTORY_VERSION = '2026-05-17-reservas-itauna-laranjal-cacador';
