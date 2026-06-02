@@ -246,6 +246,69 @@ function extractMetaError(err) {
   return (meta.message || 'Erro Meta') + (code ? ' (código ' + code + (sub ? '/' + sub : '') + ')' : '');
 }
 
+function isTemplateNameOrLanguageError(msg) {
+  var s = String(msg || '').toLowerCase();
+  return s.indexOf('132001') >= 0 || s.indexOf('132000') >= 0 || s.indexOf('132015') >= 0 ||
+    s.indexOf('does not exist') >= 0 || s.indexOf('template name') >= 0 ||
+    s.indexOf('template') >= 0 && s.indexOf('language') >= 0;
+}
+
+function normalizeTemplateName(raw) {
+  return String(raw || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+}
+
+/** Lista templates aprovados na conta WhatsApp Business (via phone_number_id). */
+async function listApprovedMessageTemplates(options) {
+  options = options || {};
+  const { token, phoneNumberId } = getConfig(options.phoneNumberId);
+  if (!token || !phoneNumberId) return { ok: false, templates: [], error: 'WhatsApp não configurado' };
+  try {
+    const phoneResp = await axios.get(GRAPH_API + '/' + phoneNumberId, {
+      params: { fields: 'whatsapp_business_account' },
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const wabaId = phoneResp.data && phoneResp.data.whatsapp_business_account &&
+      phoneResp.data.whatsapp_business_account.id;
+    if (!wabaId) return { ok: false, templates: [], error: 'WABA não encontrado' };
+    const tplResp = await axios.get(GRAPH_API + '/' + wabaId + '/message_templates', {
+      params: { limit: 200, status: 'APPROVED' },
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const rows = (tplResp.data && tplResp.data.data) || [];
+    const templates = rows.map(function(t) {
+      return {
+        name: t.name,
+        language: t.language,
+        status: t.status,
+        category: t.category,
+      };
+    });
+    return { ok: true, templates: templates };
+  } catch (err) {
+    return { ok: false, templates: [], error: extractMetaError(err) };
+  }
+}
+
+function findApprovedTemplate(templates, name, languageCode) {
+  if (!name || !templates || !templates.length) return null;
+  var langs = [languageCode, 'pt_BR', 'pt', 'en_US', 'en'].filter(Boolean);
+  var i;
+  var j;
+  for (i = 0; i < langs.length; i++) {
+    for (j = 0; j < templates.length; j++) {
+      if (templates[j].name === name && templates[j].language === langs[i]) {
+        return { name: templates[j].name, language: templates[j].language };
+      }
+    }
+  }
+  for (j = 0; j < templates.length; j++) {
+    if (templates[j].name === name) {
+      return { name: templates[j].name, language: templates[j].language };
+    }
+  }
+  return null;
+}
+
 async function sendTemplateMessage(to, templateName, languageCode, components, options) {
   options = options || {};
   const { token, phoneNumberId } = getConfig(options.phoneNumberId);
@@ -297,6 +360,10 @@ module.exports = {
   sendTextMessage,
   sendTemplateMessage,
   extractMetaError,
+  isTemplateNameOrLanguageError,
+  normalizeTemplateName,
+  listApprovedMessageTemplates,
+  findApprovedTemplate,
   sendImageMessage,
   sendVideoMessage,
   sendDocumentMessage,

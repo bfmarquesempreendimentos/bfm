@@ -1516,12 +1516,28 @@ function renderBrokerCampaignKpis(preview) {
     var btn = document.getElementById('brokerCampaignBtnSendNow');
     if (btn) btn.disabled = !(preview && preview.isReady && ready > 0);
 
+    var tplHint = document.getElementById('brokerCampaignTemplateHint');
+    if (tplHint) {
+        if (preview && preview.hasTemplate && preview.templateValid === false) {
+            tplHint.textContent = preview.templateHint || 'Template inválido na Meta (erro 132001). Corrija o nome abaixo.';
+            tplHint.style.color = '#b45309';
+        } else if (preview && preview.templateHint) {
+            tplHint.textContent = preview.templateHint;
+            tplHint.style.color = preview.templateValid ? '#047857' : '';
+        } else {
+            tplHint.textContent = 'Nome exato na Meta: só minúsculas e _. Obrigatório se a Bia nunca falou com o corretor.';
+            tplHint.style.color = '';
+        }
+    }
+
     var hint = document.getElementById('brokerCampaignPreviewStats');
     if (hint) {
-        if (preview && preview.isReady && ready > 0) {
+        if (preview && preview.hasTemplate && preview.templateValid === false) {
+            hint.textContent = 'Corrija o template Meta antes de disparar. ' + (preview.templateHint || '');
+        } else if (preview && preview.isReady && ready > 0) {
             hint.textContent = 'Pronto: ao clicar em Disparar agora, ' + ready + ' corretor(es) ativos com campanha ligada recebem WhatsApp.';
             if (!preview.hasTemplate) {
-                hint.textContent += ' Cadastre template Meta na configuração para entregar fora da janela de 24h.';
+                hint.textContent += ' Sem template: só entrega se o corretor falou com a Bia nas últimas 24h.';
             }
         } else if (preview && preview.duplicateRecordsInDb > 0) {
             hint.textContent = 'Há duplicatas ativas. Abra Manutenção → Preparar base novamente.';
@@ -1630,8 +1646,11 @@ function showBrokerCampaignResult(result, isError) {
     }
     if (skipped > 0 && sent === 0 && errors === 0) {
         txt += ' Nenhuma mensagem enviada: revise os telefones dos corretores ativos (DDD + 9 dígitos).';
-    } else if (errors > 0 && sent === 0 && !(result && result.templateName)) {
-        txt += ' Provável causa: fora da janela de 24h — cadastre template aprovado na Meta e preencha o campo Template WhatsApp.';
+    } else if (errors > 0 && sent === 0) {
+        txt += ' Se aparecer código 132001, o template não existe na Meta — escolha um nome da lista (minúsculas) ou crie um template Marketing aprovado.';
+        if (!(result && result.templateName)) {
+            txt += ' Sem template válido a Meta bloqueia quem nunca falou com a Bia.';
+        }
     } else if (skipped > 0) {
         txt += ' Corretores pulados precisam de telefone no formato 21987654321.';
     }
@@ -1677,7 +1696,26 @@ function pollBrokerCampaignRun(runId, attempt) {
     });
 }
 
+function loadBrokerCampaignTemplatesDatalist() {
+    var listEl = document.getElementById('brokerCampaignTemplateList');
+    if (!listEl) return;
+    adminFetchJson('/brokerCampaignTemplates').then(function(data) {
+        var templates = (data && data.templates) ? data.templates : [];
+        var html = '';
+        var seen = {};
+        var i;
+        for (i = 0; i < templates.length; i++) {
+            var n = templates[i].name;
+            if (!n || seen[n]) continue;
+            seen[n] = true;
+            html += '<option value="' + escapeHtml(n) + '"></option>';
+        }
+        listEl.innerHTML = html;
+    }).catch(function() {});
+}
+
 function loadBrokerCampaignConfig() {
+    loadBrokerCampaignTemplatesDatalist();
     prepareBrokersPanelIfNeeded(false);
 }
 
@@ -1698,7 +1736,7 @@ function collectBrokerCampaignConfigPayload() {
         weeklyTitle: title ? title.value : '',
         siteUrl: siteUrl ? siteUrl.value : '',
         whatsappContato: contact ? contact.value : '',
-        templateName: tpl ? tpl.value : '',
+        templateName: tpl ? String(tpl.value || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') : '',
         templateLanguage: 'pt_BR',
         ctaText: cta ? cta.value : '',
         usefulTips: usefulTips

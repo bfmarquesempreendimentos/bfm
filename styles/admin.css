@@ -1962,7 +1962,19 @@ button.wa-stat.wa-stat--click:focus {
 .wa-inbox-item:hover { background: #f7fafc; }
 .wa-inbox-item.active { background: #e6fffa; border-left: 3px solid #25d366; }
 .wa-inbox-item.unread { background: #fff5f5; }
+.wa-inbox-item--broker {
+    background: #f5f3ff;
+    border-left: 3px solid #7c3aed;
+}
+.wa-inbox-item--broker:hover { background: #ede9fe; }
+.wa-inbox-item--broker.active { background: #ede9fe; border-left-color: #6d28d9; }
 .wa-inbox-item-avatar { width: 40px; height: 40px; border-radius: 50%; background: #25d366; color: #fff; display: flex; align-items: center; justify-content: center; margin-right: 12px; font-size: 18px; }
+.wa-inbox-item-avatar--broker { background: #7c3aed; }
+.wa-badge-broker { background: #ede9fe !important; color: #5b21b6 !important; font-weight: 600; }
+.wa-stat-broker .wa-stat-n { color: #6d28d9; }
+.wa-stat-lead .wa-stat-n { color: #047857; }
+.wa-chat-header--broker strong { color: #5b21b6; }
+.wa-chat-broker-badge { margin-left: 8px; vertical-align: middle; font-size: 11px; padding: 2px 8px; border-radius: 6px; }
 .wa-inbox-item-info { flex: 1; min-width: 0; }
 .wa-inbox-item-name { font-weight: 600; font-size: 14px; }
 .wa-inbox-item-preview { font-size: 12px; color: #718096; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

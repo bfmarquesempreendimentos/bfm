@@ -6,7 +6,18 @@ const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveM
 const { processAllFollowUps } = require('./chatbot/follow-up-engine');
 const { setFollowUpExclusion: leadSetFollowUpExclusion } = require('./chatbot/lead-manager');
 const { getPropertyById } = require('./chatbot/property-data');
-const { sendTextMessage, sendTemplateMessage, extractMetaError, uploadMediaBuffer, sendMediaById, getWhatsAppMediaBuffer } = require('./chatbot/whatsapp-api');
+const {
+  sendTextMessage,
+  sendTemplateMessage,
+  extractMetaError,
+  isTemplateNameOrLanguageError,
+  normalizeTemplateName,
+  listApprovedMessageTemplates,
+  findApprovedTemplate,
+  uploadMediaBuffer,
+  sendMediaById,
+  getWhatsAppMediaBuffer,
+} = require('./chatbot/whatsapp-api');
 const propertySalesHandlers = require('./property-sales-handlers');
 const { verifyAdminFromBody } = require('./admin-accounts');
 
@@ -250,8 +261,61 @@ async function purgeArchivedBrokerDuplicatesInternal(db) {
   return total;
 }
 
+async function buildBrokerPhoneIndex(db) {
+  const snapshot = await db.collection('brokers').get();
+  const index = {};
+  snapshot.docs.forEach(function(doc) {
+    const data = doc.data() || {};
+    const phone = normalizeWhatsAppPhone(data.phone) || normalizeBrazilWhatsApp(data.phone);
+    if (!phone) return;
+    const entry = { id: doc.id, name: data.name || '', isActive: isBrokerActiveFlag(data.isActive) };
+    if (!index[phone] || entry.isActive) index[phone] = entry;
+  });
+  return index;
+}
+
+async function getBrokerCampaignTemplateStatus(config) {
+  const rawName = String(config.templateName || '').trim();
+  const templateName = normalizeTemplateName(rawName);
+  if (!templateName) {
+    return {
+      templateName: '',
+      templateValid: false,
+      templateHint: 'Sem template: só funciona se o corretor falou com a Bia nas últimas 24h. Para campanha em massa, crie um template Marketing aprovado na Meta.',
+      approvedTemplates: [],
+    };
+  }
+  const listed = await listApprovedMessageTemplates();
+  const approved = listed.ok ? listed.templates : [];
+  const match = findApprovedTemplate(approved, templateName, config.templateLanguage || 'pt_BR');
+  var hint = '';
+  if (!listed.ok) {
+    hint = 'Não foi possível validar na Meta: ' + (listed.error || '') + '. Confira o nome exato no painel da Meta (minúsculas, ex: atualizacao_corretor).';
+  } else if (!match) {
+    hint = 'Template "' + templateName + '" não encontrado como APROVADO em pt_BR. O nome no painel deve ser idêntico ao da Meta (só minúsculas e _).';
+    if (approved.length) {
+      var names = [];
+      var ni;
+      for (ni = 0; ni < approved.length && names.length < 8; ni++) {
+        if (names.indexOf(approved[ni].name) < 0) names.push(approved[ni].name);
+      }
+      if (names.length) hint += ' Aprovados: ' + names.join(', ') + '.';
+    }
+  } else {
+    hint = 'Template OK: ' + match.name + ' (' + match.language + ').';
+  }
+  return {
+    templateName: templateName,
+    templateValid: !!match,
+    templateLanguageResolved: match ? match.language : (config.templateLanguage || 'pt_BR'),
+    templateHint: hint,
+    approvedTemplates: approved.slice(0, 40),
+  };
+}
+
 async function getBrokerCampaignPreview(db) {
   const config = await getBrokerCampaignConfig(db);
+  const templateStatus = await getBrokerCampaignTemplateStatus(config);
   const targetList = await listBrokerCampaignTargets(db, {});
   let eligible = 0;
   let invalidPhone = 0;
@@ -271,7 +335,9 @@ async function getBrokerCampaignPreview(db) {
     return !isBrokerActiveFlag(b.isActive);
   }).length;
   const readyToSend = eligible;
-  const isReady = readyToSend > 0 && activeDuplicateRecords === 0;
+  const hasTpl = !!(templateStatus.templateName);
+  const isReady = readyToSend > 0 && activeDuplicateRecords === 0 &&
+    (!hasTpl || templateStatus.templateValid);
   return {
     enabled: !!config.enabled,
     totalActiveNotOptOut: targetList.length,
@@ -282,8 +348,12 @@ async function getBrokerCampaignPreview(db) {
     optOut: optOutCount,
     duplicateRecordsInDb: activeDuplicateRecords,
     archivedInactiveRecords: archivedInactiveRecords,
-    templateName: config.templateName || '',
-    hasTemplate: !!(config.templateName && String(config.templateName).trim()),
+    templateName: templateStatus.templateName || config.templateName || '',
+    hasTemplate: !!(templateStatus.templateName),
+    templateValid: templateStatus.templateValid,
+    templateHint: templateStatus.templateHint,
+    templateLanguageResolved: templateStatus.templateLanguageResolved || '',
+    approvedTemplateNames: (templateStatus.approvedTemplates || []).map(function(t) { return t.name; }),
     nextWeeklyNote: config.enabled
       ? 'Segunda-feira 08:00 (Brasília): envio automático para quem está ativo, com campanha ligada e telefone válido.'
       : 'Envio automático desligado. Disparar agora envia manualmente quando você quiser.',
@@ -383,15 +453,62 @@ function buildBrokerCampaignTemplateComponents(config, broker, now) {
 
 async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
   const message = buildBrokerCampaignMessage(config, broker, now);
-  const templateName = String(config.templateName || '').trim();
+  const templateName = normalizeTemplateName(config.templateName);
+  const langCandidates = [];
+  const langSeen = {};
+  function pushLang(code) {
+    const c = String(code || '').trim();
+    if (!c || langSeen[c]) return;
+    langSeen[c] = true;
+    langCandidates.push(c);
+  }
+  pushLang(config.templateLanguageResolved);
+  pushLang(config.templateLanguage);
+  pushLang('pt_BR');
+  pushLang('pt');
+  pushLang('en_US');
+
   if (templateName) {
-    await sendTemplateMessage(
-      waPhone,
-      templateName,
-      config.templateLanguage || 'pt_BR',
-      buildBrokerCampaignTemplateComponents(config, broker, now)
-    );
-    return { mode: 'template', templateName: templateName };
+    const fullComponents = buildBrokerCampaignTemplateComponents(config, broker, now);
+    const singleBody = [{
+      type: 'body',
+      parameters: [{ type: 'text', text: message.substring(0, 900) }],
+    }];
+    let lastErr = null;
+    let li;
+    let ci;
+    const componentSets = [fullComponents, singleBody, []];
+    for (li = 0; li < langCandidates.length; li++) {
+      for (ci = 0; ci < componentSets.length; ci++) {
+        try {
+          await sendTemplateMessage(waPhone, templateName, langCandidates[li], componentSets[ci]);
+          return {
+            mode: 'template',
+            templateName: templateName,
+            language: langCandidates[li],
+            componentsVariant: ci === 0 ? 'full' : (ci === 1 ? 'single' : 'none'),
+          };
+        } catch (err) {
+          lastErr = err;
+          const errMsg = err.message || extractMetaError(err);
+          if (!isTemplateNameOrLanguageError(errMsg) && ci === componentSets.length - 1) {
+            throw new Error(errMsg);
+          }
+        }
+      }
+    }
+    try {
+      await sendTextMessage(waPhone, message);
+      return { mode: 'text', templateFallback: true, templateError: lastErr ? (lastErr.message || '') : '' };
+    } catch (textErr) {
+      const textMsg = extractMetaError(textErr);
+      throw new Error(
+        (lastErr ? (lastErr.message || '') : 'Template inválido') +
+        ' — O template "' + templateName + '" não existe na Meta (código 132001) ou o idioma está errado. ' +
+        'Crie um template Marketing aprovado (corpo com {{1}} a {{5}} ou só {{1}} com o texto completo) e use o nome exato em minúsculas. ' +
+        'Sem template válido, a Meta bloqueia mensagem para quem nunca falou com a Bia. Detalhe texto: ' + textMsg
+      );
+    }
   }
   try {
     await sendTextMessage(waPhone, message);
@@ -401,7 +518,7 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
     const needsTemplate = /template|24.?hour|re-engagement|janela|131047|131026/i.test(errMsg);
     if (needsTemplate) {
       throw new Error(
-        errMsg + ' — Para corretor que não falou com o número Business nas últimas 24h, cadastre um template aprovado na Meta e preencha o campo "Template WhatsApp" na campanha.'
+        errMsg + ' — Para corretor que não falou com o número Business nas últimas 24h, cadastre um template aprovado na Meta e preencha o campo Template Meta na campanha.'
       );
     }
     throw new Error(errMsg);
@@ -427,7 +544,26 @@ function buildBrokerCampaignMessage(config, broker, now) {
 async function sendWeeklyBrokerCampaignInternal(payload) {
   const db = admin.firestore();
   const now = new Date();
-  const config = await getBrokerCampaignConfig(db);
+  let config = await getBrokerCampaignConfig(db);
+  const templateStatus = await getBrokerCampaignTemplateStatus(config);
+  if (templateStatus.templateName) {
+    config = Object.assign({}, config, {
+      templateName: templateStatus.templateName,
+      templateLanguageResolved: templateStatus.templateLanguageResolved,
+    });
+    if (!templateStatus.templateValid) {
+      return {
+        ok: false,
+        sent: 0,
+        errors: 0,
+        skipped: 0,
+        eligible: 0,
+        issues: [{ status: 'error', error: templateStatus.templateHint }],
+        templateName: templateStatus.templateName,
+        templateValid: false,
+      };
+    }
+  }
   if (!config.enabled && !payload.force) {
     return { ok: true, skipped: true, reason: 'Campanha desativada no painel/configuração.' };
   }
@@ -915,7 +1051,20 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
 
     if (action === 'stats') {
       const stats = await getLeadStats();
-      return res.json(stats);
+      const brokerIndex = await buildBrokerPhoneIndex(db);
+      const snapAll = await db.collection('chatbot_leads').limit(400).get();
+      var brokersInWa = 0;
+      var leadsOnlyInWa = 0;
+      snapAll.forEach(function(doc) {
+        const data = doc.data() || {};
+        const phone = normalizeWhatsAppPhone(data.phone || doc.id) || doc.id;
+        if (brokerIndex[phone]) brokersInWa += 1;
+        else leadsOnlyInWa += 1;
+      });
+      return res.json(Object.assign({}, stats, {
+        brokersInWa: brokersInWa,
+        leadsOnlyInWa: leadsOnlyInWa,
+      }));
     }
 
     if (action === 'conversation' && req.query.phone) {
@@ -926,6 +1075,18 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
         lead = await getLeadByPhone(raw);
       }
       if (!lead) return res.status(404).json({ error: 'Conversa não encontrada' });
+      const brokerIndexConvo = await buildBrokerPhoneIndex(db);
+      const brokerMatch = brokerIndexConvo[norm];
+      if (brokerMatch) {
+        lead = Object.assign({}, lead, {
+          isBroker: true,
+          brokerId: brokerMatch.id,
+          brokerName: brokerMatch.name,
+          contactType: 'corretor',
+        });
+      } else {
+        lead = Object.assign({}, lead, { isBroker: false, contactType: 'lead' });
+      }
       /** Mensagens ficam em chatbot_conversations/{telefone normalizado} */
       const convoPhone = norm;
       let messages = await getConversationHistory(convoPhone, 500);
@@ -938,15 +1099,30 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
     const statusFilter = req.query.status;
     const categoriaFilter = req.query.categoria;
     const modoHumanoFilter = req.query.modo_humano;
+    const contactType = String(req.query.contact_type || '').trim().toLowerCase();
     const unreadOnly = req.query.unread === '1' || req.query.unread === 'true';
     const revisarBotOnly = req.query.revisar_bot === '1' || req.query.revisar_bot === 'true';
     const search = (req.query.search || '').trim().toLowerCase();
     const limit = Math.min(parseInt(req.query.limit) || 100, 200);
+    const brokerIndex = await buildBrokerPhoneIndex(db);
 
     let query = db.collection('chatbot_leads').orderBy('updatedAt', 'desc').limit(Math.min(limit * 2, 300));
     const snapshot = await query.get();
     let leads = [];
-    snapshot.forEach(doc => leads.push({ id: doc.id, ...doc.data() }));
+    snapshot.forEach(function(doc) {
+      const data = doc.data() || {};
+      const phone = normalizeWhatsAppPhone(data.phone || doc.id) || doc.id;
+      const broker = brokerIndex[phone];
+      leads.push({
+        id: doc.id,
+        phone: phone,
+        isBroker: !!broker,
+        brokerId: broker ? broker.id : null,
+        brokerName: broker ? broker.name : null,
+        contactType: broker ? 'corretor' : 'lead',
+        ...data,
+      });
+    });
 
     if (statusFilter) leads = leads.filter(l => (l.status || 'novo') === statusFilter);
     if (categoriaFilter) leads = leads.filter(l => (l.categoria || 'geral') === categoriaFilter);
@@ -954,6 +1130,11 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
     else if (modoHumanoFilter === 'false') leads = leads.filter(l => !l.modo_humano);
     if (unreadOnly) leads = leads.filter(l => (l.adminUnreadCount || 0) > 0);
     if (revisarBotOnly) leads = leads.filter(l => !!l.revisarBot);
+    if (contactType === 'brokers' || contactType === 'corretores') {
+      leads = leads.filter(function(l) { return !!l.isBroker; });
+    } else if (contactType === 'leads') {
+      leads = leads.filter(function(l) { return !l.isBroker; });
+    }
     if (search) {
       leads = leads.filter(function(l) {
         return (l.name || '').toLowerCase().indexOf(search) >= 0 ||
@@ -1282,18 +1463,35 @@ exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
   }
 });
 
-exports.brokerCampaignPreview = functions.https.onRequest(async (req, res) => {
-  allowCors(res);
-  if (req.method === 'OPTIONS') return res.sendStatus(204);
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
-  try {
-    const preview = await getBrokerCampaignPreview(admin.firestore());
-    return res.json(preview);
-  } catch (err) {
-    console.error('brokerCampaignPreview:', err);
-    return res.status(500).json({ error: err.message });
-  }
-});
+exports.brokerCampaignPreview = functions
+  .runWith({ secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'] })
+  .https.onRequest(async (req, res) => {
+    allowCors(res);
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+    try {
+      const preview = await getBrokerCampaignPreview(admin.firestore());
+      return res.json(preview);
+    } catch (err) {
+      console.error('brokerCampaignPreview:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+exports.brokerCampaignTemplates = functions
+  .runWith({ secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'] })
+  .https.onRequest(async (req, res) => {
+    allowCors(res);
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+    try {
+      const listed = await listApprovedMessageTemplates();
+      return res.json(listed);
+    } catch (err) {
+      console.error('brokerCampaignTemplates:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
 
 exports.brokerCampaignRunStatus = functions.https.onRequest(async (req, res) => {
   allowCors(res);

@@ -594,9 +594,10 @@
                                     <input type="text" id="brokerCampaignContact" placeholder="(21) 99759-0814">
                                 </label>
                                 <label class="campaign-field-col campaign-field-col--wide">
-                                    <span>Template Meta (recomendado)</span>
-                                    <input type="text" id="brokerCampaignTemplate" placeholder="nome_do_template_aprovado">
-                                    <small class="form-hint">Fora da janela de 24h a Meta só entrega com template aprovado.</small>
+                                    <span>Template Meta (obrigatório se a Bia nunca falou com o corretor)</span>
+                                    <input type="text" id="brokerCampaignTemplate" list="brokerCampaignTemplateList" placeholder="ex: atualizacao_semanal_corretor" autocomplete="off">
+                                    <datalist id="brokerCampaignTemplateList"></datalist>
+                                    <small id="brokerCampaignTemplateHint" class="form-hint">Nome exato na Meta: só minúsculas e _. Erro 132001 = template inexistente ou idioma errado.</small>
                                 </label>
                             </div>
                             <label class="campaign-field-full">
@@ -720,7 +721,7 @@
             <div class="section-header">
                 <div class="section-header-main">
                     <h2><i class="fab fa-whatsapp" aria-hidden="true"></i> Atendimento WhatsApp</h2>
-                    <p class="section-subtitle">Inbox unificada: assumir conversa, status do lead e envio de mídia.</p>
+                    <p class="section-subtitle">Leads e corretores na mesma inbox — corretores aparecem em roxo. Filtre por tipo na barra abaixo.</p>
                 </div>
                 <div class="header-actions">
                     <button type="button" class="btn btn-secondary" onclick="waInboxRefresh()" title="Atualizar lista">
@@ -754,9 +755,22 @@
                     <span class="wa-stat-n" id="waStatSugestoes">0</span>
                     <span class="wa-stat-l">Sugestões</span>
                 </button>
+                <button type="button" class="stat-card wa-stat wa-stat-broker wa-stat--click" data-wa-stat="corretores" onclick="waInboxStatClick('corretores')" title="Só telefones cadastrados como corretor">
+                    <span class="wa-stat-n" id="waStatCorretores">0</span>
+                    <span class="wa-stat-l">Corretores</span>
+                </button>
+                <button type="button" class="stat-card wa-stat wa-stat-lead wa-stat--click" data-wa-stat="leads" onclick="waInboxStatClick('leads')" title="Contatos que não são corretor no cadastro">
+                    <span class="wa-stat-n" id="waStatLeadsOnly">0</span>
+                    <span class="wa-stat-l">Leads</span>
+                </button>
             </div>
 
             <div class="wa-inbox-filters">
+                <select id="waFilterContactType" onchange="waInboxFilter()" title="Separar leads de corretores">
+                    <option value="">Leads + corretores</option>
+                    <option value="leads">Só leads</option>
+                    <option value="brokers">Só corretores</option>
+                </select>
                 <select id="waFilterModo" onchange="waInboxFilter()">
                     <option value="">Todas</option>
                     <option value="humano">Em atendimento humano</option>
@@ -1197,10 +1211,10 @@
     <script src="js/documents.js"></script>
     <script src="js/sample-data.js"></script>
     <script src="js/property-sales.js"></script>
-    <script src="js/whatsapp-leads.js?v=2"></script>
+    <script src="js/whatsapp-leads.js?v=3"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=12"></script>
+    <script src="js/admin.js?v=13"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

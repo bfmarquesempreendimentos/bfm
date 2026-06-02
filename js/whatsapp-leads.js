@@ -93,6 +93,10 @@ function waInboxLoadStats() {
     if (el) el.textContent = stats.duvidas || 0;
     el = document.getElementById('waStatSugestoes');
     if (el) el.textContent = stats.sugestoes || 0;
+    el = document.getElementById('waStatCorretores');
+    if (el) el.textContent = stats.brokersInWa != null ? stats.brokersInWa : 0;
+    el = document.getElementById('waStatLeadsOnly');
+    if (el) el.textContent = stats.leadsOnlyInWa != null ? stats.leadsOnlyInWa : 0;
     var pendentes = stats.pendentesLeitura || 0;
     var navLink = document.querySelector('a[href="#whatsapp-leads"]');
     if (navLink) {
@@ -145,14 +149,22 @@ function waInboxLoadList(quiet) {
   var modo = document.getElementById('waFilterModo');
   var cat = document.getElementById('waFilterCategoria');
   var status = document.getElementById('waFilterStatus');
+  var contactType = document.getElementById('waFilterContactType');
   var search = document.getElementById('waSearchInput');
 
   var q = '?action=list&limit=100';
   if (waInboxQuickFilter === 'pendentes') {
     q += '&unread=1';
+  } else if (waInboxQuickFilter === 'corretores') {
+    q += '&contact_type=brokers';
+  } else if (waInboxQuickFilter === 'leads') {
+    q += '&contact_type=leads';
   } else {
     if (modo && modo.value) q += '&modo_humano=' + (modo.value === 'humano' ? 'true' : 'false');
     if (cat && cat.value) q += '&categoria=' + encodeURIComponent(cat.value);
+  }
+  if (contactType && contactType.value && waInboxQuickFilter !== 'corretores' && waInboxQuickFilter !== 'leads') {
+    q += '&contact_type=' + encodeURIComponent(contactType.value);
   }
   if (status && status.value) q += '&status=' + encodeURIComponent(status.value);
   if (search && search.value.trim()) q += '&search=' + encodeURIComponent(search.value.trim());
@@ -198,16 +210,20 @@ function waInboxStatClick(key) {
   var modo = document.getElementById('waFilterModo');
   var cat = document.getElementById('waFilterCategoria');
   var status = document.getElementById('waFilterStatus');
+  var contactType = document.getElementById('waFilterContactType');
   var search = document.getElementById('waSearchInput');
   waInboxQuickFilter = key === 'total' ? '' : key;
   if (modo) modo.value = '';
   if (cat) cat.value = '';
   if (status) status.value = '';
+  if (contactType) contactType.value = '';
   if (search) search.value = '';
   if (key === 'humano' && modo) modo.value = 'humano';
   if (key === 'vendas' && cat) cat.value = 'vendas';
   if (key === 'duvidas' && cat) cat.value = 'duvidas';
   if (key === 'sugestoes' && cat) cat.value = 'sugestoes';
+  if (key === 'corretores' && contactType) contactType.value = 'brokers';
+  if (key === 'leads' && contactType) contactType.value = 'leads';
   waInboxUpdateStatCardActive(key === 'total' ? '' : key);
   waLastListSig = '';
   waInboxLoadList(false);
@@ -239,9 +255,11 @@ function waInboxRenderList() {
     var slaLate = minsFromLastLeadMsg != null && minsFromLastLeadMsg > WA_SLA_FIRST_RESPONSE_MINUTES;
     var urgent = ((l.adminUnreadCount || 0) > 0 && slaLate) || l.urgencyLevel === 'alta' || !!l.needsHumanFollowup;
     var tempoLabel = formatRelativeMinutes(minsFromLastLeadMsg);
+    var isBroker = !!l.isBroker;
+    if (isBroker && l.brokerName) name = l.brokerName;
 
-    html += '<div class="wa-inbox-item' + (active ? ' active' : '') + (unread ? ' unread' : '') + (revisarBot && !modoHumano ? ' wa-item-revisar-bot' : '') + '" data-phone="' + escapeHtml(phone) + '" onclick="waInboxSelect(this.getAttribute(\'data-phone\'))">';
-    html += '<div class="wa-inbox-item-avatar"><i class="fab fa-whatsapp"></i></div>';
+    html += '<div class="wa-inbox-item' + (active ? ' active' : '') + (unread ? ' unread' : '') + (isBroker ? ' wa-inbox-item--broker' : '') + (revisarBot && !modoHumano ? ' wa-item-revisar-bot' : '') + '" data-phone="' + escapeHtml(phone) + '" onclick="waInboxSelect(this.getAttribute(\'data-phone\'))">';
+    html += '<div class="wa-inbox-item-avatar' + (isBroker ? ' wa-inbox-item-avatar--broker' : '') + '"><i class="' + (isBroker ? 'fas fa-user-tie' : 'fab fa-whatsapp') + '"></i></div>';
     html += '<div class="wa-inbox-item-info">';
     html += '<div class="wa-inbox-item-name">' + escapeHtml(name) + '</div>';
     html += '<div class="wa-inbox-item-preview">' + escapeHtml(preview || formatPhoneShort(phone)) + '</div>';
@@ -252,6 +270,7 @@ function waInboxRenderList() {
     }
     if (urgent) html += '<span class="wa-inbox-item-badge" style="background:#fee2e2;color:#991b1b;" title="Lead sem retorno dentro do SLA ou marcado como urgente">Urgente</span>';
     if (modoHumano) html += '<span class="wa-inbox-item-badge" style="background:#fef3c7;color:#92400e;">Humano</span>';
+    if (isBroker) html += '<span class="wa-inbox-item-badge wa-badge-broker" title="Telefone cadastrado em Corretores">Corretor</span>';
     if (l.ultimaOrigem === 'anuncio') html += '<span class="wa-inbox-item-badge" style="background:#dbeafe;color:#1e40af;">Anúncio</span>';
     if (l.followUpExcluded) {
       html += '<span class="wa-inbox-item-badge" style="background:#f3f4f6;color:#4b5563;" title="Sem follow-up automático">Sem FU</span>';
@@ -302,7 +321,23 @@ function waInboxLoadChat(phone, opts) {
     }
     waLastChatSig = sig;
 
-    document.getElementById('waChatName').textContent = lead.name || 'Sem nome';
+    var chatName = lead.isBroker && lead.brokerName ? lead.brokerName : (lead.name || 'Sem nome');
+    document.getElementById('waChatName').textContent = chatName;
+    var chatHeader = document.querySelector('.wa-chat-header-info');
+    if (chatHeader) {
+      if (lead.isBroker) chatHeader.classList.add('wa-chat-header--broker');
+      else chatHeader.classList.remove('wa-chat-header--broker');
+    }
+    var brokerTag = document.getElementById('waChatBrokerBadge');
+    if (!brokerTag && chatHeader) {
+      brokerTag = document.createElement('span');
+      brokerTag.id = 'waChatBrokerBadge';
+      brokerTag.className = 'wa-badge-broker wa-chat-broker-badge';
+      brokerTag.textContent = 'Corretor';
+      var phoneEl = document.getElementById('waChatPhone');
+      if (phoneEl && phoneEl.parentNode) phoneEl.parentNode.insertBefore(brokerTag, phoneEl.nextSibling);
+    }
+    if (brokerTag) brokerTag.style.display = lead.isBroker ? 'inline-block' : 'none';
     document.getElementById('waChatPhone').textContent = formatPhone(lead.phone || phoneNorm || phone);
     document.getElementById('waChatCategoria').textContent = lead.categoria || 'geral';
     document.getElementById('waChatCategoria').className = 'wa-cat-badge';
