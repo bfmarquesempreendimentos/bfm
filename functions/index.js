@@ -291,7 +291,17 @@ async function getBrokerCampaignTemplateStatus(config) {
   const match = findApprovedTemplate(approved, templateName, config.templateLanguage || 'pt_BR');
   var hint = '';
   if (!listed.ok) {
-    hint = 'Não foi possível validar na Meta: ' + (listed.error || '') + '. Confira o nome exato no painel da Meta (minúsculas, ex: atualizacao_corretor).';
+    hint = 'Não foi possível validar na Meta: ' + (listed.error || '') + '. Confira o nome exato no painel da Meta (minúsculas, ex: campanha_corretor_msg).';
+    if (templateName === 'campanha_corretor_msg') {
+      return {
+        templateName: templateName,
+        templateValid: true,
+        templateLanguageResolved: config.templateLanguage || 'pt_BR',
+        templateHint: hint + ' O envio seguirá com campanha_corretor_msg (aprovado no seu WhatsApp Manager).',
+        approvedTemplates: [],
+        templateValidationSoft: true,
+      };
+    }
   } else if (!match) {
     hint = 'Template "' + templateName + '" não encontrado como APROVADO em pt_BR. O nome no painel deve ser idêntico ao da Meta (só minúsculas e _).';
     if (approved.length) {
@@ -382,6 +392,7 @@ async function prepareBrokersCampaignBase(db, options) {
     }
   }
   const defaults = getDefaultBrokerCampaignConfig();
+  const existingCfg = (await db.collection('broker_campaign').doc('config').get()).data() || {};
   await db.collection('broker_campaign').doc('config').set({
     siteUrl: defaults.siteUrl,
     whatsappContato: defaults.whatsappContato,
@@ -389,7 +400,8 @@ async function prepareBrokersCampaignBase(db, options) {
     ctaText: defaults.ctaText,
     usefulTips: defaults.usefulTips,
     templateLanguage: defaults.templateLanguage,
-    templateName: defaults.templateName,
+    templateName: existingCfg.templateName || defaults.templateName,
+    enabled: existingCfg.enabled !== undefined ? existingCfg.enabled : defaults.enabled,
     updatedAt: new Date().toISOString(),
   }, { merge: true });
   const preview = await getBrokerCampaignPreview(db);
@@ -562,7 +574,7 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
       templateName: templateStatus.templateName,
       templateLanguageResolved: templateStatus.templateLanguageResolved,
     });
-    if (!templateStatus.templateValid) {
+    if (!templateStatus.templateValid && !templateStatus.templateValidationSoft) {
       return {
         ok: false,
         sent: 0,

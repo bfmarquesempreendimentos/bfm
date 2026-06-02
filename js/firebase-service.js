@@ -252,7 +252,7 @@ async function saveBrokerToFirestore(broker) {
     creci: broker.creci || '',
     password: broker.password || '',
     isActive: broker.isActive !== undefined ? broker.isActive : false,
-    whatsappCampaignOptOut: !!broker.whatsappCampaignOptOut,
+    whatsappCampaignOptOut: broker.whatsappCampaignOptOut === true,
     createdAt: broker.createdAt ? (broker.createdAt.toISOString ? broker.createdAt.toISOString() : broker.createdAt) : new Date().toISOString()
   };
   const docRef = await db.collection(BROKERS_COLLECTION).add(data);

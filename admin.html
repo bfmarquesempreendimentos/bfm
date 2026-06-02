@@ -537,9 +537,20 @@
                     <div class="broker-campaign-hub__head">
                         <div>
                             <h3 class="broker-campaign-hub__title">Campanha WhatsApp</h3>
-                            <p class="broker-campaign-hub__intro">Disparo para corretores <strong>ativos</strong>, com <strong>campanha ligada</strong> e telefone válido.</p>
+                            <p class="broker-campaign-hub__intro">Corretores <strong>ativos</strong> entram na campanha automaticamente (coluna <strong>RECEBE</strong>). Envio semanal às segundas 08h ou manual abaixo.</p>
                         </div>
                         <p id="brokerCampaignPrepareStatus" class="broker-campaign-prepare-status">Preparando...</p>
+                    </div>
+
+                    <div class="broker-campaign-weekly-bar" role="group" aria-label="Campanha semanal automática">
+                        <label class="broker-campaign-weekly-toggle">
+                            <input type="checkbox" id="brokerCampaignEnabledTop" onchange="onBrokerCampaignWeeklyToggleChange(this)">
+                            <span class="broker-campaign-weekly-toggle__label">Campanha semanal automática (WhatsApp, segundas 08h — Brasília)</span>
+                        </label>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="saveBrokerCampaignConfig()">
+                            <i class="fas fa-save" aria-hidden="true"></i> Salvar
+                        </button>
+                        <span id="brokerCampaignWeeklyStatus" class="broker-campaign-weekly-status">—</span>
                     </div>
 
                     <div class="broker-campaign-kpis">
@@ -620,8 +631,8 @@
                                 <textarea id="brokerCampaignTips" rows="3" placeholder="Dica 1"></textarea>
                             </label>
                             <label class="campaign-test-row">
-                                <input type="checkbox" id="brokerCampaignEnabled">
-                                <span>Envio automático às segundas, 08h (Brasília)</span>
+                                <input type="checkbox" id="brokerCampaignEnabled" onchange="syncBrokerCampaignWeeklyCheckboxes(this)">
+                                <span>Mesmo interruptor da campanha semanal (acima). Segundas 08h — Brasília.</span>
                             </label>
                             <button type="button" class="btn btn-primary" onclick="saveBrokerCampaignConfig()">
                                 <i class="fas fa-save" aria-hidden="true"></i> Salvar configuração
@@ -1245,7 +1256,7 @@
     <script src="js/whatsapp-leads.js?v=3"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=17"></script>
+    <script src="js/admin.js?v=18"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

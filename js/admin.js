@@ -1595,10 +1595,40 @@ function renderBrokerCampaignKpis(preview) {
     }
 }
 
+function syncBrokerCampaignWeeklyCheckboxes(sourceEl) {
+    var top = document.getElementById('brokerCampaignEnabledTop');
+    var inner = document.getElementById('brokerCampaignEnabled');
+    var checked = !!(sourceEl && sourceEl.checked);
+    if (top && sourceEl !== top) top.checked = checked;
+    if (inner && sourceEl !== inner) inner.checked = checked;
+    updateBrokerCampaignWeeklyBarUi(checked);
+}
+
+function onBrokerCampaignWeeklyToggleChange(el) {
+    syncBrokerCampaignWeeklyCheckboxes(el);
+}
+
+function updateBrokerCampaignWeeklyBarUi(enabled) {
+    var bar = document.querySelector('.broker-campaign-weekly-bar');
+    var statusEl = document.getElementById('brokerCampaignWeeklyStatus');
+    if (bar) {
+        if (enabled) bar.classList.remove('is-off');
+        else bar.classList.add('is-off');
+    }
+    if (statusEl) {
+        statusEl.textContent = enabled
+            ? 'Ligada — próximo envio automático: segunda-feira 08h'
+            : 'Desligada — só envia com Disparar agora ou Testar';
+    }
+}
+
 function applyBrokerCampaignConfigFields(cfg) {
     if (!cfg) return;
     var check = document.getElementById('brokerCampaignEnabled');
+    var checkTop = document.getElementById('brokerCampaignEnabledTop');
     if (check) check.checked = !!cfg.enabled;
+    if (checkTop) checkTop.checked = !!cfg.enabled;
+    updateBrokerCampaignWeeklyBarUi(!!cfg.enabled);
     var title = document.getElementById('brokerCampaignTitle');
     var siteUrl = document.getElementById('brokerCampaignSiteUrl');
     var contact = document.getElementById('brokerCampaignContact');
@@ -1789,7 +1819,7 @@ function brokerCampaignRequestPayload(extra) {
 }
 
 function collectBrokerCampaignConfigPayload() {
-    var check = document.getElementById('brokerCampaignEnabled');
+    var check = document.getElementById('brokerCampaignEnabledTop') || document.getElementById('brokerCampaignEnabled');
     var title = document.getElementById('brokerCampaignTitle');
     var siteUrl = document.getElementById('brokerCampaignSiteUrl');
     var contact = document.getElementById('brokerCampaignContact');
@@ -1813,10 +1843,14 @@ function collectBrokerCampaignConfigPayload() {
 }
 
 function saveBrokerCampaignConfig() {
+    var top = document.getElementById('brokerCampaignEnabledTop');
+    var inner = document.getElementById('brokerCampaignEnabled');
+    if (top && inner) inner.checked = top.checked;
     adminPostJson('/brokerCampaignConfig', collectBrokerCampaignConfigPayload()).then(function() {
         if (typeof showMessage === 'function') {
             showMessage('Configuração da campanha salva.', 'success');
         }
+        updateBrokerCampaignWeeklyBarUi(top ? top.checked : !!(inner && inner.checked));
         return loadBrokerCampaignPreview();
     }).catch(function(err) {
         if (typeof showMessage === 'function') showMessage('Erro ao salvar campanha: ' + (err.message || ''), 'error');

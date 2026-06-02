@@ -257,7 +257,78 @@ function normalizeTemplateName(raw) {
   return String(raw || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
 }
 
-/** Lista templates aprovados na conta WhatsApp Business (via phone_number_id). */
+/** Resolve WABA ID (vários caminhos — a Meta mudou campos entre versões da API). */
+async function resolveWabaId(options) {
+  options = options || {};
+  const { token, phoneNumberId } = getConfig(options.phoneNumberId);
+  if (!token || !phoneNumberId) return { wabaId: null, error: 'WhatsApp não configurado' };
+
+  if (process.env.WHATSAPP_WABA_ID) {
+    return { wabaId: String(process.env.WHATSAPP_WABA_ID).trim(), source: 'env' };
+  }
+
+  try {
+    const tplProbe = await axios.get(GRAPH_API + '/' + phoneNumberId + '/message_templates', {
+      params: { limit: 1 },
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    if (tplProbe.data) {
+      return { wabaId: phoneNumberId, source: 'phone_id_as_waba' };
+    }
+  } catch (probeErr) {
+    /* phone_number_id não é WABA — seguir */
+  }
+
+  const fieldAttempts = [
+    'whatsapp_business_account{id}',
+    'whatsapp_business_account',
+    'business_id',
+  ];
+  var fi;
+  for (fi = 0; fi < fieldAttempts.length; fi++) {
+    try {
+      const phoneResp = await axios.get(GRAPH_API + '/' + phoneNumberId, {
+        params: { fields: fieldAttempts[fi] + ',display_phone_number,verified_name' },
+        headers: { Authorization: 'Bearer ' + token },
+      });
+      const d = phoneResp.data || {};
+      var wabaId = null;
+      if (d.whatsapp_business_account) {
+        wabaId = typeof d.whatsapp_business_account === 'object'
+          ? d.whatsapp_business_account.id
+          : d.whatsapp_business_account;
+      }
+      if (!wabaId && d.business_id) wabaId = d.business_id;
+      if (wabaId) {
+        return {
+          wabaId: wabaId,
+          source: 'phone_fields',
+          displayPhone: d.display_phone_number || '',
+          verifiedName: d.verified_name || '',
+        };
+      }
+    } catch (fieldErr) {
+      /* tentar próximo campo */
+    }
+  }
+
+  try {
+    const meResp = await axios.get(GRAPH_API + '/me', {
+      params: { fields: 'whatsapp_business_accounts{id,name}' },
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const rows = meResp.data && meResp.data.whatsapp_business_accounts &&
+      meResp.data.whatsapp_business_accounts.data;
+    if (rows && rows.length && rows[0].id) {
+      return { wabaId: rows[0].id, source: 'me_waba_list', wabaName: rows[0].name || '' };
+    }
+  } catch (meErr) {
+    /* seguir */
+  }
+
+  return { wabaId: null, error: 'WABA não encontrado. Defina o secret WHATSAPP_WABA_ID no Firebase (ID da conta em WhatsApp Manager).' };
+}
+
 /** Conta/número WhatsApp Business ligado ao phone_number_id (detecta conta de teste). */
 async function getWhatsAppAccountInfo(options) {
   options = options || {};
@@ -266,27 +337,41 @@ async function getWhatsAppAccountInfo(options) {
     return { ok: false, error: 'WhatsApp não configurado' };
   }
   try {
-    const phoneResp = await axios.get(GRAPH_API + '/' + phoneNumberId, {
-      params: { fields: 'whatsapp_business_account,display_phone_number,verified_name,quality_rating' },
-      headers: { Authorization: 'Bearer ' + token },
-    });
-    const wabaRef = phoneResp.data && phoneResp.data.whatsapp_business_account;
-    const wabaId = wabaRef && wabaRef.id;
-    let wabaName = '';
-    if (wabaId) {
-      const wabaResp = await axios.get(GRAPH_API + '/' + wabaId, {
-        params: { fields: 'name,account_review_status' },
-        headers: { Authorization: 'Bearer ' + token },
-      });
-      wabaName = (wabaResp.data && wabaResp.data.name) || '';
+    const resolved = await resolveWabaId(options);
+    if (!resolved.wabaId) {
+      return { ok: false, error: resolved.error || 'WABA não encontrado' };
     }
-    const verifiedName = (phoneResp.data && phoneResp.data.verified_name) || '';
-    const displayPhone = (phoneResp.data && phoneResp.data.display_phone_number) || '';
+    let wabaName = resolved.wabaName || '';
+    if (!wabaName) {
+      try {
+        const wabaResp = await axios.get(GRAPH_API + '/' + resolved.wabaId, {
+          params: { fields: 'name,account_review_status' },
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        wabaName = (wabaResp.data && wabaResp.data.name) || '';
+      } catch (wabaErr) {
+        wabaName = '';
+      }
+    }
+    var displayPhone = resolved.displayPhone || '';
+    var verifiedName = resolved.verifiedName || '';
+    if (!displayPhone) {
+      try {
+        const phoneResp = await axios.get(GRAPH_API + '/' + phoneNumberId, {
+          params: { fields: 'display_phone_number,verified_name' },
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        displayPhone = (phoneResp.data && phoneResp.data.display_phone_number) || '';
+        verifiedName = (phoneResp.data && phoneResp.data.verified_name) || verifiedName;
+      } catch (phoneErr) {
+        /* opcional */
+      }
+    }
     const haystack = (wabaName + ' ' + verifiedName).toLowerCase();
     const isLikelyTestAccount = haystack.indexOf('test') >= 0;
     return {
       ok: true,
-      wabaId: wabaId || '',
+      wabaId: resolved.wabaId,
       wabaName: wabaName,
       verifiedName: verifiedName,
       displayPhone: displayPhone,
@@ -302,27 +387,29 @@ async function listApprovedMessageTemplates(options) {
   const { token, phoneNumberId } = getConfig(options.phoneNumberId);
   if (!token || !phoneNumberId) return { ok: false, templates: [], error: 'WhatsApp não configurado' };
   try {
-    const phoneResp = await axios.get(GRAPH_API + '/' + phoneNumberId, {
-      params: { fields: 'whatsapp_business_account' },
-      headers: { Authorization: 'Bearer ' + token },
-    });
-    const wabaId = phoneResp.data && phoneResp.data.whatsapp_business_account &&
-      phoneResp.data.whatsapp_business_account.id;
-    if (!wabaId) return { ok: false, templates: [], error: 'WABA não encontrado' };
-    const tplResp = await axios.get(GRAPH_API + '/' + wabaId + '/message_templates', {
-      params: { limit: 200, status: 'APPROVED' },
+    const resolved = await resolveWabaId(options);
+    if (!resolved.wabaId) {
+      return { ok: false, templates: [], error: resolved.error || 'WABA não encontrado' };
+    }
+    const tplResp = await axios.get(GRAPH_API + '/' + resolved.wabaId + '/message_templates', {
+      params: { limit: 200 },
       headers: { Authorization: 'Bearer ' + token },
     });
     const rows = (tplResp.data && tplResp.data.data) || [];
-    const templates = rows.map(function(t) {
-      return {
-        name: t.name,
-        language: t.language,
-        status: t.status,
-        category: t.category,
-      };
-    });
-    return { ok: true, templates: templates };
+    const templates = rows
+      .filter(function(t) {
+        var st = String(t.status || '').toUpperCase();
+        return st === 'APPROVED' || st === 'ACTIVE' || st.indexOf('APPROV') >= 0;
+      })
+      .map(function(t) {
+        return {
+          name: t.name,
+          language: t.language,
+          status: t.status,
+          category: t.category,
+        };
+      });
+    return { ok: true, templates: templates, wabaId: resolved.wabaId };
   } catch (err) {
     return { ok: false, templates: [], error: extractMetaError(err) };
   }
@@ -407,6 +494,7 @@ module.exports = {
   isTemplateNameOrLanguageError,
   normalizeTemplateName,
   getWhatsAppAccountInfo,
+  resolveWabaId,
   listApprovedMessageTemplates,
   findApprovedTemplate,
   sendImageMessage,

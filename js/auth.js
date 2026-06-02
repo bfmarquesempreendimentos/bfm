@@ -269,6 +269,7 @@ async function handleRegister(e) {
         creci: creci || '',
         password: password,
         isActive: hasAllRegisterFields,
+        whatsappCampaignOptOut: false,
         createdAt: createdAt
     };
     newBroker.createdBy = { type: 'Corretor', email: email, name: name, at: new Date().toISOString() };
@@ -772,8 +773,11 @@ async function approveBroker(brokerId) {
     const broker = findBrokerById(brokerId);
     if (broker) {
         broker.isActive = true;
+        broker.whatsappCampaignOptOut = false;
         if (typeof updateBrokerInFirestore === 'function' && typeof brokerId === 'string') {
-            try { await updateBrokerInFirestore(brokerId, { isActive: true }); } catch (e) { console.error(e); }
+            try {
+                await updateBrokerInFirestore(brokerId, { isActive: true, whatsappCampaignOptOut: false });
+            } catch (e) { console.error(e); }
         }
         saveBrokersToStorage();
         if (typeof showMessage === 'function') showMessage(`Corretor ${broker.name} aprovado com sucesso!`, 'success');
