@@ -269,6 +269,38 @@ function isTemplateNameOrLanguageError(msg) {
     s.indexOf('template') >= 0 && s.indexOf('language') >= 0;
 }
 
+function isTemplateParamCountError(msg) {
+  var s = String(msg || '').toLowerCase();
+  return s.indexOf('132000') >= 0 || s.indexOf('number of parameters') >= 0 ||
+    s.indexOf('expected number of params') >= 0;
+}
+
+function extractTemplateVarTokens(text) {
+  var matches = String(text || '').match(/\{\{([^}]+)\}\}/g);
+  if (!matches) return [];
+  var out = [];
+  var i;
+  for (i = 0; i < matches.length; i++) {
+    out.push(matches[i].replace(/\{\{|\}\}/g, '').trim());
+  }
+  return out;
+}
+
+function templateUsesNamedParameters(metaComponents) {
+  if (!metaComponents || !metaComponents.length) return false;
+  var i;
+  var c;
+  var tokens;
+  for (i = 0; i < metaComponents.length; i++) {
+    c = metaComponents[i];
+    if (c.type === 'BODY' && c.text) {
+      tokens = extractTemplateVarTokens(c.text);
+      if (tokens.length && tokens[0] && !/^\d+$/.test(tokens[0])) return true;
+    }
+  }
+  return false;
+}
+
 function normalizeTemplateName(raw) {
   return String(raw || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
 }
@@ -777,19 +809,44 @@ function buildTemplateSendComponents(metaComponents, fill) {
     } else if (ctype === 'BODY' && c.text) {
       n = countVarsInTemplateText(c.text);
       if (n === 0) continue;
+      var varTokens = extractTemplateVarTokens(c.text);
+      var useNamed = fill.forceNamed || templateUsesNamedParameters(metaComponents);
       params = [];
       if (fill.bodyTexts && fill.bodyTexts.length >= n) {
         for (pi = 0; pi < n; pi++) {
-          params.push({ type: 'text', text: String(fill.bodyTexts[pi]).substring(0, 1024) });
+          params.push(useNamed && varTokens[pi]
+            ? { type: 'text', parameter_name: varTokens[pi], text: String(fill.bodyTexts[pi]).substring(0, 1024) }
+            : { type: 'text', text: String(fill.bodyTexts[pi]).substring(0, 1024) });
         }
       } else if (n === 1 && fill.singleBody) {
-        params.push({ type: 'text', text: String(fill.singleBody).substring(0, 1024) });
+        params.push(useNamed && varTokens[0]
+          ? { type: 'text', parameter_name: varTokens[0], text: String(fill.singleBody).substring(0, 1024) }
+          : { type: 'text', text: String(fill.singleBody).substring(0, 1024) });
       } else if (fill.namedParams && fill.namedParams.length >= n) {
         for (pi = 0; pi < n; pi++) {
-          params.push({ type: 'text', text: String(fill.namedParams[pi]).substring(0, 1024) });
+          params.push(useNamed && varTokens[pi]
+            ? { type: 'text', parameter_name: varTokens[pi], text: String(fill.namedParams[pi]).substring(0, 1024) }
+            : { type: 'text', text: String(fill.namedParams[pi]).substring(0, 1024) });
         }
       }
       if (params.length === n) out.push({ type: 'body', parameters: params });
+    } else if (ctype === 'BUTTONS' && c.buttons) {
+      var bi;
+      var btn;
+      for (bi = 0; bi < c.buttons.length; bi++) {
+        btn = c.buttons[bi];
+        if (btn.type === 'URL' && btn.url && countVarsInTemplateText(btn.url) > 0) {
+          out.push({
+            type: 'button',
+            sub_type: 'url',
+            index: String(bi),
+            parameters: [{
+              type: 'text',
+              text: String(fill.urlButtonSuffix || 'bfm').substring(0, 200),
+            }],
+          });
+        }
+      }
     }
   }
   return out.length ? out : null;
@@ -825,16 +882,17 @@ async function sendTemplateMessage(to, templateName, languageCode, components, o
   }
   if (options.phoneNumberId) rememberCloudPhoneNumberId(options.phoneNumberId);
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
+  var tplPayload = {
+    name: templateName,
+    language: { code: languageCode || 'pt_BR' },
+  };
+  if (components && components.length) tplPayload.components = components;
   try {
     const resp = await axios.post(url, {
       messaging_product: 'whatsapp',
       to: to,
       type: 'template',
-      template: {
-        name: templateName,
-        language: { code: languageCode || 'pt_BR' },
-        components: components || [],
-      },
+      template: tplPayload,
     }, {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     });
@@ -872,6 +930,9 @@ module.exports = {
   sendTemplateMessage,
   extractMetaError,
   isTemplateNameOrLanguageError,
+  isTemplateParamCountError,
+  templateUsesNamedParameters,
+  extractTemplateVarTokens,
   normalizeTemplateName,
   getWhatsAppAccountInfo,
   resolveWabaId,

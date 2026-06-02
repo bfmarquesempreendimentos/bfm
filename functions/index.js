@@ -11,6 +11,7 @@ const {
   sendTemplateMessage,
   extractMetaError,
   isTemplateNameOrLanguageError,
+  isTemplateParamCountError,
   normalizeTemplateName,
   listApprovedMessageTemplates,
   findApprovedTemplate,
@@ -864,6 +865,82 @@ function buildBodyOnlyParamSet(n, config, broker, now) {
   return [{ type: 'body', parameters: params }];
 }
 
+async function bruteForceBrokerTemplateSend(waPhone, templateName, langCandidates, waSendOpts, config, broker, now) {
+  var fill = getBrokerCampaignFillTexts(config, broker, now);
+  fill.urlButtonSuffix = 'bfm';
+  var bodyCounts = [0, 1, 2, 3, 4, 5, 6];
+  var namedNames = ['mensagem', 'texto', 'corpo', 'conteudo', 'body', 'nome'];
+  var li;
+  var bi;
+  var ni;
+  for (li = 0; li < langCandidates.length; li++) {
+    for (bi = 0; bi < bodyCounts.length; bi++) {
+      try {
+        var comps = bodyCounts[bi] === 0 ? null : buildBodyOnlyParamSet(bodyCounts[bi], config, broker, now);
+        var sendResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li], comps, waSendOpts);
+        return {
+          mode: 'template',
+          templateName: templateName,
+          language: langCandidates[li],
+          componentsVariant: 'probe_body_' + bodyCounts[bi],
+          waMessageId: sendResp && sendResp.messageId ? sendResp.messageId : '',
+          sentTo: waPhone,
+        };
+      } catch (errTry) {
+        var errMsg = errTry.message || extractMetaError(errTry);
+        if (!isTemplateParamCountError(errMsg) && !isTemplateNameOrLanguageError(errMsg)) throw new Error(errMsg);
+      }
+      if (bodyCounts[bi] === 1) {
+        for (ni = 0; ni < namedNames.length; ni++) {
+          try {
+            var namedComps = [{
+              type: 'body',
+              parameters: [{
+                type: 'text',
+                parameter_name: namedNames[ni],
+                text: String(fill.singleBody).substring(0, 1024),
+              }],
+            }];
+            sendResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li], namedComps, waSendOpts);
+            return {
+              mode: 'template',
+              templateName: templateName,
+              language: langCandidates[li],
+              componentsVariant: 'probe_named_' + namedNames[ni],
+              waMessageId: sendResp && sendResp.messageId ? sendResp.messageId : '',
+              sentTo: waPhone,
+            };
+          } catch (errNamed) {
+            errMsg = errNamed.message || extractMetaError(errNamed);
+            if (!isTemplateParamCountError(errMsg) && !isTemplateNameOrLanguageError(errMsg)) throw new Error(errMsg);
+          }
+        }
+        try {
+          var bodyPlusBtn = buildCampanhaCorretorSingleVarBody(config, broker, now).concat([{
+            type: 'button',
+            sub_type: 'url',
+            index: '0',
+            parameters: [{ type: 'text', text: 'bfm' }],
+          }]);
+          sendResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li], bodyPlusBtn, waSendOpts);
+          return {
+            mode: 'template',
+            templateName: templateName,
+            language: langCandidates[li],
+            componentsVariant: 'probe_body1_button_url',
+            waMessageId: sendResp && sendResp.messageId ? sendResp.messageId : '',
+            sentTo: waPhone,
+          };
+        } catch (errBtn) {
+          errMsg = errBtn.message || extractMetaError(errBtn);
+          if (!isTemplateParamCountError(errMsg) && !isTemplateNameOrLanguageError(errMsg)) throw new Error(errMsg);
+        }
+      }
+    }
+  }
+  return null;
+}
+
 function buildBrokerCampaignTemplateComponentSets(config, broker, now, message) {
   var singleVar = buildCampanhaCorretorSingleVarBody(config, broker, now);
   var fiveVar = buildBrokerCampaignTemplateComponents(config, broker, now);
@@ -977,11 +1054,16 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
         }
       }
     }
+    var probed = await bruteForceBrokerTemplateSend(
+      waPhone, templateName, langCandidates, waSendOpts, config, broker, now
+    );
+    if (probed) return probed;
+
     const detail = lastErr ? (lastErr.message || String(lastErr)) : 'erro desconhecido';
     throw new Error(
       'Template "' + templateName + '" não foi enviado pela Meta: ' + detail +
-      ' Erro 132000 = quantidade de variáveis no painel diferente do template na Meta. ' +
-      'Use campanha_corretor_msg com 1 variável {{1}} (corpo em TEMPLATE-CAMPANHA-CORRETORES-META.md) ou atualizacao_semanal_corretor com 5 variáveis.'
+      ' Abra o template no WhatsApp Manager e confira quantas variáveis {{}} existem no corpo (e em botões URL). ' +
+      'Modelo recomendado: campanha_corretor_msg com 1 variável {{1}} — veja TEMPLATE-CAMPANHA-CORRETORES-META.md.'
     );
   }
   try {
@@ -2084,6 +2166,13 @@ exports.brokerCampaignWhatsAppDiag = functions
         ? await resolvePhoneNodeToWaba(token, settings.wabaId)
         : null;
       const meAssets = token ? await discoverWhatsAppAssetsFromMe(token) : { wabas: [], phones: [] };
+      const phoneForTpl = settings.phoneNumberId || settings.lastWebhookPhoneNumberId || '';
+      const tplRow = phoneForTpl
+        ? await findApprovedTemplateRow({ phoneNumberId: phoneForTpl }, 'campanha_corretor_msg', 'pt_BR')
+        : null;
+      const tplListed = phoneForTpl
+        ? await listApprovedMessageTemplates({ phoneNumberId: phoneForTpl })
+        : { ok: false, templates: [] };
       return res.json({
         firestore: {
           wabaId: settings.wabaId || '',
@@ -2101,6 +2190,12 @@ exports.brokerCampaignWhatsAppDiag = functions
         debugWabaIds: debugWabas,
         wabaScan: wabaScan,
         meAssets: meAssets,
+        campanhaCorretorTemplate: tplRow,
+        templatesListOk: tplListed.ok,
+        templatesListError: tplListed.error || '',
+        approvedTemplateNames: (tplListed.templates || []).map(function(t) {
+          return t.name + ' (' + t.language + ') bodyVars=' + t.bodyVariableCount;
+        }).slice(0, 15),
       });
     } catch (err) {
       console.error('brokerCampaignWhatsAppDiag:', err);
