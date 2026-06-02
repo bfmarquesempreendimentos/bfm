@@ -609,6 +609,12 @@ async function resolveWabaForCloudApiPhone(options) {
   };
 }
 
+function countVarsInTemplateText(text) {
+  if (!text) return 0;
+  var matches = String(text).match(/\{\{[^}]+\}\}/g);
+  return matches ? matches.length : 0;
+}
+
 function countTemplateBodyVariables(components) {
   if (!components || !components.length) return 0;
   var bodyText = '';
@@ -619,9 +625,22 @@ function countTemplateBodyVariables(components) {
       break;
     }
   }
-  if (!bodyText) return 0;
-  var matches = bodyText.match(/\{\{[^}]+\}\}/g);
-  return matches ? matches.length : 0;
+  return countVarsInTemplateText(bodyText);
+}
+
+function countTemplateTotalVariables(components) {
+  if (!components || !components.length) return 0;
+  var total = 0;
+  var i;
+  var c;
+  for (i = 0; i < components.length; i++) {
+    c = components[i];
+    if (c.type === 'BODY' && c.text) total += countVarsInTemplateText(c.text);
+    else if (c.type === 'HEADER' && c.format === 'TEXT' && c.text) {
+      total += countVarsInTemplateText(c.text);
+    }
+  }
+  return total;
 }
 
 function findApprovedTemplatesByName(templates, name) {
@@ -634,20 +653,35 @@ function findApprovedTemplatesByName(templates, name) {
   return out;
 }
 
+async function resolveWabaIdForTemplateList(token, options) {
+  options = options || {};
+  var phone = options.phoneNumberId ? String(options.phoneNumberId).trim() : '';
+  var waba = options.wabaId ? String(options.wabaId).trim() : '';
+  if (phone && waba && phone === waba) waba = '';
+  if (phone) {
+    var node = await resolvePhoneNodeToWaba(token, phone);
+    if (node && node.wabaId) {
+      return { wabaId: node.wabaId, source: 'phone_node' };
+    }
+    var fromPhone = await resolveWabaId({ phoneNumberId: phone });
+    if (fromPhone.wabaId) return fromPhone;
+  }
+  if (waba) return { wabaId: waba, source: 'option' };
+  return resolveWabaId(options);
+}
+
 async function listApprovedMessageTemplates(options) {
   options = options || {};
   const { token, phoneNumberId } = getConfig(options.phoneNumberId);
   if (!token) return { ok: false, templates: [], error: 'WHATSAPP_TOKEN não configurado' };
-  if (!phoneNumberId && !options.wabaId) {
+  if (!phoneNumberId && !options.wabaId && !options.phoneNumberId) {
     return { ok: false, templates: [], error: 'WHATSAPP_PHONE_NUMBER_ID não configurado' };
   }
   try {
-    var resolved = null;
-    if (options.wabaId) {
-      resolved = { wabaId: String(options.wabaId).trim(), source: 'option' };
-    } else {
-      resolved = await resolveWabaId(options);
-    }
+    var resolved = await resolveWabaIdForTemplateList(token, {
+      wabaId: options.wabaId,
+      phoneNumberId: options.phoneNumberId || phoneNumberId,
+    });
     if (!resolved.wabaId) {
       return { ok: false, templates: [], error: resolved.error || 'WABA não encontrado' };
     }
@@ -668,6 +702,8 @@ async function listApprovedMessageTemplates(options) {
           status: t.status,
           category: t.category,
           bodyVariableCount: countTemplateBodyVariables(t.components),
+          totalVariableCount: countTemplateTotalVariables(t.components),
+          components: t.components || [],
         };
       });
     return { ok: true, templates: templates, wabaId: resolved.wabaId };
@@ -688,6 +724,8 @@ function findApprovedTemplate(templates, name, languageCode) {
           name: templates[j].name,
           language: templates[j].language,
           bodyVariableCount: templates[j].bodyVariableCount,
+          totalVariableCount: templates[j].totalVariableCount,
+          components: templates[j].components,
         };
       }
     }
@@ -698,8 +736,80 @@ function findApprovedTemplate(templates, name, languageCode) {
         name: templates[j].name,
         language: templates[j].language,
         bodyVariableCount: templates[j].bodyVariableCount,
+        totalVariableCount: templates[j].totalVariableCount,
+        components: templates[j].components,
       };
     }
+  }
+  return null;
+}
+
+/**
+ * Monta components[] para envio conforme estrutura aprovada na Meta (header + body).
+ */
+function buildTemplateSendComponents(metaComponents, fill) {
+  fill = fill || {};
+  if (!metaComponents || !metaComponents.length) return null;
+  var out = [];
+  var i;
+  var c;
+  var ctype;
+  var n;
+  var params;
+  var pi;
+  for (i = 0; i < metaComponents.length; i++) {
+    c = metaComponents[i];
+    ctype = String(c.type || '').toUpperCase();
+    if (ctype === 'HEADER' && c.format === 'TEXT' && c.text) {
+      n = countVarsInTemplateText(c.text);
+      if (n > 0) {
+        params = [];
+        for (pi = 0; pi < n; pi++) {
+          params.push({
+            type: 'text',
+            text: String(fill.headerTexts && fill.headerTexts[pi] != null
+              ? fill.headerTexts[pi]
+              : (fill.weeklyTitle || 'B F Marques')).substring(0, 60),
+          });
+        }
+        out.push({ type: 'header', parameters: params });
+      }
+    } else if (ctype === 'BODY' && c.text) {
+      n = countVarsInTemplateText(c.text);
+      if (n === 0) continue;
+      params = [];
+      if (fill.bodyTexts && fill.bodyTexts.length >= n) {
+        for (pi = 0; pi < n; pi++) {
+          params.push({ type: 'text', text: String(fill.bodyTexts[pi]).substring(0, 1024) });
+        }
+      } else if (n === 1 && fill.singleBody) {
+        params.push({ type: 'text', text: String(fill.singleBody).substring(0, 1024) });
+      } else if (fill.namedParams && fill.namedParams.length >= n) {
+        for (pi = 0; pi < n; pi++) {
+          params.push({ type: 'text', text: String(fill.namedParams[pi]).substring(0, 1024) });
+        }
+      }
+      if (params.length === n) out.push({ type: 'body', parameters: params });
+    }
+  }
+  return out.length ? out : null;
+}
+
+async function findApprovedTemplateRow(options, templateName, languageCode) {
+  const listed = await listApprovedMessageTemplates(options);
+  if (!listed.ok || !listed.templates.length) return null;
+  var langs = [languageCode, 'pt_BR', 'pt', 'en_US', 'en'].filter(Boolean);
+  var li;
+  var j;
+  for (li = 0; li < langs.length; li++) {
+    for (j = 0; j < listed.templates.length; j++) {
+      if (listed.templates[j].name === templateName && listed.templates[j].language === langs[li]) {
+        return listed.templates[j];
+      }
+    }
+  }
+  for (j = 0; j < listed.templates.length; j++) {
+    if (listed.templates[j].name === templateName) return listed.templates[j];
   }
   return null;
 }
@@ -776,7 +886,12 @@ module.exports = {
   listApprovedMessageTemplates,
   findApprovedTemplate,
   findApprovedTemplatesByName,
+  findApprovedTemplateRow,
   countTemplateBodyVariables,
+  countTemplateTotalVariables,
+  countVarsInTemplateText,
+  resolveWabaIdForTemplateList,
+  buildTemplateSendComponents,
   sendImageMessage,
   sendVideoMessage,
   sendDocumentMessage,

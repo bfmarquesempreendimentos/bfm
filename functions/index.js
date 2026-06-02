@@ -24,6 +24,8 @@ const {
   phoneBelongsToWaba,
   resolvePhoneNodeToWaba,
   discoverWhatsAppAssetsFromMe,
+  buildTemplateSendComponents,
+  findApprovedTemplateRow,
   uploadMediaBuffer,
   sendMediaById,
   getWhatsAppMediaBuffer,
@@ -598,6 +600,9 @@ async function getBrokerCampaignTemplateStatus(config, db) {
     }
   } else {
     hint = 'Template OK: ' + match.name + ' (' + match.language + ').';
+    if (match.bodyVariableCount != null) {
+      hint += ' Variáveis no corpo: ' + match.bodyVariableCount + '.';
+    }
     if (wabaResolved.syncHint) hint += ' ' + wabaResolved.syncHint;
     if (wabaResolved.phoneDisplay) {
       hint += ' Número da Bia: ' + wabaResolved.phoneDisplay + ' (ID ' + wabaResolved.campaignPhoneNumberId + ').';
@@ -606,6 +611,7 @@ async function getBrokerCampaignTemplateStatus(config, db) {
       await db.collection('broker_campaign').doc('config').set({
         templateLanguageResolved: match.language,
         templateBodyVariableCount: match.bodyVariableCount != null ? match.bodyVariableCount : undefined,
+        templateTotalVariableCount: match.totalVariableCount != null ? match.totalVariableCount : undefined,
       }, { merge: true });
     }
   }
@@ -624,6 +630,7 @@ async function getBrokerCampaignTemplateStatus(config, db) {
     templateBodyVariableCount: match && match.bodyVariableCount != null
       ? match.bodyVariableCount
       : (templateName === 'campanha_corretor_msg' ? 1 : (templateName === 'atualizacao_semanal_corretor' ? 5 : null)),
+    templateTotalVariableCount: match && match.totalVariableCount != null ? match.totalVariableCount : null,
     templateLanguages: templateLanguages,
     templateHint: hint,
     approvedTemplates: approved.slice(0, 40),
@@ -817,18 +824,65 @@ function buildCampanhaCorretorSingleVarBody(config, broker, now) {
   }];
 }
 
+function getBrokerCampaignFillTexts(config, broker, now) {
+  const week = getWeekOfYearNumber(now);
+  const tips = Array.isArray(config.usefulTips) ? config.usefulTips : [];
+  const tip = tips.length ? tips[(week - 1) % tips.length] : '';
+  const firstName = String((broker && broker.name) || '').trim().split(' ')[0] || 'Corretor(a)';
+  const singleBody = (
+    'Olá, ' + firstName + '! Boa semana de vendas.\n\n' +
+    '📢 Site atualizado: ' + (config.siteUrl || 'https://bfmarquesempreendimentos.github.io/bfm/') + '\n' +
+    '🔥 Ofertas e imóveis disponíveis já estão no ar.\n' +
+    (tip ? ('💡 ' + tip + '\n') : '') +
+    '✅ ' + (config.ctaText || 'Divulgue as ofertas da semana para seus leads.') + '\n\n' +
+    'Suporte: ' + (config.whatsappContato || '(21) 99759-0814')
+  );
+  return {
+    weeklyTitle: config.weeklyTitle || 'Atualização semanal B F Marques',
+    singleBody: singleBody,
+    namedParams: [
+      firstName,
+      config.weeklyTitle || 'Atualização semanal B F Marques',
+      config.siteUrl || 'https://bfmarquesempreendimentos.github.io/bfm/',
+      tip || (config.ctaText || 'Fale com seus leads hoje.'),
+      config.whatsappContato || '(21) 99759-0814',
+    ],
+    headerTexts: [config.weeklyTitle || 'Atualização semanal B F Marques'],
+  };
+}
+
+function buildBodyOnlyParamSet(n, config, broker, now) {
+  var fill = getBrokerCampaignFillTexts(config, broker, now);
+  var params = [];
+  var i;
+  for (i = 0; i < n; i++) {
+    params.push({
+      type: 'text',
+      text: String(fill.namedParams[i] != null ? fill.namedParams[i] : fill.namedParams[fill.namedParams.length - 1]).substring(0, 1024),
+    });
+  }
+  return [{ type: 'body', parameters: params }];
+}
+
 function buildBrokerCampaignTemplateComponentSets(config, broker, now, message) {
   var singleVar = buildCampanhaCorretorSingleVarBody(config, broker, now);
   var fiveVar = buildBrokerCampaignTemplateComponents(config, broker, now);
   var none = [];
+  var twoVar = buildBodyOnlyParamSet(2, config, broker, now);
+  var threeVar = buildBodyOnlyParamSet(3, config, broker, now);
+  var fourVar = buildBodyOnlyParamSet(4, config, broker, now);
   var tplName = normalizeTemplateName(config.templateName);
   var count = config.templateBodyVariableCount;
-  if (count === 0) return [none, singleVar, fiveVar];
-  if (count === 1) return [singleVar, fiveVar, none];
-  if (count === 5) return [fiveVar, singleVar, none];
-  if (tplName === 'atualizacao_semanal_corretor') return [fiveVar, singleVar, none];
-  if (tplName === 'campanha_corretor_msg') return [singleVar, fiveVar, none];
-  return [singleVar, fiveVar, none];
+  var total = config.templateTotalVariableCount;
+  if (count === 0 && total === 0) return [none, singleVar, twoVar, threeVar, fourVar, fiveVar];
+  if (count === 1 || total === 1) return [singleVar, twoVar, threeVar, fourVar, fiveVar, none];
+  if (count === 2 || total === 2) return [twoVar, singleVar, threeVar, fiveVar, none];
+  if (count === 3 || total === 3) return [threeVar, singleVar, fiveVar, none];
+  if (count === 4 || total === 4) return [fourVar, singleVar, fiveVar, none];
+  if (count === 5 || total === 5) return [fiveVar, singleVar, twoVar, none];
+  if (tplName === 'atualizacao_semanal_corretor') return [fiveVar, fourVar, threeVar, singleVar, none];
+  if (tplName === 'campanha_corretor_msg') return [singleVar, twoVar, threeVar, fourVar, fiveVar, none];
+  return [singleVar, twoVar, threeVar, fourVar, fiveVar, none];
 }
 
 async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
@@ -861,10 +915,43 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
   }
 
   if (templateName) {
+    var fillTexts = getBrokerCampaignFillTexts(config, broker, now);
+    var tplListOpts = { phoneNumberId: config.campaignPhoneNumberId || '' };
+    var metaExactSets = [];
+    var liMeta;
+    for (liMeta = 0; liMeta < langCandidates.length; liMeta++) {
+      var row = await findApprovedTemplateRow(tplListOpts, templateName, langCandidates[liMeta]);
+      if (row && row.components && row.components.length) {
+        var built = buildTemplateSendComponents(row.components, fillTexts);
+        if (built && built.length) {
+          metaExactSets.push({ lang: row.language || langCandidates[liMeta], components: built });
+        }
+      }
+    }
     var componentSets = buildBrokerCampaignTemplateComponentSets(config, broker, now, message);
     let lastErr = null;
-    let li;
-    let ci;
+    var mi;
+    var li;
+    var ci;
+    if (metaExactSets.length) {
+      for (mi = 0; mi < metaExactSets.length; mi++) {
+        try {
+          const sendResp = await sendTemplateMessage(
+            waPhone, templateName, metaExactSets[mi].lang, metaExactSets[mi].components, waSendOpts
+          );
+          return {
+            mode: 'template',
+            templateName: templateName,
+            language: metaExactSets[mi].lang,
+            componentsVariant: 'meta_exact',
+            waMessageId: sendResp && sendResp.messageId ? sendResp.messageId : '',
+            sentTo: waPhone,
+          };
+        } catch (errMeta) {
+          lastErr = errMeta;
+        }
+      }
+    }
     for (li = 0; li < langCandidates.length; li++) {
       for (ci = 0; ci < componentSets.length; ci++) {
         try {
@@ -942,6 +1029,9 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
       templateBodyVariableCount: templateStatus.templateBodyVariableCount != null
         ? templateStatus.templateBodyVariableCount
         : config.templateBodyVariableCount,
+      templateTotalVariableCount: templateStatus.templateTotalVariableCount != null
+        ? templateStatus.templateTotalVariableCount
+        : config.templateTotalVariableCount,
       campaignPhoneNumberId: wabaSync.campaignPhoneNumberId || templateStatus.biaPhoneNumberId || '',
     });
     if (!templateStatus.templateValid && !templateStatus.templateValidationSoft) {
