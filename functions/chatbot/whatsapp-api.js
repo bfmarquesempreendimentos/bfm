@@ -609,6 +609,21 @@ async function resolveWabaForCloudApiPhone(options) {
   };
 }
 
+function countTemplateBodyVariables(components) {
+  if (!components || !components.length) return 0;
+  var bodyText = '';
+  var i;
+  for (i = 0; i < components.length; i++) {
+    if (components[i].type === 'BODY' && components[i].text) {
+      bodyText = components[i].text;
+      break;
+    }
+  }
+  if (!bodyText) return 0;
+  var matches = bodyText.match(/\{\{[^}]+\}\}/g);
+  return matches ? matches.length : 0;
+}
+
 function findApprovedTemplatesByName(templates, name) {
   if (!name || !templates || !templates.length) return [];
   var out = [];
@@ -652,6 +667,7 @@ async function listApprovedMessageTemplates(options) {
           language: t.language,
           status: t.status,
           category: t.category,
+          bodyVariableCount: countTemplateBodyVariables(t.components),
         };
       });
     return { ok: true, templates: templates, wabaId: resolved.wabaId };
@@ -668,13 +684,21 @@ function findApprovedTemplate(templates, name, languageCode) {
   for (i = 0; i < langs.length; i++) {
     for (j = 0; j < templates.length; j++) {
       if (templates[j].name === name && templates[j].language === langs[i]) {
-        return { name: templates[j].name, language: templates[j].language };
+        return {
+          name: templates[j].name,
+          language: templates[j].language,
+          bodyVariableCount: templates[j].bodyVariableCount,
+        };
       }
     }
   }
   for (j = 0; j < templates.length; j++) {
     if (templates[j].name === name) {
-      return { name: templates[j].name, language: templates[j].language };
+      return {
+        name: templates[j].name,
+        language: templates[j].language,
+        bodyVariableCount: templates[j].bodyVariableCount,
+      };
     }
   }
   return null;
@@ -752,6 +776,7 @@ module.exports = {
   listApprovedMessageTemplates,
   findApprovedTemplate,
   findApprovedTemplatesByName,
+  countTemplateBodyVariables,
   sendImageMessage,
   sendVideoMessage,
   sendDocumentMessage,
