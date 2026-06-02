@@ -521,8 +521,8 @@ async function getOrResolveWabaId(db) {
     phonesOnWaba: sync.phonesOnWaba || [],
     phoneLinkError: sync.phoneLinkError || '',
     syncSource: sync.syncSource || '',
-    syncHint: sync.syncSource === 'bia_webhook_trusted' || sync.syncSource === 'bia_webhook'
-      ? 'Número da Bia confirmado pelo WhatsApp (webhook). Campanha usará o mesmo número do atendimento.'
+    syncHint: (sync.syncSource === 'bia_webhook_trusted' || sync.syncSource === 'bia_webhook')
+      ? 'Número da Bia confirmado pelo WhatsApp (webhook). Campanha usa o mesmo número do atendimento.'
       : (sync.envMisconfiguredAsWaba
         ? 'Ajuste WHATSAPP_PHONE_NUMBER_ID no Firebase para o Phone number ID da Meta (API Setup).'
         : ''),
@@ -564,19 +564,28 @@ async function getBrokerCampaignTemplateStatus(config, db) {
       envMisconfiguredAsWaba: !!wabaResolved.envMisconfiguredAsWaba,
     };
   }
-  const listed = await listApprovedMessageTemplates({
-    wabaId: wabaResolved.wabaId || '',
-    phoneNumberId: wabaResolved.campaignPhoneNumberId || wabaResolved.phoneNumberId || '',
-  });
+  var tplListOpts = {};
+  var campaignPhone = wabaResolved.campaignPhoneNumberId || wabaResolved.phoneNumberId || '';
+  if (campaignPhone) tplListOpts.phoneNumberId = campaignPhone;
+  if (wabaResolved.wabaId && wabaResolved.wabaId !== campaignPhone) {
+    tplListOpts.wabaId = wabaResolved.wabaId;
+  }
+  const listed = await listApprovedMessageTemplates(tplListOpts);
   const approved = listed.ok ? listed.templates : [];
   const nameMatches = findApprovedTemplatesByName(approved, templateName);
   const match = nameMatches.length
     ? nameMatches[0]
     : findApprovedTemplate(approved, templateName, config.templateLanguage || 'pt_BR');
   var hint = '';
+  var allowSendWithoutList = wabaResolved.phoneMatch && !!campaignPhone;
   if (!listed.ok) {
-    hint = 'Não foi possível validar na Meta: ' + (listed.error || '') +
-      '. Cole o ID da conta (WABA) do WhatsApp Manager no campo abaixo e clique Salvar WABA.';
+    if (allowSendWithoutList) {
+      hint = 'Número da Bia OK (' + (wabaResolved.phoneDisplay || campaignPhone) +
+        '). O template será validado no envio. Se não chegar, confira campanha_corretor_msg aprovado na Meta.';
+    } else {
+      hint = 'Não foi possível validar na Meta: ' + (listed.error || '') +
+        '. Cole o ID da conta (WABA) do WhatsApp Manager no campo abaixo e clique Salvar WABA.';
+    }
   } else if (!match) {
     hint = 'Template "' + templateName + '" não encontrado como APROVADO em pt_BR. O nome no painel deve ser idêntico ao da Meta (só minúsculas e _).';
     if (approved.length) {
@@ -608,7 +617,8 @@ async function getBrokerCampaignTemplateStatus(config, db) {
   }
   return {
     templateName: templateName,
-    templateValid: !!match && wabaResolved.phoneMatch !== false,
+    templateValid: (!!match || allowSendWithoutList) && wabaResolved.phoneMatch !== false,
+    templateValidationSoft: !match && allowSendWithoutList,
     templateLanguageResolved: match ? match.language : (config.templateLanguage || 'pt_BR'),
     templateLanguages: templateLanguages,
     templateHint: hint,
