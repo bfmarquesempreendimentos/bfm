@@ -18,8 +18,12 @@ const {
   resolveWabaId,
   resolveWabaIdViaDebugToken,
   resolveWabaForCloudApiPhone,
+  resolveAllWabaIdsFromDebugToken,
   findApprovedTemplatesByName,
   listWabaPhoneNumbers,
+  phoneBelongsToWaba,
+  resolvePhoneNodeToWaba,
+  discoverWhatsAppAssetsFromMe,
   uploadMediaBuffer,
   sendMediaById,
   getWhatsAppMediaBuffer,
@@ -358,20 +362,87 @@ async function syncWhatsAppCloudSettings(db, options) {
     return { ok: false, error: 'Informe o ID da conta (WABA) no painel e clique Salvar WABA.' };
   }
 
-  const phones = await listWabaPhoneNumbers(token, wabaId);
+  var phones = await listWabaPhoneNumbers(token, wabaId);
   var resolvedPhoneId = '';
   var syncSource = '';
   var envMisconfiguredAsWaba = envPhoneId && envPhoneId === wabaId;
 
-  if (lastWebhookPhone && await phoneBelongsToWaba(token, wabaId, lastWebhookPhone)) {
+  if (!phones.length && wabaId) {
+    var asPhoneNode = await resolvePhoneNodeToWaba(token, wabaId);
+    if (asPhoneNode && asPhoneNode.wabaId) {
+      wabaId = asPhoneNode.wabaId;
+      resolvedPhoneId = asPhoneNode.phoneNumberId;
+      syncSource = 'saved_id_was_phone_number';
+      phones = await listWabaPhoneNumbers(token, wabaId);
+    }
+  }
+
+  if (lastWebhookPhone && !resolvedPhoneId) {
+    var webhookLink = await resolveWabaForCloudApiPhone({
+      preferredWabaId: wabaId,
+      phoneNumberId: lastWebhookPhone,
+    });
+    if (webhookLink.phoneMatch) {
+      wabaId = webhookLink.wabaId || wabaId;
+      resolvedPhoneId = lastWebhookPhone;
+      syncSource = 'bia_webhook';
+      phones = await listWabaPhoneNumbers(token, wabaId);
+    }
+  }
+
+  if (!resolvedPhoneId && lastWebhookPhone && await phoneBelongsToWaba(token, wabaId, lastWebhookPhone)) {
     resolvedPhoneId = lastWebhookPhone;
     syncSource = 'bia_webhook';
-  } else if (envPhoneId && !envMisconfiguredAsWaba && await phoneBelongsToWaba(token, wabaId, envPhoneId)) {
+  } else if (!resolvedPhoneId && envPhoneId && !envMisconfiguredAsWaba && await phoneBelongsToWaba(token, wabaId, envPhoneId)) {
     resolvedPhoneId = envPhoneId;
     syncSource = 'firebase_secret';
-  } else if (envMisconfiguredAsWaba || !envPhoneId || !(await phoneBelongsToWaba(token, wabaId, envPhoneId))) {
+  } else if (!resolvedPhoneId && (envMisconfiguredAsWaba || !envPhoneId || !(await phoneBelongsToWaba(token, wabaId, envPhoneId)))) {
     resolvedPhoneId = pickBiaPhoneNumberId(phones, lastWebhookPhone, hintDigits);
     syncSource = envMisconfiguredAsWaba ? 'auto_fix_waba_confused_with_phone' : 'auto_from_waba_list';
+  }
+
+  if (!resolvedPhoneId || !(await phoneBelongsToWaba(token, wabaId, resolvedPhoneId))) {
+    var debugWabas = await resolveAllWabaIdsFromDebugToken(token);
+    var dw;
+    for (dw = 0; dw < debugWabas.length; dw++) {
+      var scanPhones = await listWabaPhoneNumbers(token, debugWabas[dw]);
+      var picked = pickBiaPhoneNumberId(scanPhones, lastWebhookPhone, hintDigits);
+      if (picked && await phoneBelongsToWaba(token, debugWabas[dw], picked)) {
+        wabaId = debugWabas[dw];
+        resolvedPhoneId = picked;
+        phones = scanPhones;
+        syncSource = syncSource || 'auto_scan_all_wabas';
+        break;
+      }
+    }
+  }
+
+  if (!resolvedPhoneId || !(await phoneBelongsToWaba(token, wabaId, resolvedPhoneId))) {
+    var meAssets = await discoverWhatsAppAssetsFromMe(token);
+    if (meAssets.phones && meAssets.phones.length) {
+      var mp;
+      var best = null;
+      for (mp = 0; mp < meAssets.phones.length; mp++) {
+        var cand = meAssets.phones[mp];
+        var candDigits = normalizePhoneDigitsForMatch(cand.display_phone_number);
+        if (hintDigits && candDigits && candDigits.indexOf(hintDigits.slice(-8)) >= 0) {
+          best = cand;
+          break;
+        }
+        if (!best) best = cand;
+      }
+      if (best && best.id) {
+        wabaId = best.wabaId || wabaId;
+        resolvedPhoneId = best.id;
+        phones = await listWabaPhoneNumbers(token, wabaId);
+        syncSource = syncSource || 'auto_discover_me';
+      } else if (meAssets.wabas && meAssets.wabas.length && !phones.length) {
+        wabaId = meAssets.wabas[0];
+        phones = await listWabaPhoneNumbers(token, wabaId);
+        resolvedPhoneId = pickBiaPhoneNumberId(phones, lastWebhookPhone, hintDigits);
+        if (resolvedPhoneId) syncSource = syncSource || 'auto_discover_me_waba';
+      }
+    }
   }
 
   var phoneMatch = !!(resolvedPhoneId && await phoneBelongsToWaba(token, wabaId, resolvedPhoneId));
@@ -427,6 +498,7 @@ async function getOrResolveWabaId(db) {
     envMisconfiguredAsWaba: sync.envMisconfiguredAsWaba,
     phonesOnWaba: sync.phonesOnWaba || [],
     phoneLinkError: sync.phoneLinkError || '',
+    syncSource: sync.syncSource || '',
     syncHint: sync.envMisconfiguredAsWaba
       ? 'O secret WHATSAPP_PHONE_NUMBER_ID no Firebase estava com o ID da CONTA (WABA), não do número. A campanha usará automaticamente o número da Bia detectado.'
       : (sync.syncSource === 'bia_webhook'
@@ -465,6 +537,9 @@ async function getBrokerCampaignTemplateStatus(config, db) {
       phoneMatch: false,
       cloudPhoneNumberId: wabaResolved.phoneNumberId || '',
       biaPhoneNumberId: wabaResolved.campaignPhoneNumberId || '',
+      phonesOnWaba: wabaResolved.phonesOnWaba || [],
+      syncHint: wabaResolved.syncHint || '',
+      envMisconfiguredAsWaba: !!wabaResolved.envMisconfiguredAsWaba,
     };
   }
   const listed = await listApprovedMessageTemplates({
@@ -523,6 +598,7 @@ async function getBrokerCampaignTemplateStatus(config, db) {
     biaPhoneDisplay: wabaResolved.phoneDisplay || '',
     envMisconfiguredAsWaba: !!wabaResolved.envMisconfiguredAsWaba,
     syncHint: wabaResolved.syncHint || '',
+    phonesOnWaba: wabaResolved.phonesOnWaba || [],
   };
 }
 
@@ -578,6 +654,15 @@ async function getBrokerCampaignPreview(db) {
     nextWeeklyNote: config.enabled
       ? 'Segunda-feira 08:00 (Brasília): envio automático para quem está ativo, com campanha ligada e telefone válido.'
       : 'Envio automático desligado. Disparar agora envia manualmente quando você quiser.',
+    biaPhoneNumberId: templateStatus.biaPhoneNumberId || '',
+    biaPhoneDisplay: templateStatus.biaPhoneDisplay || '',
+    cloudPhoneNumberId: templateStatus.cloudPhoneNumberId || '',
+    phoneMatch: templateStatus.phoneMatch !== false,
+    syncHint: templateStatus.syncHint || '',
+    envMisconfiguredAsWaba: !!templateStatus.envMisconfiguredAsWaba,
+    phonesOnWaba: (templateStatus.phonesOnWaba || []).map(function(p) {
+      return { id: p.id, display_phone_number: p.display_phone_number || '' };
+    }),
   };
 }
 
@@ -1803,6 +1888,61 @@ exports.brokerCampaignSaveWaba = functions
     return res.status(500).json({ error: err.message });
   }
 });
+
+exports.brokerCampaignWhatsAppDiag = functions
+  .runWith({ secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'] })
+  .https.onRequest(async (req, res) => {
+    allowCors(res);
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+    try {
+      const db = admin.firestore();
+      const settings = await loadWhatsappSettings(db);
+      const config = await getBrokerCampaignConfig(db);
+      const sync = await syncWhatsAppCloudSettings(db, {
+        wabaId: settings.wabaId,
+        supportPhone: config.whatsappContato,
+      });
+      const token = process.env.WHATSAPP_TOKEN;
+      const debugWabas = token ? await resolveAllWabaIdsFromDebugToken(token) : [];
+      var wabaScan = [];
+      var wi;
+      for (wi = 0; wi < debugWabas.length; wi++) {
+        var plist = await listWabaPhoneNumbers(token, debugWabas[wi]);
+        wabaScan.push({
+          wabaId: debugWabas[wi],
+          phones: (plist || []).map(function(p) {
+            return { id: p.id, display: p.display_phone_number || '' };
+          }),
+        });
+      }
+      const savedAsPhone = settings.wabaId
+        ? await resolvePhoneNodeToWaba(token, settings.wabaId)
+        : null;
+      const meAssets = token ? await discoverWhatsAppAssetsFromMe(token) : { wabas: [], phones: [] };
+      return res.json({
+        firestore: {
+          wabaId: settings.wabaId || '',
+          phoneNumberId: settings.phoneNumberId || '',
+          lastWebhookPhoneNumberId: settings.lastWebhookPhoneNumberId || '',
+          lastWebhookPhoneAt: settings.lastWebhookPhoneAt || '',
+          syncSource: settings.syncSource || '',
+        },
+        envPhoneNumberId: String(process.env.WHATSAPP_PHONE_NUMBER_ID || ''),
+        envMisconfiguredAsWaba: !!(process.env.WHATSAPP_PHONE_NUMBER_ID &&
+          settings.wabaId &&
+          String(process.env.WHATSAPP_PHONE_NUMBER_ID) === String(settings.wabaId)),
+        sync: sync,
+        savedIdAsPhoneNode: savedAsPhone,
+        debugWabaIds: debugWabas,
+        wabaScan: wabaScan,
+        meAssets: meAssets,
+      });
+    } catch (err) {
+      console.error('brokerCampaignWhatsAppDiag:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
 
 exports.brokerCampaignPreview = functions
   .runWith({ secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'] })

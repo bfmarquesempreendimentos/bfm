@@ -1,7 +1,22 @@
 const axios = require('axios');
 const FormData = require('form-data');
+const admin = require('firebase-admin');
 
 const GRAPH_API = 'https://graph.facebook.com/v22.0';
+
+function rememberCloudPhoneNumberId(phoneNumberId) {
+  if (!phoneNumberId) return;
+  try {
+    if (!admin.apps.length) admin.initializeApp();
+    admin.firestore().collection('settings').doc('whatsapp').set({
+      lastWebhookPhoneNumberId: String(phoneNumberId),
+      lastWebhookPhoneAt: new Date().toISOString(),
+      lastPhoneCaptureSource: 'outbound_api',
+    }, { merge: true }).catch(function() {});
+  } catch (e) {
+    /* opcional */
+  }
+}
 
 function mimeToWhatsAppType(mime) {
   if (!mime || typeof mime !== 'string') return 'document';
@@ -23,6 +38,7 @@ async function sendTextMessage(to, text, options = {}) {
   if (!phoneNumberId) {
     throw new Error('WHATSAPP_PHONE_NUMBER_ID não configurado. Defina o secret ou use número cadastrado no Meta.');
   }
+  if (options.phoneNumberId) rememberCloudPhoneNumberId(options.phoneNumberId);
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
 
   console.log(`[WA-API] Enviando para ${to}, phoneNumberId=${phoneNumberId}, token=${token ? token.substring(0, 20) + '...' : 'VAZIO'}`);
@@ -421,6 +437,71 @@ async function listWabaPhoneNumbers(token, wabaId) {
   }
 }
 
+/** Lista WABAs e números acessíveis pelo token (quando debug_token não retorna IDs). */
+async function discoverWhatsAppAssetsFromMe(token) {
+  var wabas = [];
+  var phones = [];
+  if (!token) return { wabas: wabas, phones: phones };
+  var attempts = [
+    { path: '/me', fields: 'whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name}}' },
+    { path: '/me/businesses', fields: 'id,name,owned_whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name}}' },
+  ];
+  var ai;
+  var att;
+  for (ai = 0; ai < attempts.length; ai++) {
+    att = attempts[ai];
+    try {
+      const resp = await axios.get(GRAPH_API + att.path, {
+        params: { fields: att.fields },
+        headers: { Authorization: 'Bearer ' + token },
+      });
+      const d = resp.data || {};
+      var wabaRows = d.whatsapp_business_accounts && d.whatsapp_business_accounts.data;
+      if (wabaRows && wabaRows.length) {
+        collectWabaPhoneRows(wabaRows, wabas, phones);
+      }
+      var bizRows = d.data;
+      if (bizRows && bizRows.length) {
+        var bi;
+        for (bi = 0; bi < bizRows.length; bi++) {
+          var owned = bizRows[bi].owned_whatsapp_business_accounts &&
+            bizRows[bi].owned_whatsapp_business_accounts.data;
+          if (owned && owned.length) collectWabaPhoneRows(owned, wabas, phones);
+        }
+      }
+      if (wabas.length) break;
+    } catch (meErr) {
+      console.warn('[WA-API] discoverWhatsAppAssetsFromMe:', att.path, extractMetaError(meErr));
+    }
+  }
+  return { wabas: wabas, phones: phones };
+}
+
+function collectWabaPhoneRows(rows, wabasOut, phonesOut) {
+  var ri;
+  var row;
+  var plist;
+  var pi;
+  var p;
+  for (ri = 0; ri < rows.length; ri++) {
+    row = rows[ri];
+    if (!row || !row.id) continue;
+    if (wabasOut.indexOf(row.id) < 0) wabasOut.push(String(row.id));
+    plist = row.phone_numbers && row.phone_numbers.data;
+    if (!plist || !plist.length) continue;
+    for (pi = 0; pi < plist.length; pi++) {
+      p = plist[pi];
+      if (!p || !p.id) continue;
+      phonesOut.push({
+        wabaId: String(row.id),
+        id: String(p.id),
+        display_phone_number: p.display_phone_number || '',
+        verified_name: p.verified_name || '',
+      });
+    }
+  }
+}
+
 async function phoneBelongsToWaba(token, wabaId, phoneNumberId) {
   if (!token || !wabaId || !phoneNumberId) return false;
   const phones = await listWabaPhoneNumbers(token, wabaId);
@@ -429,6 +510,29 @@ async function phoneBelongsToWaba(token, wabaId, phoneNumberId) {
     if (String(phones[i].id) === String(phoneNumberId)) return true;
   }
   return false;
+}
+
+/** Se o ID salvo for phone_number_id (e não WABA), devolve a conta e o número corretos. */
+async function resolvePhoneNodeToWaba(token, maybePhoneId) {
+  if (!token || !maybePhoneId) return null;
+  try {
+    const phoneResp = await axios.get(GRAPH_API + '/' + maybePhoneId, {
+      params: { fields: 'id,display_phone_number,verified_name,whatsapp_business_account{id}' },
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const d = phoneResp.data || {};
+    var wabaRaw = d.whatsapp_business_account;
+    var wabaId = wabaRaw && (typeof wabaRaw === 'object' ? wabaRaw.id : wabaRaw);
+    if (!wabaId || !d.id) return null;
+    return {
+      wabaId: String(wabaId),
+      phoneNumberId: String(d.id),
+      displayPhone: d.display_phone_number || '',
+      verifiedName: d.verified_name || '',
+    };
+  } catch (e) {
+    return null;
+  }
 }
 
 /** IDs de WABA no token (debug_token). */
@@ -585,6 +689,7 @@ async function sendTemplateMessage(to, templateName, languageCode, components, o
   if (!templateName) {
     throw new Error('Nome do template WhatsApp não configurado.');
   }
+  if (options.phoneNumberId) rememberCloudPhoneNumberId(options.phoneNumberId);
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
   try {
     const resp = await axios.post(url, {
@@ -640,7 +745,10 @@ module.exports = {
   resolveWabaForCloudApiPhone,
   resolveAllWabaIdsFromDebugToken,
   listWabaPhoneNumbers,
+  discoverWhatsAppAssetsFromMe,
   phoneBelongsToWaba,
+  resolvePhoneNodeToWaba,
+  rememberCloudPhoneNumberId,
   listApprovedMessageTemplates,
   findApprovedTemplate,
   findApprovedTemplatesByName,
