@@ -2919,6 +2919,70 @@ button.wa-stat.wa-stat--click:focus {
     padding: 6px 8px;
     font-size: 0.85rem;
 }
+.brokers-pending-section {
+    margin-bottom: 16px;
+    border: 2px solid #fbbf24;
+    background: #fffbeb;
+}
+.brokers-pending-section__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 0 16px;
+}
+.brokers-pending-section__head h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #92400e;
+}
+.brokers-pending-count {
+    background: #f59e0b;
+    color: #fff;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+}
+.broker-row-pending td {
+    background: #fffbeb;
+}
+.brokers-pending-actions {
+    white-space: nowrap;
+}
+.brokers-pending-actions .btn-sm {
+    margin: 2px 4px 2px 0;
+    padding: 6px 10px;
+    font-size: 0.82rem;
+}
+.broker-template-help {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.88rem;
+}
+.broker-template-help summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #1e40af;
+}
+.broker-template-help__steps {
+    margin: 10px 0 0 18px;
+    padding: 0;
+    line-height: 1.5;
+    color: #334155;
+}
+.broker-template-help__steps code {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 8px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    white-space: pre-wrap;
+}
 .campaign-panel-title { margin: 0 0 10px 0; }
 .campaign-panel-intro { margin: 0 0 12px 0; color: var(--bf-text-muted, #64748b); }
 .campaign-preview-stats { margin: 0 0 12px 0; color: var(--bf-text, #334155); font-size: 0.95rem; line-height: 1.5; }

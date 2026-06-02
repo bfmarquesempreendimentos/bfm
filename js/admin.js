@@ -1420,8 +1420,10 @@ async function loadBrokersData() {
     await prepareBrokersPanelIfNeeded(false);
 
     if (typeof loadBrokersFromFirestore === 'function') {
-        await loadBrokersFromFirestore({ activeOnly: true });
+        await loadBrokersFromFirestore();
     }
+
+    renderPendingBrokersSection();
 
     const allBrokers = getAllBrokers().filter(function(b) { return !!b.isActive; });
     var testSelect = document.getElementById('brokerCampaignTestSelect');
@@ -1472,6 +1474,47 @@ async function loadBrokersData() {
             '<td>' + formatDate(broker.createdAt) + '</td>' +
             '<td>' + actions + '</td>' +
             '</tr>';
+    }).join('');
+}
+
+function renderPendingBrokersSection() {
+    var section = document.getElementById('brokersPendingSection');
+    var tbody = document.getElementById('brokersPendingTableBody');
+    var countEl = document.getElementById('brokersPendingCount');
+    if (!section || !tbody) return;
+
+    var pending = [];
+    if (typeof getPendingBrokers === 'function') {
+        pending = getPendingBrokers().filter(function(b) { return !b.isAdmin; });
+    }
+
+    if (countEl) countEl.textContent = String(pending.length);
+
+    if (pending.length === 0) {
+        section.style.display = 'none';
+        tbody.innerHTML = '';
+        return;
+    }
+
+    section.style.display = '';
+    var brokerId = function(id) { return typeof id === 'string' ? "'" + String(id).replace(/'/g, "\\'") + "'" : id; };
+    tbody.innerHTML = pending.map(function(broker) {
+        return '<tr class="broker-row-pending">' +
+            '<td><strong>' + (broker.name || '—') + '</strong></td>' +
+            '<td>' + (broker.email || '') + '</td>' +
+            '<td>' + (broker.phone || '—') + '</td>' +
+            '<td>' + (broker.creci || '—') + '</td>' +
+            '<td>' + formatDate(broker.createdAt) + '</td>' +
+            '<td class="brokers-pending-actions">' +
+            '<button type="button" class="btn btn-success btn-sm" onclick="approveBroker(' + brokerId(broker.id) + ')">' +
+            '<i class="fas fa-check" aria-hidden="true"></i> Aprovar</button> ' +
+            '<button type="button" class="btn btn-secondary btn-sm" onclick="editBroker(' + brokerId(broker.id) + ')">' +
+            '<i class="fas fa-edit" aria-hidden="true"></i> Editar</button> ' +
+            (typeof isSuperAdmin === 'function' && isSuperAdmin()
+                ? '<button type="button" class="btn btn-danger btn-sm" onclick="deleteBroker(' + brokerId(broker.id) + ')">' +
+                  '<i class="fas fa-trash" aria-hidden="true"></i> Excluir</button>'
+                : '') +
+            '</td></tr>';
     }).join('');
 }
 

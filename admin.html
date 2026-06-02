@@ -641,8 +641,28 @@
                 </div>
             </div>
 
+            <div id="brokersPendingSection" class="brokers-pending-section admin-table-container admin-table-container--elevated" style="display:none;">
+                <div class="brokers-pending-section__head">
+                    <h3>Corretores aguardando aprovação</h3>
+                    <span id="brokersPendingCount" class="brokers-pending-count">0</span>
+                </div>
+                <table class="admin-table" id="brokersPendingTable">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Telefone</th>
+                            <th>CRECI</th>
+                            <th>Cadastro</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="brokersPendingTableBody"></tbody>
+                </table>
+            </div>
+
             <div class="brokers-list-toolbar">
-                <span class="brokers-list-toolbar__label">Lista de corretores ativos</span>
+                <span class="brokers-list-toolbar__label">Corretores ativos</span>
             </div>
 
             <div class="admin-table-container admin-table-container--elevated">
@@ -1225,7 +1245,7 @@
     <script src="js/whatsapp-leads.js?v=3"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=14"></script>
+    <script src="js/admin.js?v=15"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

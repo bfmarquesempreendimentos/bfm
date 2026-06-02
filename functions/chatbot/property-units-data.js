@@ -1,4 +1,5 @@
 /** Inventário espelhado de js/property-units.js — atualize os dois ao mudar unidades */
+// Property units data based on the spreadsheet provided
 module.exports = {
     1: { // Porto Novo
         name: "PORTO NOVO - RUA LOURIVAL MARTINS, 31",
@@ -126,9 +127,9 @@ module.exports = {
             { code: "CS 03", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "CS 08", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "CS 13", price: 145000, bedrooms: 1, status: "disponivel" },
-            { code: "CS 04", price: 150000, bedrooms: 1, status: "disponivel" },
+            { code: "CS 04", price: 150000, bedrooms: 1, status: "reservado" },
             { code: "CS 09", price: 150000, bedrooms: 1, status: "disponivel" },
-            { code: "CS 14", price: 150000, bedrooms: 1, status: "reservado" }
+            { code: "CS 14", price: 150000, bedrooms: 1, status: "disponivel" }
         ],
         engineeringValues: {
             "Cs 6": "R$ 167.000,00",
@@ -143,7 +144,7 @@ module.exports = {
             { code: "casa base", price: 135000, bedrooms: 1, status: "assinado" },
             { code: "casa 05", price: 130000, bedrooms: 1, status: "reservado" },
             { code: "casa 01", price: 135000, bedrooms: 1, status: "disponivel" },
-            { code: "casa 06", price: 145000, bedrooms: 1, status: "disponivel" },
+            { code: "casa 06", price: 145000, bedrooms: 1, status: "reservado" },
             { code: "casa 02", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 07", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 03", price: 145000, bedrooms: 1, status: "reservado" },
@@ -168,7 +169,7 @@ module.exports = {
         name: "RESIDENCIAL COELHO - RUA DR LOPES DA CRUZ",
         units: [
             { code: "casa base", price: 145000, bedrooms: 1, status: "disponivel" },
-            { code: "casa 05", price: 145000, bedrooms: 1, status: "disponivel" },
+            { code: "casa 05", price: 145000, bedrooms: 1, status: "reservado" },
             { code: "casa 01", price: 145000, bedrooms: 1, status: "assinado" },
             { code: "casa 06", price: 150000, bedrooms: 1, status: "assinado" },
             { code: "casa 02", price: 145000, bedrooms: 1, status: "disponivel" },
@@ -212,7 +213,7 @@ module.exports = {
             { code: "APTO 208", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 109", price: 165000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 209", price: 160000, bedrooms: 2, status: "disponivel" },
-            { code: "APTO 110", price: 170000, bedrooms: 2, status: "disponivel" },
+            { code: "APTO 110", price: 170000, bedrooms: 2, status: "reservado" },
             { code: "APTO 210", price: 165000, bedrooms: 2, status: "disponivel" }
         ],
         engineeringValues: {
@@ -234,4 +235,3 @@ module.exports = {
             { code: "Casa única", price: 1180000, bedrooms: 3, status: "disponivel" }
         ]
     }
-};
