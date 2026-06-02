@@ -608,7 +608,7 @@
                                     <span>Template Meta (obrigatório se a Bia nunca falou com o corretor)</span>
                                     <input type="text" id="brokerCampaignTemplate" list="brokerCampaignTemplateList" placeholder="campanha_corretor_msg" autocomplete="off">
                                     <datalist id="brokerCampaignTemplateList"></datalist>
-                                    <small id="brokerCampaignTemplateHint" class="form-hint">Campanha envia <strong>empreendimento em destaque da semana</strong> (rotação automática), link do site, dica MCMV/mercado e até 3 fotos + vídeo. Template: <strong>campanha_corretor_msg</strong> com <strong>{{1}}</strong> no corpo (ver guia na página).</small>
+                                    <small id="brokerCampaignTemplateHint" class="form-hint">1 mensagem + 2 fotos + 1 vídeo. Destaque e notícia editáveis abaixo. Template Meta só se a Meta exigir (24h).</small>
                                     <label class="campaign-field-col campaign-field-col--wide" style="margin-top:10px;">
                                         <span>ID da <strong>conta</strong> WhatsApp (WABA) — WhatsApp Manager → Configurações da conta (não é o número da Bia)</span>
                                         <div class="broker-waba-row">
@@ -635,6 +635,24 @@
                                     </details>
                                 </label>
                             </div>
+                            <div class="campaign-form-grid">
+                                <label class="campaign-field-col campaign-field-col--wide">
+                                    <span>Destaque da semana</span>
+                                    <select id="brokerCampaignFeaturedProperty">
+                                        <option value="">Automático (rotação por semana)</option>
+                                    </select>
+                                    <small class="form-hint">Escolha o empreendimento das fotos/vídeo e do link direto. Salve antes de Testar ou Disparar.</small>
+                                </label>
+                                <label class="campaign-field-col campaign-field-col--wide">
+                                    <span>Notícia de mercado — título</span>
+                                    <input type="text" id="brokerCampaignMarketTitle" placeholder="Deixe vazio para notícia automática (muda a cada dia)">
+                                </label>
+                                <label class="campaign-field-col campaign-field-col--wide">
+                                    <span>Notícia de mercado — texto</span>
+                                    <textarea id="brokerCampaignMarketText" rows="2" placeholder="Deixe vazio para usar rotação automática"></textarea>
+                                </label>
+                            </div>
+                            <p id="brokerCampaignWeekPreview" class="broker-campaign-hint" style="margin:8px 0 12px;"></p>
                             <label class="campaign-field-full">
                                 <span>Chamada comercial (CTA)</span>
                                 <input type="text" id="brokerCampaignCta" placeholder="Divulgue as ofertas da semana...">
@@ -1269,7 +1287,7 @@
     <script src="js/whatsapp-leads.js?v=3"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=23"></script>
+    <script src="js/admin.js?v=26"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

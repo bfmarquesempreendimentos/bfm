@@ -33,6 +33,14 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
 });
 
+window.addEventListener('load', function() {
+    scheduleOpenPropertyFromUrl();
+});
+
+window.addEventListener('hashchange', function() {
+    openPropertyFromUrlParam();
+});
+
 function initializeApp() {
     if (typeof fetchUnitStatusOverridesFromServer === 'function') {
         fetchUnitStatusOverridesFromServer(function() {
@@ -456,8 +464,59 @@ function loadProperties() {
     
     var visibleProperties = getVisibleProperties(properties);
     updatePropertiesEnterpriseCount(visibleProperties.length);
-    setTimeout(function() { displayProperties(properties); }, 0);
+    setTimeout(function() {
+        displayProperties(properties);
+        scheduleOpenPropertyFromUrl();
+    }, 0);
     startHeroSlideshow(visibleProperties);
+}
+
+function parseImovelIdFromUrl() {
+    var raw = null;
+    var params = new URLSearchParams(window.location.search || '');
+    raw = params.get('imovel');
+    if (!raw && window.location.hash) {
+        var hash = String(window.location.hash).replace(/^#/, '');
+        if (hash.indexOf('imovel=') >= 0) {
+            var parts = hash.split('imovel=');
+            raw = parts[parts.length - 1].split('&')[0];
+        } else if (/^imovel-\d+$/i.test(hash)) {
+            raw = hash.replace(/^imovel-/i, '');
+        }
+    }
+    if (!raw) return 0;
+    var id = parseInt(String(raw).trim(), 10);
+    return (id && !isNaN(id)) ? id : 0;
+}
+
+function openPropertyFromUrlParam() {
+    var id = parseImovelIdFromUrl();
+    if (!id || !properties || !properties.length) return false;
+    var found = null;
+    var i;
+    for (i = 0; i < properties.length; i++) {
+        if (properties[i].id === id) {
+            found = properties[i];
+            break;
+        }
+    }
+    if (!found) return false;
+    showPropertyDetails(id);
+    var section = document.getElementById('properties');
+    if (section && section.scrollIntoView) {
+        section.scrollIntoView({ behavior: 'smooth' });
+    }
+    return true;
+}
+
+function scheduleOpenPropertyFromUrl() {
+    var tries = 0;
+    function attempt() {
+        tries += 1;
+        if (openPropertyFromUrlParam()) return;
+        if (tries < 30) setTimeout(attempt, 150);
+    }
+    attempt();
 }
 
 function getVisibleProperties(list) {
@@ -734,6 +793,14 @@ function filterProperties() {
 function showPropertyDetails(propertyId) {
     const property = properties.find(p => p.id === propertyId);
     if (!property) return;
+
+    try {
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', '#imovel=' + propertyId);
+        } else {
+            window.location.hash = 'imovel=' + propertyId;
+        }
+    } catch (urlErr) { /* ignore */ }
     
     const brokerView = typeof isBroker === 'function' ? isBroker() : false;
     const mediaOverride = getPropertyMediaOverride(property.id);

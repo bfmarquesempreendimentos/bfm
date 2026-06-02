@@ -1581,9 +1581,11 @@ function renderBrokerCampaignKpis(preview) {
             hint.textContent = (preview.whatsappTestAccountHint || 'Conta WhatsApp de TESTE na Meta.') +
                 ' Cadastre o celular do corretor em API Setup → números de teste antes do teste.';
         } else if (preview && preview.isReady && ready > 0) {
-            hint.textContent = 'Pronto: ' + ready + ' corretor(es) recebem mensagem com empreendimento em destaque da semana + fotos/vídeo.';
+            hint.textContent = 'Pronto: ' + ready + ' corretor(es) — 1 mensagem com nome, destaque, links do empreendimento e do site, notícia do dia + até 2 fotos e 1 vídeo.';
             if (preview.campaignWeek && preview.campaignWeek.featuredPropertyTitle) {
-                hint.textContent += ' Destaque desta semana: ' + preview.campaignWeek.featuredPropertyTitle + '.';
+                hint.textContent += ' Destaque: ' + preview.campaignWeek.featuredPropertyTitle;
+                if (preview.campaignWeek.featuredPrice) hint.textContent += ' (' + preview.campaignWeek.featuredPrice + ')';
+                if (preview.campaignWeek.featuredPropertyUrl) hint.textContent += ' — ' + preview.campaignWeek.featuredPropertyUrl;
             }
             if (!preview.hasTemplate) {
                 hint.textContent += ' Sem template: só entrega se o corretor falou com a Bia nas últimas 24h.';
@@ -1625,6 +1627,40 @@ function updateBrokerCampaignWeeklyBarUi(enabled) {
     }
 }
 
+function fillBrokerCampaignPropertySelect(propertyList, selectedId) {
+    var sel = document.getElementById('brokerCampaignFeaturedProperty');
+    if (!sel) return;
+    var current = selectedId != null && selectedId !== '' ? String(selectedId) : sel.value;
+    var html = '<option value="">Automático (rotação por semana)</option>';
+    var i;
+    var list = propertyList || [];
+    for (i = 0; i < list.length; i++) {
+        html += '<option value="' + list[i].id + '">' +
+            escapeHtml(String(list[i].title)) + ' — ' + escapeHtml(String(list[i].price || '')) +
+            '</option>';
+    }
+    sel.innerHTML = html;
+    if (current) sel.value = current;
+}
+
+function updateBrokerCampaignWeekPreviewLine(preview) {
+    var el = document.getElementById('brokerCampaignWeekPreview');
+    if (!el || !preview) return;
+    var cw = preview.campaignWeek;
+    if (!cw) {
+        el.textContent = '';
+        return;
+    }
+    var txt = 'Prévia desta configuração: ';
+    if (cw.featuredManual) txt += 'destaque manual — ';
+    txt += (cw.featuredPropertyTitle || '—');
+    if (cw.featuredPrice) txt += ' (' + cw.featuredPrice + ')';
+    if (cw.featuredPropertyUrl) txt += '. Link: ' + cw.featuredPropertyUrl;
+    txt += '. Notícia: ' + (cw.marketCustom ? 'personalizada' : 'automática') +
+        ' — ' + (cw.marketSnippetTitle || '');
+    el.textContent = txt;
+}
+
 function applyBrokerCampaignConfigFields(cfg) {
     if (!cfg) return;
     var check = document.getElementById('brokerCampaignEnabled');
@@ -1638,17 +1674,38 @@ function applyBrokerCampaignConfigFields(cfg) {
     var cta = document.getElementById('brokerCampaignCta');
     var tips = document.getElementById('brokerCampaignTips');
     var tpl = document.getElementById('brokerCampaignTemplate');
+    var marketTitle = document.getElementById('brokerCampaignMarketTitle');
+    var marketText = document.getElementById('brokerCampaignMarketText');
     if (title && cfg.weeklyTitle) title.value = cfg.weeklyTitle;
     if (siteUrl && cfg.siteUrl) siteUrl.value = cfg.siteUrl;
     if (contact && cfg.whatsappContato) contact.value = cfg.whatsappContato;
     if (cta && cfg.ctaText) cta.value = cfg.ctaText;
     if (tpl) tpl.value = cfg.templateName || 'campanha_corretor_msg';
     if (tips && Array.isArray(cfg.usefulTips)) tips.value = cfg.usefulTips.join('\n');
+    if (marketTitle) marketTitle.value = cfg.marketNewsTitle || '';
+    if (marketText) marketText.value = cfg.marketNewsText || '';
+    if (cfg.campaignProperties && cfg.campaignProperties.length) {
+        fillBrokerCampaignPropertySelect(cfg.campaignProperties, cfg.featuredPropertyId);
+    } else {
+        var featSelOnly = document.getElementById('brokerCampaignFeaturedProperty');
+        if (featSelOnly) {
+            featSelOnly.value = (cfg.featuredPropertyId != null && cfg.featuredPropertyId !== '')
+                ? String(cfg.featuredPropertyId) : '';
+        }
+    }
+    updateBrokerCampaignWeekPreviewLine({ campaignWeek: cfg.campaignWeek });
 }
 
 function loadBrokerCampaignPreview() {
     return adminFetchJson('/brokerCampaignPreview').then(function(preview) {
         renderBrokerCampaignKpis(preview);
+        if (preview && preview.campaignProperties) {
+            fillBrokerCampaignPropertySelect(
+                preview.campaignProperties,
+                preview.featuredPropertyId != null ? preview.featuredPropertyId : ''
+            );
+        }
+        updateBrokerCampaignWeekPreviewLine(preview);
         var wabaEl = document.getElementById('brokerCampaignWabaId');
         var biaEl = document.getElementById('brokerCampaignBiaPhoneId');
         var wabaHint = document.getElementById('brokerCampaignWabaHint');
@@ -1871,10 +1928,14 @@ function collectBrokerCampaignConfigPayload() {
     var cta = document.getElementById('brokerCampaignCta');
     var tips = document.getElementById('brokerCampaignTips');
     var tpl = document.getElementById('brokerCampaignTemplate');
+    var feat = document.getElementById('brokerCampaignFeaturedProperty');
+    var marketTitle = document.getElementById('brokerCampaignMarketTitle');
+    var marketText = document.getElementById('brokerCampaignMarketText');
     var usefulTips = [];
     if (tips && tips.value) {
         usefulTips = tips.value.split('\n').map(function(t) { return String(t || '').trim(); }).filter(Boolean);
     }
+    var featVal = feat ? String(feat.value || '').trim() : '';
     return {
         enabled: !!(check && check.checked),
         weeklyTitle: title ? title.value : '',
@@ -1883,7 +1944,10 @@ function collectBrokerCampaignConfigPayload() {
         templateName: tpl ? String(tpl.value || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') : '',
         templateLanguage: 'pt_BR',
         ctaText: cta ? cta.value : '',
-        usefulTips: usefulTips
+        usefulTips: usefulTips,
+        featuredPropertyId: featVal === '' ? '' : Number(featVal),
+        marketNewsTitle: marketTitle ? marketTitle.value : '',
+        marketNewsText: marketText ? marketText.value : ''
     };
 }
 
@@ -1891,7 +1955,9 @@ function saveBrokerCampaignConfig() {
     var top = document.getElementById('brokerCampaignEnabledTop');
     var inner = document.getElementById('brokerCampaignEnabled');
     if (top && inner) inner.checked = top.checked;
-    adminPostJson('/brokerCampaignConfig', collectBrokerCampaignConfigPayload()).then(function() {
+    adminPostJson('/brokerCampaignConfig', collectBrokerCampaignConfigPayload()).then(function(res) {
+        if (res && res.config) applyBrokerCampaignConfigFields(res.config);
+        loadBrokerCampaignPreview();
         if (typeof showMessage === 'function') {
             showMessage('Configuração da campanha salva.', 'success');
         }
