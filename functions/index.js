@@ -8,6 +8,8 @@ const { setFollowUpExclusion: leadSetFollowUpExclusion } = require('./chatbot/le
 const { getPropertyById } = require('./chatbot/property-data');
 const {
   sendTextMessage,
+  sendImageMessage,
+  sendVideoMessage,
   sendTemplateMessage,
   extractMetaError,
   isTemplateNameOrLanguageError,
@@ -32,6 +34,7 @@ const {
   getWhatsAppMediaBuffer,
 } = require('./chatbot/whatsapp-api');
 const propertySalesHandlers = require('./property-sales-handlers');
+const brokerCampaignContent = require('./chatbot/broker-campaign-content');
 const { verifyAdminFromBody } = require('./admin-accounts');
 
 admin.initializeApp();
@@ -708,6 +711,7 @@ async function getBrokerCampaignPreview(db) {
     phonesOnWaba: (templateStatus.phonesOnWaba || []).map(function(p) {
       return { id: p.id, display_phone_number: p.display_phone_number || '' };
     }),
+    campaignWeek: brokerCampaignContent.getCampaignWeekPreview(new Date(), config),
   };
 }
 
@@ -805,24 +809,8 @@ function buildBrokerCampaignTemplateComponents(config, broker, now) {
   }];
 }
 
-/** Template campanha_corretor_msg na Meta: 1 variável {{1}} com o texto completo (ver TEMPLATE-CAMPANHA-CORRETORES-META.md). */
 function buildCampanhaCorretorSingleVarBody(config, broker, now) {
-  const week = getWeekOfYearNumber(now);
-  const tips = Array.isArray(config.usefulTips) ? config.usefulTips : [];
-  const tip = tips.length ? tips[(week - 1) % tips.length] : '';
-  const firstName = String((broker && broker.name) || '').trim().split(' ')[0] || 'Corretor(a)';
-  const text = (
-    'Olá, ' + firstName + '! Boa semana de vendas.\n\n' +
-    '📢 Site atualizado: ' + (config.siteUrl || 'https://bfmarquesempreendimentos.github.io/bfm/') + '\n' +
-    '🔥 Ofertas e imóveis disponíveis já estão no ar.\n' +
-    (tip ? ('💡 ' + tip + '\n') : '') +
-    '✅ ' + (config.ctaText || 'Divulgue as ofertas da semana para seus leads.') + '\n\n' +
-    'Suporte: ' + (config.whatsappContato || '(21) 99759-0814')
-  );
-  return [{
-    type: 'body',
-    parameters: [{ type: 'text', text: text.substring(0, 1024) }],
-  }];
+  return brokerCampaignContent.buildCampanhaCorretorBodyComponents(config, broker, now);
 }
 
 function getBrokerCampaignFillTexts(config, broker, now) {
@@ -830,14 +818,7 @@ function getBrokerCampaignFillTexts(config, broker, now) {
   const tips = Array.isArray(config.usefulTips) ? config.usefulTips : [];
   const tip = tips.length ? tips[(week - 1) % tips.length] : '';
   const firstName = String((broker && broker.name) || '').trim().split(' ')[0] || 'Corretor(a)';
-  const singleBody = (
-    'Olá, ' + firstName + '! Boa semana de vendas.\n\n' +
-    '📢 Site atualizado: ' + (config.siteUrl || 'https://bfmarquesempreendimentos.github.io/bfm/') + '\n' +
-    '🔥 Ofertas e imóveis disponíveis já estão no ar.\n' +
-    (tip ? ('💡 ' + tip + '\n') : '') +
-    '✅ ' + (config.ctaText || 'Divulgue as ofertas da semana para seus leads.') + '\n\n' +
-    'Suporte: ' + (config.whatsappContato || '(21) 99759-0814')
-  );
+  const singleBody = brokerCampaignContent.buildRichCampaignSingleBody(config, broker, now);
   return {
     weeklyTitle: config.weeklyTitle || 'Atualização semanal B F Marques',
     singleBody: singleBody,
@@ -868,7 +849,43 @@ function buildBodyOnlyParamSet(n, config, broker, now) {
 async function bruteForceBrokerTemplateSend(waPhone, templateName, langCandidates, waSendOpts, config, broker, now) {
   var fill = getBrokerCampaignFillTexts(config, broker, now);
   fill.urlButtonSuffix = 'bfm';
-  var bodyCounts = [0, 1, 2, 3, 4, 5, 6];
+  var tplNorm = normalizeTemplateName(templateName);
+  var li0;
+  for (li0 = 0; li0 < langCandidates.length; li0++) {
+    try {
+      var richOnly = buildCampanhaCorretorSingleVarBody(config, broker, now);
+      var richResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li0], richOnly, waSendOpts);
+      return {
+        mode: 'template',
+        templateName: templateName,
+        language: langCandidates[li0],
+        componentsVariant: 'rich_single_var',
+        waMessageId: richResp && richResp.messageId ? richResp.messageId : '',
+        sentTo: waPhone,
+      };
+    } catch (richErr) {
+      var richMsg = richErr.message || extractMetaError(richErr);
+      if (!isTemplateParamCountError(richMsg) && !isTemplateNameOrLanguageError(richMsg)) throw new Error(richMsg);
+    }
+    try {
+      var withImg = brokerCampaignContent.buildCampanhaWithImageHeader(config, broker, now);
+      if (withImg) {
+        richResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li0], withImg, waSendOpts);
+        return {
+          mode: 'template',
+          templateName: templateName,
+          language: langCandidates[li0],
+          componentsVariant: 'rich_header_image',
+          waMessageId: richResp && richResp.messageId ? richResp.messageId : '',
+          sentTo: waPhone,
+        };
+      }
+    } catch (imgTplErr) {
+      richMsg = imgTplErr.message || extractMetaError(imgTplErr);
+      if (!isTemplateParamCountError(richMsg) && !isTemplateNameOrLanguageError(richMsg)) throw new Error(richMsg);
+    }
+  }
+  var bodyCounts = tplNorm === 'campanha_corretor_msg' ? [1, 2, 3, 4, 5, 6] : [0, 1, 2, 3, 4, 5, 6];
   var namedNames = ['mensagem', 'texto', 'corpo', 'conteudo', 'body', 'nome'];
   var li;
   var bi;
@@ -958,7 +975,7 @@ function buildBrokerCampaignTemplateComponentSets(config, broker, now, message) 
   if (count === 4 || total === 4) return [fourVar, singleVar, fiveVar, none];
   if (count === 5 || total === 5) return [fiveVar, singleVar, twoVar, none];
   if (tplName === 'atualizacao_semanal_corretor') return [fiveVar, fourVar, threeVar, singleVar, none];
-  if (tplName === 'campanha_corretor_msg') return [singleVar, twoVar, threeVar, fourVar, fiveVar, none];
+  if (tplName === 'campanha_corretor_msg') return [singleVar, twoVar, threeVar, fourVar, fiveVar];
   return [singleVar, twoVar, threeVar, fourVar, fiveVar, none];
 }
 
@@ -996,6 +1013,54 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
     var tplListOpts = { phoneNumberId: config.campaignPhoneNumberId || '' };
     var metaExactSets = [];
     var liMeta;
+    let lastErr = null;
+    var mi;
+    var li;
+    var ci;
+
+    for (liMeta = 0; liMeta < langCandidates.length; liMeta++) {
+      try {
+        var richComps = buildCampanhaCorretorSingleVarBody(config, broker, now);
+        var richSend = await sendTemplateMessage(
+          waPhone, templateName, langCandidates[liMeta], richComps, waSendOpts
+        );
+        var tplResult = {
+          mode: 'template',
+          templateName: templateName,
+          language: langCandidates[liMeta],
+          componentsVariant: 'rich_single_var',
+          waMessageId: richSend && richSend.messageId ? richSend.messageId : '',
+          sentTo: waPhone,
+        };
+        tplResult.media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
+          waPhone, config, now, waSendOpts, sendImageMessage, sendVideoMessage
+        );
+        return tplResult;
+      } catch (richFirstErr) {
+        lastErr = richFirstErr;
+      }
+      try {
+        var imgHdr = brokerCampaignContent.buildCampanhaWithImageHeader(config, broker, now);
+        if (imgHdr) {
+          richSend = await sendTemplateMessage(waPhone, templateName, langCandidates[liMeta], imgHdr, waSendOpts);
+          tplResult = {
+            mode: 'template',
+            templateName: templateName,
+            language: langCandidates[liMeta],
+            componentsVariant: 'rich_header_image',
+            waMessageId: richSend && richSend.messageId ? richSend.messageId : '',
+            sentTo: waPhone,
+          };
+          tplResult.media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
+            waPhone, config, now, waSendOpts, sendImageMessage, sendVideoMessage
+          );
+          return tplResult;
+        }
+      } catch (imgHdrErr) {
+        lastErr = imgHdrErr;
+      }
+    }
+
     for (liMeta = 0; liMeta < langCandidates.length; liMeta++) {
       var row = await findApprovedTemplateRow(tplListOpts, templateName, langCandidates[liMeta]);
       if (row && row.components && row.components.length) {
@@ -1006,17 +1071,13 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
       }
     }
     var componentSets = buildBrokerCampaignTemplateComponentSets(config, broker, now, message);
-    let lastErr = null;
-    var mi;
-    var li;
-    var ci;
     if (metaExactSets.length) {
       for (mi = 0; mi < metaExactSets.length; mi++) {
         try {
           const sendResp = await sendTemplateMessage(
             waPhone, templateName, metaExactSets[mi].lang, metaExactSets[mi].components, waSendOpts
           );
-          return {
+          tplResult = {
             mode: 'template',
             templateName: templateName,
             language: metaExactSets[mi].lang,
@@ -1024,6 +1085,10 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
             waMessageId: sendResp && sendResp.messageId ? sendResp.messageId : '',
             sentTo: waPhone,
           };
+          tplResult.media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
+            waPhone, config, now, waSendOpts, sendImageMessage, sendVideoMessage
+          );
+          return tplResult;
         } catch (errMeta) {
           lastErr = errMeta;
         }
@@ -1031,13 +1096,17 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
     }
     for (li = 0; li < langCandidates.length; li++) {
       for (ci = 0; ci < componentSets.length; ci++) {
+        if (normalizeTemplateName(templateName) === 'campanha_corretor_msg' &&
+            (!componentSets[ci].length || (componentSets[ci][0].parameters && componentSets[ci][0].parameters.length === 0))) {
+          continue;
+        }
         try {
           const sendResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li], componentSets[ci], waSendOpts);
           var variant = 'auto';
           if (componentSets[ci].length === 0) variant = 'none';
           else if (componentSets[ci][0].parameters && componentSets[ci][0].parameters.length === 1) variant = 'single';
           else if (componentSets[ci][0].parameters && componentSets[ci][0].parameters.length >= 5) variant = 'full';
-          return {
+          tplResult = {
             mode: 'template',
             templateName: templateName,
             language: langCandidates[li],
@@ -1045,6 +1114,12 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
             waMessageId: sendResp && sendResp.messageId ? sendResp.messageId : '',
             sentTo: waPhone,
           };
+          if (variant === 'single' || variant === 'rich_single_var') {
+            tplResult.media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
+              waPhone, config, now, waSendOpts, sendImageMessage, sendVideoMessage
+            );
+          }
+          return tplResult;
         } catch (err) {
           lastErr = err;
           const errMsg = err.message || extractMetaError(err);
@@ -1057,13 +1132,17 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
     var probed = await bruteForceBrokerTemplateSend(
       waPhone, templateName, langCandidates, waSendOpts, config, broker, now
     );
-    if (probed) return probed;
+    if (probed) {
+      probed.media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
+        waPhone, config, now, waSendOpts, sendImageMessage, sendVideoMessage
+      );
+      return probed;
+    }
 
     const detail = lastErr ? (lastErr.message || String(lastErr)) : 'erro desconhecido';
     throw new Error(
       'Template "' + templateName + '" não foi enviado pela Meta: ' + detail +
-      ' Abra o template no WhatsApp Manager e confira quantas variáveis {{}} existem no corpo (e em botões URL). ' +
-      'Modelo recomendado: campanha_corretor_msg com 1 variável {{1}} — veja TEMPLATE-CAMPANHA-CORRETORES-META.md.'
+      ' O template precisa de {{1}} no corpo para conteúdo personalizado (site, destaque, MCMV). Veja TEMPLATE-CAMPANHA-CORRETORES-META.md.'
     );
   }
   try {
@@ -1196,6 +1275,8 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
           templateName: sendMeta.templateName || '',
           waMessageId: sendMeta.waMessageId || '',
           componentsVariant: sendMeta.componentsVariant || '',
+          mediaSent: sendMeta.media && sendMeta.media.sent ? sendMeta.media.sent : 0,
+          featuredTitle: sendMeta.media && sendMeta.media.featuredTitle ? sendMeta.media.featuredTitle : '',
         });
       }
     } catch (err) {
@@ -1255,6 +1336,7 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     whatsappAccountName: waAccount.ok ? (waAccount.wabaName || '') : '',
     deliveryWarning: deliveryWarning,
     deliveryLikely: sent > 0 && !deliveryWarning,
+    campaignWeek: brokerCampaignContent.getCampaignWeekPreview(now, config),
   };
 }
 

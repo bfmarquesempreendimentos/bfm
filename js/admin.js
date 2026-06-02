@@ -1581,7 +1581,10 @@ function renderBrokerCampaignKpis(preview) {
             hint.textContent = (preview.whatsappTestAccountHint || 'Conta WhatsApp de TESTE na Meta.') +
                 ' Cadastre o celular do corretor em API Setup → números de teste antes do teste.';
         } else if (preview && preview.isReady && ready > 0) {
-            hint.textContent = 'Pronto: ao clicar em Disparar agora, ' + ready + ' corretor(es) ativos com campanha ligada recebem WhatsApp.';
+            hint.textContent = 'Pronto: ' + ready + ' corretor(es) recebem mensagem com empreendimento em destaque da semana + fotos/vídeo.';
+            if (preview.campaignWeek && preview.campaignWeek.featuredPropertyTitle) {
+                hint.textContent += ' Destaque desta semana: ' + preview.campaignWeek.featuredPropertyTitle + '.';
+            }
             if (!preview.hasTemplate) {
                 hint.textContent += ' Sem template: só entrega se o corretor falou com a Bia nas últimas 24h.';
             }
@@ -1741,6 +1744,12 @@ function showBrokerCampaignResult(result, isError) {
     var txt = 'Disparo concluído. Enviados: ' + sent + ', erros: ' + errors + ', pulados (telefone inválido): ' + skipped + '.';
     if (eligible !== null) txt += ' Elegíveis: ' + eligible + '.';
     if (result && result.templateName) txt += ' Template: ' + result.templateName + '.';
+    if (result && result.campaignWeek && result.campaignWeek.featuredPropertyTitle) {
+        txt += ' Destaque: ' + result.campaignWeek.featuredPropertyTitle + '.';
+    }
+    if (result && result.sentDetails && result.sentDetails.length && result.sentDetails[0].featuredTitle) {
+        txt += ' Fotos/vídeo: ' + (result.sentDetails[0].mediaSent || 0) + ' mídia(s) enviada(s).';
+    }
     if (result && result.issues && result.issues.length) {
         var errBits = [];
         var ei;

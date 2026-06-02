@@ -39,18 +39,23 @@ Equipe comercial parceira.
 
 (A última linha fixa depois do `{{1}}` remove o erro em vermelho.)
 
-A Meta vai pedir **exemplo** para a variável `{{1}}`. Cole isto:
+A Meta vai pedir **exemplo** para a variável `{{1}}`. Cole isto (o sistema preenche automaticamente com destaque da semana, site e dica MCMV):
 
 ```
-Olá, João! Boa semana de vendas.
+Olá, João! Semana B F Marques 🏡
 
-📢 Site atualizado: https://bfmarquesempreendimentos.github.io/bfm/
-🔥 Ofertas e imóveis disponíveis já estão no ar.
-💡 Sempre responda o lead no mesmo dia.
-✅ Divulgue as ofertas da semana para seus leads.
+⭐ DESTAQUE DA SEMANA
+🏠 Residencial Itaúna
+📍 Nova Cidade, São Gonçalo - RJ
+💰 R$ 155.000,00
+✅ Aceita Minha Casa Minha Vida
 
+🌐 Todos os imóveis: https://bfmarquesempreendimentos.github.io/bfm/
+📷 Em seguida enviamos fotos e vídeo deste empreendimento.
 Suporte: (21) 99759-0814
 ```
+
+**Importante:** sem `{{1}}` no corpo o WhatsApp só envia o texto fixo do modelo (sem site nem destaque). O corpo **precisa** ter `{{1}}` entre as linhas fixas.
 
 Depois clique em **Enviar** / **Submit** e aguarde status **Aprovado** (Approved), em geral de algumas horas até 48 h.
 
