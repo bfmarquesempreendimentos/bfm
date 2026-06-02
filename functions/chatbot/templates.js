@@ -156,6 +156,21 @@ async function sendWelcomeMessage(phone, name) {
   await sendTextMessage(phone, text);
 }
 
+function brokerWelcome(name) {
+  const greeting = getGreeting();
+  const first = String(name || '').trim().split(' ')[0];
+  const who = first ? (', ' + first) : '';
+  return greeting + who + '! 👋\n\n' +
+    'Sou a *Bia*, assistente da *B F Marques*.\n\n' +
+    'Posso ajudar com dúvidas sobre *imóveis, unidades e MCMV*.\n\n' +
+    'Para *reserva*, *financiamento aprovado*, *valores* ou *proposta*, fale com o *Bruno Marques*: (21) 99555-7010.\n\n' +
+    'Como posso ajudar?';
+}
+
+async function sendBrokerWelcomeMessage(phone, name) {
+  await sendTextMessage(phone, brokerWelcome(name));
+}
+
 async function sendFollowUp(phone, name, propertyTitle, type = '24h') {
   let text;
   switch (type) {
@@ -194,6 +209,8 @@ async function sendPostVisitMessage(phone, name, propertyTitle) {
 module.exports = {
   TEMPLATES,
   sendWelcomeMessage,
+  sendBrokerWelcomeMessage,
+  brokerWelcome,
   sendFollowUp,
   sendPostVisitMessage,
   getGreeting,

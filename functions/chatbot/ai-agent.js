@@ -3,9 +3,9 @@ const { sendTextMessage, sendImageMessage, sendVideoMessage, sendInteractiveButt
 const { transcribeAudioBuffer } = require('./audio-transcription');
 const { getPropertyById, getPropertyMediaLists, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, properties } = require('./property-data');
 const { simulateFinancing, formatSimulationResult } = require('./finance-simulator');
-const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone, queueInboundEmailAlert, getBiaTrainingPromptExtra, setFollowUpExclusion } = require('./lead-manager');
+const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone, queueInboundEmailAlert, getBiaTrainingPromptExtra, setFollowUpExclusion, findRegisteredBrokerByPhone, getBrokerBiaPromptBlock, BRUNO_CORRETOR_PHONE_DISPLAY } = require('./lead-manager');
 const { detectAgeFinancingBlock } = require('./follow-up-engine');
-const { sendWelcomeMessage } = require('./templates');
+const { sendWelcomeMessage, sendBrokerWelcomeMessage } = require('./templates');
 
 function delay(ms) {
   return new Promise(function(resolve) { setTimeout(resolve, ms); });
@@ -65,7 +65,8 @@ ${getPropertiesSummaryForAI()}
 22. Quando o cliente mandar *áudio*, a conversa pode trazer o texto *já transcrito* — responda ao conteúdo como se fosse mensagem escrita, em português natural
 23. Para leads de anúncios/WhatsApp, pergunte SEMPRE sobre *nome limpo* (CPF sem restrição). Sem essa informação, continue a qualificação até obter a resposta antes de avançar para proposta final
 24. Se o cliente disser que *não passa na idade*, que o *banco não libera por idade*, que tem *idade avançada* ou similar, use *marcar_sem_follow_up* — não insista com follow-up automático
-25. Não pressione financiamento para quem já indicou bloqueio por idade; ofereça apenas informações gerais ou encaminhe ao humano se pedir`;
+25. Não pressione financiamento para quem já indicou bloqueio por idade; ofereça apenas informações gerais ou encaminhe ao humano se pedir
+26. *NUNCA* informe o telefone do Bruno Marques (21) 99555-7010 para clientes/leads — esse contato é *exclusivo* para corretores cadastrados (o sistema ativa o modo corretor automaticamente quando aplicável)`;
 
 const TOOLS = [
   {
@@ -393,6 +394,18 @@ async function handleIncomingMessage(messageData) {
   var referral = messageData.referral;
 
   const lead = await getOrCreateLead(phone, profileName);
+  var registeredBroker = await findRegisteredBrokerByPhone(phone);
+  if (registeredBroker) {
+    await updateLead(phone, {
+      isBroker: true,
+      brokerId: registeredBroker.id,
+      brokerName: registeredBroker.name,
+      contactType: 'corretor',
+      categoria: 'corretor',
+      followUpExcluded: true,
+      followUpExcludeReason: 'corretor_cadastrado',
+    });
+  }
   var userContent;
   var userMsgMeta = {};
   if (type === 'audio' || type === 'video' || type === 'image' || type === 'document') {
@@ -452,7 +465,11 @@ async function handleIncomingMessage(messageData) {
 
   if (!lead.welcomeSent && type !== 'document' && type !== 'image') {
     try {
-      await sendWelcomeMessage(phone, lead.name || profileName);
+      if (registeredBroker) {
+        await sendBrokerWelcomeMessage(phone, registeredBroker.name || profileName);
+      } else {
+        await sendWelcomeMessage(phone, lead.name || profileName);
+      }
       await updateLead(phone, { welcomeSent: true });
     } catch (welcomeErr) {
       console.error('[Bia] welcome:', welcomeErr.message);
@@ -461,7 +478,7 @@ async function handleIncomingMessage(messageData) {
 
   const escalationHistory = await getConversationHistory(phone, 12);
   const consecutiveUserMsgs = getConsecutiveUserMessages(escalationHistory);
-  if ((type === 'audio' || consecutiveUserMsgs >= 3) && !lead.modo_humano) {
+  if (!registeredBroker && (type === 'audio' || consecutiveUserMsgs >= 3) && !lead.modo_humano) {
     const escReason = type === 'audio'
       ? 'Escalação automática: cliente enviou áudio e requer revisão humana'
       : 'Escalação automática: 3+ mensagens seguidas do cliente sem resposta humana';
@@ -485,6 +502,12 @@ async function handleIncomingMessage(messageData) {
   }
 
   if (type === 'document' || type === 'image') {
+    if (registeredBroker) {
+      var msgBroker = 'Recebi seu ' + (type === 'document' ? 'documento' : 'arquivo') + '! Para *reserva*, *financiamento*, *valores* ou *proposta*, envie direto ao Bruno Marques: ' + BRUNO_CORRETOR_PHONE_DISPLAY + '. Posso ajudar com dúvidas gerais sobre os imóveis por aqui.';
+      await saveMessage(phone, 'assistant', msgBroker, 'bot');
+      await sendTextMessage(phone, msgBroker, { phoneNumberId: messageData.phoneNumberId });
+      return;
+    }
     const motivo = type === 'document'
       ? 'Cliente enviou documento para análise'
       : 'Cliente enviou imagem (possível documento para análise)';
@@ -556,14 +579,20 @@ async function handleIncomingMessage(messageData) {
     var cleanNameRule = cleanNameMissing
       ? '\n\nQualificação obrigatória pendente nesta conversa: pergunte de forma direta se o cliente está com NOME LIMPO (CPF sem restrição), pois isso é requisito essencial para MCMV.'
       : '';
+    var brokerBlock = '';
+    if (registeredBroker) {
+      brokerBlock = getBrokerBiaPromptBlock(registeredBroker);
+      cleanNameRule = '';
+    }
     var trainingExtra = '';
     try {
       trainingExtra = await getBiaTrainingPromptExtra(phone);
     } catch (te) {
       console.warn('getBiaTrainingPromptExtra:', te.message);
     }
-    var leadContext = SYSTEM_PROMPT +
-      `\n\nDados do lead atual: Nome: ${lead.name || 'Desconhecido'}, Status: ${lead.status}, Nome limpo: ${cleanNameStatus}, Imóveis de interesse: ${(lead.interestedProperties || []).join(', ') || 'Nenhum ainda'}` +
+    var contactLabel = registeredBroker ? 'Corretor cadastrado' : 'Lead/cliente';
+    var leadContext = SYSTEM_PROMPT + brokerBlock +
+      `\n\nDados do contato (${contactLabel}): Nome: ${(registeredBroker && registeredBroker.name) || lead.name || 'Desconhecido'}, Status: ${lead.status}, Nome limpo: ${cleanNameStatus}, Imóveis de interesse: ${(lead.interestedProperties || []).join(', ') || 'Nenhum ainda'}` +
       cleanNameRule + trainingExtra;
     let response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',

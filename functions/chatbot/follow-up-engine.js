@@ -65,6 +65,7 @@ function getPropertyTitle(lead) {
 
 function isFollowUpEligible(lead, lastMsg) {
   if (!lead) return { ok: false, reason: 'sem_lead' };
+  if (lead.isBroker) return { ok: false, reason: 'corretor_cadastrado' };
   if (lead.followUpExcluded) {
     return { ok: false, reason: lead.followUpExcludeReason || 'excluido' };
   }

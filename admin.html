@@ -595,9 +595,20 @@
                                 </label>
                                 <label class="campaign-field-col campaign-field-col--wide">
                                     <span>Template Meta (obrigatório se a Bia nunca falou com o corretor)</span>
-                                    <input type="text" id="brokerCampaignTemplate" list="brokerCampaignTemplateList" placeholder="ex: atualizacao_semanal_corretor" autocomplete="off">
+                                    <input type="text" id="brokerCampaignTemplate" list="brokerCampaignTemplateList" placeholder="campanha_corretor_msg" autocomplete="off">
                                     <datalist id="brokerCampaignTemplateList"></datalist>
-                                    <small id="brokerCampaignTemplateHint" class="form-hint">Nome exato na Meta: só minúsculas e _. Erro 132001 = template inexistente ou idioma errado.</small>
+                                    <small id="brokerCampaignTemplateHint" class="form-hint">Crie o modelo na Meta (Marketing, pt_BR). Nome sugerido: <strong>campanha_corretor_msg</strong>. Abra o passo a passo abaixo.</small>
+                                    <details class="broker-template-help">
+                                        <summary>Como criar o template na Meta (clique aqui)</summary>
+                                        <ol class="broker-template-help__steps">
+                                            <li>Entre em <a href="https://business.facebook.com" target="_blank" rel="noopener">business.facebook.com</a> → <strong>WhatsApp Manager</strong> → <strong>Modelos de mensagem</strong> → <strong>Criar modelo</strong>.</li>
+                                            <li>Nome: <code>campanha_corretor_msg</code> · Categoria: <strong>Marketing</strong> · Idioma: <strong>Português (Brasil)</strong>.</li>
+                                            <li>No corpo, cole (texto <em>depois</em> do {{1}} é obrigatório):<br><code>🏡 B F Marques Empreendimentos&#10;&#10;{{1}}&#10;&#10;Equipe comercial parceira.</code></li>
+                                            <li>Exemplo da variável {{1}} (a Meta pede):<br><code>Olá, João! Site: https://bfmarquesempreendimentos.github.io/bfm/ — Ofertas da semana no ar. Suporte: (21) 99759-0814</code></li>
+                                            <li>Envie para análise e aguarde <strong>Aprovado</strong> (horas ou até 48h).</li>
+                                            <li>Volte aqui, preencha <strong>campanha_corretor_msg</strong> no campo acima, Salvar → Testar → Disparar.</li>
+                                        </ol>
+                                    </details>
                                 </label>
                             </div>
                             <label class="campaign-field-full">
@@ -1214,7 +1225,7 @@
     <script src="js/whatsapp-leads.js?v=3"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=13"></script>
+    <script src="js/admin.js?v=14"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

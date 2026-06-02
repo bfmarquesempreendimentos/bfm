@@ -32,6 +32,64 @@ async function recordInboundActivity(phone, previewText) {
   }
 }
 
+const BRUNO_CORRETOR_PHONE_DISPLAY = '(21) 99555-7010';
+
+var brokerPhoneCache = { at: 0, map: null };
+var BROKER_CACHE_MS = 3 * 60 * 1000;
+
+function isBrokerActiveFlag(value) {
+  if (value === undefined || value === null) return true;
+  if (value === false || value === 0) return false;
+  if (value === true || value === 1) return true;
+  var s = String(value).trim().toLowerCase();
+  return s === 'true' || s === '1' || s === 'sim' || s === 'ativo';
+}
+
+async function findRegisteredBrokerByPhone(phone) {
+  var norm = normalizeWhatsAppPhone(phone);
+  if (!norm) return null;
+  var now = Date.now();
+  if (!brokerPhoneCache.map || now - brokerPhoneCache.at > BROKER_CACHE_MS) {
+    var snap = await getDb().collection('brokers').get();
+    var map = {};
+    snap.forEach(function(doc) {
+      var d = doc.data() || {};
+      var p = normalizeWhatsAppPhone(d.phone);
+      if (!p) return;
+      var entry = {
+        id: doc.id,
+        name: d.name || '',
+        email: d.email || '',
+        isActive: isBrokerActiveFlag(d.isActive),
+      };
+      if (!map[p] || (entry.isActive && !map[p].isActive)) map[p] = entry;
+    });
+    brokerPhoneCache = { at: now, map: map };
+  }
+  var hit = brokerPhoneCache.map[norm];
+  if (!hit || !hit.isActive) return null;
+  return hit;
+}
+
+function getBrokerBiaPromptBlock(broker) {
+  var first = String((broker && broker.name) || '').trim().split(' ')[0] || 'parceiro(a)';
+  return '\n\n## MODO CORRETOR CADASTRADO (PRIORIDADE MÁXIMA)\n' +
+    'Quem conversa é um *corretor parceiro* cadastrado: *' + first + '*. Esta conversa NÃO é lead/cliente final.\n\n' +
+    '### O que você PODE fazer\n' +
+    '- Tirar dúvidas sobre imóveis, empreendimentos, unidades, MCMV e condições gerais, usando listar_imoveis, detalhes_imovel e simular_financiamento quando ajudar o corretor a orientar o cliente dele.\n' +
+    '- Tom profissional entre parceiros (sem roteiro de "primeira moradia" de consumidor).\n\n' +
+    '### O que você NÃO resolve — encaminhe ao Bruno\n' +
+    'Para *reserva de unidade*, *aprovação de financiamento*, *valores fechados*, *aprovação de proposta* ou decisão comercial/contratual: diga que é com o *Bruno Marques (gestão comercial)* no WhatsApp *' + BRUNO_CORRETOR_PHONE_DISPLAY + '*.\n' +
+    '- Não invente preço, desconto, aprovação ou reserva.\n\n' +
+    '### REGRA CONFIDENCIAL\n' +
+    '- O telefone do Bruno (*' + BRUNO_CORRETOR_PHONE_DISPLAY + '*) é *EXCLUSIVO para corretores*. NUNCA mencione Bruno nem esse número para clientes finais/leads — nesta conversa é corretor, pode informar.\n\n' +
+    '### Outras regras\n' +
+    '- Não insista em "nome limpo do CPF" como para cliente final.\n' +
+    '- Para reserva/financiamento aprovado/proposta/valores fechados, não use encaminhar_humano no lugar do Bruno — passe o WhatsApp do Bruno.\n' +
+    '- Visitas operacionais com clientes do corretor: pode citar Davi (21) 99759-0814.\n' +
+    '- Não pressione follow-up de lead.';
+}
+
 async function getOrCreateLead(phone, profileName) {
   const db = getDb();
   const ref = db.collection('chatbot_leads').doc(phone);
@@ -511,4 +569,7 @@ module.exports = {
     var apply = require('./follow-up-engine').setFollowUpExclusion;
     return apply(getDb(), phone, excluded, reason, by);
   },
+  findRegisteredBrokerByPhone,
+  getBrokerBiaPromptBlock,
+  BRUNO_CORRETOR_PHONE_DISPLAY,
 };
