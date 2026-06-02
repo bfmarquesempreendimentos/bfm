@@ -1484,7 +1484,14 @@ function formatBrokerCampaignPreviewLine(preview) {
         line += ' ' + (preview.invalidPhone || 0) + ' ativo(s) sem telefone no cadastro.';
     }
     if (preview.duplicateRecordsInDb > 0) {
-        line += ' Há ' + preview.duplicateRecordsInDb + ' cadastro(s) duplicado(s) no servidor — use Limpar duplicatas.';
+        line += ' Há ' + preview.duplicateRecordsInDb + ' duplicata(s) ATIVA(s) no servidor — use Limpar duplicatas.';
+    } else if (preview.archivedInactiveRecords > 0) {
+        line += ' ' + preview.archivedInactiveRecords + ' cadastro(s) inativo(s) arquivado(s) (já limpos).';
+    }
+    if (preview.templateName) {
+        line += ' Template Meta: ' + preview.templateName + '.';
+    } else {
+        line += ' Sem template Meta: só entrega se o corretor falou com o WhatsApp Business nas últimas 24h (ou cadastre template abaixo).';
     }
     if (preview.nextWeeklyNote) line += ' ' + preview.nextWeeklyNote;
     return line;
@@ -1511,8 +1518,22 @@ function showBrokerCampaignResult(result, isError) {
     var eligible = result && result.eligible !== undefined ? result.eligible : null;
     var txt = 'Disparo concluído. Enviados: ' + sent + ', erros: ' + errors + ', pulados (telefone inválido): ' + skipped + '.';
     if (eligible !== null) txt += ' Elegíveis: ' + eligible + '.';
-    if (skipped > 0 && sent === 0) {
+    if (result && result.templateName) txt += ' Template: ' + result.templateName + '.';
+    if (result && result.issues && result.issues.length) {
+        var errBits = [];
+        var ei;
+        for (ei = 0; ei < result.issues.length && errBits.length < 3; ei++) {
+            var iss = result.issues[ei];
+            if (iss.status === 'error') {
+                errBits.push((iss.name || iss.phone || 'corretor') + ': ' + (iss.error || iss.reason || 'erro'));
+            }
+        }
+        if (errBits.length) txt += ' Exemplos de erro: ' + errBits.join(' | ');
+    }
+    if (skipped > 0 && sent === 0 && errors === 0) {
         txt += ' Nenhuma mensagem enviada: revise os telefones dos corretores ativos (DDD + 9 dígitos).';
+    } else if (errors > 0 && sent === 0 && !(result && result.templateName)) {
+        txt += ' Provável causa: fora da janela de 24h — cadastre template aprovado na Meta e preencha o campo Template WhatsApp.';
     } else if (skipped > 0) {
         txt += ' Corretores pulados precisam de telefone no formato 21987654321.';
     }
@@ -1569,10 +1590,12 @@ function loadBrokerCampaignConfig() {
         var contact = document.getElementById('brokerCampaignContact');
         var cta = document.getElementById('brokerCampaignCta');
         var tips = document.getElementById('brokerCampaignTips');
+        var tpl = document.getElementById('brokerCampaignTemplate');
         if (title) title.value = cfg.weeklyTitle || '';
         if (siteUrl) siteUrl.value = cfg.siteUrl || '';
         if (contact) contact.value = cfg.whatsappContato || '';
         if (cta) cta.value = cfg.ctaText || '';
+        if (tpl) tpl.value = cfg.templateName || '';
         if (tips) tips.value = Array.isArray(cfg.usefulTips) ? cfg.usefulTips.join('\n') : '';
     }).catch(function(err) {
         if (typeof console !== 'undefined' && console.warn) console.warn('brokerCampaignConfig:', err);
@@ -1587,6 +1610,7 @@ function saveBrokerCampaignConfig() {
     var contact = document.getElementById('brokerCampaignContact');
     var cta = document.getElementById('brokerCampaignCta');
     var tips = document.getElementById('brokerCampaignTips');
+    var tpl = document.getElementById('brokerCampaignTemplate');
     var usefulTips = [];
     if (tips && tips.value) {
         usefulTips = tips.value.split('\n').map(function(t) { return String(t || '').trim(); }).filter(Boolean);
@@ -1596,6 +1620,8 @@ function saveBrokerCampaignConfig() {
         weeklyTitle: title ? title.value : '',
         siteUrl: siteUrl ? siteUrl.value : '',
         whatsappContato: contact ? contact.value : '',
+        templateName: tpl ? tpl.value : '',
+        templateLanguage: 'pt_BR',
         ctaText: cta ? cta.value : '',
         usefulTips: usefulTips
     }).then(function() {
@@ -1614,7 +1640,7 @@ function sendBrokerCampaignNow() {
     var waitEl = document.getElementById('brokerCampaignPreviewStats');
     if (waitEl) waitEl.textContent = 'Enviando mensagens... Aguarde até aparecer o resultado.';
     if (typeof showMessage === 'function') showMessage('Enviando campanha agora. Aguarde até 2 minutos...', 'info');
-    adminPostJson('/brokerCampaignSendNow', { type: 'manual' }).then(function(result) {
+    adminPostJson('/brokerCampaignSendNow', { type: 'manual' }, { timeoutMs: 300000 }).then(function(result) {
         setBrokerCampaignButtonsBusy(false);
         showBrokerCampaignResult(result, false);
     }).catch(function(err) {
@@ -1624,19 +1650,24 @@ function sendBrokerCampaignNow() {
     });
 }
 
-function cleanupBrokerDuplicatesAdmin() {
+function cleanupBrokerDuplicatesAdmin(purgeArchived) {
     var creds = typeof getAdminApiCredentials === 'function' ? getAdminApiCredentials() : null;
     if (!creds || !creds.email || !creds.password) {
         if (typeof showMessage === 'function') showMessage('Faça login no painel com email e senha para limpar duplicatas.', 'error');
         return;
     }
-    if (!confirm('Desativar cadastros duplicados no Firestore (ex.: várias cópias do admin) e ativos sem telefone?')) return;
+    var msgConfirm = purgeArchived
+        ? 'Desativar duplicatas, apagar do servidor os cadastros inativos arquivados e limpar a contagem?'
+        : 'Desativar cadastros duplicados no Firestore (ex.: várias cópias do admin) e ativos sem telefone?';
+    if (!confirm(msgConfirm)) return;
     adminPostJson('/adminCleanupBrokerDuplicates', {
         adminEmail: creds.email,
-        adminPassword: creds.password
-    }).then(function(r) {
+        adminPassword: creds.password,
+        purgeArchived: !!purgeArchived
+    }, { timeoutMs: 300000 }).then(function(r) {
         var msg = 'Limpeza concluída. E-mails únicos: ' + (r.uniqueEmails || 0) +
             '. Registros desativados: ' + (r.duplicatesDeactivated || 0) + '.';
+        if (r.archivedPurged > 0) msg += ' Excluídos do servidor: ' + r.archivedPurged + '.';
         if (typeof showMessage === 'function') showMessage(msg, 'success');
         loadBrokerCampaignPreview();
         if (typeof loadBrokersData === 'function') loadBrokersData();
@@ -1657,7 +1688,7 @@ function sendBrokerCampaignTestSingle() {
     adminPostJson('/brokerCampaignSendNow', {
         type: 'manual_test_single',
         brokerId: brokerId
-    }).then(function(result) {
+    }, { timeoutMs: 300000 }).then(function(result) {
         setBrokerCampaignButtonsBusy(false);
         showBrokerCampaignResult(result, false);
     }).catch(function(err) {

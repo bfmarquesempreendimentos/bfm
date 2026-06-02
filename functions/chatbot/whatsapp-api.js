@@ -238,6 +238,44 @@ async function markAsRead(messageId, options = {}) {
   }).catch(() => {});
 }
 
+function extractMetaError(err) {
+  const meta = err && err.response && err.response.data && err.response.data.error;
+  if (!meta) return err && err.message ? err.message : 'Falha ao enviar';
+  var code = meta.code != null ? String(meta.code) : '';
+  var sub = meta.error_subcode != null ? String(meta.error_subcode) : '';
+  return (meta.message || 'Erro Meta') + (code ? ' (código ' + code + (sub ? '/' + sub : '') + ')' : '');
+}
+
+async function sendTemplateMessage(to, templateName, languageCode, components, options) {
+  options = options || {};
+  const { token, phoneNumberId } = getConfig(options.phoneNumberId);
+  if (!phoneNumberId) {
+    throw new Error('WHATSAPP_PHONE_NUMBER_ID não configurado.');
+  }
+  if (!templateName) {
+    throw new Error('Nome do template WhatsApp não configurado.');
+  }
+  const url = `${GRAPH_API}/${phoneNumberId}/messages`;
+  try {
+    const resp = await axios.post(url, {
+      messaging_product: 'whatsapp',
+      to: to,
+      type: 'template',
+      template: {
+        name: templateName,
+        language: { code: languageCode || 'pt_BR' },
+        components: components || [],
+      },
+    }, {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    });
+    console.log('[WA-API] Template enviado:', JSON.stringify(resp.data));
+  } catch (err) {
+    console.error('[WA-API] Erro template:', extractMetaError(err));
+    throw new Error(extractMetaError(err));
+  }
+}
+
 function splitMessage(text, maxLen) {
   if (text.length <= maxLen) return [text];
   const chunks = [];
@@ -257,6 +295,8 @@ function splitMessage(text, maxLen) {
 
 module.exports = {
   sendTextMessage,
+  sendTemplateMessage,
+  extractMetaError,
   sendImageMessage,
   sendVideoMessage,
   sendDocumentMessage,

@@ -550,6 +550,11 @@
                             <span>WhatsApp de contato</span>
                             <input type="text" id="brokerCampaignContact" placeholder="(21) 99759-0814">
                         </label>
+                        <label class="campaign-field-col campaign-field-col--wide">
+                            <span>Template WhatsApp (Meta, aprovado)</span>
+                            <input type="text" id="brokerCampaignTemplate" placeholder="ex: atualizacao_semanal_corretor">
+                            <small class="form-hint">Obrigatório para corretor que não falou com o número Business nas últimas 24h.</small>
+                        </label>
                     </div>
                     <label class="campaign-field-full">
                         <span>Chamada comercial (CTA)</span>
@@ -573,8 +578,11 @@
                         <button type="button" id="brokerCampaignBtnSendNow" class="btn btn-success" onclick="sendBrokerCampaignNow()">
                             <i class="fas fa-paper-plane" aria-hidden="true"></i> Disparar agora
                         </button>
-                        <button type="button" class="btn btn-secondary" onclick="cleanupBrokerDuplicatesAdmin()" title="Remove centenas de cadastros duplicados do admin no Firestore">
+                        <button type="button" class="btn btn-secondary" onclick="cleanupBrokerDuplicatesAdmin(false)" title="Desativa duplicatas ativas e corretores sem telefone">
                             <i class="fas fa-broom" aria-hidden="true"></i> Limpar duplicatas
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="cleanupBrokerDuplicatesAdmin(true)" title="Desativa duplicatas e apaga do Firestore os cadastros inativos arquivados">
+                            <i class="fas fa-trash-alt" aria-hidden="true"></i> Excluir arquivados
                         </button>
                         <label class="campaign-test-row">
                             <span>Teste em 1 corretor:</span>
@@ -1160,7 +1168,7 @@
     <script src="js/whatsapp-leads.js?v=2"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=9"></script>
+    <script src="js/admin.js?v=11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

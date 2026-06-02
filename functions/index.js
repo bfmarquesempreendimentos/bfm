@@ -6,7 +6,7 @@ const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveM
 const { processAllFollowUps } = require('./chatbot/follow-up-engine');
 const { setFollowUpExclusion: leadSetFollowUpExclusion } = require('./chatbot/lead-manager');
 const { getPropertyById } = require('./chatbot/property-data');
-const { sendTextMessage, uploadMediaBuffer, sendMediaById, getWhatsAppMediaBuffer } = require('./chatbot/whatsapp-api');
+const { sendTextMessage, sendTemplateMessage, extractMetaError, uploadMediaBuffer, sendMediaById, getWhatsAppMediaBuffer } = require('./chatbot/whatsapp-api');
 const propertySalesHandlers = require('./property-sales-handlers');
 const { verifyAdminFromBody } = require('./admin-accounts');
 
@@ -64,6 +64,9 @@ function normalizeBrazilWhatsApp(phone) {
 }
 
 function pickBetterBrokerRow(a, b) {
+  const activeA = isBrokerActiveFlag(a.isActive) ? 1 : 0;
+  const activeB = isBrokerActiveFlag(b.isActive) ? 1 : 0;
+  if (activeB !== activeA) return activeB > activeA ? b : a;
   const phoneA = normalizeBrazilWhatsApp(a.phone) ? 1 : 0;
   const phoneB = normalizeBrazilWhatsApp(b.phone) ? 1 : 0;
   if (phoneB !== phoneA) return phoneB > phoneA ? b : a;
@@ -73,6 +76,21 @@ function pickBetterBrokerRow(a, b) {
   const timeA = new Date(a.createdAt || 0).getTime();
   const timeB = new Date(b.createdAt || 0).getTime();
   return timeB >= timeA ? b : a;
+}
+
+function countActiveBrokerDuplicates(brokers) {
+  const active = brokers.filter(function(b) { return isBrokerActiveFlag(b.isActive); });
+  const byEmail = {};
+  let dupes = 0;
+  active.forEach(function(b) {
+    const email = String(b.email || '').trim().toLowerCase();
+    if (!email) return;
+    byEmail[email] = (byEmail[email] || 0) + 1;
+  });
+  Object.keys(byEmail).forEach(function(email) {
+    if (byEmail[email] > 1) dupes += byEmail[email] - 1;
+  });
+  return dupes;
 }
 
 function dedupeBrokersByEmail(brokers) {
@@ -107,7 +125,24 @@ async function listBrokerCampaignTargets(db, payload) {
   return targetList;
 }
 
-async function cleanupBrokerDuplicatesInternal(db) {
+async function commitBatches(db, updates) {
+  const BATCH_LIMIT = 400;
+  let i = 0;
+  while (i < updates.length) {
+    const batch = db.batch();
+    let ops = 0;
+    while (i < updates.length && ops < BATCH_LIMIT) {
+      const u = updates[i];
+      batch.update(u.ref, u.data);
+      ops += 1;
+      i += 1;
+    }
+    await batch.commit();
+  }
+}
+
+async function cleanupBrokerDuplicatesInternal(db, options) {
+  options = options || {};
   const snapshot = await db.collection('brokers').get();
   const byEmail = {};
   snapshot.docs.forEach(function(doc) {
@@ -119,8 +154,7 @@ async function cleanupBrokerDuplicatesInternal(db) {
   });
 
   let deactivated = 0;
-  let batch = db.batch();
-  let ops = 0;
+  const pendingUpdates = [];
   const keeperIds = {};
 
   Object.keys(byEmail).forEach(function(email) {
@@ -142,16 +176,15 @@ async function cleanupBrokerDuplicatesInternal(db) {
     keeperIds[email] = keeper.id;
     rows.forEach(function(row) {
       if (row.id === keeper.id) return;
-      batch.update(row.ref, {
-        isActive: false,
-        duplicateOf: keeper.id,
-        updatedAt: new Date().toISOString(),
+      pendingUpdates.push({
+        ref: row.ref,
+        data: {
+          isActive: false,
+          duplicateOf: keeper.id,
+          updatedAt: new Date().toISOString(),
+        },
       });
       deactivated += 1;
-      ops += 1;
-      if (ops >= 400) {
-        throw new Error('Muitas duplicatas para um único lote. Execute novamente.');
-      }
     });
   });
 
@@ -161,20 +194,60 @@ async function cleanupBrokerDuplicatesInternal(db) {
     if (!email || keeperIds[email] !== doc.id) return;
     if (!isBrokerActiveFlag(d.isActive)) return;
     if (normalizeBrazilWhatsApp(d.phone)) return;
-    batch.update(doc.ref, {
-      isActive: false,
-      inactiveReason: 'sem_telefone_whatsapp',
-      updatedAt: new Date().toISOString(),
+    pendingUpdates.push({
+      ref: doc.ref,
+      data: {
+        isActive: false,
+        inactiveReason: 'sem_telefone_whatsapp',
+        updatedAt: new Date().toISOString(),
+      },
     });
     deactivated += 1;
-    ops += 1;
   });
 
-  if (ops > 0) await batch.commit();
+  if (pendingUpdates.length) await commitBatches(db, pendingUpdates);
+
+  let purged = 0;
+  if (options.purgeArchived) {
+    purged = await purgeArchivedBrokerDuplicatesInternal(db);
+  }
+
   return {
     uniqueEmails: Object.keys(byEmail).length,
     duplicatesDeactivated: deactivated,
+    archivedPurged: purged,
   };
+}
+
+async function purgeArchivedBrokerDuplicatesInternal(db) {
+  let total = 0;
+  let hasMore = true;
+  while (hasMore) {
+    const snap = await db.collection('brokers')
+      .where('isActive', '==', false)
+      .limit(400)
+      .get();
+    if (snap.empty) {
+      hasMore = false;
+      break;
+    }
+    const batch = db.batch();
+    let ops = 0;
+    snap.docs.forEach(function(doc) {
+      const d = doc.data() || {};
+      if (!d.duplicateOf && d.inactiveReason !== 'sem_telefone_whatsapp') return;
+      batch.delete(doc.ref);
+      ops += 1;
+      total += 1;
+    });
+    if (ops === 0) {
+      hasMore = false;
+      break;
+    }
+    await batch.commit();
+    if (snap.size < 400) hasMore = false;
+  }
+  return total;
 }
 
 async function getBrokerCampaignPreview(db) {
@@ -187,22 +260,25 @@ async function getBrokerCampaignPreview(db) {
     else invalidPhone += 1;
   });
   let optOutCount = 0;
-  dedupeBrokersByEmail(
-    (await db.collection('brokers').get()).docs.map(function(doc) {
-      return { id: doc.id, ...doc.data() };
-    })
-  ).forEach(function(b) {
+  const allBrokers = (await db.collection('brokers').get()).docs.map(function(doc) {
+    return { id: doc.id, ...doc.data() };
+  });
+  dedupeBrokersByEmail(allBrokers).forEach(function(b) {
     if (b.whatsappCampaignOptOut && isBrokerActiveFlag(b.isActive)) optOutCount += 1;
   });
-  const allSnap = await db.collection('brokers').get();
-  const duplicateRows = Math.max(0, allSnap.size - targetList.length);
+  const activeDuplicateRecords = countActiveBrokerDuplicates(allBrokers);
+  const archivedInactiveRecords = allBrokers.filter(function(b) {
+    return !isBrokerActiveFlag(b.isActive);
+  }).length;
   return {
     enabled: !!config.enabled,
     totalActiveNotOptOut: targetList.length,
     eligible: eligible,
     invalidPhone: invalidPhone,
     optOut: optOutCount,
-    duplicateRecordsInDb: duplicateRows,
+    duplicateRecordsInDb: activeDuplicateRecords,
+    archivedInactiveRecords: archivedInactiveRecords,
+    templateName: config.templateName || '',
     nextWeeklyNote: config.enabled
       ? 'Envio automático: segunda-feira às 08:00 (Brasília). O botão Disparar agora envia imediatamente para os elegíveis abaixo.'
       : 'Envio automático desativado. Marque a opção acima e clique em Salvar. Disparar agora continua funcionando manualmente.',
@@ -222,6 +298,8 @@ function getDefaultBrokerCampaignConfig() {
     enabled: true,
     siteUrl: 'https://bfmarquesempreendimentos.github.io/bfm/',
     whatsappContato: '(21) 99759-0814',
+    templateName: '',
+    templateLanguage: 'pt_BR',
     weeklyTitle: 'Atualização semanal B F Marques',
     ctaText: 'Divulgue as ofertas da semana para seus leads e traga sua visita agendada.',
     usefulTips: [
@@ -245,6 +323,53 @@ async function getBrokerCampaignConfig(db) {
   }
   const current = snap.data() || {};
   return { ...getDefaultBrokerCampaignConfig(), ...current };
+}
+
+function buildBrokerCampaignTemplateComponents(config, broker, now) {
+  const week = getWeekOfYearNumber(now);
+  const tips = Array.isArray(config.usefulTips) ? config.usefulTips : [];
+  const tip = tips.length ? tips[(week - 1) % tips.length] : '';
+  const firstName = String((broker && broker.name) || '').trim().split(' ')[0] || 'Corretor(a)';
+  const params = [
+    firstName,
+    config.weeklyTitle || 'Atualização semanal B F Marques',
+    config.siteUrl || 'https://bfmarquesempreendimentos.github.io/bfm/',
+    tip || (config.ctaText || 'Fale com seus leads hoje.'),
+    config.whatsappContato || '(21) 99759-0814',
+  ];
+  return [{
+    type: 'body',
+    parameters: params.map(function(p) {
+      return { type: 'text', text: String(p).substring(0, 900) };
+    }),
+  }];
+}
+
+async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
+  const message = buildBrokerCampaignMessage(config, broker, now);
+  const templateName = String(config.templateName || '').trim();
+  if (templateName) {
+    await sendTemplateMessage(
+      waPhone,
+      templateName,
+      config.templateLanguage || 'pt_BR',
+      buildBrokerCampaignTemplateComponents(config, broker, now)
+    );
+    return { mode: 'template', templateName: templateName };
+  }
+  try {
+    await sendTextMessage(waPhone, message);
+    return { mode: 'text' };
+  } catch (err) {
+    const errMsg = extractMetaError(err);
+    const needsTemplate = /template|24.?hour|re-engagement|janela|131047|131026/i.test(errMsg);
+    if (needsTemplate) {
+      throw new Error(
+        errMsg + ' — Para corretor que não falou com o número Business nas últimas 24h, cadastre um template aprovado na Meta e preencha o campo "Template WhatsApp" na campanha.'
+      );
+    }
+    throw new Error(errMsg);
+  }
 }
 
 function buildBrokerCampaignMessage(config, broker, now) {
@@ -313,14 +438,15 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
 
   for (let i = 0; i < sendable.length; i++) {
     const item = sendable[i];
-    const message = buildBrokerCampaignMessage(config, item.broker, now);
     try {
-      await sendTextMessage(item.waPhone, message);
+      const sendMeta = await sendBrokerCampaignWhatsApp(config, item.broker, item.waPhone, now);
       results.push({
         brokerId: item.broker.id,
         name: item.broker.name || '',
         status: 'sent',
         phone: item.waPhone,
+        mode: sendMeta.mode,
+        templateName: sendMeta.templateName || '',
       });
     } catch (err) {
       results.push({
@@ -361,6 +487,8 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     eligible: sendable.length,
     runId: runRef.id,
     status: 'done',
+    issues: issues,
+    templateName: config.templateName || '',
   };
 }
 
@@ -1094,6 +1222,8 @@ exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
       siteUrl: body.siteUrl ? String(body.siteUrl).trim() : undefined,
       whatsappContato: body.whatsappContato ? String(body.whatsappContato).trim() : undefined,
       weeklyTitle: body.weeklyTitle ? String(body.weeklyTitle).trim() : undefined,
+      templateName: body.templateName !== undefined ? String(body.templateName || '').trim() : undefined,
+      templateLanguage: body.templateLanguage ? String(body.templateLanguage).trim() : undefined,
       ctaText: body.ctaText ? String(body.ctaText).trim() : undefined,
       usefulTips: Array.isArray(body.usefulTips) ? body.usefulTips.map(function(t) { return String(t || '').trim(); }).filter(Boolean) : undefined,
       updatedAt: new Date().toISOString(),
@@ -1189,7 +1319,8 @@ exports.adminCleanupBrokerDuplicates = functions.https.onRequest(async (req, res
   try {
     const body = req.body || {};
     if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
-    const result = await cleanupBrokerDuplicatesInternal(admin.firestore());
+    const purgeArchived = !!(body.purgeArchived);
+    const result = await cleanupBrokerDuplicatesInternal(admin.firestore(), { purgeArchived: purgeArchived });
     return res.json({ ok: true, ...result });
   } catch (err) {
     console.error('adminCleanupBrokerDuplicates:', err);
