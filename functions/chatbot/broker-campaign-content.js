@@ -217,13 +217,42 @@ function buildRichCampaignSingleBody(config, broker, now) {
   return sanitizeWhatsAppTemplateParam(buildPremiumFollowUpText(config, broker, now));
 }
 
+/** Texto enxuto para {{1}} no template Meta (sem markdown, links explícitos). */
+function buildTemplateMarketingVar1(config, broker, now) {
+  var ctx = buildCampaignContext(config, broker, now);
+  var f = ctx.featured;
+  var lines = [];
+  lines.push('Olá, ' + ctx.firstName + '! Parceria B F Marques Empreendimentos.');
+  lines.push('');
+  if (f) {
+    lines.push('DESTAQUE: ' + f.title);
+    lines.push('Local: ' + f.location);
+    lines.push('Valor: ' + formatPriceBr(f.price));
+    if (f.mcmv) lines.push('Minha Casa Minha Vida');
+    if (f.mapsUrl) lines.push('Mapa: ' + f.mapsUrl);
+    lines.push('');
+    lines.push('Página do empreendimento (fotos, vídeos, unidades):');
+    lines.push(ctx.propertyUrl);
+    lines.push('');
+  }
+  lines.push('Portfólio completo:');
+  lines.push(ctx.siteUrl);
+  lines.push('');
+  lines.push(ctx.market.title + ' — ' + ctx.market.text);
+  if (ctx.tip) lines.push('Dica: ' + ctx.tip);
+  lines.push('');
+  lines.push(ctx.cta);
+  lines.push('Suporte: ' + ctx.contato);
+  return sanitizeWhatsAppTemplateParam(lines.join('\n'));
+}
+
 function buildSimpleCampaignSingleBody(config, broker, now) {
-  return buildRichCampaignSingleBody(config, broker, now);
+  return buildTemplateMarketingVar1(config, broker, now);
 }
 
 function buildCampanhaCorretorBodyComponents(config, broker, now, useSimple) {
   var bodyText = useSimple
-    ? buildSimpleCampaignSingleBody(config, broker, now)
+    ? buildTemplateMarketingVar1(config, broker, now)
     : buildRichCampaignSingleBody(config, broker, now);
   return [{
     type: 'body',
@@ -400,6 +429,7 @@ function getCampaignWeekPreview(now, config) {
 
 module.exports = {
   buildRichCampaignSingleBody,
+  buildTemplateMarketingVar1,
   buildPremiumFollowUpText,
   buildSimpleCampaignSingleBody,
   buildCampanhaCorretorBodyComponents,

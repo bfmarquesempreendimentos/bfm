@@ -1003,6 +1003,10 @@ function getBrokerCampaignFillTexts(config, broker, now) {
 
 function buildBodyOnlyParamSet(n, config, broker, now) {
   var fill = getBrokerCampaignFillTexts(config, broker, now);
+  if (n === 1) {
+    var single = fill.singleBody || brokerCampaignContent.buildTemplateMarketingVar1(config, broker, now);
+    return [{ type: 'body', parameters: [{ type: 'text', text: String(single).substring(0, 1024) }] }];
+  }
   var params = [];
   var i;
   for (i = 0; i < n; i++) {
@@ -1020,6 +1024,27 @@ async function bruteForceBrokerTemplateSend(waPhone, templateName, langCandidate
   var tplNorm = normalizeTemplateName(templateName);
   var li0;
   for (li0 = 0; li0 < langCandidates.length; li0++) {
+    try {
+      var plainComps = [{
+        type: 'body',
+        parameters: [{
+          type: 'text',
+          text: brokerCampaignContent.buildTemplateMarketingVar1(config, broker, now),
+        }],
+      }];
+      var plainResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li0], plainComps, waSendOpts);
+      return {
+        mode: 'template',
+        templateName: templateName,
+        language: langCandidates[li0],
+        componentsVariant: 'marketing_var1_plain',
+        waMessageId: plainResp && plainResp.messageId ? plainResp.messageId : '',
+        sentTo: waPhone,
+      };
+    } catch (plainErr) {
+      var plainMsg = plainErr.message || extractMetaError(plainErr);
+      if (!isTemplateParamValidationError(plainMsg) && !isTemplateNameOrLanguageError(plainMsg)) throw new Error(plainMsg);
+    }
     try {
       var richOnly = buildCampanhaCorretorSingleVarBody(config, broker, now);
       var richResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li0], richOnly, waSendOpts);
@@ -1249,6 +1274,32 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now, db) {
 
     for (liMeta = 0; liMeta < langCandidates.length; liMeta++) {
       try {
+        var plainCompsMain = [{
+          type: 'body',
+          parameters: [{
+            type: 'text',
+            text: brokerCampaignContent.buildTemplateMarketingVar1(config, broker, now),
+          }],
+        }];
+        var plainSend = await sendTemplateMessage(
+          waPhone, templateName, langCandidates[liMeta], plainCompsMain, waSendOpts
+        );
+        var tplResult = {
+          mode: 'template',
+          templateName: templateName,
+          language: langCandidates[liMeta],
+          componentsVariant: 'marketing_var1_plain',
+          waMessageId: plainSend && plainSend.messageId ? plainSend.messageId : '',
+          sentTo: waPhone,
+        };
+        tplResult.media = await sendBrokerCampaignFollowUpAfterTemplate(
+          waPhone, config, broker, now, waSendOpts, hasSession
+        );
+        return tplResult;
+      } catch (plainFirstErr) {
+        lastErr = plainFirstErr;
+      }
+      try {
         var richComps = buildCampanhaCorretorSingleVarBody(config, broker, now);
         var richSend = await sendTemplateMessage(
           waPhone, templateName, langCandidates[liMeta], richComps, waSendOpts
@@ -1421,7 +1472,7 @@ async function verifyCampaignMessageDelivery(sendMeta) {
       deliveryFailed: false,
     };
   }
-  var delivery = await waitForWhatsAppDeliveryStatus(msgId, 10000);
+  var delivery = await waitForWhatsAppDeliveryStatus(msgId, 18000);
   if (delivery.status === 'failed') {
     return {
       deliveryStatus: 'failed',

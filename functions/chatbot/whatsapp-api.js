@@ -307,6 +307,8 @@ function sanitizeWhatsAppTemplateParam(text) {
   s = s.replace(/\n{4,}/g, '\n\n\n');
   s = s.replace(/\t/g, ' ');
   s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+  s = s.replace(/\*/g, '');
+  s = s.replace(/ {2,}/g, ' ');
   s = s.trim();
   if (!s) s = 'B F Marques Empreendimentos — parceria corretores.';
   if (s.length > 1024) s = s.substring(0, 1021) + '...';
@@ -1102,9 +1104,7 @@ async function waitForWhatsAppDeliveryStatus(messageId, maxWaitMs) {
             timedOut: false,
           };
         }
-        if (st === 'sent' && elapsed >= 3000) {
-          return { status: st, errors: [], errorHint: '', timedOut: false, pendingDelivery: true };
-        }
+        /* Não parar em "sent" — aguardar delivered/failed (webhook chega segundos depois) */
       }
       await delayMsStatus(step);
       elapsed += step;
