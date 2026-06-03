@@ -44,6 +44,7 @@ async function sendTextMessage(to, text, options = {}) {
   console.log(`[WA-API] Enviando para ${to}, phoneNumberId=${phoneNumberId}, token=${token ? token.substring(0, 20) + '...' : 'VAZIO'}`);
 
   const chunks = splitMessage(text, 4000);
+  var lastMessageId = '';
   for (const chunk of chunks) {
     try {
       const resp = await axios.post(url, {
@@ -55,6 +56,9 @@ async function sendTextMessage(to, text, options = {}) {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
       console.log(`[WA-API] Resposta Meta:`, JSON.stringify(resp.data));
+      if (resp.data && resp.data.messages && resp.data.messages[0] && resp.data.messages[0].id) {
+        lastMessageId = resp.data.messages[0].id;
+      }
     } catch (err) {
       const status = err.response?.status;
       const metaError = err.response?.data?.error?.message || err.message;
@@ -65,6 +69,7 @@ async function sendTextMessage(to, text, options = {}) {
       throw err;
     }
   }
+  return { messageId: lastMessageId, to: to };
 }
 
 async function sendImageMessage(to, imageUrl, caption = '', options = {}) {
@@ -290,13 +295,11 @@ function sanitizeWhatsAppTemplateParam(text) {
   s = s.replace(/\r\n/g, '\n');
   s = s.replace(/\r/g, '\n');
   s = s.replace(/\n{4,}/g, '\n\n\n');
-  s = s.replace(/\*/g, '');
   s = s.replace(/\t/g, ' ');
   s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
-  s = s.replace(/ {2,}/g, ' ');
   s = s.trim();
-  if (!s) s = 'Atualizacao semanal B F Marques.';
-  if (s.length > 1024) s = s.substring(0, 1024);
+  if (!s) s = 'B F Marques Empreendimentos — parceria corretores.';
+  if (s.length > 1024) s = s.substring(0, 1021) + '...';
   return s;
 }
 

@@ -1830,13 +1830,26 @@ function showBrokerCampaignResult(result, isError) {
     }
     if (sent > 0 && result && result.sentDetails && result.sentDetails.length) {
         var row = result.sentDetails[0];
-        txt += ' Destino: ' + (row.phone || '?') + '.';
-        if (row.mode) txt += ' Modo: ' + row.mode + ' (precisa ser template).';
+        txt += ' Destino: ' + (row.phone || '?');
+        if (row.phoneCadastro && row.phoneCadastro !== row.phone) {
+            txt += ' (cadastro: ' + row.phoneCadastro + ')';
+        }
+        txt += '.';
+        if (row.name) txt += ' Corretor: ' + row.name + '.';
+        if (row.mode) txt += ' Modo: ' + row.mode + '.';
         if (row.waMessageId) txt += ' ID Meta: ' + row.waMessageId + '.';
+        if (row.deliveryNote) txt += ' ' + row.deliveryNote;
+        if (row.status === 'accepted') {
+            msgType = 'warning';
+            txt += ' API aceitou, mas o WhatsApp pode não ter entregue (conta de teste ou número não liberado).';
+        }
         if (row.mode === 'text') {
             txt += ' Texto livre não entrega a quem nunca falou com a Bia — configure WABA e campanha_corretor_msg.';
             msgType = 'warning';
         }
+    }
+    if (result && result.sentDetails && result.sentDetails.length && result.sentDetails[0].status === 'accepted') {
+        msgType = 'warning';
     }
     if (isError) msgType = 'error';
     else if (errors > 0) msgType = 'warning';

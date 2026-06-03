@@ -8,6 +8,18 @@ let currentGalleryImages = [];
 let currentGalleryIndex = 0;
 let currentGalleryMedia = [];
 let currentGalleryMediaIndex = 0;
+var PROPERTY_URL_SLUGS = {
+    1: 'porto-novo',
+    2: 'residencial-itauna',
+    3: 'edificio-amendoeiras',
+    4: 'condominio-laranjal',
+    5: 'residencial-apolo',
+    6: 'residencial-coelho',
+    7: 'edificio-cacador',
+    8: 'casa-luxo-marica'
+};
+var _lastOpenedImovelFromUrl = null;
+
 const propertyMediaOverrides = {
     3: {
         images: [
@@ -38,7 +50,8 @@ window.addEventListener('load', function() {
 });
 
 window.addEventListener('hashchange', function() {
-    openPropertyFromUrlParam();
+    _lastOpenedImovelFromUrl = null;
+    openPropertyFromUrlParam(true);
 });
 
 function initializeApp() {
@@ -471,17 +484,37 @@ function loadProperties() {
     startHeroSlideshow(visibleProperties);
 }
 
+function propertyIdFromSlug(slug) {
+    var s = String(slug || '').trim().toLowerCase();
+    if (!s) return 0;
+    var keys = Object.keys(PROPERTY_URL_SLUGS);
+    var i;
+    for (i = 0; i < keys.length; i++) {
+        if (PROPERTY_URL_SLUGS[keys[i]] === s) return Number(keys[i]);
+    }
+    if (/^imovel-(\d+)$/.test(s)) return parseInt(s.replace('imovel-', ''), 10);
+    return 0;
+}
+
 function parseImovelIdFromUrl() {
     var raw = null;
+    var hash = String(window.location.hash || '').replace(/^#/, '');
+    if (hash.indexOf('imovel=') >= 0) {
+        var hparts = hash.split('imovel=');
+        raw = hparts[hparts.length - 1].split('&')[0];
+    } else if (/^imovel-\d+$/i.test(hash)) {
+        raw = hash.replace(/^imovel-/i, '');
+    } else if (hash && /^[a-z0-9-]+$/i.test(hash)) {
+        var fromHashSlug = propertyIdFromSlug(hash);
+        if (fromHashSlug) return fromHashSlug;
+    }
     var params = new URLSearchParams(window.location.search || '');
-    raw = params.get('imovel');
-    if (!raw && window.location.hash) {
-        var hash = String(window.location.hash).replace(/^#/, '');
-        if (hash.indexOf('imovel=') >= 0) {
-            var parts = hash.split('imovel=');
-            raw = parts[parts.length - 1].split('&')[0];
-        } else if (/^imovel-\d+$/i.test(hash)) {
-            raw = hash.replace(/^imovel-/i, '');
+    if (!raw) raw = params.get('imovel');
+    if (!raw) {
+        var slugParam = params.get('p');
+        if (slugParam) {
+            var fromSlug = propertyIdFromSlug(slugParam);
+            if (fromSlug) return fromSlug;
         }
     }
     if (!raw) return 0;
@@ -489,19 +522,29 @@ function parseImovelIdFromUrl() {
     return (id && !isNaN(id)) ? id : 0;
 }
 
-function openPropertyFromUrlParam() {
-    var id = parseImovelIdFromUrl();
-    if (!id || !properties || !properties.length) return false;
-    var found = null;
+function findPropertyByIdLoose(propertyId) {
+    var want = Number(propertyId);
+    if (!want || isNaN(want) || !properties || !properties.length) return null;
     var i;
     for (i = 0; i < properties.length; i++) {
-        if (properties[i].id === id) {
-            found = properties[i];
-            break;
-        }
+        if (Number(properties[i].id) === want) return properties[i];
     }
+    return null;
+}
+
+function openPropertyFromUrlParam(forceReopen) {
+    var id = parseImovelIdFromUrl();
+    if (!id) {
+        _lastOpenedImovelFromUrl = null;
+        return false;
+    }
+    if (!forceReopen && _lastOpenedImovelFromUrl === id) return true;
+    if (!properties || !properties.length) return false;
+    var found = findPropertyByIdLoose(id);
     if (!found) return false;
+    closePropertyModal();
     showPropertyDetails(id);
+    _lastOpenedImovelFromUrl = id;
     var section = document.getElementById('properties');
     if (section && section.scrollIntoView) {
         section.scrollIntoView({ behavior: 'smooth' });
@@ -513,8 +556,8 @@ function scheduleOpenPropertyFromUrl() {
     var tries = 0;
     function attempt() {
         tries += 1;
-        if (openPropertyFromUrlParam()) return;
-        if (tries < 30) setTimeout(attempt, 150);
+        if (openPropertyFromUrlParam(false)) return;
+        if (tries < 40) setTimeout(attempt, 120);
     }
     attempt();
 }
@@ -791,15 +834,19 @@ function filterProperties() {
 
 // Show property details modal
 function showPropertyDetails(propertyId) {
-    const property = properties.find(p => p.id === propertyId);
+    const property = findPropertyByIdLoose(propertyId);
     if (!property) return;
+    propertyId = property.id;
 
     try {
+        var slug = PROPERTY_URL_SLUGS[propertyId] || ('imovel-' + propertyId);
+        var newUrl = '?p=' + encodeURIComponent(slug) + '#imovel=' + propertyId;
         if (window.history && window.history.replaceState) {
-            window.history.replaceState(null, '', '#imovel=' + propertyId);
+            window.history.replaceState(null, '', newUrl);
         } else {
             window.location.hash = 'imovel=' + propertyId;
         }
+        _lastOpenedImovelFromUrl = propertyId;
     } catch (urlErr) { /* ignore */ }
     
     const brokerView = typeof isBroker === 'function' ? isBroker() : false;

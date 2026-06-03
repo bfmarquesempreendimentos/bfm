@@ -84,11 +84,20 @@ function normalizeBrazilWhatsApp(phone) {
   if (!digits) return null;
   while (digits.charAt(0) === '0') digits = digits.substring(1);
   if (digits.indexOf('5555') === 0) digits = digits.substring(2);
-  if (digits.length >= 12 && digits.indexOf('55') === 0) {
-    if (digits.length === 12 || digits.length === 13) return digits;
-    if (digits.length > 13) return digits.substring(0, 13);
+  var national = digits;
+  if (digits.indexOf('55') === 0 && digits.length > 2) national = digits.substring(2);
+  if (national.length === 10) {
+    national = national.substring(0, 2) + '9' + national.substring(2);
   }
-  if (digits.length === 11 || digits.length === 10) return '55' + digits;
+  if (national.length === 11) {
+    digits = '55' + national;
+  } else if (digits.length === 11) {
+    digits = '55' + digits;
+  } else {
+    return null;
+  }
+  if (digits.length === 12 || digits.length === 13) return digits;
+  if (digits.length > 13) return digits.substring(0, 13);
   return null;
 }
 
@@ -714,6 +723,10 @@ async function getBrokerCampaignPreview(db) {
       return { id: p.id, display_phone_number: p.display_phone_number || '' };
     }),
     campaignWeek: brokerCampaignContent.getCampaignWeekPreview(new Date(), config),
+    campaignProperties: brokerCampaignContent.getCampaignPropertiesForAdmin(),
+    featuredPropertyId: config.featuredPropertyId != null ? config.featuredPropertyId : null,
+    marketNewsTitle: config.marketNewsTitle || '',
+    marketNewsText: config.marketNewsText || '',
   };
 }
 
@@ -764,6 +777,12 @@ function getDefaultBrokerCampaignConfig() {
     enabled: true,
     siteUrl: 'https://bfmarquesempreendimentos.github.io/bfm/',
     whatsappContato: '(21) 99759-0814',
+    skipMetaTemplate: true,
+    campaignMaxImages: 2,
+    campaignMaxVideos: 1,
+    featuredPropertyId: null,
+    marketNewsTitle: '',
+    marketNewsText: '',
     templateName: 'campanha_corretor_msg',
     templateLanguage: 'pt_BR',
     weeklyTitle: 'Atualização semanal B F Marques',
@@ -892,14 +911,16 @@ async function bruteForceBrokerTemplateSend(waPhone, templateName, langCandidate
   var ni;
   for (li = 0; li < langCandidates.length; li++) {
     for (bi = 0; bi < bodyCounts.length; bi++) {
+      if (tplNorm === 'campanha_corretor_msg' && bodyCounts[bi] !== 1) continue;
       try {
-        var comps = bodyCounts[bi] === 0 ? null : buildBodyOnlyParamSet(bodyCounts[bi], config, broker, now);
+        var comps = buildBodyOnlyParamSet(bodyCounts[bi], config, broker, now);
         var sendResp = await sendTemplateMessage(waPhone, templateName, langCandidates[li], comps, waSendOpts);
+        var probeVariant = 'probe_body_' + bodyCounts[bi];
         return {
           mode: 'template',
           templateName: templateName,
           language: langCandidates[li],
-          componentsVariant: 'probe_body_' + bodyCounts[bi],
+          componentsVariant: probeVariant,
           waMessageId: sendResp && sendResp.messageId ? sendResp.messageId : '',
           sentTo: waPhone,
         };
@@ -979,14 +1000,52 @@ function buildBrokerCampaignTemplateComponentSets(config, broker, now, message) 
   return [singleVar, twoVar, threeVar, fourVar, fiveVar, none];
 }
 
+function isWhatsAppNeedsTemplateError(errMsg) {
+  return /template|24.?hour|re-engagement|janela|131047|131026/i.test(String(errMsg || ''));
+}
+
+async function sendBrokerCampaignFollowUpAfterTemplate(waPhone, config, broker, now, waSendOpts) {
+  return brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
+    waPhone, config, broker, now, waSendOpts,
+    sendTextMessage, sendImageMessage, sendVideoMessage,
+    { includeText: false }
+  );
+}
+
 async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
   const message = buildBrokerCampaignMessage(config, broker, now);
   const templateName = normalizeTemplateName(config.templateName);
   const waSendOpts = config.campaignPhoneNumberId
     ? { phoneNumberId: config.campaignPhoneNumberId }
     : {};
-  if (templateName && !config.campaignPhoneNumberId) {
+  if (!config.campaignPhoneNumberId) {
     throw new Error('Número da Bia (phone_number_id) não configurado. Abra Corretores → Salvar WABA ou envie uma mensagem para a Bia e tente de novo.');
+  }
+
+  var skipTemplateFirst = config.skipMetaTemplate !== false;
+  if (skipTemplateFirst) {
+    try {
+      return await brokerCampaignContent.sendBrokerCampaignDirect(
+        waPhone, config, broker, now, waSendOpts,
+        sendTextMessage, sendImageMessage, sendVideoMessage
+      );
+    } catch (directErr) {
+      var directMsg = directErr.message || extractMetaError(directErr);
+      if (!isWhatsAppNeedsTemplateError(directMsg) || !templateName) {
+        throw directErr;
+      }
+    }
+  }
+
+  if (!templateName) {
+    try {
+      return await brokerCampaignContent.sendBrokerCampaignDirect(
+        waPhone, config, broker, now, waSendOpts,
+        sendTextMessage, sendImageMessage, sendVideoMessage
+      );
+    } catch (err) {
+      throw new Error(extractMetaError(err));
+    }
   }
   const langCandidates = [];
   const langSeen = {};
@@ -1032,8 +1091,8 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
           waMessageId: richSend && richSend.messageId ? richSend.messageId : '',
           sentTo: waPhone,
         };
-        tplResult.media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
-          waPhone, config, now, waSendOpts, sendImageMessage, sendVideoMessage
+        tplResult.media = await sendBrokerCampaignFollowUpAfterTemplate(
+          waPhone, config, broker, now, waSendOpts
         );
         return tplResult;
       } catch (richFirstErr) {
@@ -1055,8 +1114,8 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
               waMessageId: richSend && richSend.messageId ? richSend.messageId : '',
               sentTo: waPhone,
             };
-            tplResult.media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
-              waPhone, config, now, waSendOpts, sendImageMessage, sendVideoMessage
+            tplResult.media = await sendBrokerCampaignFollowUpAfterTemplate(
+              waPhone, config, broker, now, waSendOpts
             );
             return tplResult;
           } catch (simpleMainErr) {
@@ -1090,8 +1149,8 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
             waMessageId: sendResp && sendResp.messageId ? sendResp.messageId : '',
             sentTo: waPhone,
           };
-          tplResult.media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
-            waPhone, config, now, waSendOpts, sendImageMessage, sendVideoMessage
+          tplResult.media = await sendBrokerCampaignFollowUpAfterTemplate(
+            waPhone, config, broker, now, waSendOpts
           );
           return tplResult;
         } catch (errMeta) {
@@ -1119,9 +1178,10 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
             waMessageId: sendResp && sendResp.messageId ? sendResp.messageId : '',
             sentTo: waPhone,
           };
-          if (variant === 'single' || variant === 'rich_single_var') {
-            tplResult.media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
-              waPhone, config, now, waSendOpts, sendImageMessage, sendVideoMessage
+          if (normalizeTemplateName(templateName) === 'campanha_corretor_msg' ||
+              variant === 'single' || variant === 'rich_single_var') {
+            tplResult.media = await sendBrokerCampaignFollowUpAfterTemplate(
+              waPhone, config, broker, now, waSendOpts
             );
           }
           return tplResult;
@@ -1138,8 +1198,8 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
       waPhone, templateName, langCandidates, waSendOpts, config, broker, now
     );
     if (probed) {
-      probed.media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
-        waPhone, config, now, waSendOpts, sendImageMessage, sendVideoMessage
+      probed.media = await sendBrokerCampaignFollowUpAfterTemplate(
+        waPhone, config, broker, now, waSendOpts
       );
       return probed;
     }
@@ -1257,6 +1317,8 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     sendable.push({ broker: broker, waPhone: waPhone });
   });
 
+  const waAccount = await getWhatsAppAccountInfo();
+
   for (let i = 0; i < sendable.length; i++) {
     const item = sendable[i];
     try {
@@ -1267,21 +1329,39 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
           name: item.broker.name || '',
           status: 'error',
           phone: item.waPhone,
+          phoneCadastro: item.broker.phone || '',
           error: 'Envio caiu em texto livre (não entrega fora da janela 24h). Erro template: ' +
             (sendMeta.templateError || 'configure WABA e campanha_corretor_msg'),
         });
-      } else {
+      } else if (sendMeta.mode === 'direct' && !(sendMeta.waMessageId || (sendMeta.media && sendMeta.media.waMessageId))) {
         results.push({
           brokerId: item.broker.id,
           name: item.broker.name || '',
-          status: 'sent',
+          status: 'error',
           phone: item.waPhone,
+          phoneCadastro: item.broker.phone || '',
+          error: 'A Meta não confirmou o envio do texto. Corretor pode estar fora da janela 24h — peça para ele enviar qualquer mensagem para a Bia e teste de novo.',
+        });
+      } else {
+        var rowStatus = 'sent';
+        var rowNote = '';
+        if (waAccount.ok && waAccount.isLikelyTestAccount) {
+          rowStatus = 'accepted';
+          rowNote = 'API aceitou, mas conta de TESTE da Meta só entrega para números cadastrados em API Setup → números de teste.';
+        }
+        results.push({
+          brokerId: item.broker.id,
+          name: item.broker.name || '',
+          status: rowStatus,
+          phone: item.waPhone,
+          phoneCadastro: item.broker.phone || '',
           mode: sendMeta.mode,
           templateName: sendMeta.templateName || '',
-          waMessageId: sendMeta.waMessageId || '',
+          waMessageId: sendMeta.waMessageId || (sendMeta.media && sendMeta.media.waMessageId) || '',
           componentsVariant: sendMeta.componentsVariant || '',
           mediaSent: sendMeta.media && sendMeta.media.sent ? sendMeta.media.sent : 0,
           featuredTitle: sendMeta.media && sendMeta.media.featuredTitle ? sendMeta.media.featuredTitle : '',
+          deliveryNote: rowNote,
         });
       }
     } catch (err) {
@@ -1298,12 +1378,11 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     }
   }
 
-  const sent = results.filter(function(r) { return r.status === 'sent'; }).length;
+  const sent = results.filter(function(r) { return r.status === 'sent' || r.status === 'accepted'; }).length;
   const errors = results.filter(function(r) { return r.status === 'error'; }).length;
   const skipped = results.filter(function(r) { return r.status === 'skipped'; }).length;
-  const issues = results.filter(function(r) { return r.status !== 'sent'; }).slice(0, 80);
-  const sentDetails = results.filter(function(r) { return r.status === 'sent'; }).slice(0, 5);
-  const waAccount = await getWhatsAppAccountInfo();
+  const issues = results.filter(function(r) { return r.status !== 'sent' && r.status !== 'accepted'; }).slice(0, 80);
+  const sentDetails = results.filter(function(r) { return r.status === 'sent' || r.status === 'accepted'; }).slice(0, 5);
   var deliveryWarning = '';
   if (waAccount.ok && waAccount.isLikelyTestAccount && sent > 0) {
     deliveryWarning =
@@ -2132,6 +2211,11 @@ exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
       templateLanguage: body.templateLanguage ? String(body.templateLanguage).trim() : undefined,
       ctaText: body.ctaText ? String(body.ctaText).trim() : undefined,
       usefulTips: Array.isArray(body.usefulTips) ? body.usefulTips.map(function(t) { return String(t || '').trim(); }).filter(Boolean) : undefined,
+      featuredPropertyId: body.featuredPropertyId !== undefined
+        ? (body.featuredPropertyId === '' || body.featuredPropertyId === null ? null : Number(body.featuredPropertyId))
+        : undefined,
+      marketNewsTitle: body.marketNewsTitle !== undefined ? String(body.marketNewsTitle || '').trim() : undefined,
+      marketNewsText: body.marketNewsText !== undefined ? String(body.marketNewsText || '').trim() : undefined,
       updatedAt: new Date().toISOString(),
     };
     const payload = {};

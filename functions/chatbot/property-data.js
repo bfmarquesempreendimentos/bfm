@@ -210,8 +210,45 @@ const properties = [
   },
 ];
 
+var PROPERTY_SLUGS = {
+  1: 'porto-novo',
+  2: 'residencial-itauna',
+  3: 'edificio-amendoeiras',
+  4: 'condominio-laranjal',
+  5: 'residencial-apolo',
+  6: 'residencial-coelho',
+  7: 'edificio-cacador',
+  8: 'casa-luxo-marica',
+};
+
+function getPropertySlug(property) {
+  if (!property || property.id == null) return '';
+  return PROPERTY_SLUGS[property.id] || ('imovel-' + property.id);
+}
+
+function getPropertyIdFromSlug(slug) {
+  var s = String(slug || '').trim().toLowerCase();
+  if (!s) return null;
+  var keys = Object.keys(PROPERTY_SLUGS);
+  var i;
+  for (i = 0; i < keys.length; i++) {
+    if (PROPERTY_SLUGS[keys[i]] === s) return Number(keys[i]);
+  }
+  if (/^imovel-(\d+)$/.test(s)) return Number(s.replace('imovel-', ''));
+  return null;
+}
+
 function getPropertyById(id) {
-  return properties.find(p => p.id === id) || null;
+  var n = Number(id);
+  return properties.filter(function(p) { return p.id === n; })[0] || null;
+}
+
+/** URL do site que abre o modal do empreendimento (slug + hash — GitHub Pages). */
+function getPropertyPageUrl(property, siteBase) {
+  var base = String(siteBase || SITE_BASE_URL).replace(/\/$/, '');
+  if (!property || property.id == null) return base + '/';
+  var slug = getPropertySlug(property);
+  return base + '/?p=' + encodeURIComponent(slug) + '#imovel=' + property.id;
 }
 
 /** Listas únicas de URLs públicas (HTTPS) para envio pelo WhatsApp */
@@ -272,6 +309,10 @@ function getPropertiesSummaryForAI() {
 module.exports = {
   properties,
   getPropertyById,
+  getPropertySlug,
+  getPropertyIdFromSlug,
+  PROPERTY_SLUGS,
+  getPropertyPageUrl,
   getPropertyMediaLists,
   filterProperties,
   formatPropertyShort,
