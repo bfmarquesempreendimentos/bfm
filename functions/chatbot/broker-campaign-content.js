@@ -7,6 +7,7 @@ const {
   getPropertyById,
   getPropertyMediaLists,
   getPropertyPageUrl,
+  getPropertySlug,
   SITE_BASE_URL,
 } = require('./property-data');
 const { sanitizeWhatsAppTemplateParam } = require('./whatsapp-api');
@@ -217,33 +218,84 @@ function buildRichCampaignSingleBody(config, broker, now) {
   return sanitizeWhatsAppTemplateParam(buildPremiumFollowUpText(config, broker, now));
 }
 
+/** URL sem # (Meta rejeita # em variáveis de template — erro 132018). */
+function getPropertyPageUrlForTemplate(property, siteBase) {
+  var base = String(siteBase || SITE_BASE_URL).replace(/\/$/, '');
+  if (!property || property.id == null) return base + '/';
+  var slug = getPropertySlug(property);
+  return base + '/?p=' + encodeURIComponent(slug);
+}
+
 /** Texto enxuto para {{1}} no template Meta (sem markdown, links explícitos). */
 function buildTemplateMarketingVar1(config, broker, now) {
   var ctx = buildCampaignContext(config, broker, now);
   var f = ctx.featured;
   var lines = [];
-  lines.push('Olá, ' + ctx.firstName + '! Parceria B F Marques Empreendimentos.');
+  lines.push('Ola, ' + ctx.firstName + '! Parceria B F Marques Empreendimentos.');
   lines.push('');
   if (f) {
-    lines.push('DESTAQUE: ' + f.title);
-    lines.push('Local: ' + f.location);
-    lines.push('Valor: ' + formatPriceBr(f.price));
+    lines.push('DESTAQUE - ' + f.title);
+    lines.push('Local - ' + f.location);
+    lines.push('Valor - ' + formatPriceBr(f.price));
     if (f.mcmv) lines.push('Minha Casa Minha Vida');
-    if (f.mapsUrl) lines.push('Mapa: ' + f.mapsUrl);
     lines.push('');
-    lines.push('Página do empreendimento (fotos, vídeos, unidades):');
-    lines.push(ctx.propertyUrl);
+    lines.push('Empreendimento (fotos, videos, unidades):');
+    lines.push(getPropertyPageUrlForTemplate(f, ctx.siteUrl));
     lines.push('');
   }
-  lines.push('Portfólio completo:');
-  lines.push(ctx.siteUrl);
+  lines.push('Portfolio completo:');
+  lines.push(String(ctx.siteUrl).replace(/#.*$/, ''));
   lines.push('');
-  lines.push(ctx.market.title + ' — ' + ctx.market.text);
-  if (ctx.tip) lines.push('Dica: ' + ctx.tip);
+  lines.push(ctx.market.title + ' - ' + ctx.market.text);
+  if (ctx.tip) lines.push('Dica - ' + ctx.tip);
   lines.push('');
   lines.push(ctx.cta);
-  lines.push('Suporte: ' + ctx.contato);
+  lines.push('Suporte - ' + ctx.contato);
   return sanitizeWhatsAppTemplateParam(lines.join('\n'));
+}
+
+/** Versão curta se a Meta rejeitar o texto longo (132018). */
+function buildTemplateMarketingVar1Compact(config, broker, now) {
+  var ctx = buildCampaignContext(config, broker, now);
+  var f = ctx.featured;
+  var lines = [];
+  lines.push('Ola, ' + ctx.firstName + '!');
+  if (f) {
+    lines.push('');
+    lines.push('Destaque - ' + f.title + ' - ' + formatPriceBr(f.price));
+    lines.push(getPropertyPageUrlForTemplate(f, ctx.siteUrl));
+  }
+  lines.push('');
+  lines.push('Site - ' + String(ctx.siteUrl).replace(/#.*$/, ''));
+  lines.push('Suporte - ' + ctx.contato);
+  return sanitizeWhatsAppTemplateParam(lines.join('\n'));
+}
+
+/** Lista de variantes do {{1}} — da mais completa à mínima aceita pela Meta. */
+function getTemplateVar1Candidates(config, broker, now) {
+  var ctx = buildCampaignContext(config, broker, now);
+  var f = ctx.featured;
+  var siteClean = String(ctx.siteUrl || SITE_BASE_URL + '/').replace(/#.*$/, '');
+  var propUrl = f ? getPropertyPageUrlForTemplate(f, ctx.siteUrl) : siteClean;
+  return [
+    buildTemplateMarketingVar1(config, broker, now),
+    buildTemplateMarketingVar1Compact(config, broker, now),
+    sanitizeWhatsAppTemplateParam(
+      'Ola, ' + ctx.firstName + '!\n\n' + (f ? ('Destaque - ' + f.title + '\n' + propUrl + '\n\n') : '') +
+      'Site - ' + siteClean + '\nSuporte - ' + ctx.contato
+    ),
+    sanitizeWhatsAppTemplateParam(ctx.firstName),
+  ];
+}
+
+function buildTemplateVar1Components(config, broker, now, variantIndex) {
+  var list = getTemplateVar1Candidates(config, broker, now);
+  var idx = variantIndex != null ? variantIndex : 0;
+  if (idx < 0 || idx >= list.length) idx = 0;
+  return [{
+    type: 'body',
+    parameters: [{ type: 'text', text: list[idx] }],
+  }];
 }
 
 function buildSimpleCampaignSingleBody(config, broker, now) {
@@ -430,6 +482,10 @@ function getCampaignWeekPreview(now, config) {
 module.exports = {
   buildRichCampaignSingleBody,
   buildTemplateMarketingVar1,
+  buildTemplateMarketingVar1Compact,
+  getTemplateVar1Candidates,
+  buildTemplateVar1Components,
+  getPropertyPageUrlForTemplate,
   buildPremiumFollowUpText,
   buildSimpleCampaignSingleBody,
   buildCampanhaCorretorBodyComponents,

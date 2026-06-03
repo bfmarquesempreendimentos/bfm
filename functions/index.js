@@ -978,7 +978,56 @@ function buildBrokerCampaignTemplateComponents(config, broker, now) {
 }
 
 function buildCampanhaCorretorSingleVarBody(config, broker, now) {
-  return brokerCampaignContent.buildCampanhaCorretorBodyComponents(config, broker, now);
+  return brokerCampaignContent.buildTemplateVar1Components(config, broker, now, 0);
+}
+
+async function sendCampanhaCorretorTemplateVar1(waPhone, templateName, lang, waSendOpts, config, broker, now) {
+  var candidates = brokerCampaignContent.getTemplateVar1Candidates(config, broker, now);
+  var vi;
+  var lastErr = null;
+  for (vi = 0; vi < candidates.length; vi++) {
+    try {
+      var comps = [{
+        type: 'body',
+        parameters: [{ type: 'text', text: candidates[vi] }],
+      }];
+      var resp = await sendTemplateMessage(waPhone, templateName, lang, comps, waSendOpts);
+      return {
+        mode: 'template',
+        templateName: templateName,
+        language: lang,
+        componentsVariant: 'var1_try_' + vi,
+        waMessageId: resp && resp.messageId ? resp.messageId : '',
+        sentTo: waPhone,
+        templateVar1Length: candidates[vi].length,
+      };
+    } catch (errTry) {
+      lastErr = errTry;
+      var errMsg = errTry.message || extractMetaError(errTry);
+      if (!isTemplateParamValidationError(errMsg) && !isTemplateParamCountError(errMsg) &&
+          !isTemplateNameOrLanguageError(errMsg)) {
+        throw errTry;
+      }
+    }
+  }
+  try {
+    var emptyResp = await sendTemplateMessage(waPhone, templateName, lang, [], waSendOpts);
+    return {
+      mode: 'template',
+      templateName: templateName,
+      language: lang,
+      componentsVariant: 'var0_empty',
+      waMessageId: emptyResp && emptyResp.messageId ? emptyResp.messageId : '',
+      sentTo: waPhone,
+    };
+  } catch (emptyErr) {
+    lastErr = emptyErr;
+  }
+  var detail = lastErr ? (lastErr.message || extractMetaError(lastErr)) : 'erro desconhecido';
+  throw new Error(
+    'Template "' + templateName + '" rejeitado pela Meta: ' + detail +
+    ' Confira se o corpo tem {{1}} entre as linhas fixas (veja TEMPLATE-CAMPANHA-CORRETORES-META.md).'
+  );
 }
 
 function getBrokerCampaignFillTexts(config, broker, now) {
@@ -1167,8 +1216,8 @@ function buildBrokerCampaignTemplateComponentSets(config, broker, now, message) 
   if (count === 3 || total === 3) return [threeVar, singleVar, fiveVar, none];
   if (count === 4 || total === 4) return [fourVar, singleVar, fiveVar, none];
   if (count === 5 || total === 5) return [fiveVar, singleVar, twoVar, none];
+  if (tplName === 'campanha_corretor_msg') return [singleVar, none];
   if (tplName === 'atualizacao_semanal_corretor') return [fiveVar, fourVar, threeVar, singleVar, none];
-  if (tplName === 'campanha_corretor_msg') return [singleVar, twoVar, threeVar, fourVar, fiveVar];
   return [singleVar, twoVar, threeVar, fourVar, fiveVar, none];
 }
 
@@ -1271,6 +1320,23 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now, db) {
     var mi;
     var li;
     var ci;
+
+    if (normalizeTemplateName(templateName) === 'campanha_corretor_msg') {
+      for (liMeta = 0; liMeta < langCandidates.length; liMeta++) {
+        try {
+          var tplResultCamp = await sendCampanhaCorretorTemplateVar1(
+            waPhone, templateName, langCandidates[liMeta], waSendOpts, config, broker, now
+          );
+          tplResultCamp.media = await sendBrokerCampaignFollowUpAfterTemplate(
+            waPhone, config, broker, now, waSendOpts, hasSession
+          );
+          return tplResultCamp;
+        } catch (campErr) {
+          lastErr = campErr;
+        }
+      }
+      throw lastErr || new Error('Template campanha_corretor_msg nao enviado.');
+    }
 
     for (liMeta = 0; liMeta < langCandidates.length; liMeta++) {
       try {
