@@ -76,7 +76,7 @@ async function sendImageMessage(to, imageUrl, caption = '', options = {}) {
   const { token, phoneNumberId } = getConfig(options.phoneNumberId);
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
 
-  await axios.post(url, {
+  const resp = await axios.post(url, {
     messaging_product: 'whatsapp',
     to,
     type: 'image',
@@ -84,13 +84,18 @@ async function sendImageMessage(to, imageUrl, caption = '', options = {}) {
   }, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   });
+  var mid = '';
+  if (resp.data && resp.data.messages && resp.data.messages[0]) {
+    mid = resp.data.messages[0].id || '';
+  }
+  return { messageId: mid, to: to };
 }
 
 async function sendVideoMessage(to, videoUrl, caption = '', options = {}) {
   const { token, phoneNumberId } = getConfig(options.phoneNumberId);
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
 
-  await axios.post(url, {
+  const resp = await axios.post(url, {
     messaging_product: 'whatsapp',
     to,
     type: 'video',
@@ -98,6 +103,11 @@ async function sendVideoMessage(to, videoUrl, caption = '', options = {}) {
   }, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   });
+  var mid = '';
+  if (resp.data && resp.data.messages && resp.data.messages[0]) {
+    mid = resp.data.messages[0].id || '';
+  }
+  return { messageId: mid, to: to };
 }
 
 async function sendDocumentMessage(to, documentUrl, filename, caption = '', options = {}) {
@@ -452,6 +462,7 @@ async function getWhatsAppAccountInfo(options) {
       return { ok: false, error: resolved.error || 'WABA não encontrado' };
     }
     let wabaName = resolved.wabaName || '';
+    var accountReviewStatus = '';
     if (!wabaName) {
       try {
         const wabaResp = await axios.get(GRAPH_API + '/' + resolved.wabaId, {
@@ -459,6 +470,7 @@ async function getWhatsAppAccountInfo(options) {
           headers: { Authorization: 'Bearer ' + token },
         });
         wabaName = (wabaResp.data && wabaResp.data.name) || '';
+        accountReviewStatus = (wabaResp.data && wabaResp.data.account_review_status) || '';
       } catch (wabaErr) {
         wabaName = '';
       }
@@ -479,6 +491,9 @@ async function getWhatsAppAccountInfo(options) {
     }
     const haystack = (wabaName + ' ' + verifiedName).toLowerCase();
     const isLikelyTestAccount = haystack.indexOf('test') >= 0;
+    var displayDigits = String(displayPhone || '').replace(/\D/g, '');
+    var isBiaProductionNumber = displayDigits.indexOf('997590814') >= 0 ||
+      displayDigits.indexOf('21997590814') >= 0;
     return {
       ok: true,
       wabaId: resolved.wabaId,
@@ -486,6 +501,8 @@ async function getWhatsAppAccountInfo(options) {
       verifiedName: verifiedName,
       displayPhone: displayPhone,
       isLikelyTestAccount: isLikelyTestAccount,
+      isBiaProductionNumber: isBiaProductionNumber,
+      accountReviewStatus: accountReviewStatus,
     };
   } catch (err) {
     return { ok: false, error: extractMetaError(err) };
@@ -586,22 +603,50 @@ async function resolvePhoneNodeToWaba(token, maybePhoneId) {
   if (!token || !maybePhoneId) return null;
   try {
     const phoneResp = await axios.get(GRAPH_API + '/' + maybePhoneId, {
-      params: { fields: 'id,display_phone_number,verified_name,whatsapp_business_account{id}' },
+      params: { fields: 'id,display_phone_number,verified_name,whatsapp_business_account' },
       headers: { Authorization: 'Bearer ' + token },
     });
     const d = phoneResp.data || {};
     var wabaRaw = d.whatsapp_business_account;
     var wabaId = wabaRaw && (typeof wabaRaw === 'object' ? wabaRaw.id : wabaRaw);
-    if (!wabaId || !d.id) return null;
-    return {
-      wabaId: String(wabaId),
-      phoneNumberId: String(d.id),
-      displayPhone: d.display_phone_number || '',
-      verifiedName: d.verified_name || '',
-    };
+    if (d.id) {
+      return {
+        wabaId: wabaId ? String(wabaId) : '',
+        phoneNumberId: String(d.id),
+        displayPhone: d.display_phone_number || '',
+        verifiedName: d.verified_name || '',
+      };
+    }
   } catch (e) {
-    return null;
+    /* tenta fallback abaixo */
   }
+  var fallback = await resolveWabaId({ phoneNumberId: maybePhoneId });
+  if (fallback && fallback.wabaId) {
+    return {
+      wabaId: String(fallback.wabaId),
+      phoneNumberId: String(maybePhoneId),
+      displayPhone: fallback.displayPhone || '',
+      verifiedName: fallback.verifiedName || '',
+    };
+  }
+  try {
+    const bare = await axios.get(GRAPH_API + '/' + maybePhoneId, {
+      params: { fields: 'id,display_phone_number,verified_name' },
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const bd = bare.data || {};
+    if (bd.id) {
+      return {
+        wabaId: '',
+        phoneNumberId: String(bd.id),
+        displayPhone: bd.display_phone_number || '',
+        verifiedName: bd.verified_name || '',
+      };
+    }
+  } catch (bareErr) {
+    /* ignore */
+  }
+  return null;
 }
 
 /** IDs de WABA no token (debug_token). */
@@ -751,6 +796,23 @@ async function listApprovedMessageTemplates(options) {
       wabaId: options.wabaId,
       phoneNumberId: options.phoneNumberId || phoneNumberId,
     });
+    if (!resolved.wabaId) {
+      var probeId = options.phoneNumberId || phoneNumberId;
+      if (probeId) {
+        try {
+          const probeResp = await axios.get(GRAPH_API + '/' + probeId + '/message_templates', {
+            params: { limit: 200 },
+            headers: { Authorization: 'Bearer ' + token },
+          });
+          const probeRows = (probeResp.data && probeResp.data.data) || [];
+          if (probeRows.length) {
+            resolved = { wabaId: String(probeId), source: 'phone_id_as_waba' };
+          }
+        } catch (probeErr) {
+          /* continua */
+        }
+      }
+    }
     if (!resolved.wabaId) {
       return { ok: false, templates: [], error: resolved.error || 'WABA não encontrado' };
     }
@@ -965,6 +1027,110 @@ function splitMessage(text, maxLen) {
   return chunks;
 }
 
+function safeStatusDocId(messageId) {
+  return String(messageId || '').replace(/[\/\.#]/g, '_');
+}
+
+function explainMetaDeliveryError(errors) {
+  if (!errors || !errors.length) return '';
+  var e = errors[0] || {};
+  var code = e.code != null ? String(e.code) : '';
+  var title = e.title || e.message || '';
+  if (code === '131026') {
+    return 'Número não tem WhatsApp ou está incorreto (131026). Confira DDD + 9 dígitos no cadastro.';
+  }
+  if (code === '131050') {
+    return 'Corretor bloqueou mensagens de marketing no WhatsApp (131050).';
+  }
+  if (code === '131049') {
+    return 'A Meta não entregou (131049 — limite de qualidade ou política). Tente mais tarde ou peça ao corretor enviar msg para a Bia.';
+  }
+  if (code === '131047') {
+    return 'Fora da janela 24h (131047). Deve usar template — já tentamos; confira se campanha_corretor_msg está aprovado.';
+  }
+  if (code === '130472') {
+    return 'Número em experimento Meta (130472). Teste com outro celular ou cadastre em números de teste.';
+  }
+  return (title || 'Falha na entrega Meta') + (code ? ' (código ' + code + ')' : '');
+}
+
+async function saveWhatsAppMessageStatus(statusObj) {
+  if (!statusObj || !statusObj.id) return;
+  try {
+    if (!admin.apps.length) admin.initializeApp();
+    await admin.firestore().collection('whatsapp_message_status').doc(safeStatusDocId(statusObj.id)).set({
+      messageId: statusObj.id,
+      status: statusObj.status || '',
+      recipientId: statusObj.recipient_id || '',
+      timestamp: statusObj.timestamp || '',
+      errors: statusObj.errors || [],
+      conversation: statusObj.conversation || null,
+      pricing: statusObj.pricing || null,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+  } catch (e) {
+    console.warn('[WA-API] saveWhatsAppMessageStatus:', e.message);
+  }
+}
+
+function delayMsStatus(ms) {
+  return new Promise(function(resolve) { setTimeout(resolve, ms); });
+}
+
+/**
+ * Aguarda webhook da Meta gravar status (sent/delivered/failed/read).
+ * Retorna { status, errors, errorHint, timedOut }.
+ */
+async function waitForWhatsAppDeliveryStatus(messageId, maxWaitMs) {
+  maxWaitMs = maxWaitMs || 8000;
+  if (!messageId) return { status: '', errors: [], errorHint: '', timedOut: true };
+  try {
+    if (!admin.apps.length) admin.initializeApp();
+    var ref = admin.firestore().collection('whatsapp_message_status').doc(safeStatusDocId(messageId));
+    var elapsed = 0;
+    var step = 400;
+    while (elapsed < maxWaitMs) {
+      var snap = await ref.get();
+      if (snap.exists) {
+        var data = snap.data() || {};
+        var st = String(data.status || '');
+        if (st === 'failed' || st === 'delivered' || st === 'read') {
+          return {
+            status: st,
+            errors: data.errors || [],
+            errorHint: explainMetaDeliveryError(data.errors),
+            timedOut: false,
+          };
+        }
+        if (st === 'sent' && elapsed >= 3000) {
+          return { status: st, errors: [], errorHint: '', timedOut: false, pendingDelivery: true };
+        }
+      }
+      await delayMsStatus(step);
+      elapsed += step;
+    }
+    var finalSnap = await ref.get();
+    if (finalSnap.exists) {
+      var fd = finalSnap.data() || {};
+      return {
+        status: fd.status || 'unknown',
+        errors: fd.errors || [],
+        errorHint: explainMetaDeliveryError(fd.errors),
+        timedOut: false,
+      };
+    }
+    return {
+      status: 'pending',
+      errors: [],
+      errorHint: '',
+      timedOut: true,
+      pendingDelivery: true,
+    };
+  } catch (e) {
+    return { status: 'error', errors: [{ message: e.message }], errorHint: e.message, timedOut: true };
+  }
+}
+
 module.exports = {
   sendTextMessage,
   sendTemplateMessage,
@@ -1006,4 +1172,7 @@ module.exports = {
   sendInteractiveList,
   sendInteractiveButtons,
   markAsRead,
+  saveWhatsAppMessageStatus,
+  waitForWhatsAppDeliveryStatus,
+  explainMetaDeliveryError,
 };

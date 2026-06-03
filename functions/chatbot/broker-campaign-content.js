@@ -280,7 +280,11 @@ async function sendBrokerCampaignFollowUpMedia(
       sent += 1;
       await delayMs(1200);
     } catch (txtErr) {
-      errors.push('texto: ' + (txtErr.message || String(txtErr)));
+      var txtMsg = txtErr.message || String(txtErr);
+      if (/template|24.?hour|re-engagement|janela|131047|131026|470|outside/i.test(txtMsg)) {
+        throw txtErr;
+      }
+      errors.push('texto: ' + txtMsg);
     }
   }
 
@@ -292,7 +296,8 @@ async function sendBrokerCampaignFollowUpMedia(
   for (i = 0; i < images.length; i++) {
     try {
       var cap = captions[i] || captions[0] || featured.title;
-      await sendImageMessage(waPhone, images[i], cap, waSendOpts);
+      var imgResp = await sendImageMessage(waPhone, images[i], cap, waSendOpts);
+      if (imgResp && imgResp.messageId) waMessageId = imgResp.messageId;
       sent += 1;
       if (i < images.length - 1) await delayMs(1100);
     } catch (imgErr) {
@@ -305,7 +310,8 @@ async function sendBrokerCampaignFollowUpMedia(
     try {
       await delayMs(700);
       var vCap = captions[2] || captions[1] || ('Tour ' + featured.title + ' — ' + ctx.propertyUrl);
-      await sendVideoMessage(waPhone, videos[0], vCap, waSendOpts);
+      var vidResp = await sendVideoMessage(waPhone, videos[0], vCap, waSendOpts);
+      if (vidResp && vidResp.messageId) waMessageId = vidResp.messageId;
       sent += 1;
     } catch (vidErr) {
       errors.push('video: ' + (vidErr.message || String(vidErr)));
@@ -319,6 +325,7 @@ async function sendBrokerCampaignFollowUpMedia(
     featuredTitle: featured.title,
     featuredPropertyUrl: ctx.propertyUrl,
     errors: errors,
+    waMessageId: waMessageId,
   };
 }
 
@@ -333,8 +340,15 @@ async function sendBrokerCampaignDirect(
     sendTextMessage, sendImageMessage, sendVideoMessage,
     { includeText: true }
   );
-  if (!media.textSent && media.errors && media.errors.length) {
-    throw new Error(media.errors.join('; '));
+  if (!media.textSent) {
+    if (media.errors && media.errors.length) {
+      throw new Error(media.errors.join('; '));
+    }
+    var noTextErr = new Error(
+      'Texto livre não enviado (corretor fora da janela 24h ou bloqueio Meta). Use template aprovado.'
+    );
+    noTextErr.code = 'NEEDS_TEMPLATE';
+    throw noTextErr;
   }
   return {
     mode: 'direct',

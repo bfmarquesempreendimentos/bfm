@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
     <link rel="stylesheet" href="styles/main.css?v=9">
-    <link rel="stylesheet" href="styles/admin.css?v=8">
+    <link rel="stylesheet" href="styles/admin.css?v=9">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -553,6 +553,16 @@
                         <span id="brokerCampaignWeeklyStatus" class="broker-campaign-weekly-status">—</span>
                     </div>
 
+                    <div id="brokerCampaignProductionBox" class="broker-production-box" hidden role="region" aria-label="Migração WhatsApp produção">
+                        <div class="broker-production-box__head">
+                            <strong>Migrar para produção (Opção B)</strong>
+                            <span id="brokerProductionStatusBadge" class="broker-production-badge">—</span>
+                        </div>
+                        <p id="brokerProductionSummary" class="broker-production-summary"></p>
+                        <ol id="brokerProductionSteps" class="broker-production-steps"></ol>
+                        <p class="form-hint">Número alvo: <strong>+55 21 99759-0814</strong> (Bia). Após concluir, qualquer corretor recebe a campanha sem cadastro em números de teste.</p>
+                    </div>
+
                     <div class="broker-campaign-kpis">
                         <div class="broker-kpi broker-kpi--ready">
                             <span class="broker-kpi__label">Prontos para disparo</span>
@@ -612,7 +622,7 @@
                                     <label class="campaign-field-col campaign-field-col--wide" style="margin-top:10px;">
                                         <span>ID da <strong>conta</strong> WhatsApp (WABA) — WhatsApp Manager → Configurações da conta (não é o número da Bia)</span>
                                         <div class="broker-waba-row">
-                                            <input type="text" id="brokerCampaignWabaId" placeholder="ex: 1088658444328108" inputmode="numeric" autocomplete="off">
+                                            <input type="text" id="brokerCampaignWabaId" placeholder="ID da conta (WhatsApp Manager → Configurações da conta)" inputmode="numeric" autocomplete="off">
                                             <button type="button" class="btn btn-secondary btn-sm" onclick="discoverBrokerCampaignWaba()">Detectar</button>
                                             <button type="button" class="btn btn-primary btn-sm" onclick="saveBrokerCampaignWaba()">Salvar WABA</button>
                                         </div>
@@ -1287,7 +1297,7 @@
     <script src="js/whatsapp-leads.js?v=3"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=27"></script>
+    <script src="js/admin.js?v=29"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

@@ -2835,6 +2835,55 @@ button.wa-stat.wa-stat--click:focus {
     color: #047857;
     font-weight: 600;
 }
+.broker-production-box {
+    margin: 0 0 14px 0;
+    padding: 14px 16px;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    background: #fffbeb;
+}
+.broker-production-box--ready {
+    border-color: #6ee7b7;
+    background: #ecfdf5;
+}
+.broker-production-box__head {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-pack: justify;
+    -ms-flex-pack: justify;
+    justify-content: space-between;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.broker-production-badge {
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #fef3c7;
+    color: #92400e;
+}
+.broker-production-box--ready .broker-production-badge {
+    background: #d1fae5;
+    color: #065f46;
+}
+.broker-production-summary {
+    margin: 0 0 10px 0;
+    font-size: 0.9rem;
+    color: #78350f;
+}
+.broker-production-box--ready .broker-production-summary { color: #047857; }
+.broker-production-steps {
+    margin: 0 0 8px 0;
+    padding-left: 20px;
+    font-size: 0.88rem;
+}
+.broker-production-steps li { margin-bottom: 6px; }
+.broker-production-steps li.is-done { color: #047857; text-decoration: line-through; }
+.broker-production-steps a { color: #1d4ed8; }
 .broker-waba-row {
     display: -webkit-box;
     display: -ms-flexbox;

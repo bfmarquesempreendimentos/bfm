@@ -1540,6 +1540,42 @@ function brokerRowAction(selectEl, id) {
     }
 }
 
+function renderBrokerProductionMigration(preview) {
+    var box = document.getElementById('brokerCampaignProductionBox');
+    var summaryEl = document.getElementById('brokerProductionSummary');
+    var stepsEl = document.getElementById('brokerProductionSteps');
+    var badgeEl = document.getElementById('brokerProductionStatusBadge');
+    var mig = preview && preview.productionMigration ? preview.productionMigration : null;
+    if (!box || !mig) {
+        if (box) box.hidden = true;
+        return;
+    }
+    box.hidden = false;
+    box.className = 'broker-production-box' + (mig.productionReady ? ' broker-production-box--ready' : '');
+    if (summaryEl) summaryEl.textContent = mig.summary || '';
+    if (badgeEl) {
+        badgeEl.textContent = mig.productionReady
+            ? 'Produção OK'
+            : (mig.isTestAccount ? 'Conta TESTE' : 'Pendente (' + (mig.pendingSteps || '?') + ')');
+    }
+    if (stepsEl) {
+        var html = '';
+        var steps = mig.steps || [];
+        var i;
+        for (i = 0; i < steps.length; i++) {
+            var st = steps[i];
+            html += '<li class="' + (st.done ? 'is-done' : '') + '">';
+            if (st.link) {
+                html += '<a href="' + st.link + '" target="_blank" rel="noopener">' + escapeHtml(st.label) + '</a>';
+            } else {
+                html += escapeHtml(st.label);
+            }
+            html += '</li>';
+        }
+        stepsEl.innerHTML = html;
+    }
+}
+
 function renderBrokerCampaignKpis(preview) {
     _brokerCampaignPreview = preview || null;
     var ready = preview ? (preview.readyToSend != null ? preview.readyToSend : preview.eligible) : 0;
@@ -1579,7 +1615,7 @@ function renderBrokerCampaignKpis(preview) {
             hint.textContent = 'Corrija o template Meta antes de disparar. ' + (preview.templateHint || '');
         } else if (preview && preview.whatsappTestAccount) {
             hint.textContent = (preview.whatsappTestAccountHint || 'Conta WhatsApp de TESTE na Meta.') +
-                ' Cadastre o celular do corretor em API Setup → números de teste antes do teste.';
+                ' Abra o checklist “Migrar para produção” acima para liberar envio a todos os corretores.';
         } else if (preview && preview.isReady && ready > 0) {
             hint.textContent = 'Pronto: ' + ready + ' corretor(es) — 1 mensagem com nome, destaque, links do empreendimento e do site, notícia do dia + até 2 fotos e 1 vídeo.';
             if (preview.campaignWeek && preview.campaignWeek.featuredPropertyTitle) {
@@ -1598,6 +1634,7 @@ function renderBrokerCampaignKpis(preview) {
             hint.textContent = preview && preview.nextWeeklyNote ? preview.nextWeeklyNote : '';
         }
     }
+    renderBrokerProductionMigration(preview);
 }
 
 function syncBrokerCampaignWeeklyCheckboxes(sourceEl) {
@@ -1838,10 +1875,14 @@ function showBrokerCampaignResult(result, isError) {
         if (row.name) txt += ' Corretor: ' + row.name + '.';
         if (row.mode) txt += ' Modo: ' + row.mode + '.';
         if (row.waMessageId) txt += ' ID Meta: ' + row.waMessageId + '.';
+        if (row.deliveryStatus) txt += ' Entrega Meta: ' + row.deliveryStatus + '.';
         if (row.deliveryNote) txt += ' ' + row.deliveryNote;
-        if (row.status === 'accepted') {
+        if (row.status === 'accepted' || row.deliveryStatus === 'pending') {
             msgType = 'warning';
-            txt += ' API aceitou, mas o WhatsApp pode não ter entregue (conta de teste ou número não liberado).';
+            txt += ' API aceitou, mas o WhatsApp pode não ter entregue (conta de teste, número sem WhatsApp ou webhook de status).';
+        }
+        if (row.deliveryStatus === 'failed') {
+            msgType = 'error';
         }
         if (row.mode === 'text') {
             txt += ' Texto livre não entrega a quem nunca falou com a Bia — configure WABA e campanha_corretor_msg.';

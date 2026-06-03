@@ -34,6 +34,8 @@ const {
   uploadMediaBuffer,
   sendMediaById,
   getWhatsAppMediaBuffer,
+  waitForWhatsAppDeliveryStatus,
+  explainMetaDeliveryError,
 } = require('./chatbot/whatsapp-api');
 const propertySalesHandlers = require('./property-sales-handlers');
 const brokerCampaignContent = require('./chatbot/broker-campaign-content');
@@ -364,27 +366,47 @@ function pickBiaPhoneNumberId(phones, preferId, hintDigits) {
 async function syncWhatsAppCloudSettings(db, options) {
   options = options || {};
   const settings = await loadWhatsappSettings(db);
-  const wabaId = String(options.wabaId || settings.wabaId || '').trim();
+  let wabaId = String(options.wabaId || settings.wabaId || '').trim();
   const envPhoneId = String(process.env.WHATSAPP_PHONE_NUMBER_ID || '').trim();
   const lastWebhookPhone = String(settings.lastWebhookPhoneNumberId || '').trim();
   const token = process.env.WHATSAPP_TOKEN;
   const hintDigits = normalizePhoneDigitsForMatch(
-    options.supportPhone || settings.supportPhoneHint || '21995557010'
+    options.supportPhone || settings.supportPhoneHint || '21997590814'
   );
 
   if (!token) {
     return { ok: false, error: 'WHATSAPP_TOKEN não configurado no Firebase.' };
   }
-  if (!wabaId) {
+
+  var phones = [];
+  var resolvedPhoneId = '';
+  var syncSource = '';
+  var envMisconfiguredAsWaba = envPhoneId && wabaId && envPhoneId === wabaId;
+
+  /* Secret Firebase = phone_number_id da Bia (ex.: 1088658444328108) */
+  if (envPhoneId) {
+    var envPhoneNode = await resolvePhoneNodeToWaba(token, envPhoneId);
+    if (envPhoneNode && envPhoneNode.phoneNumberId) {
+      if (envPhoneNode.wabaId) wabaId = envPhoneNode.wabaId;
+      resolvedPhoneId = envPhoneNode.phoneNumberId;
+      syncSource = 'firebase_secret_phone_node';
+      envMisconfiguredAsWaba = false;
+      phones = wabaId ? await listWabaPhoneNumbers(token, wabaId) : [];
+      if (!phoneDisplay && envPhoneNode.displayPhone) {
+        /* usado abaixo via phones ou fetch */
+      }
+    }
+  }
+
+  if (!wabaId && !resolvedPhoneId) {
     return { ok: false, error: 'Informe o ID da conta (WABA) no painel e clique Salvar WABA.' };
   }
 
-  var phones = await listWabaPhoneNumbers(token, wabaId);
-  var resolvedPhoneId = '';
-  var syncSource = '';
-  var envMisconfiguredAsWaba = envPhoneId && envPhoneId === wabaId;
-
   if (!phones.length && wabaId) {
+    phones = await listWabaPhoneNumbers(token, wabaId);
+  }
+
+  if (!phones.length && wabaId && !resolvedPhoneId) {
     var asPhoneNode = await resolvePhoneNodeToWaba(token, wabaId);
     if (asPhoneNode && asPhoneNode.wabaId) {
       wabaId = asPhoneNode.wabaId;
@@ -463,6 +485,9 @@ async function syncWhatsAppCloudSettings(db, options) {
   }
 
   var phoneMatch = !!(resolvedPhoneId && await phoneBelongsToWaba(token, wabaId, resolvedPhoneId));
+  if (!phoneMatch && resolvedPhoneId && syncSource === 'firebase_secret_phone_node') {
+    phoneMatch = true;
+  }
   var phoneDisplay = '';
   if (resolvedPhoneId && phones.length) {
     for (var pi = 0; pi < phones.length; pi++) {
@@ -496,12 +521,13 @@ async function syncWhatsAppCloudSettings(db, options) {
 
   if (resolvedPhoneId && phoneMatch) {
     await saveWhatsappSettings(db, {
-      wabaId: wabaId,
+      wabaId: wabaId || resolvedPhoneId,
       phoneNumberId: resolvedPhoneId,
       phoneDisplay: phoneDisplay,
       syncSource: syncSource,
       envPhoneNumberId: envPhoneId,
       envMisconfiguredAsWaba: envMisconfiguredAsWaba,
+      supportPhoneHint: hintDigits,
     });
   }
 
@@ -540,9 +566,11 @@ async function getOrResolveWabaId(db) {
     syncSource: sync.syncSource || '',
     syncHint: (sync.syncSource === 'bia_webhook_trusted' || sync.syncSource === 'bia_webhook')
       ? 'Número da Bia confirmado pelo WhatsApp (webhook). Campanha usa o mesmo número do atendimento.'
-      : (sync.envMisconfiguredAsWaba
-        ? 'Ajuste WHATSAPP_PHONE_NUMBER_ID no Firebase para o Phone number ID da Meta (API Setup).'
-        : ''),
+      : (sync.syncSource === 'firebase_secret_phone_node'
+        ? 'Número da Bia vinculado pelo Phone number ID do Firebase (' + (phoneId || '') + ').'
+        : (sync.envMisconfiguredAsWaba
+          ? 'Ajuste WHATSAPP_PHONE_NUMBER_ID no Firebase para o Phone number ID da Meta (API Setup).'
+          : '')),
   };
 }
 
@@ -687,6 +715,7 @@ async function getBrokerCampaignPreview(db) {
   const isReady = readyToSend > 0 && activeDuplicateRecords === 0 &&
     (!hasTpl || templateStatus.templateValid);
   const waAccount = await getWhatsAppAccountInfo();
+  var prodMigration = buildWhatsAppProductionMigrationStatus(waAccount, templateStatus, config);
   return {
     enabled: !!config.enabled,
     totalActiveNotOptOut: targetList.length,
@@ -710,6 +739,7 @@ async function getBrokerCampaignPreview(db) {
     whatsappTestAccountHint: waAccount.ok && waAccount.isLikelyTestAccount
       ? 'Conta Meta de TESTE: cadastre cada celular de corretor em developers.facebook.com → seu app → WhatsApp → API Setup → números de teste. Sem isso a API aceita mas não entrega (0 no painel Meta).'
       : '',
+    productionMigration: prodMigration,
     nextWeeklyNote: config.enabled
       ? 'Segunda-feira 08:00 (Brasília): envio automático para quem está ativo, com campanha ligada e telefone válido.'
       : 'Envio automático desligado. Disparar agora envia manualmente quando você quiser.',
@@ -727,6 +757,92 @@ async function getBrokerCampaignPreview(db) {
     featuredPropertyId: config.featuredPropertyId != null ? config.featuredPropertyId : null,
     marketNewsTitle: config.marketNewsTitle || '',
     marketNewsText: config.marketNewsText || '',
+  };
+}
+
+function buildWhatsAppProductionMigrationStatus(waAccount, templateStatus, config) {
+  var displayPhone = (waAccount && waAccount.displayPhone) ||
+    (templateStatus && templateStatus.biaPhoneDisplay) || '';
+  var isTest = !!(waAccount && waAccount.ok && waAccount.isLikelyTestAccount);
+  var isBiaNumber = !!(waAccount && waAccount.isBiaProductionNumber);
+  if (!isBiaNumber && displayPhone) {
+    var digits = displayPhone.replace(/\D/g, '');
+    isBiaNumber = digits.indexOf('997590814') >= 0;
+  }
+  var hasPhoneId = !!(templateStatus && (templateStatus.biaPhoneNumberId || templateStatus.cloudPhoneNumberId));
+  var reviewOk = waAccount && waAccount.accountReviewStatus &&
+    String(waAccount.accountReviewStatus).toUpperCase() === 'APPROVED';
+  var productionReady = !isTest && isBiaNumber && hasPhoneId;
+  var biaDisplay = (config && config.whatsappContato) || '(21) 99759-0814';
+  var steps = [
+    {
+      id: 'business',
+      label: 'Verificar o negócio B F Marques no Meta Business (business.facebook.com → Configurações → Informações da empresa)',
+      done: reviewOk,
+      link: 'https://business.facebook.com/settings/info',
+    },
+    {
+      id: 'free_number',
+      label: 'Liberar o número da Bia (' + biaDisplay + ') — se estiver no WhatsApp comum/Business app, use Migração de número ou exclua a conta do app antes de registrar na API',
+      done: false,
+      link: 'https://business.facebook.com/wa/manage/phone-numbers/',
+    },
+    {
+      id: 'register_production',
+      label: 'WhatsApp Manager → Adicionar número → verificar por SMS/ligação → aguardar status Conectado',
+      done: isBiaNumber && !isTest,
+      link: 'https://business.facebook.com/wa/manage/phone-numbers/',
+    },
+    {
+      id: 'phone_id',
+      label: 'Copiar o Phone number ID do número da Bia e atualizar no Firebase: firebase functions:secrets:set WHATSAPP_PHONE_NUMBER_ID',
+      done: hasPhoneId && isBiaNumber && !isTest,
+      link: 'https://developers.facebook.com/apps/',
+    },
+    {
+      id: 'token',
+      label: 'Token permanente (Meta Business → Usuários do sistema → Gerar token com whatsapp_business_messaging)',
+      done: hasPhoneId && !isTest,
+      link: 'https://business.facebook.com/settings/system-users',
+    },
+    {
+      id: 'payment',
+      label: 'Forma de pagamento / linha de crédito no Meta Business (obrigatório para campanhas Marketing em produção)',
+      done: false,
+      link: 'https://business.facebook.com/billing_hub/accounts',
+    },
+    {
+      id: 'webhook',
+      label: 'Webhook já aponta para chatbotWebhook — confirme campo messages assinado na Meta',
+      done: hasPhoneId,
+      link: 'https://developers.facebook.com/apps/',
+    },
+    {
+      id: 'admin_sync',
+      label: 'No painel: Corretores → Salvar WABA → Testar envio para um corretor',
+      done: productionReady,
+      link: '',
+    },
+  ];
+  var pending = 0;
+  var si;
+  for (si = 0; si < steps.length; si++) {
+    if (!steps[si].done) pending += 1;
+  }
+  return {
+    needed: !productionReady,
+    productionReady: productionReady,
+    isTestAccount: isTest,
+    isBiaProductionNumber: isBiaNumber,
+    displayPhone: displayPhone,
+    accountReviewStatus: (waAccount && waAccount.accountReviewStatus) || '',
+    pendingSteps: pending,
+    summary: productionReady
+      ? 'Conta em produção: campanhas entregam para qualquer corretor com WhatsApp válido.'
+      : (isTest
+        ? 'Conta de TESTE ativa — corretores só recebem se o celular estiver em API Setup → números de teste. Siga os passos abaixo para produção.'
+        : 'Migre o número da Bia para produção na Meta para entregar campanhas a todos os corretores.'),
+    steps: steps,
   };
 }
 
@@ -1001,7 +1117,13 @@ function buildBrokerCampaignTemplateComponentSets(config, broker, now, message) 
 }
 
 function isWhatsAppNeedsTemplateError(errMsg) {
-  return /template|24.?hour|re-engagement|janela|131047|131026/i.test(String(errMsg || ''));
+  return /template|24.?hour|re-engagement|janela|131047|131026|470|outside|NEEDS_TEMPLATE|texto livre não enviado/i.test(String(errMsg || ''));
+}
+
+function directCampaignNeedsTemplateFallback(directResult) {
+  if (!directResult || directResult.mode !== 'direct') return true;
+  var media = directResult.media || {};
+  return !media.textSent;
 }
 
 async function sendBrokerCampaignFollowUpAfterTemplate(waPhone, config, broker, now, waSendOpts) {
@@ -1025,10 +1147,13 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
   var skipTemplateFirst = config.skipMetaTemplate !== false;
   if (skipTemplateFirst) {
     try {
-      return await brokerCampaignContent.sendBrokerCampaignDirect(
+      var directResult = await brokerCampaignContent.sendBrokerCampaignDirect(
         waPhone, config, broker, now, waSendOpts,
         sendTextMessage, sendImageMessage, sendVideoMessage
       );
+      if (!templateName || !directCampaignNeedsTemplateFallback(directResult)) {
+        return directResult;
+      }
     } catch (directErr) {
       var directMsg = directErr.message || extractMetaError(directErr);
       if (!isWhatsAppNeedsTemplateError(directMsg) || !templateName) {
@@ -1241,6 +1366,56 @@ function buildBrokerCampaignMessage(config, broker, now) {
   );
 }
 
+async function verifyCampaignMessageDelivery(sendMeta) {
+  var msgId = (sendMeta && sendMeta.waMessageId) ||
+    (sendMeta && sendMeta.media && sendMeta.media.waMessageId) || '';
+  if (!msgId) {
+    return {
+      deliveryStatus: 'unknown',
+      deliveryHint: 'Meta não retornou ID da mensagem — entrega incerta.',
+      deliveryFailed: false,
+    };
+  }
+  var delivery = await waitForWhatsAppDeliveryStatus(msgId, 10000);
+  if (delivery.status === 'failed') {
+    return {
+      deliveryStatus: 'failed',
+      deliveryHint: delivery.errorHint || explainMetaDeliveryError(delivery.errors) ||
+        'A Meta reportou falha na entrega ao celular.',
+      deliveryFailed: true,
+      deliveryErrors: delivery.errors || [],
+    };
+  }
+  if (delivery.status === 'delivered' || delivery.status === 'read') {
+    return { deliveryStatus: delivery.status, deliveryHint: '', deliveryFailed: false };
+  }
+  if (delivery.status === 'sent') {
+    return {
+      deliveryStatus: 'sent',
+      deliveryHint: delivery.pendingDelivery
+        ? 'Enviado ao servidor WhatsApp; confirmação de entrega no aparelho ainda pendente.'
+        : '',
+      deliveryFailed: false,
+    };
+  }
+  if (delivery.timedOut) {
+    return {
+      deliveryStatus: 'pending',
+      deliveryHint:
+        'API aceitou (wamid OK), mas não houve confirmação de entrega em 10s. ' +
+        'Causas comuns: conta WhatsApp de TESTE (cadastre o celular em API Setup → números de teste), ' +
+        'número sem WhatsApp, ou webhook de status não configurado na Meta.',
+      deliveryFailed: false,
+      deliveryUncertain: true,
+    };
+  }
+  return {
+    deliveryStatus: delivery.status || 'unknown',
+    deliveryHint: delivery.errorHint || '',
+    deliveryFailed: false,
+  };
+}
+
 async function sendWeeklyBrokerCampaignInternal(payload) {
   const db = admin.firestore();
   const now = new Date();
@@ -1333,15 +1508,6 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
           error: 'Envio caiu em texto livre (não entrega fora da janela 24h). Erro template: ' +
             (sendMeta.templateError || 'configure WABA e campanha_corretor_msg'),
         });
-      } else if (sendMeta.mode === 'direct' && !(sendMeta.waMessageId || (sendMeta.media && sendMeta.media.waMessageId))) {
-        results.push({
-          brokerId: item.broker.id,
-          name: item.broker.name || '',
-          status: 'error',
-          phone: item.waPhone,
-          phoneCadastro: item.broker.phone || '',
-          error: 'A Meta não confirmou o envio do texto. Corretor pode estar fora da janela 24h — peça para ele enviar qualquer mensagem para a Bia e teste de novo.',
-        });
       } else {
         var rowStatus = 'sent';
         var rowNote = '';
@@ -1349,20 +1515,46 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
           rowStatus = 'accepted';
           rowNote = 'API aceitou, mas conta de TESTE da Meta só entrega para números cadastrados em API Setup → números de teste.';
         }
-        results.push({
-          brokerId: item.broker.id,
-          name: item.broker.name || '',
-          status: rowStatus,
-          phone: item.waPhone,
-          phoneCadastro: item.broker.phone || '',
-          mode: sendMeta.mode,
-          templateName: sendMeta.templateName || '',
-          waMessageId: sendMeta.waMessageId || (sendMeta.media && sendMeta.media.waMessageId) || '',
-          componentsVariant: sendMeta.componentsVariant || '',
-          mediaSent: sendMeta.media && sendMeta.media.sent ? sendMeta.media.sent : 0,
-          featuredTitle: sendMeta.media && sendMeta.media.featuredTitle ? sendMeta.media.featuredTitle : '',
-          deliveryNote: rowNote,
-        });
+        var msgId = sendMeta.waMessageId || (sendMeta.media && sendMeta.media.waMessageId) || '';
+        var deliveryCheck = await verifyCampaignMessageDelivery(sendMeta);
+        if (deliveryCheck.deliveryFailed) {
+          results.push({
+            brokerId: item.broker.id,
+            name: item.broker.name || '',
+            status: 'error',
+            phone: item.waPhone,
+            phoneCadastro: item.broker.phone || '',
+            waMessageId: msgId,
+            mode: sendMeta.mode,
+            deliveryStatus: deliveryCheck.deliveryStatus,
+            error: deliveryCheck.deliveryHint || 'Falha na entrega confirmada pela Meta.',
+          });
+        } else {
+          if (deliveryCheck.deliveryUncertain || deliveryCheck.deliveryHint) {
+            rowStatus = rowStatus === 'sent' ? 'accepted' : rowStatus;
+            rowNote = (rowNote ? rowNote + ' ' : '') + (deliveryCheck.deliveryHint || '');
+          }
+          if (deliveryCheck.deliveryStatus === 'delivered' || deliveryCheck.deliveryStatus === 'read') {
+            rowStatus = 'sent';
+            rowNote = '';
+          }
+          results.push({
+            brokerId: item.broker.id,
+            name: item.broker.name || '',
+            status: rowStatus,
+            phone: item.waPhone,
+            phoneCadastro: item.broker.phone || '',
+            mode: sendMeta.mode,
+            templateName: sendMeta.templateName || '',
+            waMessageId: msgId,
+            componentsVariant: sendMeta.componentsVariant || '',
+            mediaSent: sendMeta.media && sendMeta.media.sent ? sendMeta.media.sent : 0,
+            featuredTitle: sendMeta.media && sendMeta.media.featuredTitle ? sendMeta.media.featuredTitle : '',
+            deliveryStatus: deliveryCheck.deliveryStatus,
+            deliveryNote: rowNote,
+            deliveryUncertain: !!deliveryCheck.deliveryUncertain,
+          });
+        }
       }
     } catch (err) {
       results.push({
@@ -1384,6 +1576,9 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
   const issues = results.filter(function(r) { return r.status !== 'sent' && r.status !== 'accepted'; }).slice(0, 80);
   const sentDetails = results.filter(function(r) { return r.status === 'sent' || r.status === 'accepted'; }).slice(0, 5);
   var deliveryWarning = '';
+  var anyUncertain = results.some(function(r) {
+    return r.deliveryUncertain || r.deliveryStatus === 'pending' || r.deliveryStatus === 'sent';
+  });
   if (waAccount.ok && waAccount.isLikelyTestAccount && sent > 0) {
     deliveryWarning =
       'A Meta aceitou o envio (API OK), mas esta é uma conta WhatsApp de TESTE ("' +
@@ -1391,6 +1586,10 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
       '"). Só entrega para números cadastrados em API Setup → números de teste. ' +
       'Por isso o painel Meta mostra 0 entregues e o corretor não recebe. ' +
       'Cadastre o celular do corretor lá ou migre para conta Business de produção.';
+  } else if (errors === 0 && sent > 0 && anyUncertain) {
+    deliveryWarning =
+      'A API aceitou o envio, mas a entrega no celular não foi confirmada. ' +
+      'Peça ao corretor confirmar o WhatsApp (21) 98509-3217, enviar "oi" para a Bia, ou cadastre o número em números de teste na Meta.';
   }
 
   await runRef.set({
