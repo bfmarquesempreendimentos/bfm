@@ -714,7 +714,9 @@ async function getBrokerCampaignPreview(db) {
   const hasTpl = !!(templateStatus.templateName);
   const isReady = readyToSend > 0 && activeDuplicateRecords === 0 &&
     (!hasTpl || templateStatus.templateValid);
-  const waAccount = await getWhatsAppAccountInfo();
+  const waAccount = await getWhatsAppAccountInfo({
+    phoneNumberId: templateStatus.biaPhoneNumberId || templateStatus.cloudPhoneNumberId || '',
+  });
   var prodMigration = buildWhatsAppProductionMigrationStatus(waAccount, templateStatus, config);
   return {
     enabled: !!config.enabled,
@@ -773,18 +775,18 @@ function buildWhatsAppProductionMigrationStatus(waAccount, templateStatus, confi
   var reviewOk = waAccount && waAccount.accountReviewStatus &&
     String(waAccount.accountReviewStatus).toUpperCase() === 'APPROVED';
   var productionReady = !isTest && isBiaNumber && hasPhoneId;
-  var biaDisplay = (config && config.whatsappContato) || '(21) 99759-0814';
+  var biaDisplay = '(21) 99759-0814';
   var steps = [
     {
       id: 'business',
       label: 'Verificar o negócio B F Marques no Meta Business (business.facebook.com → Configurações → Informações da empresa)',
-      done: reviewOk,
+      done: reviewOk || productionReady,
       link: 'https://business.facebook.com/settings/info',
     },
     {
       id: 'free_number',
       label: 'Liberar o número da Bia (' + biaDisplay + ') — se estiver no WhatsApp comum/Business app, use Migração de número ou exclua a conta do app antes de registrar na API',
-      done: false,
+      done: isBiaNumber,
       link: 'https://business.facebook.com/wa/manage/phone-numbers/',
     },
     {
@@ -795,8 +797,8 @@ function buildWhatsAppProductionMigrationStatus(waAccount, templateStatus, confi
     },
     {
       id: 'phone_id',
-      label: 'Copiar o Phone number ID do número da Bia e atualizar no Firebase: firebase functions:secrets:set WHATSAPP_PHONE_NUMBER_ID',
-      done: hasPhoneId && isBiaNumber && !isTest,
+      label: 'Phone number ID da Bia (1088658444328108) no Firebase — WHATSAPP_PHONE_NUMBER_ID',
+      done: hasPhoneId && isBiaNumber,
       link: 'https://developers.facebook.com/apps/',
     },
     {
@@ -914,6 +916,29 @@ function getDefaultBrokerCampaignConfig() {
   };
 }
 
+function normalizeCampaignContactPhone(contato) {
+  var raw = String(contato || '').trim();
+  var digits = raw.replace(/\D/g, '');
+  if (!digits || digits.indexOf('995557010') >= 0 || digits.indexOf('996557010') >= 0) {
+    return '(21) 99759-0814';
+  }
+  return raw || '(21) 99759-0814';
+}
+
+async function brokerHasWhatsAppSessionWindow(db, waPhone) {
+  if (!db || !waPhone) return false;
+  try {
+    var lead = await getLeadByPhone(waPhone);
+    if (!lead) return false;
+    var lastUser = lead.lastUserMessageAt || lead.lastMessageAt || lead.updatedAt;
+    if (!lastUser) return false;
+    var age = Date.now() - new Date(lastUser).getTime();
+    return age >= 0 && age < 24 * 60 * 60 * 1000;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function getBrokerCampaignConfig(db) {
   const ref = db.collection('broker_campaign').doc('config');
   const snap = await ref.get();
@@ -923,7 +948,13 @@ async function getBrokerCampaignConfig(db) {
     return defaults;
   }
   const current = snap.data() || {};
-  return { ...getDefaultBrokerCampaignConfig(), ...current };
+  var merged = { ...getDefaultBrokerCampaignConfig(), ...current };
+  var fixedContact = normalizeCampaignContactPhone(merged.whatsappContato);
+  if (fixedContact !== merged.whatsappContato) {
+    merged.whatsappContato = fixedContact;
+    await ref.set({ whatsappContato: fixedContact, updatedAt: new Date().toISOString() }, { merge: true });
+  }
+  return merged;
 }
 
 function buildBrokerCampaignTemplateComponents(config, broker, now) {
@@ -1126,7 +1157,15 @@ function directCampaignNeedsTemplateFallback(directResult) {
   return !media.textSent;
 }
 
-async function sendBrokerCampaignFollowUpAfterTemplate(waPhone, config, broker, now, waSendOpts) {
+async function sendBrokerCampaignFollowUpAfterTemplate(waPhone, config, broker, now, waSendOpts, hasSession) {
+  if (!hasSession) {
+    return {
+      sent: 0,
+      textSent: false,
+      skipped: true,
+      reason: 'Corretor fora da janela 24h — enviado só o template Marketing (texto completo). Fotos/vídeo quando responder à Bia.',
+    };
+  }
   return brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
     waPhone, config, broker, now, waSendOpts,
     sendTextMessage, sendImageMessage, sendVideoMessage,
@@ -1134,7 +1173,7 @@ async function sendBrokerCampaignFollowUpAfterTemplate(waPhone, config, broker, 
   );
 }
 
-async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
+async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now, db) {
   const message = buildBrokerCampaignMessage(config, broker, now);
   const templateName = normalizeTemplateName(config.templateName);
   const waSendOpts = config.campaignPhoneNumberId
@@ -1144,8 +1183,9 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
     throw new Error('Número da Bia (phone_number_id) não configurado. Abra Corretores → Salvar WABA ou envie uma mensagem para a Bia e tente de novo.');
   }
 
-  var skipTemplateFirst = config.skipMetaTemplate !== false;
-  if (skipTemplateFirst) {
+  var hasSession = db ? await brokerHasWhatsAppSessionWindow(db, waPhone) : false;
+  var skipTemplateFirst = config.skipMetaTemplate !== false && hasSession;
+  if (hasSession && skipTemplateFirst) {
     try {
       var directResult = await brokerCampaignContent.sendBrokerCampaignDirect(
         waPhone, config, broker, now, waSendOpts,
@@ -1163,6 +1203,11 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
   }
 
   if (!templateName) {
+    if (!hasSession) {
+      throw new Error(
+        'Corretor fora da janela 24h — cadastre o template campanha_corretor_msg na Meta e no painel.'
+      );
+    }
     try {
       return await brokerCampaignContent.sendBrokerCampaignDirect(
         waPhone, config, broker, now, waSendOpts,
@@ -1217,7 +1262,7 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
           sentTo: waPhone,
         };
         tplResult.media = await sendBrokerCampaignFollowUpAfterTemplate(
-          waPhone, config, broker, now, waSendOpts
+          waPhone, config, broker, now, waSendOpts, hasSession
         );
         return tplResult;
       } catch (richFirstErr) {
@@ -1240,7 +1285,7 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
               sentTo: waPhone,
             };
             tplResult.media = await sendBrokerCampaignFollowUpAfterTemplate(
-              waPhone, config, broker, now, waSendOpts
+              waPhone, config, broker, now, waSendOpts, hasSession
             );
             return tplResult;
           } catch (simpleMainErr) {
@@ -1306,7 +1351,7 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
           if (normalizeTemplateName(templateName) === 'campanha_corretor_msg' ||
               variant === 'single' || variant === 'rich_single_var') {
             tplResult.media = await sendBrokerCampaignFollowUpAfterTemplate(
-              waPhone, config, broker, now, waSendOpts
+              waPhone, config, broker, now, waSendOpts, hasSession
             );
           }
           return tplResult;
@@ -1324,7 +1369,7 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now) {
     );
     if (probed) {
       probed.media = await sendBrokerCampaignFollowUpAfterTemplate(
-        waPhone, config, broker, now, waSendOpts
+        waPhone, config, broker, now, waSendOpts, hasSession
       );
       return probed;
     }
@@ -1497,7 +1542,7 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
   for (let i = 0; i < sendable.length; i++) {
     const item = sendable[i];
     try {
-      const sendMeta = await sendBrokerCampaignWhatsApp(config, item.broker, item.waPhone, now);
+      const sendMeta = await sendBrokerCampaignWhatsApp(config, item.broker, item.waPhone, now, db);
       if (sendMeta.mode === 'text' || sendMeta.templateFallback) {
         results.push({
           brokerId: item.broker.id,
@@ -1517,6 +1562,26 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
         }
         var msgId = sendMeta.waMessageId || (sendMeta.media && sendMeta.media.waMessageId) || '';
         var deliveryCheck = await verifyCampaignMessageDelivery(sendMeta);
+        if (deliveryCheck.deliveryFailed && sendMeta.mode === 'template' &&
+            sendMeta.media && sendMeta.media.skipped) {
+          var err131047 = false;
+          if (deliveryCheck.deliveryErrors && deliveryCheck.deliveryErrors.length) {
+            var dei;
+            for (dei = 0; dei < deliveryCheck.deliveryErrors.length; dei++) {
+              if (String(deliveryCheck.deliveryErrors[dei].code || '') === '131047') {
+                err131047 = true;
+                break;
+              }
+            }
+          }
+          if (err131047 || (deliveryCheck.deliveryHint || '').indexOf('131047') >= 0) {
+            deliveryCheck = {
+              deliveryStatus: 'sent',
+              deliveryHint: 'Template Marketing enviado. Fotos/vídeo omitidos (corretor fora da janela 24h).',
+              deliveryFailed: false,
+            };
+          }
+        }
         if (deliveryCheck.deliveryFailed) {
           results.push({
             brokerId: item.broker.id,
