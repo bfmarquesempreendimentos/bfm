@@ -10,7 +10,8 @@ const {
   getPropertySlug,
   SITE_BASE_URL,
 } = require('./property-data');
-const { sanitizeWhatsAppTemplateParam } = require('./whatsapp-api');
+const axios = require('axios');
+const { sanitizeWhatsAppTemplateParam, uploadMediaBuffer } = require('./whatsapp-api');
 const { BRUNO_CORRETOR_PHONE_DISPLAY } = require('./lead-manager');
 const propertyUnitsBase = require('./property-units-data');
 
@@ -809,6 +810,72 @@ function normalizeCampaignTemplateName(raw) {
   return String(raw || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
 }
 
+async function fetchMediaBufferFromUrl(fileUrl) {
+  var resp = await axios.get(String(fileUrl || ''), {
+    responseType: 'arraybuffer',
+    timeout: 45000,
+    maxRedirects: 5,
+  });
+  return Buffer.from(resp.data);
+}
+
+function guessMimeFromUrl(fileUrl, mediaKind) {
+  var u = String(fileUrl || '').toLowerCase();
+  if (u.indexOf('.mp4') >= 0) return 'video/mp4';
+  if (u.indexOf('.png') >= 0) return 'image/png';
+  if (u.indexOf('.webp') >= 0) return 'image/webp';
+  if (u.indexOf('.jpeg') >= 0 || u.indexOf('.jpg') >= 0) return 'image/jpeg';
+  return mediaKind === 'video' ? 'video/mp4' : 'image/jpeg';
+}
+
+/**
+ * Template com cabecalho IMAGE/VIDEO — link publico; se falhar, faz upload na Meta.
+ */
+async function sendCampaignTemplateHeaderMedia(
+  waPhone, templateName, lang, mediaUrl, mediaKind, waSendOpts, sendTemplateMessage
+) {
+  var paramType = mediaKind === 'video' ? 'video' : 'image';
+  function headerComponents(mediaObj) {
+    var param = { type: paramType };
+    param[paramType] = mediaObj;
+    return [{ type: 'header', parameters: [param] }];
+  }
+  try {
+    return await sendTemplateMessage(
+      waPhone, templateName, lang, headerComponents({ link: mediaUrl }), waSendOpts
+    );
+  } catch (linkErr) {
+    var buf = await fetchMediaBufferFromUrl(mediaUrl);
+    var mime = guessMimeFromUrl(mediaUrl, mediaKind);
+    var fname = mediaKind === 'video' ? 'tour.mp4' : 'foto.jpg';
+    var uploaded = await uploadMediaBuffer(buf, mime, fname, waSendOpts);
+    return await sendTemplateMessage(
+      waPhone, templateName, lang, headerComponents({ id: uploaded.id }), waSendOpts
+    );
+  }
+}
+
+function getCampaignTemplateLanguages(config) {
+  var langs = [];
+  var seen = {};
+  function push(code) {
+    var c = String(code || '').trim();
+    if (!c || seen[c]) return;
+    seen[c] = true;
+    langs.push(c);
+  }
+  if (config && Array.isArray(config.templateLanguages)) {
+    var i;
+    for (i = 0; i < config.templateLanguages.length; i++) push(config.templateLanguages[i]);
+  }
+  if (config) {
+    push(config.templateLanguageResolved);
+    push(config.templateLanguage);
+  }
+  if (!langs.length) push('pt_BR');
+  return langs;
+}
+
 /**
  * Fotos/video para corretor sem janela 24h — via templates Meta com cabecalho IMAGE/VIDEO.
  * Requer modelos aprovados campanha_corretor_foto e campanha_corretor_video.
@@ -825,62 +892,80 @@ async function sendBrokerCampaignTemplateMedia(
     return { sent: 0, skipped: true, reason: 'Sem empreendimento em destaque', mode: 'template_media' };
   }
 
-  var lang = config.templateLanguage || 'pt_BR';
+  var langs = getCampaignTemplateLanguages(config);
   var imageTpl = normalizeCampaignTemplateName(config.templateMediaImageName || 'campanha_corretor_foto');
   var videoTpl = normalizeCampaignTemplateName(config.templateMediaVideoName || 'campanha_corretor_video');
-  var ctx = buildCampaignContext(config, broker, now);
-  var captions = buildMediaCaptions(config, broker, now);
   var lists = getPropertyMediaLists(featured);
+  var ctx = buildCampaignContext(config, broker, now);
   var maxImg = ctx.maxImages > 0 ? ctx.maxImages : 2;
   var maxVid = ctx.maxVideos > 0 ? ctx.maxVideos : 1;
   var images = lists.images.slice(0, maxImg);
   var videos = lists.videos.slice(0, maxVid);
   var sent = 0;
+  var photosSent = 0;
+  var videosSent = 0;
   var errors = [];
   var waMessageId = '';
   var i;
+  var li;
 
-  await delayMs(900);
+  await delayMs(2500);
 
   for (i = 0; i < images.length; i++) {
-    try {
-      var imgResp = await sendTemplateMessage(waPhone, imageTpl, lang, [{
-        type: 'header',
-        parameters: [{ type: 'image', image: { link: images[i] } }],
-      }], waSendOpts);
-      if (imgResp && imgResp.messageId) waMessageId = imgResp.messageId;
-      sent += 1;
-      if (i < images.length - 1) await delayMs(1400);
-    } catch (imgErr) {
-      errors.push('template_foto: ' + (imgErr.message || String(imgErr)));
-      break;
+    var imgOk = false;
+    for (li = 0; li < langs.length && !imgOk; li++) {
+      try {
+        var imgResp = await sendCampaignTemplateHeaderMedia(
+          waPhone, imageTpl, langs[li], images[i], 'image', waSendOpts, sendTemplateMessage
+        );
+        if (imgResp && imgResp.messageId) waMessageId = imgResp.messageId;
+        sent += 1;
+        photosSent += 1;
+        imgOk = true;
+        if (i < images.length - 1) await delayMs(3000);
+      } catch (imgErr) {
+        if (li === langs.length - 1) {
+          errors.push('template_foto_' + (i + 1) + ': ' + (imgErr.message || String(imgErr)));
+        }
+      }
     }
+    if (!imgOk) break;
   }
 
   if (videos.length) {
-    try {
-      await delayMs(1200);
-      var vidResp = await sendTemplateMessage(waPhone, videoTpl, lang, [{
-        type: 'header',
-        parameters: [{ type: 'video', video: { link: videos[0] } }],
-      }], waSendOpts);
-      if (vidResp && vidResp.messageId) waMessageId = vidResp.messageId;
-      sent += 1;
-    } catch (vidErr) {
-      errors.push('template_video: ' + (vidErr.message || String(vidErr)));
+    if (sent > 0) await delayMs(3000);
+    var vidOk = false;
+    for (li = 0; li < langs.length && !vidOk; li++) {
+      try {
+        var vidResp = await sendCampaignTemplateHeaderMedia(
+          waPhone, videoTpl, langs[li], videos[0], 'video', waSendOpts, sendTemplateMessage
+        );
+        if (vidResp && vidResp.messageId) waMessageId = vidResp.messageId;
+        sent += 1;
+        videosSent += 1;
+        vidOk = true;
+      } catch (vidErr) {
+        if (li === langs.length - 1) {
+          errors.push('template_video: ' + (vidErr.message || String(vidErr)));
+        }
+      }
     }
   }
 
   return {
     sent: sent,
+    photosSent: photosSent,
+    videosSent: videosSent,
     mode: 'template_media',
     imageTemplate: imageTpl,
     videoTemplate: videoTpl,
+    featuredTitle: featured.title,
+    featuredId: featured.id,
     errors: errors,
     waMessageId: waMessageId,
-    skipped: sent === 0 && errors.length > 0,
-    reason: sent === 0 && errors.length > 0
-      ? 'Templates de midia nao enviados. Cadastre campanha_corretor_foto e campanha_corretor_video na Meta.'
+    skipped: sent === 0,
+    reason: sent === 0
+      ? (errors.join(' ') || 'Templates de midia nao enviados. Cadastre campanha_corretor_foto e campanha_corretor_video na Meta.')
       : '',
   };
 }

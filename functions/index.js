@@ -1226,39 +1226,37 @@ function directCampaignNeedsTemplateFallback(directResult) {
 }
 
 async function sendBrokerCampaignFollowUpAfterTemplate(waPhone, config, broker, now, waSendOpts, hasSession) {
-  await new Promise(function(resolve) { setTimeout(resolve, 1500); });
-  var media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
-    waPhone, config, broker, now, waSendOpts,
-    sendTextMessage, sendImageMessage, sendVideoMessage,
-    { includeText: false }
-  );
-  if (media.sent > 0) return media;
+  await new Promise(function(resolve) { setTimeout(resolve, 2500); });
 
-  var errJoined = (media.errors || []).join(' ');
-  var tryTemplateMedia = !hasSession || /131047|24.?hour|re-engagement|outside/i.test(errJoined);
-  if (tryTemplateMedia) {
-    var tplMedia = await brokerCampaignContent.sendBrokerCampaignTemplateMedia(
-      waPhone, config, broker, now, waSendOpts, sendTemplateMessage
-    );
-    if (tplMedia.sent > 0) {
-      media.sent = tplMedia.sent;
-      media.textSent = false;
-      media.templateMedia = tplMedia;
-      media.mode = 'template_media';
-      if (tplMedia.waMessageId) media.waMessageId = tplMedia.waMessageId;
-      if (tplMedia.errors && tplMedia.errors.length) {
-        media.errors = (media.errors || []).concat(tplMedia.errors);
-      }
-      return media;
-    }
-    media.templateMediaAttempt = tplMedia;
-    if (!media.reason) {
-      media.skipped = true;
-      media.reason = tplMedia.reason ||
-        'Midia livre bloqueada pela Meta (131047). Cadastre templates campanha_corretor_foto e campanha_corretor_video.';
-    }
+  // Apos campanha_corretor_msg (Marketing), midia livre nao entrega fora da janela 24h.
+  var tplMedia = await brokerCampaignContent.sendBrokerCampaignTemplateMedia(
+    waPhone, config, broker, now, waSendOpts, sendTemplateMessage
+  );
+  if (tplMedia.sent > 0) {
+    tplMedia.textSent = false;
+    return tplMedia;
   }
-  return media;
+
+  if (hasSession) {
+    var freeMedia = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
+      waPhone, config, broker, now, waSendOpts,
+      sendTextMessage, sendImageMessage, sendVideoMessage,
+      { includeText: false }
+    );
+    if (freeMedia.sent > 0) return freeMedia;
+  }
+
+  return {
+    sent: 0,
+    textSent: false,
+    skipped: true,
+    mode: 'template_media',
+    errors: tplMedia.errors || [],
+    reason: tplMedia.reason ||
+      'Fotos/video nao enviados. Cadastre templates campanha_corretor_foto e campanha_corretor_video na Meta.',
+    templateMediaAttempt: tplMedia,
+    featuredTitle: tplMedia.featuredTitle || '',
+  };
 }
 
 async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now, db) {
@@ -1734,6 +1732,13 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
             rowStatus = 'sent';
             rowNote = '';
           }
+          if (sendMeta.media && sendMeta.media.skipped && sendMeta.media.reason) {
+            rowStatus = rowStatus === 'sent' ? 'accepted' : rowStatus;
+            rowNote = (rowNote ? rowNote + ' ' : '') + sendMeta.media.reason;
+          }
+          if (sendMeta.media && sendMeta.media.errors && sendMeta.media.errors.length) {
+            rowNote = (rowNote ? rowNote + ' ' : '') + sendMeta.media.errors.join(' ');
+          }
           results.push({
             brokerId: item.broker.id,
             name: item.broker.name || '',
@@ -1745,6 +1750,12 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
             waMessageId: msgId,
             componentsVariant: sendMeta.componentsVariant || '',
             mediaSent: sendMeta.media && sendMeta.media.sent ? sendMeta.media.sent : 0,
+            photosSent: sendMeta.media && sendMeta.media.photosSent != null ? sendMeta.media.photosSent : 0,
+            videosSent: sendMeta.media && sendMeta.media.videosSent != null ? sendMeta.media.videosSent : 0,
+            mediaMode: sendMeta.media && sendMeta.media.mode ? sendMeta.media.mode : '',
+            mediaErrors: sendMeta.media && sendMeta.media.errors ? sendMeta.media.errors : [],
+            mediaSkipped: !!(sendMeta.media && sendMeta.media.skipped),
+            mediaSkipReason: sendMeta.media && sendMeta.media.reason ? sendMeta.media.reason : '',
             featuredTitle: sendMeta.media && sendMeta.media.featuredTitle ? sendMeta.media.featuredTitle : '',
             deliveryStatus: deliveryCheck.deliveryStatus,
             deliveryNote: rowNote,
