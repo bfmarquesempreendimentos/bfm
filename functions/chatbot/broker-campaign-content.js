@@ -423,7 +423,7 @@ function buildCampaignMessageLines(config, broker, now, profile) {
       parts.push('📝 ' + T(String(f.description).substring(0, profile.descMax)));
     }
     var mapsUrl = getMapsUrlForCampaign(f);
-    if (mapsUrl) parts.push('🗺️ Mapa (abrir ou copiar): ' + mapsUrl);
+    if (mapsUrl) parts.push(forTemplate ? ('🗺️ Mapa: ' + mapsUrl) : ('🗺️ Mapa (abrir ou copiar): ' + mapsUrl));
     parts.push('');
     parts.push(forTemplate
       ? '🔗 Empreendimento desta semana (fotos, videos, unidades):'
@@ -548,12 +548,12 @@ function buildRichCampaignSingleBody(config, broker, now) {
   return sanitizeWhatsAppTemplateParam(buildPremiumFollowUpText(config, broker, now));
 }
 
-/** URL sem # (Meta rejeita # em variáveis de template — erro 132018). */
+/** URL sem # ? = (Meta rejeita em variaveis de template — erro 132018). */
 function getPropertyPageUrlForTemplate(property, siteBase) {
   var base = String(siteBase || SITE_BASE_URL).replace(/\/$/, '');
   if (!property || property.id == null) return base + '/';
   var slug = getPropertySlug(property);
-  return base + '/?p=' + encodeURIComponent(slug);
+  return base + '/imovel/' + slug;
 }
 
 /** Fallback multilinha alinhado ao direct (perfil enxuto). */
@@ -604,7 +604,6 @@ function getTemplateVar1Candidates(config, broker, now) {
       (f ? ('Destaque: ' + titlePlain + '\nEmpreendimento: ' + propUrl + '\n') : '') +
       'Portfolio: ' + portfolioUrl + '\nSuporte comercial: ' + ctx.contato
     ),
-    sanitizeWhatsAppTemplateParam(ctx.firstName),
   ];
   var out = [];
   var seen = {};

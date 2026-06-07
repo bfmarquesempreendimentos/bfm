@@ -993,6 +993,7 @@ async function sendCampanhaCorretorTemplateVar1(waPhone, templateName, lang, waS
   var vi;
   var lastErr = null;
   for (vi = 0; vi < candidates.length; vi++) {
+    if (String(candidates[vi] || '').length < 200) continue;
     try {
       var comps = [{
         type: 'body',

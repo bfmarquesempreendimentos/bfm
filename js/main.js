@@ -498,6 +498,12 @@ function propertyIdFromSlug(slug) {
 
 function parseImovelIdFromUrl() {
     var raw = null;
+    var path = String(window.location.pathname || '');
+    var imovelPath = path.match(/\/imovel\/([a-z0-9-]+)/i);
+    if (imovelPath && imovelPath[1]) {
+        var fromPathSlug = propertyIdFromSlug(imovelPath[1]);
+        if (fromPathSlug) return fromPathSlug;
+    }
     var hash = String(window.location.hash || '').replace(/^#/, '');
     if (hash.indexOf('imovel=') >= 0) {
         var hparts = hash.split('imovel=');

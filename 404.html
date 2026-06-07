@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>B F Marques Empreendimentos</title>
+  <script>
+    (function () {
+      var path = String(window.location.pathname || '').replace(/^\/bfm\/?/, '').replace(/^\//, '');
+      var match = path.match(/^imovel\/([a-z0-9-]+)/i);
+      if (match && match[1]) {
+        window.location.replace('/bfm/?p=' + encodeURIComponent(match[1]));
+        return;
+      }
+      window.location.replace('/bfm/');
+    })();
+  </script>
+</head>
+<body></body>
+</html>
