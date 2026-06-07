@@ -1,6 +1,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 const { verifyWebhook, processWebhook } = require('./chatbot/webhook');
 const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveMessage, deleteConversationMessage, setModoHumano, returnToBot, markAdminRead, getLastConversationMessage, normalizeWhatsAppPhone, recordInboundActivity, recordAdminBiaTraining } = require('./chatbot/lead-manager');
 const { processAllFollowUps } = require('./chatbot/follow-up-engine');
@@ -894,7 +895,7 @@ function getDefaultBrokerCampaignConfig() {
   return {
     enabled: true,
     siteUrl: 'https://bfmarquesempreendimentos.github.io/bfm/',
-    whatsappContato: '(21) 99759-0814',
+    whatsappContato: '(21) 99555-7010',
     skipMetaTemplate: true,
     campaignMaxImages: 2,
     campaignMaxVideos: 1,
@@ -902,6 +903,8 @@ function getDefaultBrokerCampaignConfig() {
     marketNewsTitle: '',
     marketNewsText: '',
     templateName: 'campanha_corretor_msg',
+    templateMediaImageName: 'campanha_corretor_foto',
+    templateMediaVideoName: 'campanha_corretor_video',
     templateLanguage: 'pt_BR',
     weeklyTitle: 'Atualização semanal B F Marques',
     ctaText: 'Divulgue as ofertas da semana para seus leads e traga sua visita agendada.',
@@ -919,10 +922,14 @@ function getDefaultBrokerCampaignConfig() {
 function normalizeCampaignContactPhone(contato) {
   var raw = String(contato || '').trim();
   var digits = raw.replace(/\D/g, '');
-  if (!digits || digits.indexOf('995557010') >= 0 || digits.indexOf('996557010') >= 0) {
-    return '(21) 99759-0814';
+  if (!digits) return '(21) 99555-7010';
+  if (digits.indexOf('995557010') >= 0 || digits.indexOf('996557010') >= 0) {
+    return '(21) 99555-7010';
   }
-  return raw || '(21) 99759-0814';
+  if (digits.indexOf('997590814') >= 0) {
+    return '(21) 99555-7010';
+  }
+  return raw;
 }
 
 async function brokerHasWhatsAppSessionWindow(db, waPhone) {
@@ -967,7 +974,7 @@ function buildBrokerCampaignTemplateComponents(config, broker, now) {
     config.weeklyTitle || 'Atualização semanal B F Marques',
     config.siteUrl || 'https://bfmarquesempreendimentos.github.io/bfm/',
     tip || (config.ctaText || 'Fale com seus leads hoje.'),
-    config.whatsappContato || '(21) 99759-0814',
+    config.whatsappContato || '(21) 99555-7010',
   ];
   return [{
     type: 'body',
@@ -1044,7 +1051,7 @@ function getBrokerCampaignFillTexts(config, broker, now) {
       config.weeklyTitle || 'Atualização semanal B F Marques',
       config.siteUrl || 'https://bfmarquesempreendimentos.github.io/bfm/',
       tip || (config.ctaText || 'Fale com seus leads hoje.'),
-      config.whatsappContato || '(21) 99759-0814',
+      config.whatsappContato || '(21) 99555-7010',
     ],
     headerTexts: [config.weeklyTitle || 'Atualização semanal B F Marques'],
   };
@@ -1232,19 +1239,39 @@ function directCampaignNeedsTemplateFallback(directResult) {
 }
 
 async function sendBrokerCampaignFollowUpAfterTemplate(waPhone, config, broker, now, waSendOpts, hasSession) {
-  if (!hasSession) {
-    return {
-      sent: 0,
-      textSent: false,
-      skipped: true,
-      reason: 'Corretor fora da janela 24h — enviado só o template Marketing (texto completo). Fotos/vídeo quando responder à Bia.',
-    };
-  }
-  return brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
+  await new Promise(function(resolve) { setTimeout(resolve, 1500); });
+  var media = await brokerCampaignContent.sendBrokerCampaignFollowUpMedia(
     waPhone, config, broker, now, waSendOpts,
     sendTextMessage, sendImageMessage, sendVideoMessage,
     { includeText: false }
   );
+  if (media.sent > 0) return media;
+
+  var errJoined = (media.errors || []).join(' ');
+  var tryTemplateMedia = !hasSession || /131047|24.?hour|re-engagement|outside/i.test(errJoined);
+  if (tryTemplateMedia) {
+    var tplMedia = await brokerCampaignContent.sendBrokerCampaignTemplateMedia(
+      waPhone, config, broker, now, waSendOpts, sendTemplateMessage
+    );
+    if (tplMedia.sent > 0) {
+      media.sent = tplMedia.sent;
+      media.textSent = false;
+      media.templateMedia = tplMedia;
+      media.mode = 'template_media';
+      if (tplMedia.waMessageId) media.waMessageId = tplMedia.waMessageId;
+      if (tplMedia.errors && tplMedia.errors.length) {
+        media.errors = (media.errors || []).concat(tplMedia.errors);
+      }
+      return media;
+    }
+    media.templateMediaAttempt = tplMedia;
+    if (!media.reason) {
+      media.skipped = true;
+      media.reason = tplMedia.reason ||
+        'Midia livre bloqueada pela Meta (131047). Cadastre templates campanha_corretor_foto e campanha_corretor_video.';
+    }
+  }
+  return media;
 }
 
 async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now, db) {
@@ -1524,7 +1551,7 @@ function buildBrokerCampaignMessage(config, broker, now) {
     '🔥 Ofertas e imóveis disponíveis já estão no ar.\n' +
     (tip ? ('💡 ' + tip + '\n') : '') +
     '✅ ' + (config.ctaText || 'Fale com seus leads hoje e acelere os agendamentos.') + '\n\n' +
-    'Suporte comercial: ' + (config.whatsappContato || '(21) 99759-0814')
+    'Suporte comercial: Bruno Marques ' + (config.whatsappContato || '(21) 99555-7010')
   );
 }
 
@@ -1915,6 +1942,148 @@ exports.getBrokers = functions.https.onRequest(async (req, res) => {
   }
 });
 
+// ─── Cadastro de corretor: e-mail com aprovar/rejeitar ───────────────
+const FUNCTIONS_PUBLIC_BASE = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+const BROKER_ACTION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const BROKER_ALERT_EMAIL = 'bfmarquesempreendimentos@gmail.com';
+const BROKER_SITE_URL = 'https://bfmarquesempreendimentos.github.io/bfm/';
+
+function getBrokerActionSecret() {
+  var cfg = functions.config();
+  if (cfg.broker && cfg.broker.action_secret) return cfg.broker.action_secret;
+  if (cfg.smtp && cfg.smtp.pass) return cfg.smtp.pass;
+  return 'bfm-broker-action-fallback';
+}
+
+function signBrokerAction(brokerId, action, expMs) {
+  return crypto.createHmac('sha256', getBrokerActionSecret())
+    .update(String(brokerId) + '|' + action + '|' + String(expMs))
+    .digest('hex');
+}
+
+function verifyBrokerAction(brokerId, action, expMs, sig) {
+  if (!brokerId || !action || !sig || !expMs) return false;
+  if (Date.now() > Number(expMs)) return false;
+  var expected = signBrokerAction(brokerId, action, expMs);
+  try {
+    var a = Buffer.from(String(sig));
+    var b = Buffer.from(String(expected));
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch (e) {
+    return false;
+  }
+}
+
+function buildBrokerActionUrl(brokerId, action) {
+  var exp = Date.now() + BROKER_ACTION_TTL_MS;
+  var sig = signBrokerAction(brokerId, action, exp);
+  return FUNCTIONS_PUBLIC_BASE + '/brokerRegistrationAction?id=' + encodeURIComponent(brokerId) +
+    '&action=' + encodeURIComponent(action) + '&exp=' + exp + '&sig=' + sig;
+}
+
+function brokerRegistrationComplete(body) {
+  var name = String((body && body.name) || '').trim();
+  var cpf = String((body && body.cpf) || '').replace(/\D/g, '');
+  var email = String((body && body.email) || '').trim().toLowerCase();
+  var phone = String((body && body.phone) || '').trim();
+  var creci = String((body && body.creci) || '').trim();
+  var password = String((body && body.password) || '').trim();
+  return !!(name && cpf.length === 11 && email && phone && creci && password);
+}
+
+function escapeBrokerEmailHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function buildBrokerRegistrationAlertHtml(broker, opts) {
+  opts = opts || {};
+  var autoApproved = !!opts.autoApproved;
+  var approveUrl = buildBrokerActionUrl(broker.id, 'approve');
+  var rejectUrl = buildBrokerActionUrl(broker.id, 'reject');
+  var title = autoApproved
+    ? 'Novo Corretor Cadastrado (Aprovacao Automatica)'
+    : 'Novo Corretor Solicitou Acesso';
+  var statusHtml = autoApproved
+    ? '<p style="color:#27ae60;">Este corretor foi <strong>aprovado automaticamente</strong> (todos os campos preenchidos).</p>'
+    : '<p style="color:#e67e22;">Este corretor aguarda <strong>aprovacao manual</strong>.</p>';
+  var buttonsHtml = autoApproved
+    ? ('<p style="margin-top:20px;"><a href="' + rejectUrl + '" style="display:inline-block;background:#e74c3c;color:#fff;padding:12px 22px;text-decoration:none;border-radius:8px;font-weight:bold;">Rejeitar cadastro</a></p>')
+    : ('<p style="margin-top:20px;">' +
+      '<a href="' + approveUrl + '" style="display:inline-block;background:#27ae60;color:#fff;padding:12px 22px;text-decoration:none;border-radius:8px;font-weight:bold;margin-right:10px;">Aprovar corretor</a>' +
+      '<a href="' + rejectUrl + '" style="display:inline-block;background:#e74c3c;color:#fff;padding:12px 22px;text-decoration:none;border-radius:8px;font-weight:bold;">Rejeitar cadastro</a>' +
+      '</p>');
+  return (
+    '<div style="font-family:Arial,sans-serif;max-width:640px;">' +
+    '<h2>' + title + '</h2>' +
+    '<p><strong>Nome:</strong> ' + escapeBrokerEmailHtml(broker.name) + '</p>' +
+    '<p><strong>CPF:</strong> ' + escapeBrokerEmailHtml(broker.cpf) + '</p>' +
+    '<p><strong>Email:</strong> ' + escapeBrokerEmailHtml(broker.email) + '</p>' +
+    '<p><strong>Telefone:</strong> ' + escapeBrokerEmailHtml(broker.phone) + '</p>' +
+    '<p><strong>CRECI:</strong> ' + escapeBrokerEmailHtml(broker.creci || 'Nao informado') + '</p>' +
+    '<p><strong>Data:</strong> ' + escapeBrokerEmailHtml(new Date().toLocaleString('pt-BR')) + '</p>' +
+    '<hr>' + statusHtml + buttonsHtml +
+    '<p style="font-size:12px;color:#777;margin-top:24px;">Links validos por 7 dias. Tambem pode gerenciar em <a href="' + BROKER_SITE_URL + 'admin.html">admin.html</a>.</p>' +
+    '</div>'
+  );
+}
+
+async function queueBrokerRegistrationAlertEmail(db, brokerId, broker, autoApproved) {
+  if (!db || !brokerId) return;
+  var payload = {
+    name: broker.name,
+    cpf: broker.cpf,
+    email: broker.email,
+    phone: broker.phone,
+    creci: broker.creci,
+    id: brokerId,
+  };
+  var subject = autoApproved
+    ? 'Novo Corretor Aprovado Automaticamente - ' + broker.name
+    : 'Novo Corretor Solicita Acesso - ' + broker.name;
+  await db.collection('emailQueue').add({
+    to: BROKER_ALERT_EMAIL,
+    subject: subject,
+    body: buildBrokerRegistrationAlertHtml(payload, { autoApproved: autoApproved }),
+    createdAt: new Date().toISOString(),
+    type: 'broker_registration',
+    brokerId: brokerId,
+  });
+}
+
+async function sendBrokerWelcomeEmail(db, broker) {
+  if (!db || !broker || !broker.email) return;
+  var siteUrl = BROKER_SITE_URL;
+  await db.collection('emailQueue').add({
+    to: broker.email,
+    subject: 'Acesso Aprovado - B F Marques Empreendimentos',
+    body: (
+      '<h2>Ola, ' + escapeBrokerEmailHtml(broker.name) + '!</h2>' +
+      '<p>Seu cadastro como corretor foi <strong>aprovado</strong>.</p>' +
+      '<p>Voce ja pode acessar o sistema e realizar reservas.</p>' +
+      '<p><a href="' + siteUrl + '">' + siteUrl + '</a></p>' +
+      '<p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>'
+    ),
+    createdAt: new Date().toISOString(),
+    type: 'broker_welcome',
+    brokerId: broker.id || '',
+  });
+}
+
+function renderBrokerActionResultPage(title, message, ok) {
+  var color = ok ? '#27ae60' : '#e74c3c';
+  return (
+    '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>' + title + '</title></head><body style="font-family:Arial,sans-serif;padding:24px;max-width:560px;margin:0 auto;">' +
+    '<h1 style="color:' + color + ';">' + title + '</h1><p>' + message + '</p>' +
+    '<p><a href="' + BROKER_SITE_URL + 'admin.html">Abrir painel admin</a></p></body></html>'
+  );
+}
+
 // ─── API de Cadastro de Corretor (server-side, garantido) ─────────────
 exports.registerBroker = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
@@ -1931,6 +2100,7 @@ exports.registerBroker = functions.https.onRequest(async (req, res) => {
     if (!name || !emailNorm || !password) {
       return res.status(400).json({ error: 'nome, email e senha obrigatórios' });
     }
+    const autoApproved = brokerRegistrationComplete(body);
     const db = admin.firestore();
     const existing = await db.collection('brokers').where('email', '==', emailNorm).get();
     if (!existing.empty) {
@@ -1943,14 +2113,85 @@ exports.registerBroker = functions.https.onRequest(async (req, res) => {
       phone: phone || '',
       creci: creci || '',
       password: password || '',
-      isActive: false,
+      isActive: autoApproved,
       whatsappCampaignOptOut: false,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      registrationStatus: autoApproved ? 'auto_approved' : 'pending',
     });
-    return res.json({ success: true, id: docRef.id });
+    try {
+      await queueBrokerRegistrationAlertEmail(db, docRef.id, {
+        name: name || '',
+        cpf: (cpf || '').replace(/\D/g, ''),
+        email: emailNorm,
+        phone: phone || '',
+        creci: creci || '',
+      }, autoApproved);
+    } catch (mailErr) {
+      console.error('Erro ao enfileirar e-mail de cadastro:', mailErr);
+    }
+    return res.json({ success: true, id: docRef.id, isActive: autoApproved, autoApproved: autoApproved });
   } catch (err) {
     console.error('Erro ao cadastrar corretor:', err);
     return res.status(500).json({ error: err.message });
+  }
+});
+
+exports.brokerRegistrationAction = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  if (req.method !== 'GET') {
+    return res.status(405).send(renderBrokerActionResultPage('Metodo nao permitido', 'Use o link do e-mail.', false));
+  }
+  try {
+    var brokerId = String(req.query.id || '').trim();
+    var action = String(req.query.action || '').trim().toLowerCase();
+    var exp = req.query.exp;
+    var sig = req.query.sig;
+    if (!brokerId || (action !== 'approve' && action !== 'reject')) {
+      return res.status(400).send(renderBrokerActionResultPage('Link invalido', 'Parametros incompletos.', false));
+    }
+    if (!verifyBrokerAction(brokerId, action, exp, sig)) {
+      return res.status(403).send(renderBrokerActionResultPage('Link expirado', 'Solicite novo cadastro ou use o painel admin.', false));
+    }
+    var db = admin.firestore();
+    var ref = db.collection('brokers').doc(brokerId);
+    var snap = await ref.get();
+    if (!snap.exists) {
+      return res.status(404).send(renderBrokerActionResultPage('Corretor nao encontrado', 'Cadastro removido ou invalido.', false));
+    }
+    var data = snap.data() || {};
+    if (action === 'approve') {
+      await ref.set({
+        isActive: true,
+        whatsappCampaignOptOut: false,
+        registrationStatus: 'approved',
+        approvedAt: new Date().toISOString(),
+        approvedVia: 'email_link',
+      }, { merge: true });
+      await sendBrokerWelcomeEmail(db, {
+        id: brokerId,
+        name: data.name || '',
+        email: data.email || '',
+      });
+      return res.status(200).send(renderBrokerActionResultPage(
+        'Corretor aprovado',
+        escapeBrokerEmailHtml(data.name || 'Corretor') + ' foi aprovado com sucesso.',
+        true
+      ));
+    }
+    await ref.set({
+      isActive: false,
+      registrationStatus: 'rejected',
+      rejectedAt: new Date().toISOString(),
+      rejectedVia: 'email_link',
+    }, { merge: true });
+    return res.status(200).send(renderBrokerActionResultPage(
+      'Cadastro rejeitado',
+      'O cadastro de ' + escapeBrokerEmailHtml(data.name || 'corretor') + ' foi marcado como rejeitado.',
+      true
+    ));
+  } catch (err) {
+    console.error('brokerRegistrationAction:', err);
+    return res.status(500).send(renderBrokerActionResultPage('Erro', 'Tente novamente pelo painel admin.', false));
   }
 });
 
@@ -2899,7 +3140,7 @@ exports.patchRepair = functions.https.onRequest(async (req, res) => {
     var ref = null;
     if (firestoreId) {
       ref = db.collection('repairRequests').doc(firestoreId);
-    } else {
+        } else {
       var snap = await db.collection('repairRequests').where('id', '==', repairId).limit(1).get();
       if (snap.empty) return res.status(404).json({ error: 'Reparo não encontrado' });
       ref = snap.docs[0].ref;
@@ -3028,7 +3269,7 @@ exports.clientTimelineMe = functions.https.onRequest(async (req, res) => {
       return new Date(b.date || 0) - new Date(a.date || 0);
     });
     return res.json(events);
-  } catch (err) {
+      } catch (err) {
     console.error('clientTimelineMe:', err);
     return res.status(500).json({ error: err.message });
   }
@@ -3088,4 +3329,4 @@ exports.brokerCampaignOptOut = functions.https.onRequest(async (req, res) => {
     console.error('brokerCampaignOptOut:', err);
     return res.status(500).json({ error: err.message });
   }
-});
+  });

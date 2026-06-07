@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const admin = require('firebase-admin');
 const { handleIncomingMessage } = require('./ai-agent');
-const { markAsRead } = require('./whatsapp-api');
+const { markAsRead, saveWhatsAppMessageStatus } = require('./whatsapp-api');
 const { normalizeWhatsAppPhone } = require('./lead-manager');
 
 function rememberWebhookPhoneNumberId(phoneNumberId) {
@@ -41,6 +41,7 @@ async function processWebhook(req, res) {
   }
 
   const messagesToProcess = [];
+  var statusesProcessed = 0;
   const entries = body.entry || [];
   for (const entry of entries) {
     const changes = entry.changes || [];
@@ -48,7 +49,23 @@ async function processWebhook(req, res) {
       console.log('[Webhook] change.field=', change.field);
       if (change.field !== 'messages') continue;
       const value = change.value;
-      if (!value || !value.messages) continue;
+      if (!value) continue;
+
+      if (value.statuses && value.statuses.length) {
+        var si;
+        for (si = 0; si < value.statuses.length; si++) {
+          var st = value.statuses[si];
+          try {
+            await saveWhatsAppMessageStatus(st);
+            statusesProcessed += 1;
+            console.log('[Webhook] status', st.id, st.status, JSON.stringify(st.errors || []));
+          } catch (stErr) {
+            console.warn('[Webhook] status save:', stErr.message);
+          }
+        }
+      }
+
+      if (!value.messages) continue;
 
       const metadata = value.metadata || {};
       const contacts = value.contacts || [];
@@ -78,8 +95,12 @@ async function processWebhook(req, res) {
     }
   }
 
-  if (messagesToProcess.length === 0) {
+  if (messagesToProcess.length === 0 && statusesProcessed === 0) {
     console.log('[Webhook] Nenhuma mensagem para processar (verifique se "messages" está assinado)');
+    return res.sendStatus(200);
+  }
+
+  if (messagesToProcess.length === 0) {
     return res.sendStatus(200);
   }
 

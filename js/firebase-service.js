@@ -274,11 +274,13 @@ async function registerBrokerAPI(broker) {
         email: broker.email,
         phone: broker.phone,
         creci: broker.creci,
-        password: broker.password
+        password: broker.password,
+        isActive: broker.isActive === true
       })
     });
     if (!res.ok) throw new Error('API ' + res.status);
     const data = await res.json();
+    if (data.id && data.isActive === true) broker.isActive = true;
     return data.id || null;
   } catch (err) {
     console.warn('registerBrokerAPI:', err);

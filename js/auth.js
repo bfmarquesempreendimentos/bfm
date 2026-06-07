@@ -290,14 +290,21 @@ async function handleRegister(e) {
         } catch (err) { console.error('Firestore falhou:', err); }
     }
     
-    try {
-        const notifTitle = hasAllRegisterFields
-            ? '🏠 Novo Corretor Cadastrado (Aprovação Automática)'
-            : '🏠 Novo Corretor Solicitou Acesso';
-        const notifStatus = hasAllRegisterFields
-            ? '<p>✅ Este corretor foi <strong>aprovado automaticamente</strong> porque preencheu todos os campos do cadastro.</p>'
-            : '<p>⚠️ Este corretor está <strong>aguardando aprovação manual</strong> porque faltam campos no cadastro.</p>';
-        const notifBody = `
+    if (!saved) {
+        try {
+            const siteUrl = (typeof CONFIG !== 'undefined' && CONFIG?.company?.siteUrl) || 'https://bfmarquesempreendimentos.github.io/bfm/';
+            const notifTitle = hasAllRegisterFields
+                ? '🏠 Novo Corretor Cadastrado (Aprovação Automática)'
+                : '🏠 Novo Corretor Solicitou Acesso';
+            const notifStatus = hasAllRegisterFields
+                ? '<p>✅ Este corretor foi <strong>aprovado automaticamente</strong> porque preencheu todos os campos do cadastro.</p>'
+                : '<p>⚠️ Este corretor está <strong>aguardando aprovação manual</strong> porque faltam campos no cadastro.</p>';
+            const adminLink = siteUrl + 'admin.html';
+            const actionButtons = hasAllRegisterFields
+                ? '<p><a href="' + adminLink + '" style="display:inline-block;background:#e74c3c;color:white;padding:12px 22px;text-decoration:none;border-radius:8px;">Rejeitar no painel admin</a></p>'
+                : '<p><a href="' + adminLink + '" style="display:inline-block;background:#27ae60;color:white;padding:12px 22px;text-decoration:none;border-radius:8px;margin-right:8px;">Aprovar no painel</a>' +
+                  '<a href="' + adminLink + '" style="display:inline-block;background:#e74c3c;color:white;padding:12px 22px;text-decoration:none;border-radius:8px;">Rejeitar no painel</a></p>';
+            const notifBody = `
             <h2>${notifTitle}</h2>
             <p><strong>Nome:</strong> ${name}</p>
             <p><strong>CPF:</strong> ${cpf}</p>
@@ -307,14 +314,16 @@ async function handleRegister(e) {
             <p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p>
             <hr>
             ${notifStatus}
+            ${actionButtons}
         `;
-        if (typeof sendEmail === 'function') {
-            const notifSubject = hasAllRegisterFields
-                ? 'Novo Corretor Aprovado Automaticamente - ' + name
-                : 'Novo Corretor Solicita Acesso - ' + name;
-            sendEmail('bfmarquesempreendimentos@gmail.com', notifSubject, notifBody);
-        }
-    } catch (e) { console.error('Erro ao enviar notificação:', e); }
+            if (typeof sendEmail === 'function') {
+                const notifSubject = hasAllRegisterFields
+                    ? 'Novo Corretor Aprovado Automaticamente - ' + name
+                    : 'Novo Corretor Solicita Acesso - ' + name;
+                sendEmail('bfmarquesempreendimentos@gmail.com', notifSubject, notifBody);
+            }
+        } catch (e) { console.error('Erro ao enviar notificação:', e); }
+    }
 
     if (hasAllRegisterFields) {
         showRegisterFeedback(true, 'Seu cadastro foi aprovado automaticamente! Você já pode fazer login e acessar o sistema.');

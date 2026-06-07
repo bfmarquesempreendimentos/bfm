@@ -173,7 +173,7 @@ async function loadSalesData() {
             var data = await adminPostJson('/adminPropertySalesList', { adminEmail: creds.email, adminPassword: creds.password });
             if (data && Array.isArray(data.sales)) {
                 localStorage.setItem('propertySales', JSON.stringify(data.sales));
-                if (typeof loadPropertySales === 'function') loadPropertySales();
+            if (typeof loadPropertySales === 'function') loadPropertySales();
             }
         } catch (e) {
             console.warn('Erro ao carregar vendas:', e);
@@ -407,7 +407,7 @@ function beginEditSale(saleId) {
 
 async function handleSaleFormSubmission(e) {
     if (e && e.preventDefault) e.preventDefault();
-
+    
     var creds = getAdminApiCredentials();
     if (!creds.email || !creds.password) {
         showMessage('Faça logout e login novamente no painel para registrar vendas com segurança.', 'error');
@@ -417,19 +417,19 @@ async function handleSaleFormSubmission(e) {
     var rawValue = (document.getElementById('saleProperty') && document.getElementById('saleProperty').value) || '';
     var propertyId = /^\d+$/.test(rawValue) ? parseInt(rawValue, 10) : rawValue;
     var clientCPF = (document.getElementById('saleClientCPF') && document.getElementById('saleClientCPF').value || '').trim();
-
+    
     if (!propertyId && propertyId !== 0) {
         showMessage('Selecione um imóvel.', 'error');
         return;
     }
-
+    
     var cpfClean = clientCPF.replace(/\D/g, '');
     var validDoc = cpfClean.length === 11 ? (typeof isValidCPF === 'function' && isValidCPF(clientCPF)) : (cpfClean.length === 14 && typeof isValidCNPJ === 'function' && isValidCNPJ(clientCPF));
     if (!clientCPF || !validDoc) {
         showMessage('CPF/CNPJ inválido. CPF: 11 dígitos. CNPJ: 14 dígitos.', 'error');
         return;
     }
-
+    
     var priceEl = document.getElementById('salePrice');
     var priceStr = (priceEl && priceEl.value || '').trim().replace(/\./g, '').replace(',', '.');
     var salePrice = parseFloat(priceStr) || 0;
@@ -462,7 +462,7 @@ async function handleSaleFormSubmission(e) {
             return;
         }
     }
-
+    
     if (editingSaleFirestoreId) {
         var patch = {
             clientName: (document.getElementById('saleClientName') && document.getElementById('saleClientName').value) || '',
@@ -493,7 +493,7 @@ async function handleSaleFormSubmission(e) {
         }
         return;
     }
-
+    
     var unitRaw = (document.getElementById('saleUnitCode') && document.getElementById('saleUnitCode').value || '').trim();
     var slot = typeof getSaleSlotInfoForProperty === 'function' ? getSaleSlotInfoForProperty(propertyId, unitRaw) : { error: 'Sistema de unidades indisponível', saleSlotKey: null };
     if (slot.error) {
@@ -542,7 +542,7 @@ async function handleSaleFormSubmission(e) {
             if (syncUnit && slot.unitCode && typeof setUnitStatusOverride === 'function') {
                 setUnitStatusOverride(propertyId, slot.unitCode, 'assinado');
             }
-            showMessage('Venda registrada com sucesso!', 'success');
+        showMessage('Venda registrada com sucesso!', 'success');
             var formEl2 = (e && e.target) || document.getElementById('saleForm');
             if (formEl2) {
                 formEl2.reset();
@@ -622,10 +622,10 @@ async function deleteSale(saleId) {
         });
         var sales = getSalesData();
         var updated = sales.filter(function(sale) { return String(sale.id) !== String(saleId); });
-        localStorage.setItem('propertySales', JSON.stringify(updated));
-        if (typeof loadPropertySales === 'function') loadPropertySales();
-        showMessage('Venda removida com sucesso!', 'success');
-        renderSalesTable();
+    localStorage.setItem('propertySales', JSON.stringify(updated));
+    if (typeof loadPropertySales === 'function') loadPropertySales();
+    showMessage('Venda removida com sucesso!', 'success');
+    renderSalesTable();
     } catch (err) {
         showMessage(err.message || 'Erro ao remover venda.', 'error');
     }
@@ -1418,11 +1418,11 @@ async function loadBrokersData() {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Carregando corretores...</td></tr>';
 
     await prepareBrokersPanelIfNeeded(false);
-
+    
     if (typeof loadBrokersFromFirestore === 'function') {
         await loadBrokersFromFirestore();
     }
-
+    
     renderPendingBrokersSection();
 
     const allBrokers = getAllBrokers().filter(function(b) { return !!b.isActive; });
@@ -1883,6 +1883,11 @@ function showBrokerCampaignResult(result, isError) {
         }
         if (row.deliveryStatus === 'failed') {
             msgType = 'error';
+        } else if (row.deliveryStatus === 'delivered' || row.deliveryStatus === 'read') {
+            txt += ' Meta confirmou entrega no aparelho. Marketing pode aparecer em Atualizações/Promoções no WhatsApp — peça ao corretor buscar "B F Marques".';
+        } else if (row.deliveryStatus === 'sent') {
+            msgType = 'warning';
+            txt += ' Enviado ao servidor WhatsApp; aguardando confirmação no celular.';
         }
         if (row.mode === 'text') {
             txt += ' Texto livre não entrega a quem nunca falou com a Bia — configure WABA e campanha_corretor_msg.';

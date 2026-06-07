@@ -186,7 +186,7 @@ const propertyUnits = {
         }
     },
     
-    5: { // Apolo - PDF: Cs 9 Eduardo (sac1consultoria@gmail.com), casa 04 assinado
+    5: { // Apolo - PDF: Cs 9 Eduardo (reservado amarelo), casa 04 assinado
         name: "APOLO - RUA MARIA JOSÉ ARRUDA BARBOSA LT 02 QD 18 - ITABORAÍ",
         units: [
             { code: "casa base", price: 135000, bedrooms: 1, status: "assinado" },
@@ -198,7 +198,7 @@ const propertyUnits = {
             { code: "casa 03", price: 145000, bedrooms: 1, status: "reservado" },
             { code: "cassa 08", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 04", price: 140000, bedrooms: 1, status: "assinado" },
-            { code: "casa 09", price: 150000, bedrooms: 1, status: "disponivel" }
+            { code: "casa 09", price: 150000, bedrooms: 1, status: "reservado" }
         ],
         engineeringValues: {
             "Cs base": "R$ 181.000,00",

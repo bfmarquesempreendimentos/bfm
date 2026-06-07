@@ -10,7 +10,15 @@ Você precisa de um **modelo de mensagem** (template) **aprovado** pela Meta. Is
 
 ---
 
-## Opção recomendada (mais fácil — 1 variável só)
+## Modo atual da campanha (painel)
+
+Por padrão o sistema envia **só 1 mensagem de texto** (com nome do corretor, destaque, links) + **até 2 fotos e 1 vídeo** — **sem** abrir o template Meta antes.
+
+O template `campanha_corretor_msg` só é usado **se** a Meta exigir (corretor sem conversa nas últimas 24 h). Nesse caso o texto completo vai no `{{1}}` e as mídias vêm em seguida, sem segunda mensagem repetida.
+
+---
+
+## Opção recomendada (template de fallback — 1 variável)
 
 A Meta costuma aprovar mais rápido modelos simples.
 
@@ -27,37 +35,93 @@ A Meta costuma aprovar mais rápido modelos simples.
 
 ### Texto do corpo (copie e cole)
 
-A Meta **não aceita** variável no final. Use exatamente:
+A Meta **não aceita** corpo só com `{{1}}`. A variável **não pode** ser a primeira nem a última linha — precisa de **texto fixo antes e depois**.
+
+Use exatamente (3 blocos: fixo + variável + fixo):
 
 ```
-🏡 B F Marques Empreendimentos
+Material oficial para corretores parceiros B F Marques Empreendimentos:
 
 {{1}}
 
-Equipe comercial parceira.
+Obrigado pela parceria. Duvidas ou visitas: responda esta mensagem.
 ```
 
-(A última linha fixa depois do `{{1}}` remove o erro em vermelho.)
+| Campo extra | Valor |
+|-------------|--------|
+| **Rodapé** | **Nenhum** (deixar vazio) |
+| **Cabeçalho** | Nenhum |
+| **Status** | **Ativo / Aprovado** (atualizado em jun/2026) |
 
-A Meta vai pedir **exemplo** para a variável `{{1}}`. Cole isto (o sistema preenche automaticamente com destaque da semana, site e dica MCMV):
+O sistema envia no `{{1}}` o **mesmo texto** da campanha para quem já conversou com a Bia (layout completo com destaque, links, valores e Bruno).
+
+### Amostra da variável {{1}} (obrigatório na Meta)
+
+Na seção **Amostras de variáveis**, cole este exemplo em `{{1}}` (a Meta exige amostra para aprovar):
 
 ```
-Olá, João! Semana B F Marques 🏡
+B F MARQUES EMPREENDIMENTOS
+Material oficial para corretores — semana 23
 
-⭐ DESTAQUE DA SEMANA
-🏠 Residencial Itaúna
-📍 Nova Cidade, São Gonçalo - RJ
-💰 R$ 155.000,00
-✅ Aceita Minha Casa Minha Vida
+Ola, Joao! Obrigado pela parceria.
 
-🌐 Todos os imóveis: https://bfmarquesempreendimentos.github.io/bfm/
-📷 Em seguida enviamos fotos e vídeo deste empreendimento.
-Suporte: (21) 99759-0814
+Destaque desta semana: Edificio Cacador
+Rua Alcio Souto, 576, Luiz Cacador, Sao Goncalo - RJ
+Venda a partir de R$ 160.000,00. Engenharia ate R$193.000,00 (referencia do predio).
+Minha Casa Minha Vida
+Mapa: https://maps.app.goo.gl/N4CNvNQwx1KW8FCH6
+
+Empreendimento (fotos, videos, unidades):
+https://bfmarquesempreendimentos.github.io/bfm/?p=edificio-cacador
+
+Portfolio completo:
+https://bfmarquesempreendimentos.github.io/bfm/
+
+A seguir: fotos e video do destaque para repassar ao cliente.
+Suporte comercial: Bruno Marques (21) 99555-7010
 ```
+
+Após o template, o sistema envia **uma mensagem de texto completa** (apresentação + link) e **fotos/vídeo** com legendas com preço e site.
 
 **Importante:** sem `{{1}}` no corpo o WhatsApp só envia o texto fixo do modelo (sem site nem destaque). O corpo **precisa** ter `{{1}}` entre as linhas fixas.
 
 Depois clique em **Enviar** / **Submit** e aguarde status **Aprovado** (Approved), em geral de algumas horas até 48 h.
+
+---
+
+## Templates de foto e video (corretor que nunca falou com a Bia)
+
+A Meta **nao deixa** enviar foto/video livre fora da janela 24h. Para o Raphael receber midia igual ao Bruno, crie **dois modelos Marketing** aprovados:
+
+### 1. `campanha_corretor_foto`
+
+| Campo | Valor |
+|--------|--------|
+| **Categoria** | Marketing |
+| **Idioma** | pt_BR |
+| **Cabecalho** | **Imagem** (amostra: foto do empreendimento) |
+| **Corpo** | `Material oficial B F Marques Empreendimentos.` |
+| **Rodape** | Nenhum |
+
+### 2. `campanha_corretor_video`
+
+| Campo | Valor |
+|--------|--------|
+| **Categoria** | Marketing |
+| **Idioma** | pt_BR |
+| **Cabecalho** | **Video** (amostra: tour do empreendimento) |
+| **Corpo** | `Tour virtual - B F Marques Empreendimentos.` |
+| **Rodape** | Nenhum |
+
+O sistema envia **ate 2 fotos** (template foto) + **1 video** (template video) logo apos o texto principal, automaticamente.
+
+Nomes padrao no backend: `campanha_corretor_foto` e `campanha_corretor_video`.
+
+---
+
+## iPhone vs Android
+
+O **mesmo texto** e enviado pela API da Meta para todos os aparelhos. Pequenas diferencas visuais (preview de link, negrito, "Ler mais") sao do app WhatsApp, nao do sistema. Usamos o mesmo layout em blocos com emojis nos dois modos.
 
 ---
 
@@ -131,6 +195,8 @@ Se o painel listar outros nomes ao clicar no campo, pode escolher um **aprovado*
 | Erro 132001 | Nome do template errado ou ainda não aprovado. Confira o nome na Meta e no painel. |
 | Status Pendente | Aguarde aprovação; não dá para enviar antes. |
 | Rejeitado | Leia o motivo na Meta; crie outro modelo sem palavras promocionais exageradas. |
+| Erro vermelho no corpo só com `{{1}}` | A Meta exige texto fixo **antes e depois** da variável. Use o corpo de 3 blocos acima. |
+| "Adicionar texto de amostra" | Preencha o exemplo completo em **Amostras de variáveis** → `{{1}}`. |
 | Teste não chega | Confira se o telefone do corretor está com DDD + 9 dígitos no cadastro. |
 
 ---

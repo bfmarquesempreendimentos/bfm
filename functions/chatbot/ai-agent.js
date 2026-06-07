@@ -541,6 +541,7 @@ async function handleIncomingMessage(messageData) {
   }
 
   if (lead.modo_humano) {
+    console.log('[Bia] modo_humano ativo para ' + phone + ' — aguardando atendente no painel');
     await incrementAdminUnread(phone);
     return;
   }
