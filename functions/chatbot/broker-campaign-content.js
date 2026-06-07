@@ -586,10 +586,28 @@ function buildTemplateMarketingVar1Compact(config, broker, now) {
 }
 
 function buildTemplateMarketingVar1OneLine(config, broker, now) {
-  return buildTemplateMarketingVar1Compact(config, broker, now);
+  var ctx = buildCampaignContext(config, broker, now);
+  var f = ctx.featured;
+  var portfolioUrl = getPortfolioUrl(ctx.siteUrl);
+  var parts = [];
+  parts.push('Ola, ' + ctx.firstName + '! Obrigado pela parceria.');
+  if (f) {
+    parts.push('Destaque: ' + stripAccentsForTemplate(f.title) + '.');
+    var price1 = buildCampaignPriceSummary(f.id, 2, true);
+    if (price1) parts.push(price1 + '.');
+    var addr1 = getPropertyAddressLine(f);
+    if (addr1) parts.push('Endereco: ' + stripAccentsForTemplate(addr1) + '.');
+    var maps1 = getMapsUrlForCampaign(f);
+    if (maps1) parts.push('Mapa: ' + maps1 + '.');
+    parts.push('Empreendimento: ' + getPropertyPageUrlForTemplate(f, ctx.siteUrl) + '.');
+  }
+  parts.push('Portfolio: ' + portfolioUrl + '.');
+  parts.push('A seguir fotos e video do destaque.');
+  parts.push('Suporte comercial: ' + ctx.contato + '.');
+  return finalizeTemplateVar1Body(parts.join(' '));
 }
 
-/** Lista de variantes do {{1}} — layout identico ao direct primeiro, depois fallbacks. */
+/** Lista de variantes do {{1}} — multilinha primeiro, one-line comprovado na Meta depois. */
 function getTemplateVar1Candidates(config, broker, now) {
   var ctx = buildCampaignContext(config, broker, now);
   var f = ctx.featured;
@@ -597,25 +615,34 @@ function getTemplateVar1Candidates(config, broker, now) {
   var propUrl = f ? getPropertyPageUrlForTemplate(f, ctx.siteUrl) : portfolioUrl;
   var titlePlain = f ? stripAccentsForTemplate(f.title) : '';
   var identical = getIdenticalTemplateVar1Candidates(config, broker, now);
+  var oneLine = buildTemplateMarketingVar1OneLine(config, broker, now);
   var fallbacks = [
-    finalizeTemplateVar1Body(buildTemplateMarketingVar1(config, broker, now)),
+    oneLine,
+    finalizeTemplateVar1Body(buildIdenticalCampaignTemplateVar1Tier(config, broker, now, {
+      priceExamples: 2, featuresMax: 2, descMax: 0, marketText: false, marketTitle: false,
+      tip: false, othersTeaser: false, mediaNote: true, forTemplate: true,
+    }).replace(/\n+/g, ' ')),
     finalizeTemplateVar1Body(buildTemplateMarketingVar1Compact(config, broker, now)),
     finalizeTemplateVar1Body(
-      'Ola, ' + ctx.firstName + '! Obrigado pela parceria.\n\n' +
-      (f ? ('Destaque: ' + titlePlain + '\nEmpreendimento: ' + propUrl + '\n') : '') +
-      'Portfolio: ' + portfolioUrl + '\nSuporte comercial: ' + ctx.contato
+      'Ola, ' + ctx.firstName + '! Obrigado pela parceria. ' +
+      (f ? ('Destaque: ' + titlePlain + '. Empreendimento: ' + propUrl + '. ') : '') +
+      'Portfolio: ' + portfolioUrl + '. Suporte comercial: ' + ctx.contato + '.'
     ),
   ];
   var out = [];
   var seen = {};
   var i;
+  if (oneLine && !seen[oneLine]) {
+    seen[oneLine] = true;
+    out.push(oneLine);
+  }
   for (i = 0; i < identical.length; i++) {
     if (!seen[identical[i]]) {
       seen[identical[i]] = true;
       out.push(identical[i]);
     }
   }
-  for (i = 0; i < fallbacks.length; i++) {
+  for (i = 1; i < fallbacks.length; i++) {
     if (!seen[fallbacks[i]]) {
       seen[fallbacks[i]] = true;
       out.push(fallbacks[i]);

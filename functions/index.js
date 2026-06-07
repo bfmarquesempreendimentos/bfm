@@ -993,7 +993,6 @@ async function sendCampanhaCorretorTemplateVar1(waPhone, templateName, lang, waS
   var vi;
   var lastErr = null;
   for (vi = 0; vi < candidates.length; vi++) {
-    if (String(candidates[vi] || '').length < 200) continue;
     try {
       var comps = [{
         type: 'body',
@@ -1017,19 +1016,6 @@ async function sendCampanhaCorretorTemplateVar1(waPhone, templateName, lang, waS
         throw errTry;
       }
     }
-  }
-  try {
-    var emptyResp = await sendTemplateMessage(waPhone, templateName, lang, [], waSendOpts);
-    return {
-      mode: 'template',
-      templateName: templateName,
-      language: lang,
-      componentsVariant: 'var0_empty',
-      waMessageId: emptyResp && emptyResp.messageId ? emptyResp.messageId : '',
-      sentTo: waPhone,
-    };
-  } catch (emptyErr) {
-    lastErr = emptyErr;
   }
   var detail = lastErr ? (lastErr.message || extractMetaError(lastErr)) : 'erro desconhecido';
   throw new Error(
