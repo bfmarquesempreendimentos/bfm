@@ -265,7 +265,7 @@ function buildCampaignPriceSummary(propertyId, maxExamples, forTemplate) {
   }
 
   if (snap.maxEngDisplay) {
-    parts.push('Engenharia ate ' + String(snap.maxEngDisplay).replace(/\s/g, '') + ' (referencia do predio)');
+    parts.push('Engenharia ate ' + String(snap.maxEngDisplay).replace(/\s/g, '') + (forTemplate ? ' referencia do predio' : ' (referencia do predio)'));
   }
 
   if (maxExamples > 0 && snap.examples.length) {
@@ -390,7 +390,7 @@ function buildCampaignMessageLines(config, broker, now, profile) {
     return forTemplate ? T(s) : ('*' + s + '*');
   };
 
-  parts.push(forTemplate ? '🏡 B F MARQUES EMPREENDIMENTOS' : '🏡 *B F MARQUES EMPREENDIMENTOS*');
+  parts.push(forTemplate ? 'B F MARQUES EMPREENDIMENTOS' : '🏡 *B F MARQUES EMPREENDIMENTOS*');
   parts.push(T('Material oficial para corretores — semana ' + ctx.week));
   parts.push('');
   parts.push(forTemplate
@@ -400,60 +400,60 @@ function buildCampaignMessageLines(config, broker, now, profile) {
   if (f) {
     parts.push('');
     parts.push(forTemplate
-      ? ('⭐ Destaque desta semana: ' + T(f.title))
+      ? ('Destaque desta semana: ' + T(f.title))
       : bold('⭐ Destaque desta semana: ' + f.title));
     var addrLine = getPropertyAddressLine(f);
-    parts.push('📍 ' + T(addrLine || f.location));
+    parts.push(forTemplate ? T(addrLine || f.location) : ('📍 ' + T(addrLine || f.location)));
     var exCount = profile.priceExamples != null ? profile.priceExamples : 3;
     var priceLine = buildCampaignPriceSummary(f.id, exCount, forTemplate);
-    if (priceLine) parts.push('💰 ' + T(priceLine));
+    if (priceLine) parts.push(forTemplate ? T(priceLine) : ('💰 ' + T(priceLine)));
     else {
       var minSale = getFeaturedMinSalePrice(f);
       if (minSale != null) {
         parts.push(forTemplate
-          ? ('💰 Venda a partir de ' + formatPriceBr(minSale))
+          ? ('Venda a partir de ' + formatPriceBr(minSale))
           : ('💰 Venda a partir de *' + formatPriceBr(minSale) + '*'));
       }
     }
-    if (f.mcmv) parts.push('✅ Minha Casa Minha Vida');
+    if (f.mcmv) parts.push(forTemplate ? 'Minha Casa Minha Vida' : '✅ Minha Casa Minha Vida');
     var featMax = profile.featuresMax != null ? profile.featuresMax : 3;
     var featLine = pickFeaturesLine(f, featMax, forTemplate);
-    if (featLine) parts.push('✨ ' + T(featLine));
+    if (featLine) parts.push(forTemplate ? T(featLine) : ('✨ ' + T(featLine)));
     if (profile.descMax > 0 && f.description) {
-      parts.push('📝 ' + T(String(f.description).substring(0, profile.descMax)));
+      parts.push(forTemplate ? T(String(f.description).substring(0, profile.descMax)) : ('📝 ' + T(String(f.description).substring(0, profile.descMax))));
     }
     var mapsUrl = getMapsUrlForCampaign(f);
-    if (mapsUrl) parts.push(forTemplate ? ('🗺️ Mapa: ' + mapsUrl) : ('🗺️ Mapa (abrir ou copiar): ' + mapsUrl));
+    if (mapsUrl) parts.push(forTemplate ? ('Mapa: ' + mapsUrl) : ('🗺️ Mapa (abrir ou copiar): ' + mapsUrl));
     parts.push('');
     parts.push(forTemplate
-      ? '🔗 Empreendimento desta semana (fotos, videos, unidades):'
+      ? 'Empreendimento desta semana - fotos, videos, unidades:'
       : bold('🔗 Empreendimento desta semana (fotos, videos, unidades):'));
     parts.push(getPropertyPageUrlForTemplate(f, ctx.siteUrl));
   }
 
   parts.push('');
   parts.push(forTemplate
-    ? '🌐 Portfolio completo (todos os imoveis):'
+    ? 'Portfolio completo - todos os imoveis:'
     : bold('🌐 Portfolio completo (todos os imoveis):'));
   parts.push(getPortfolioUrl(ctx.siteUrl));
   if (profile.othersTeaser && ctx.othersTeaser) parts.push(T(ctx.othersTeaser));
 
   if (profile.marketTitle !== false && ctx.market && ctx.market.title) {
     parts.push('');
-    parts.push(forTemplate
-      ? ('📰 ' + T(ctx.market.title))
-      : bold('📰 ' + ctx.market.title));
+    parts.push(forTemplate ? T(ctx.market.title) : bold('📰 ' + ctx.market.title));
     if (profile.marketText && ctx.market.text) parts.push(T(ctx.market.text));
   }
-  if (profile.tip && ctx.tip) parts.push('💡 ' + T(ctx.tip));
+  if (profile.tip && ctx.tip) parts.push(forTemplate ? T(ctx.tip) : ('💡 ' + T(ctx.tip)));
 
   if (profile.mediaNote !== false) {
     parts.push('');
-    parts.push('📷 A seguir: fotos e video do destaque para repassar ao cliente.');
+    parts.push(forTemplate
+      ? 'A seguir: fotos e video do destaque para repassar ao cliente.'
+      : '📷 A seguir: fotos e video do destaque para repassar ao cliente.');
   }
 
   parts.push('');
-  parts.push('✅ ' + T(ctx.cta));
+  parts.push(forTemplate ? T(ctx.cta) : ('✅ ' + T(ctx.cta)));
   parts.push('Suporte comercial: ' + ctx.contato);
 
   return parts;
@@ -481,6 +481,7 @@ function finalizeTemplateVar1Body(raw) {
   body = body.replace(/#/g, '');
   body = body.replace(/\|/g, ' / ');
   body = body.replace(/%/g, '');
+  body = body.replace(/[()]/g, '');
   body = body.replace(/\n{4,}/g, '\n\n\n');
   body = body.replace(/ {2,}/g, ' ');
   body = body.trim();
