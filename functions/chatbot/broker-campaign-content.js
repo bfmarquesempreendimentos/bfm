@@ -829,30 +829,52 @@ function guessMimeFromUrl(fileUrl, mediaKind) {
 }
 
 /**
- * Template com cabecalho IMAGE/VIDEO — link publico; se falhar, faz upload na Meta.
+ * Template com cabecalho IMAGE/VIDEO — tenta varias formas (Meta 132018 e cabecalho estatico).
  */
 async function sendCampaignTemplateHeaderMedia(
   waPhone, templateName, lang, mediaUrl, mediaKind, waSendOpts, sendTemplateMessage
 ) {
   var paramType = mediaKind === 'video' ? 'video' : 'image';
+  var fname = mediaKind === 'video' ? 'tour.mp4' : 'foto.jpg';
+  var lastErr = null;
+
   function headerComponents(mediaObj) {
     var param = { type: paramType };
     param[paramType] = mediaObj;
     return [{ type: 'header', parameters: [param] }];
   }
+
+  async function trySend(components, label) {
+    var resp = await sendTemplateMessage(waPhone, templateName, lang, components, waSendOpts);
+    if (resp) resp.componentsVariant = label;
+    return resp;
+  }
+
+  // 1) Upload na Meta + id (mais confiavel que link externo)
   try {
-    return await sendTemplateMessage(
-      waPhone, templateName, lang, headerComponents({ link: mediaUrl }), waSendOpts
-    );
-  } catch (linkErr) {
     var buf = await fetchMediaBufferFromUrl(mediaUrl);
     var mime = guessMimeFromUrl(mediaUrl, mediaKind);
-    var fname = mediaKind === 'video' ? 'tour.mp4' : 'foto.jpg';
     var uploaded = await uploadMediaBuffer(buf, mime, fname, waSendOpts);
-    return await sendTemplateMessage(
-      waPhone, templateName, lang, headerComponents({ id: uploaded.id }), waSendOpts
-    );
+    return await trySend(headerComponents({ id: uploaded.id }), 'header_' + paramType + '_id');
+  } catch (uploadErr) {
+    lastErr = uploadErr;
   }
+
+  // 2) Link direto
+  try {
+    return await trySend(headerComponents({ link: mediaUrl }), 'header_' + paramType + '_link');
+  } catch (linkErr) {
+    lastErr = linkErr;
+  }
+
+  // 3) Cabecalho fixo no template (sem parametros)
+  try {
+    return await trySend([], 'header_' + paramType + '_static');
+  } catch (staticErr) {
+    lastErr = staticErr;
+  }
+
+  throw lastErr || new Error('Template de midia nao enviado: ' + templateName);
 }
 
 function getCampaignTemplateLanguages(config) {
@@ -905,6 +927,7 @@ async function sendBrokerCampaignTemplateMedia(
   var photosSent = 0;
   var videosSent = 0;
   var errors = [];
+  var mediaVariants = [];
   var waMessageId = '';
   var i;
   var li;
@@ -921,6 +944,7 @@ async function sendBrokerCampaignTemplateMedia(
         if (imgResp && imgResp.messageId) waMessageId = imgResp.messageId;
         sent += 1;
         photosSent += 1;
+        if (imgResp.componentsVariant) mediaVariants.push('foto:' + imgResp.componentsVariant);
         imgOk = true;
         if (i < images.length - 1) await delayMs(3000);
       } catch (imgErr) {
@@ -943,6 +967,7 @@ async function sendBrokerCampaignTemplateMedia(
         if (vidResp && vidResp.messageId) waMessageId = vidResp.messageId;
         sent += 1;
         videosSent += 1;
+        if (vidResp.componentsVariant) mediaVariants.push('video:' + vidResp.componentsVariant);
         vidOk = true;
       } catch (vidErr) {
         if (li === langs.length - 1) {
@@ -962,6 +987,7 @@ async function sendBrokerCampaignTemplateMedia(
     featuredTitle: featured.title,
     featuredId: featured.id,
     errors: errors,
+    mediaVariants: mediaVariants,
     waMessageId: waMessageId,
     skipped: sent === 0,
     reason: sent === 0

@@ -1754,6 +1754,7 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
             videosSent: sendMeta.media && sendMeta.media.videosSent != null ? sendMeta.media.videosSent : 0,
             mediaMode: sendMeta.media && sendMeta.media.mode ? sendMeta.media.mode : '',
             mediaErrors: sendMeta.media && sendMeta.media.errors ? sendMeta.media.errors : [],
+            mediaVariants: sendMeta.media && sendMeta.media.mediaVariants ? sendMeta.media.mediaVariants : [],
             mediaSkipped: !!(sendMeta.media && sendMeta.media.skipped),
             mediaSkipReason: sendMeta.media && sendMeta.media.reason ? sendMeta.media.reason : '',
             featuredTitle: sendMeta.media && sendMeta.media.featuredTitle ? sendMeta.media.featuredTitle : '',
