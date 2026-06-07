@@ -252,10 +252,11 @@ function getCampaignPriceSnapshot(propertyId) {
 }
 
 /** Menor venda disponivel + maior engenharia do predio + ate 3 exemplos (eng > venda). */
-function buildCampaignPriceSummary(propertyId, maxExamples) {
+function buildCampaignPriceSummary(propertyId, maxExamples, forTemplate) {
   maxExamples = maxExamples != null ? maxExamples : 3;
   var snap = getCampaignPriceSnapshot(propertyId);
   var parts = [];
+  var exSep = forTemplate ? ' / ' : ' | ';
 
   if (snap.minSale != null) {
     parts.push('Venda a partir de ' + formatPriceBr(snap.minSale));
@@ -276,7 +277,7 @@ function buildCampaignPriceSummary(propertyId, maxExamples) {
         ' Eng ' + String(snap.examples[i].eng).replace(/\s/g, '')
       );
     }
-    parts.push('Ex.: engenharia maior que venda - ' + exParts.join(' | '));
+    parts.push('Ex.: engenharia maior que venda - ' + exParts.join(exSep));
   }
 
   if (!parts.length) return '';
@@ -290,13 +291,14 @@ function getFeaturedMinSalePrice(property) {
   return property.price != null ? property.price : null;
 }
 
-function pickFeaturesLine(p, maxCount) {
+function pickFeaturesLine(p, maxCount, forTemplate) {
   var feats = p.features || [];
   if (!feats.length) return '';
+  var sep = forTemplate ? ' / ' : ' | ';
   var line = '';
   var i;
   for (i = 0; i < feats.length && i < (maxCount || 2); i++) {
-    line += (i > 0 ? ' | ' : '') + feats[i];
+    line += (i > 0 ? sep : '') + feats[i];
   }
   return line;
 }
@@ -348,19 +350,27 @@ function buildCampaignContext(config, broker, now) {
   };
 }
 
-function getMapsUrlForCampaign(property) {
+/** URL de mapa sem % nem & (Meta rejeita em variaveis de template). */
+function buildMapsSearchUrlSafe(property) {
   if (!property) return '';
   var addr = getPropertyAddressLine(property) || property.location || '';
-  if (addr) {
-    var q = stripAccentsForTemplate(addr).replace(/\s+/g, ' ').trim();
-    return 'https://www.google.com/maps/search/' +
-      encodeURIComponent(q).replace(/%20/g, '+');
+  if (!addr) {
+    if (property.mapsUrl && property.mapsUrl.indexOf('goo.gl') < 0 &&
+        property.mapsUrl.indexOf('maps.app.goo.gl') < 0) {
+      return String(property.mapsUrl).replace(/%/g, '');
+    }
+    return '';
   }
-  if (property.mapsUrl && property.mapsUrl.indexOf('goo.gl') < 0 &&
-      property.mapsUrl.indexOf('maps.app.goo.gl') < 0) {
-    return property.mapsUrl;
-  }
-  return '';
+  var q = stripAccentsForTemplate(addr)
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .join('+');
+  return 'https://www.google.com/maps/search/' + q;
+}
+
+function getMapsUrlForCampaign(property) {
+  return buildMapsSearchUrlSafe(property);
 }
 
 /**
@@ -395,7 +405,7 @@ function buildCampaignMessageLines(config, broker, now, profile) {
     var addrLine = getPropertyAddressLine(f);
     parts.push('📍 ' + T(addrLine || f.location));
     var exCount = profile.priceExamples != null ? profile.priceExamples : 3;
-    var priceLine = buildCampaignPriceSummary(f.id, exCount);
+    var priceLine = buildCampaignPriceSummary(f.id, exCount, forTemplate);
     if (priceLine) parts.push('💰 ' + T(priceLine));
     else {
       var minSale = getFeaturedMinSalePrice(f);
@@ -407,7 +417,7 @@ function buildCampaignMessageLines(config, broker, now, profile) {
     }
     if (f.mcmv) parts.push('✅ Minha Casa Minha Vida');
     var featMax = profile.featuresMax != null ? profile.featuresMax : 3;
-    var featLine = pickFeaturesLine(f, featMax);
+    var featLine = pickFeaturesLine(f, featMax, forTemplate);
     if (featLine) parts.push('✨ ' + T(featLine));
     if (profile.descMax > 0 && f.description) {
       parts.push('📝 ' + T(String(f.description).substring(0, profile.descMax)));
@@ -450,13 +460,38 @@ function buildCampaignMessageLines(config, broker, now, profile) {
 }
 
 var CAMPAIGN_TEMPLATE_PROFILES = [
-  { priceExamples: 3, featuresMax: 3, descMax: 120, marketText: true, tip: true, othersTeaser: true, forTemplate: true },
-  { priceExamples: 3, featuresMax: 3, descMax: 80, marketText: true, tip: false, othersTeaser: false, forTemplate: true },
-  { priceExamples: 3, featuresMax: 2, descMax: 0, marketText: false, tip: false, othersTeaser: false, forTemplate: true },
+  { priceExamples: 2, featuresMax: 2, descMax: 0, marketText: false, marketTitle: false, tip: false, othersTeaser: false, mediaNote: true, forTemplate: true },
+  { priceExamples: 2, featuresMax: 2, descMax: 0, marketText: true, tip: false, othersTeaser: false, mediaNote: true, forTemplate: true },
+  { priceExamples: 3, featuresMax: 2, descMax: 0, marketText: true, tip: false, othersTeaser: false, forTemplate: true },
   { priceExamples: 2, featuresMax: 2, descMax: 0, marketText: false, tip: false, othersTeaser: false, forTemplate: true },
   { priceExamples: 1, featuresMax: 1, descMax: 0, marketText: false, tip: false, othersTeaser: false, mediaNote: false, forTemplate: true },
   { priceExamples: 0, featuresMax: 0, descMax: 0, marketText: false, marketTitle: false, tip: false, othersTeaser: false, mediaNote: false, forTemplate: true },
 ];
+
+/** Sanitiza {{1}} para Meta: sem |, sem %, sem truncar com reticencias. */
+function finalizeTemplateVar1Body(raw) {
+  var body = String(raw || '');
+  body = body.replace(/\u00a0/g, ' ');
+  body = body.replace(/\r\n/g, '\n');
+  body = body.replace(/\r/g, '\n');
+  body = body.replace(/\t/g, ' ');
+  body = body.replace(/[\u200B-\u200D\uFEFF]/g, '');
+  body = body.replace(/\*/g, '');
+  body = body.replace(/[—–]/g, '-');
+  body = body.replace(/#/g, '');
+  body = body.replace(/\|/g, ' / ');
+  body = body.replace(/%/g, '');
+  body = body.replace(/\n{4,}/g, '\n\n\n');
+  body = body.replace(/ {2,}/g, ' ');
+  body = body.trim();
+  while (body.length > 1018) {
+    var cut = body.lastIndexOf('\n');
+    if (cut < 280) break;
+    body = body.substring(0, cut).trim();
+  }
+  if (!body) body = 'B F Marques Empreendimentos - parceria corretores.';
+  return body;
+}
 
 /** Mensagem principal da campanha (texto livre ou {{1}} no fallback de template). */
 function buildPremiumFollowUpText(config, broker, now) {
@@ -483,10 +518,8 @@ function getIdenticalTemplateVar1Candidates(config, broker, now) {
   var body;
   for (i = 0; i < CAMPAIGN_TEMPLATE_PROFILES.length; i++) {
     raw = buildIdenticalCampaignTemplateVar1Tier(config, broker, now, CAMPAIGN_TEMPLATE_PROFILES[i]);
-    if (raw.length > 1024) continue;
-    body = sanitizeWhatsAppTemplateParam(raw);
-    if (body.length > 1024) continue;
-    if (body.slice(-3) === '...') continue;
+    body = finalizeTemplateVar1Body(raw);
+    if (!body || body.length > 1024) continue;
     if (seen[body]) continue;
     seen[body] = true;
     out.push(body);
@@ -564,9 +597,9 @@ function getTemplateVar1Candidates(config, broker, now) {
   var titlePlain = f ? stripAccentsForTemplate(f.title) : '';
   var identical = getIdenticalTemplateVar1Candidates(config, broker, now);
   var fallbacks = [
-    buildTemplateMarketingVar1(config, broker, now),
-    buildTemplateMarketingVar1Compact(config, broker, now),
-    sanitizeWhatsAppTemplateParam(
+    finalizeTemplateVar1Body(buildTemplateMarketingVar1(config, broker, now)),
+    finalizeTemplateVar1Body(buildTemplateMarketingVar1Compact(config, broker, now)),
+    finalizeTemplateVar1Body(
       'Ola, ' + ctx.firstName + '! Obrigado pela parceria.\n\n' +
       (f ? ('Destaque: ' + titlePlain + '\nEmpreendimento: ' + propUrl + '\n') : '') +
       'Portfolio: ' + portfolioUrl + '\nSuporte comercial: ' + ctx.contato

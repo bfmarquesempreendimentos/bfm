@@ -310,6 +310,8 @@ function sanitizeWhatsAppTemplateParam(text) {
   s = s.replace(/\*/g, '');
   s = s.replace(/[—–]/g, '-');
   s = s.replace(/#/g, '');
+  s = s.replace(/\|/g, ' / ');
+  s = s.replace(/%/g, '');
   s = s.replace(/ {2,}/g, ' ');
   s = s.trim();
   if (!s) s = 'B F Marques Empreendimentos — parceria corretores.';
