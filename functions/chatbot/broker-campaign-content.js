@@ -533,7 +533,25 @@ function buildTemplateMarketingVar1DirectClone(config, broker, now) {
   return finalizeTemplateVar1BodyRich(stripCampaignTemplateFixedHeader(raw));
 }
 
+/** Meta rejeita {{1}} multilinha neste template — versão completa em linha com seções. */
+function flattenTemplateVar1ForMeta(body) {
+  var text = String(body || '');
+  text = text.replace(/\n+/g, '. ');
+  text = text.replace(/\.\s*\./g, '.');
+  text = text.replace(/:\./g, ':');
+  text = text.replace(/\.\s+\./g, '. ');
+  text = text.replace(/ {2,}/g, ' ').trim();
+  return text;
+}
+
 function buildTemplateMarketingVar1DirectCloneSafe(config, broker, now) {
+  var raw = stripCampaignTemplateFixedHeader(
+    buildIdenticalCampaignTemplateVar1Tier(config, broker, now, CAMPAIGN_FULL_ASCII_PROFILE)
+  );
+  return flattenTemplateVar1ForMeta(finalizeTemplateVar1Body(raw));
+}
+
+function buildTemplateMarketingVar1DirectCloneMultiline(config, broker, now) {
   return finalizeTemplateVar1Body(stripCampaignTemplateFixedHeader(
     buildIdenticalCampaignTemplateVar1Tier(config, broker, now, CAMPAIGN_FULL_ASCII_PROFILE)
   ));
@@ -734,9 +752,14 @@ function getTemplateVar1Candidates(config, broker, now) {
   var propUrl = f ? getPropertyPageUrlForTemplate(f, ctx.siteUrl) : portfolioUrl;
   var titlePlain = f ? stripAccentsForTemplate(f.title) : '';
   var directClone = buildTemplateMarketingVar1DirectCloneSafe(config, broker, now);
-  var directEmoji = buildTemplateMarketingVar1DirectClone(config, broker, now);
-  var identical = getIdenticalTemplateVar1Candidates(config, broker, now);
-  var asciiFull = buildTemplateMarketingVar1OneLine(config, broker, now);
+  var multilineClone = buildTemplateMarketingVar1DirectCloneMultiline(config, broker, now);
+  var compactAscii = finalizeTemplateVar1Body(stripCampaignTemplateFixedHeader(
+    buildIdenticalCampaignTemplateVar1Tier(config, broker, now, {
+      priceExamples: 2, featuresMax: 2, descMax: 0,
+      marketText: false, marketTitle: false, tip: false,
+      othersTeaser: false, mediaNote: true, forTemplate: true,
+    })
+  ));
   var minimalFallback = finalizeTemplateVar1Body(
     'Ola, ' + ctx.firstName + '! Obrigado pela parceria. ' +
     (f ? ('Destaque: ' + titlePlain + '. Empreendimento: ' + propUrl + '. ') : '') +
@@ -744,24 +767,17 @@ function getTemplateVar1Candidates(config, broker, now) {
   );
   var out = [];
   var seen = {};
-  var i;
   if (directClone && !seen[directClone]) {
     seen[directClone] = true;
     out.push(directClone);
   }
-  if (directEmoji && !seen[directEmoji]) {
-    seen[directEmoji] = true;
-    out.push(directEmoji);
+  if (multilineClone && !seen[multilineClone]) {
+    seen[multilineClone] = true;
+    out.push(multilineClone);
   }
-  if (asciiFull && !seen[asciiFull]) {
-    seen[asciiFull] = true;
-    out.push(asciiFull);
-  }
-  for (i = 0; i < identical.length; i++) {
-    if (!seen[identical[i]]) {
-      seen[identical[i]] = true;
-      out.push(identical[i]);
-    }
+  if (compactAscii && !seen[compactAscii]) {
+    seen[compactAscii] = true;
+    out.push(compactAscii);
   }
   if (minimalFallback && !seen[minimalFallback]) {
     seen[minimalFallback] = true;
