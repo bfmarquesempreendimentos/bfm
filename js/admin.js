@@ -278,11 +278,88 @@ function loadSalesPropertyOptions() {
     if (!Array.isArray(properties)) return;
     
     properties.forEach(property => {
+        if (property.id === 1 || property.hideFromSite) return;
+        var hasUnits = typeof getPropertyUnitsRaw === 'function' && getPropertyUnitsRaw(property.id);
+        if (!hasUnits || !hasUnits.units || !hasUnits.units.length) return;
         const option = document.createElement('option');
         option.value = property.id;
         option.textContent = property.title;
         select.appendChild(option);
     });
+    setupSalePropertyUnitPicker();
+}
+
+function setupSalePropertyUnitPicker() {
+    var select = document.getElementById('saleProperty');
+    if (!select || select.getAttribute('data-unit-picker-ready') === '1') {
+        if (select) updateSalePropertyUnitField();
+        return;
+    }
+    select.setAttribute('data-unit-picker-ready', '1');
+    select.addEventListener('change', updateSalePropertyUnitField);
+    updateSalePropertyUnitField();
+}
+
+function updateSalePropertyUnitField() {
+    var select = document.getElementById('saleProperty');
+    var unitInput = document.getElementById('saleUnitCode');
+    var unitLabel = document.getElementById('saleUnitCodeLabel');
+    var hintEl = document.getElementById('saleUnitCodeHint');
+    if (!select || !unitInput) return;
+
+    var rawValue = select.value || '';
+    var propertyId = /^\d+$/.test(rawValue) ? parseInt(rawValue, 10) : rawValue;
+    if (!propertyId && propertyId !== 0) {
+        unitInput.value = '';
+        unitInput.disabled = false;
+        unitInput.placeholder = 'Ex: APTO 102, casa 09 (obrigatório se houver várias unidades)';
+        if (unitLabel) unitLabel.textContent = 'Unidade';
+        if (hintEl) hintEl.textContent = 'Empreendimentos com uma única unidade são preenchidos automaticamente.';
+        return;
+    }
+
+    var raw = typeof getPropertyUnitsRaw === 'function' ? getPropertyUnitsRaw(propertyId) : null;
+    var datalist = document.getElementById('saleUnitCodeList');
+    if (datalist) {
+        datalist.innerHTML = '';
+    }
+
+    if (!raw || !raw.units || !raw.units.length) {
+        unitInput.value = '';
+        unitInput.disabled = true;
+        unitInput.placeholder = 'Sem unidades cadastradas para este imóvel';
+        if (unitLabel) unitLabel.textContent = 'Unidade';
+        if (hintEl) hintEl.textContent = 'Cadastre as unidades em js/property-units.js ou escolha outro empreendimento.';
+        return;
+    }
+
+    if (raw.units.length === 1) {
+        unitInput.value = raw.units[0].code;
+        unitInput.disabled = true;
+        unitInput.placeholder = raw.units[0].code;
+        if (unitLabel) unitLabel.textContent = 'Unidade (única)';
+        if (hintEl) hintEl.textContent = 'Preenchida automaticamente: ' + raw.units[0].code + '.';
+        return;
+    }
+
+    unitInput.disabled = false;
+    if (unitLabel) unitLabel.textContent = 'Unidade *';
+    unitInput.placeholder = 'Selecione ou digite: ex. APTO 102, casa 07, cs 7';
+    var codes = typeof listUnitCodesForProperty === 'function' ? listUnitCodesForProperty(propertyId) : [];
+    var i;
+    if (datalist) {
+        for (i = 0; i < codes.length; i++) {
+            var opt = document.createElement('option');
+            opt.value = codes[i];
+            datalist.appendChild(opt);
+        }
+    }
+    var preview = codes.slice(0, 6).join(', ');
+    if (codes.length > 6) preview += '…';
+    if (hintEl) {
+        hintEl.textContent = 'Obrigatório — ' + raw.units.length + ' unidades: ' + preview +
+            '. Pode digitar só o número (ex.: 102) se for único.';
+    }
 }
 
 function getSalesData() {
@@ -360,6 +437,7 @@ function cancelSaleEdit() {
     var fp = document.getElementById('saleContractPhotos');
     if (fp) fp.value = '';
     updateSaleFormModeUi();
+    if (typeof updateSalePropertyUnitField === 'function') updateSalePropertyUnitField();
 }
 
 function beginEditSale(saleId) {

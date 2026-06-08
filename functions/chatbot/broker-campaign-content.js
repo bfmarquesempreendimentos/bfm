@@ -278,11 +278,16 @@ function buildCampaignPriceSummary(propertyId, maxExamples, forTemplate) {
         ' Eng ' + String(snap.examples[i].eng).replace(/\s/g, '')
       );
     }
-    parts.push('Ex.: engenharia maior que venda - ' + exParts.join(exSep));
+    if (forTemplate) {
+      parts.push('Ex. engenharia maior que venda:');
+      for (i = 0; i < exParts.length; i++) parts.push(exParts[i]);
+    } else {
+      parts.push('Ex.: engenharia maior que venda - ' + exParts.join(exSep));
+    }
   }
 
   if (!parts.length) return '';
-  return parts.join('. ');
+  return forTemplate ? parts.join('\n') : parts.join('. ');
 }
 
 function getFeaturedMinSalePrice(property) {
@@ -461,6 +466,7 @@ function buildCampaignMessageLines(config, broker, now, profile) {
 }
 
 var CAMPAIGN_TEMPLATE_PROFILES = [
+  { priceExamples: 2, featuresMax: 2, descMax: 0, marketText: false, marketTitle: false, tip: false, othersTeaser: false, mediaNote: false, forTemplate: true },
   { priceExamples: 2, featuresMax: 2, descMax: 0, marketText: false, marketTitle: false, tip: false, othersTeaser: false, mediaNote: true, forTemplate: true },
   { priceExamples: 2, featuresMax: 2, descMax: 0, marketText: true, tip: false, othersTeaser: false, mediaNote: true, forTemplate: true },
   { priceExamples: 3, featuresMax: 2, descMax: 0, marketText: true, tip: false, othersTeaser: false, forTemplate: true },
@@ -469,7 +475,125 @@ var CAMPAIGN_TEMPLATE_PROFILES = [
   { priceExamples: 0, featuresMax: 0, descMax: 0, marketText: false, marketTitle: false, tip: false, othersTeaser: false, mediaNote: false, forTemplate: true },
 ];
 
-/** Sanitiza {{1}} para Meta: sem |, sem %, sem truncar com reticencias. */
+/** Remove cabecalho duplicado quando o template Meta ja traz "B F Marques Empreendimentos". */
+function stripCampaignTemplateFixedHeader(body) {
+  var lines = String(body || '').split('\n');
+  var start = 0;
+  if (lines.length) {
+    var first = String(lines[0]).trim();
+    if (first.indexOf('B F MARQUES') >= 0 || first.indexOf('🏡') >= 0) {
+      start = 1;
+      while (start < lines.length && !String(lines[start]).trim()) start += 1;
+    }
+  }
+  return lines.slice(start).join('\n');
+}
+
+var CAMPAIGN_DIRECT_PROFILE = {
+  priceExamples: 3,
+  featuresMax: 3,
+  descMax: 200,
+  marketText: true,
+  marketTitle: true,
+  tip: true,
+  othersTeaser: true,
+  mediaNote: true,
+  forTemplate: false,
+};
+
+/** Perfil completo ASCII — máximo de conteúdo aceito pela Meta no {{1}}. */
+var CAMPAIGN_FULL_ASCII_PROFILE = {
+  priceExamples: 2,
+  featuresMax: 2,
+  descMax: 0,
+  marketText: true,
+  marketTitle: true,
+  tip: true,
+  othersTeaser: false,
+  mediaNote: true,
+  forTemplate: true,
+};
+
+function stripCampaignEmojis(text) {
+  var s = String(text || '');
+  s = s.replace(/\uFE0F/g, '');
+  s = s.replace(/[\u2600-\u27BF]/g, '');
+  s = s.replace(/[\uD83C-\uDBFF][\uDC00-\uDFFF]/g, '');
+  s = s.replace(/\* \*/g, '*');
+  s = s.replace(/\* +/g, '*');
+  s = s.replace(/ +\*/g, '*');
+  var lines = s.split('\n');
+  var i;
+  for (i = 0; i < lines.length; i++) lines[i] = lines[i].replace(/^\s+/, '').trim();
+  return lines.join('\n');
+}
+
+function buildTemplateMarketingVar1DirectClone(config, broker, now) {
+  var raw = buildIdenticalCampaignTemplateVar1Tier(config, broker, now, CAMPAIGN_DIRECT_PROFILE);
+  return finalizeTemplateVar1BodyRich(stripCampaignTemplateFixedHeader(raw));
+}
+
+function buildTemplateMarketingVar1DirectCloneSafe(config, broker, now) {
+  return finalizeTemplateVar1Body(stripCampaignTemplateFixedHeader(
+    buildIdenticalCampaignTemplateVar1Tier(config, broker, now, CAMPAIGN_FULL_ASCII_PROFILE)
+  ));
+}
+
+/** Agrupa linhas em paragrafos (linha em branco = novo bloco). */
+function compressTemplateParagraphs(body) {
+  var lines = String(body || '').split('\n');
+  var sections = [];
+  var cur = [];
+  var i;
+  for (i = 0; i < lines.length; i++) {
+    var line = String(lines[i] || '').trim();
+    if (!line) {
+      if (cur.length) {
+        sections.push(cur.join('\n'));
+        cur = [];
+      }
+      continue;
+    }
+    cur.push(line);
+  }
+  if (cur.length) sections.push(cur.join('\n'));
+  return sections.join('\n\n');
+}
+
+/** Sanitiza {{1}} rico (igual ao direct): mantém emojis e negrito *...*; remove só o que a Meta rejeita. */
+function finalizeTemplateVar1BodyRich(raw) {
+  var body = String(raw || '');
+  body = body.replace(/\u00a0/g, ' ');
+  body = body.replace(/\r\n/g, '\n');
+  body = body.replace(/\r/g, '\n');
+  body = body.replace(/\t/g, ' ');
+  body = body.replace(/[\u200B-\u200D\uFEFF]/g, '');
+  body = body.replace(/#/g, '');
+  body = body.replace(/\|/g, ' / ');
+  body = body.replace(/%/g, '');
+  body = body.replace(/ = /g, ' - ');
+  body = body.replace(/²/g, '2');
+  body = body.replace(/\n{4,}/g, '\n\n\n');
+  var lines = body.split('\n');
+  var li;
+  for (li = 0; li < lines.length; li++) {
+    lines[li] = lines[li].replace(/ {2,}/g, ' ').trim();
+  }
+  body = lines.join('\n').trim();
+  body = compressTemplateParagraphs(body);
+  while (body.length > 1018) {
+    var cut = body.lastIndexOf('\n\n');
+    if (cut < 280) {
+      cut = body.lastIndexOf('\n');
+      if (cut < 280) break;
+    }
+    body = body.substring(0, cut).trim();
+  }
+  if (!body) body = 'B F Marques Empreendimentos - parceria corretores.';
+  return body;
+}
+
+/** Sanitiza {{1}} para Meta (fallback ASCII): sem |, sem %, sem truncar com reticencias. */
 function finalizeTemplateVar1Body(raw) {
   var body = String(raw || '');
   body = body.replace(/\u00a0/g, ' ');
@@ -482,13 +606,23 @@ function finalizeTemplateVar1Body(raw) {
   body = body.replace(/#/g, '');
   body = body.replace(/\|/g, ' / ');
   body = body.replace(/%/g, '');
+  body = body.replace(/=/g, ' - ');
+  body = body.replace(/²/g, '2');
   body = body.replace(/[()]/g, '');
   body = body.replace(/\n{4,}/g, '\n\n\n');
-  body = body.replace(/ {2,}/g, ' ');
-  body = body.trim();
+  var lines = body.split('\n');
+  var li;
+  for (li = 0; li < lines.length; li++) {
+    lines[li] = lines[li].replace(/ {2,}/g, ' ').trim();
+  }
+  body = lines.join('\n').trim();
+  body = compressTemplateParagraphs(body);
   while (body.length > 1018) {
-    var cut = body.lastIndexOf('\n');
-    if (cut < 280) break;
+    var cut = body.lastIndexOf('\n\n');
+    if (cut < 280) {
+      cut = body.lastIndexOf('\n');
+      if (cut < 280) break;
+    }
     body = body.substring(0, cut).trim();
   }
   if (!body) body = 'B F Marques Empreendimentos - parceria corretores.';
@@ -520,7 +654,7 @@ function getIdenticalTemplateVar1Candidates(config, broker, now) {
   var body;
   for (i = 0; i < CAMPAIGN_TEMPLATE_PROFILES.length; i++) {
     raw = buildIdenticalCampaignTemplateVar1Tier(config, broker, now, CAMPAIGN_TEMPLATE_PROFILES[i]);
-    body = finalizeTemplateVar1Body(raw);
+    body = finalizeTemplateVar1Body(stripCampaignTemplateFixedHeader(raw));
     if (!body || body.length > 1024) continue;
     if (seen[body]) continue;
     seen[body] = true;
@@ -587,55 +721,41 @@ function buildTemplateMarketingVar1Compact(config, broker, now) {
 }
 
 function buildTemplateMarketingVar1OneLine(config, broker, now) {
-  var ctx = buildCampaignContext(config, broker, now);
-  var f = ctx.featured;
-  var portfolioUrl = getPortfolioUrl(ctx.siteUrl);
-  var parts = [];
-  parts.push('Ola, ' + ctx.firstName + '! Obrigado pela parceria.');
-  if (f) {
-    parts.push('Destaque: ' + stripAccentsForTemplate(f.title) + '.');
-    var price1 = buildCampaignPriceSummary(f.id, 2, true);
-    if (price1) parts.push(price1 + '.');
-    var addr1 = getPropertyAddressLine(f);
-    if (addr1) parts.push('Endereco: ' + stripAccentsForTemplate(addr1) + '.');
-    var maps1 = getMapsUrlForCampaign(f);
-    if (maps1) parts.push('Mapa: ' + maps1 + '.');
-    parts.push('Empreendimento: ' + getPropertyPageUrlForTemplate(f, ctx.siteUrl) + '.');
-  }
-  parts.push('Portfolio: ' + portfolioUrl + '.');
-  parts.push('A seguir fotos e video do destaque.');
-  parts.push('Suporte comercial: ' + ctx.contato + '.');
-  return finalizeTemplateVar1Body(parts.join(' '));
+  return finalizeTemplateVar1Body(stripCampaignTemplateFixedHeader(
+    buildIdenticalCampaignTemplateVar1Tier(config, broker, now, CAMPAIGN_FULL_ASCII_PROFILE)
+  ));
 }
 
-/** Lista de variantes do {{1}} — multilinha primeiro, one-line comprovado na Meta depois. */
+/** Lista de variantes do {{1}} — clone do direct primeiro, depois fallbacks ASCII. */
 function getTemplateVar1Candidates(config, broker, now) {
   var ctx = buildCampaignContext(config, broker, now);
   var f = ctx.featured;
   var portfolioUrl = getPortfolioUrl(ctx.siteUrl);
   var propUrl = f ? getPropertyPageUrlForTemplate(f, ctx.siteUrl) : portfolioUrl;
   var titlePlain = f ? stripAccentsForTemplate(f.title) : '';
+  var directClone = buildTemplateMarketingVar1DirectCloneSafe(config, broker, now);
+  var directEmoji = buildTemplateMarketingVar1DirectClone(config, broker, now);
   var identical = getIdenticalTemplateVar1Candidates(config, broker, now);
-  var oneLine = buildTemplateMarketingVar1OneLine(config, broker, now);
-  var fallbacks = [
-    oneLine,
-    finalizeTemplateVar1Body(buildIdenticalCampaignTemplateVar1Tier(config, broker, now, {
-      priceExamples: 2, featuresMax: 2, descMax: 0, marketText: false, marketTitle: false,
-      tip: false, othersTeaser: false, mediaNote: true, forTemplate: true,
-    }).replace(/\n+/g, ' ')),
-    finalizeTemplateVar1Body(buildTemplateMarketingVar1Compact(config, broker, now)),
-    finalizeTemplateVar1Body(
-      'Ola, ' + ctx.firstName + '! Obrigado pela parceria. ' +
-      (f ? ('Destaque: ' + titlePlain + '. Empreendimento: ' + propUrl + '. ') : '') +
-      'Portfolio: ' + portfolioUrl + '. Suporte comercial: ' + ctx.contato + '.'
-    ),
-  ];
+  var asciiFull = buildTemplateMarketingVar1OneLine(config, broker, now);
+  var minimalFallback = finalizeTemplateVar1Body(
+    'Ola, ' + ctx.firstName + '! Obrigado pela parceria. ' +
+    (f ? ('Destaque: ' + titlePlain + '. Empreendimento: ' + propUrl + '. ') : '') +
+    'Portfolio: ' + portfolioUrl + '. Suporte comercial: ' + ctx.contato + '.'
+  );
   var out = [];
   var seen = {};
   var i;
-  if (oneLine && !seen[oneLine]) {
-    seen[oneLine] = true;
-    out.push(oneLine);
+  if (directClone && !seen[directClone]) {
+    seen[directClone] = true;
+    out.push(directClone);
+  }
+  if (directEmoji && !seen[directEmoji]) {
+    seen[directEmoji] = true;
+    out.push(directEmoji);
+  }
+  if (asciiFull && !seen[asciiFull]) {
+    seen[asciiFull] = true;
+    out.push(asciiFull);
   }
   for (i = 0; i < identical.length; i++) {
     if (!seen[identical[i]]) {
@@ -643,11 +763,9 @@ function getTemplateVar1Candidates(config, broker, now) {
       out.push(identical[i]);
     }
   }
-  for (i = 1; i < fallbacks.length; i++) {
-    if (!seen[fallbacks[i]]) {
-      seen[fallbacks[i]] = true;
-      out.push(fallbacks[i]);
-    }
+  if (minimalFallback && !seen[minimalFallback]) {
+    seen[minimalFallback] = true;
+    out.push(minimalFallback);
   }
   return out;
 }
@@ -867,11 +985,15 @@ async function sendCampaignTemplateHeaderMedia(
     lastErr = linkErr;
   }
 
-  // 3) Cabecalho fixo no template (sem parametros)
-  try {
-    return await trySend([], 'header_' + paramType + '_static');
-  } catch (staticErr) {
-    lastErr = staticErr;
+  // 3) Cabecalho fixo — apenas templates legados (foto/video sem variavel)
+  var tplKey = normalizeCampaignTemplateName(templateName);
+  var legacyFixedHeader = tplKey === 'campanha_corretor_foto' || tplKey === 'campanha_corretor_video';
+  if (legacyFixedHeader) {
+    try {
+      return await trySend([], 'header_' + paramType + '_static');
+    } catch (staticErr) {
+      lastErr = staticErr;
+    }
   }
 
   throw lastErr || new Error('Template de midia nao enviado: ' + templateName);
@@ -900,7 +1022,7 @@ function getCampaignTemplateLanguages(config) {
 
 /**
  * Fotos/video para corretor sem janela 24h — via templates Meta com cabecalho IMAGE/VIDEO.
- * Requer modelos aprovados campanha_corretor_foto e campanha_corretor_video.
+ * Requer modelos aprovados campanha_corretor_foto2 e campanha_corretor_video2 (cabecalho variavel).
  */
 async function sendBrokerCampaignTemplateMedia(
   waPhone, config, broker, now, waSendOpts, sendTemplateMessage
@@ -915,8 +1037,8 @@ async function sendBrokerCampaignTemplateMedia(
   }
 
   var langs = getCampaignTemplateLanguages(config);
-  var imageTpl = normalizeCampaignTemplateName(config.templateMediaImageName || 'campanha_corretor_foto');
-  var videoTpl = normalizeCampaignTemplateName(config.templateMediaVideoName || 'campanha_corretor_video');
+  var imageTpl = normalizeCampaignTemplateName(config.templateMediaImageName || 'campanha_corretor_foto2');
+  var videoTpl = normalizeCampaignTemplateName(config.templateMediaVideoName || 'campanha_corretor_video2');
   var lists = getPropertyMediaLists(featured);
   var ctx = buildCampaignContext(config, broker, now);
   var maxImg = ctx.maxImages > 0 ? ctx.maxImages : 2;
@@ -991,7 +1113,7 @@ async function sendBrokerCampaignTemplateMedia(
     waMessageId: waMessageId,
     skipped: sent === 0,
     reason: sent === 0
-      ? (errors.join(' ') || 'Templates de midia nao enviados. Cadastre campanha_corretor_foto e campanha_corretor_video na Meta.')
+      ? (errors.join(' ') || 'Templates de midia nao enviados. Cadastre campanha_corretor_foto2 e campanha_corretor_video2 na Meta.')
       : '',
   };
 }

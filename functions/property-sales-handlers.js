@@ -2,6 +2,7 @@
 
 const admin = require('firebase-admin');
 const { verifyAdminFromBody } = require('./admin-accounts');
+const { resolveSaleSlot } = require('./sale-unit-validation');
 
 function allowCors(res) {
   res.set('Access-Control-Allow-Origin', '*');
@@ -198,8 +199,16 @@ async function adminPropertySaleMutate(req, res) {
     if (propertyId === undefined || propertyId === null || propertyId === '') {
       return res.status(400).json({ error: 'propertyId obrigatório' });
     }
-    var saleSlotKey = String(sale.saleSlotKey || '').trim();
-    if (!saleSlotKey) return res.status(400).json({ error: 'saleSlotKey obrigatório (erro interno de formulário)' });
+
+    var slotResolved = resolveSaleSlot(propertyId, sale.unitCode);
+    if (slotResolved.error) {
+      return res.status(400).json({ error: slotResolved.error });
+    }
+    var saleSlotKey = slotResolved.saleSlotKey;
+    var unitCodeResolved = slotResolved.unitCode;
+    if (sale.saleSlotKey && String(sale.saleSlotKey).trim() !== saleSlotKey) {
+      return res.status(400).json({ error: 'Unidade informada não confere com o empreendimento. Atualize a página e tente de novo.' });
+    }
 
     var allSnap = await db.collection('propertySales').get();
     var allList = collectSalesDocsData(allSnap);
@@ -223,7 +232,7 @@ async function adminPropertySaleMutate(req, res) {
     var doc = {
       propertyId: typeof propertyId === 'number' ? propertyId : Number(propertyId) || propertyId,
       propertyTitle: sale.propertyTitle || 'Imóvel',
-      unitCode: sale.unitCode != null ? sale.unitCode : null,
+      unitCode: unitCodeResolved != null ? unitCodeResolved : null,
       saleSlotKey: saleSlotKey,
       clientCPF: clientCPF,
       clientName: sale.clientName || '',

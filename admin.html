@@ -392,8 +392,9 @@
                     </div>
                     <div class="form-group">
                         <label id="saleUnitCodeLabel">Unidade</label>
-                        <input type="text" id="saleUnitCode" placeholder="Ex: APTO 102, casa 09 (obrigatório se houver várias unidades)">
-                        <small class="form-hint">Empreendimentos com uma única unidade são preenchidos automaticamente.</small>
+                        <input type="text" id="saleUnitCode" list="saleUnitCodeList" placeholder="Ex: APTO 102, casa 09 (obrigatório se houver várias unidades)">
+                        <datalist id="saleUnitCodeList"></datalist>
+                        <small class="form-hint" id="saleUnitCodeHint">Empreendimentos com uma única unidade são preenchidos automaticamente.</small>
                     </div>
                     <div class="form-group">
                         <label>
@@ -1287,7 +1288,7 @@
     <script src="js/auth.js"></script>
     <script src="js/properties.js"></script>
     <script src="js/reservations.js"></script>
-    <script src="js/property-units.js?v=7"></script>
+    <script src="js/property-units.js?v=8"></script>
     <script src="js/pdf-seed-reservations.js"></script>
     <script src="js/pdf-import.js"></script>
     <script src="js/notifications.js"></script>

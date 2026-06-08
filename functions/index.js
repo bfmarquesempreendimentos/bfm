@@ -903,8 +903,8 @@ function getDefaultBrokerCampaignConfig() {
     marketNewsTitle: '',
     marketNewsText: '',
     templateName: 'campanha_corretor_msg',
-    templateMediaImageName: 'campanha_corretor_foto',
-    templateMediaVideoName: 'campanha_corretor_video',
+    templateMediaImageName: 'campanha_corretor_foto2',
+    templateMediaVideoName: 'campanha_corretor_video2',
     templateLanguage: 'pt_BR',
     weeklyTitle: 'Atualização semanal B F Marques',
     ctaText: 'Divulgue as ofertas da semana para seus leads e traga sua visita agendada.',
@@ -946,6 +946,21 @@ async function brokerHasWhatsAppSessionWindow(db, waPhone) {
   }
 }
 
+function migrateBrokerCampaignMediaTemplateNames(config) {
+  var updates = {};
+  var image = String((config && config.templateMediaImageName) || '').trim();
+  var video = String((config && config.templateMediaVideoName) || '').trim();
+  if (!image || image === 'campanha_corretor_foto') {
+    updates.templateMediaImageName = 'campanha_corretor_foto2';
+    config.templateMediaImageName = 'campanha_corretor_foto2';
+  }
+  if (!video || video === 'campanha_corretor_video') {
+    updates.templateMediaVideoName = 'campanha_corretor_video2';
+    config.templateMediaVideoName = 'campanha_corretor_video2';
+  }
+  return updates;
+}
+
 async function getBrokerCampaignConfig(db) {
   const ref = db.collection('broker_campaign').doc('config');
   const snap = await ref.get();
@@ -956,10 +971,19 @@ async function getBrokerCampaignConfig(db) {
   }
   const current = snap.data() || {};
   var merged = { ...getDefaultBrokerCampaignConfig(), ...current };
+  var persist = {};
   var fixedContact = normalizeCampaignContactPhone(merged.whatsappContato);
   if (fixedContact !== merged.whatsappContato) {
     merged.whatsappContato = fixedContact;
-    await ref.set({ whatsappContato: fixedContact, updatedAt: new Date().toISOString() }, { merge: true });
+    persist.whatsappContato = fixedContact;
+  }
+  var mediaTplUpdates = migrateBrokerCampaignMediaTemplateNames(merged);
+  Object.keys(mediaTplUpdates).forEach(function(k) {
+    persist[k] = mediaTplUpdates[k];
+  });
+  if (Object.keys(persist).length) {
+    persist.updatedAt = new Date().toISOString();
+    await ref.set(persist, { merge: true });
   }
   return merged;
 }
@@ -1253,7 +1277,7 @@ async function sendBrokerCampaignFollowUpAfterTemplate(waPhone, config, broker, 
     mode: 'template_media',
     errors: tplMedia.errors || [],
     reason: tplMedia.reason ||
-      'Fotos/video nao enviados. Cadastre templates campanha_corretor_foto e campanha_corretor_video na Meta.',
+      'Fotos/video nao enviados. Cadastre templates campanha_corretor_foto2 e campanha_corretor_video2 na Meta.',
     templateMediaAttempt: tplMedia,
     featuredTitle: tplMedia.featuredTitle || '',
   };
@@ -2829,6 +2853,10 @@ exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
       whatsappContato: body.whatsappContato ? String(body.whatsappContato).trim() : undefined,
       weeklyTitle: body.weeklyTitle ? String(body.weeklyTitle).trim() : undefined,
       templateName: body.templateName !== undefined ? String(body.templateName || '').trim() : undefined,
+      templateMediaImageName: body.templateMediaImageName !== undefined
+        ? String(body.templateMediaImageName || '').trim() : undefined,
+      templateMediaVideoName: body.templateMediaVideoName !== undefined
+        ? String(body.templateMediaVideoName || '').trim() : undefined,
       templateLanguage: body.templateLanguage ? String(body.templateLanguage).trim() : undefined,
       ctaText: body.ctaText ? String(body.ctaText).trim() : undefined,
       usefulTips: Array.isArray(body.usefulTips) ? body.usefulTips.map(function(t) { return String(t || '').trim(); }).filter(Boolean) : undefined,
