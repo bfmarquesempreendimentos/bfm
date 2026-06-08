@@ -899,10 +899,12 @@ function getDefaultBrokerCampaignConfig() {
     skipMetaTemplate: true,
     campaignMaxImages: 2,
     campaignMaxVideos: 1,
-    featuredPropertyId: null,
+    featuredPropertyId: 7,
     marketNewsTitle: '',
     marketNewsText: '',
     templateName: 'campanha_corretor_msg',
+    templateNameMulti: 'campanha_corretor_msg4',
+    preferMultiVarTemplate: true,
     templateMediaImageName: 'campanha_corretor_foto2',
     templateMediaVideoName: 'campanha_corretor_video2',
     templateLanguage: 'pt_BR',
@@ -981,6 +983,18 @@ async function getBrokerCampaignConfig(db) {
   Object.keys(mediaTplUpdates).forEach(function(k) {
     persist[k] = mediaTplUpdates[k];
   });
+  if (current.featuredPropertyId === undefined) {
+    merged.featuredPropertyId = 7;
+    persist.featuredPropertyId = 7;
+  }
+  if (current.templateNameMulti === undefined && !merged.templateNameMulti) {
+    merged.templateNameMulti = 'campanha_corretor_msg4';
+    persist.templateNameMulti = 'campanha_corretor_msg4';
+  }
+  if (current.preferMultiVarTemplate === undefined && merged.preferMultiVarTemplate == null) {
+    merged.preferMultiVarTemplate = true;
+    persist.preferMultiVarTemplate = true;
+  }
   if (Object.keys(persist).length) {
     persist.updatedAt = new Date().toISOString();
     await ref.set(persist, { merge: true });
@@ -1010,6 +1024,50 @@ function buildBrokerCampaignTemplateComponents(config, broker, now) {
 
 function buildCampanhaCorretorSingleVarBody(config, broker, now) {
   return brokerCampaignContent.buildTemplateVar1Components(config, broker, now, 0);
+}
+
+async function sendCampanhaCorretorTemplateMsg4(waPhone, templateName, lang, waSendOpts, config, broker, now) {
+  var candidates = brokerCampaignContent.getCampanhaCorretorMsg4Candidates(config, broker, now);
+  var vi;
+  var lastErr = null;
+  for (vi = 0; vi < candidates.length; vi++) {
+    try {
+      var v = candidates[vi];
+      var comps = [{
+        type: 'body',
+        parameters: [
+          { type: 'text', text: v.week },
+          { type: 'text', text: v.firstName },
+          { type: 'text', text: v.propertyBlock },
+          { type: 'text', text: v.propertyUrl },
+          { type: 'text', text: v.portfolioUrl },
+          { type: 'text', text: v.footerBlock },
+        ],
+      }];
+      var resp = await sendTemplateMessage(waPhone, templateName, lang, comps, waSendOpts);
+      return {
+        mode: 'template',
+        templateName: templateName,
+        language: lang,
+        componentsVariant: 'msg4_try_' + vi,
+        waMessageId: resp && resp.messageId ? resp.messageId : '',
+        sentTo: waPhone,
+        templateVarCount: 6,
+      };
+    } catch (errTry) {
+      lastErr = errTry;
+      var errMsg = errTry.message || extractMetaError(errTry);
+      if (!isTemplateParamValidationError(errMsg) && !isTemplateParamCountError(errMsg) &&
+          !isTemplateNameOrLanguageError(errMsg)) {
+        throw errTry;
+      }
+    }
+  }
+  var detail = lastErr ? (lastErr.message || extractMetaError(lastErr)) : 'erro desconhecido';
+  throw new Error(
+    'Template "' + templateName + '" rejeitado pela Meta: ' + detail +
+    ' Cadastre campanha_corretor_msg4 com 6 variaveis (veja TEMPLATE-CAMPANHA-CORRETORES-META.md).'
+  );
 }
 
 async function sendCampanhaCorretorTemplateVar1(waPhone, templateName, lang, waSendOpts, config, broker, now) {
@@ -1356,6 +1414,25 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now, db) {
     var mi;
     var li;
     var ci;
+
+    var templateMulti = config.preferMultiVarTemplate !== false
+      ? normalizeTemplateName(config.templateNameMulti || 'campanha_corretor_msg4')
+      : '';
+    if (templateMulti) {
+      for (liMeta = 0; liMeta < langCandidates.length; liMeta++) {
+        try {
+          var tplResultMulti = await sendCampanhaCorretorTemplateMsg4(
+            waPhone, templateMulti, langCandidates[liMeta], waSendOpts, config, broker, now
+          );
+          tplResultMulti.media = await sendBrokerCampaignFollowUpAfterTemplate(
+            waPhone, config, broker, now, waSendOpts, hasSession
+          );
+          return tplResultMulti;
+        } catch (multiErr) {
+          lastErr = multiErr;
+        }
+      }
+    }
 
     if (normalizeTemplateName(templateName) === 'campanha_corretor_msg') {
       for (liMeta = 0; liMeta < langCandidates.length; liMeta++) {
@@ -2853,6 +2930,9 @@ exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
       whatsappContato: body.whatsappContato ? String(body.whatsappContato).trim() : undefined,
       weeklyTitle: body.weeklyTitle ? String(body.weeklyTitle).trim() : undefined,
       templateName: body.templateName !== undefined ? String(body.templateName || '').trim() : undefined,
+      templateNameMulti: body.templateNameMulti !== undefined ? String(body.templateNameMulti || '').trim() : undefined,
+      preferMultiVarTemplate: body.preferMultiVarTemplate === true || body.preferMultiVarTemplate === false
+        ? body.preferMultiVarTemplate : undefined,
       templateMediaImageName: body.templateMediaImageName !== undefined
         ? String(body.templateMediaImageName || '').trim() : undefined,
       templateMediaVideoName: body.templateMediaVideoName !== undefined

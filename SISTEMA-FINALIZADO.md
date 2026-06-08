@@ -11,7 +11,7 @@
 4. **Laranjal** - 15 casas (R$ 145.000) ✅
 5. **Apolo** - Casas Itaboraí (R$ 135.000) ✅
 6. **Coelho** - Casas (R$ 145.000) ✅
-7. **Edifício Caçador** - 20 apartamentos (R$ 165.000) ✅
+7. **Edifício Nova Cidade** - 20 apartamentos (R$ 165.000) ✅
 8. **Maricá Premium** - Casas alto padrão (R$ 180.000) ⭐ **NOVO**
 
 ---
@@ -128,7 +128,7 @@ B F Marques Sistema/
 - **Laranjal**: R$ 145.000 - R$ 150.000
 - **Apolo**: R$ 130.000 - R$ 140.000
 - **Coelho**: R$ 145.000 - R$ 160.000
-- **Edifício Caçador**: R$ 160.000 - R$ 170.000
+- **Edifício Nova Cidade**: R$ 160.000 - R$ 170.000
 - **Maricá Premium**: R$ 180.000+ ⭐
 
 ---

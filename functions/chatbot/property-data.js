@@ -53,7 +53,7 @@ const properties = [
   },
   {
     id: 3,
-    title: 'Edifício Amendoeiras',
+    title: 'Edifício Bandeirantes',
     type: 'apartamento',
     location: 'Amendoeira, São Gonçalo - RJ',
     address: 'Rua Lopes da Cruz, 136',
@@ -158,7 +158,7 @@ const properties = [
   },
   {
     id: 7,
-    title: 'Edifício Caçador',
+    title: 'Edifício Nova Cidade',
     type: 'apartamento',
     location: 'Luiz Caçador, São Gonçalo - RJ',
     address: 'Rua Alcio Souto, 576',
@@ -213,11 +213,11 @@ const properties = [
 var PROPERTY_SLUGS = {
   1: 'porto-novo',
   2: 'residencial-itauna',
-  3: 'edificio-amendoeiras',
+  3: 'edificio-bandeirantes',
   4: 'condominio-laranjal',
   5: 'residencial-apolo',
   6: 'residencial-coelho',
-  7: 'edificio-cacador',
+  7: 'edificio-nova-cidade',
   8: 'casa-luxo-marica',
 };
 
@@ -225,6 +225,11 @@ function getPropertySlug(property) {
   if (!property || property.id == null) return '';
   return PROPERTY_SLUGS[property.id] || ('imovel-' + property.id);
 }
+
+var PROPERTY_SLUG_ALIASES = {
+  'edificio-amendoeiras': 3,
+  'edificio-cacador': 7,
+};
 
 function getPropertyIdFromSlug(slug) {
   var s = String(slug || '').trim().toLowerCase();
@@ -234,6 +239,7 @@ function getPropertyIdFromSlug(slug) {
   for (i = 0; i < keys.length; i++) {
     if (PROPERTY_SLUGS[keys[i]] === s) return Number(keys[i]);
   }
+  if (PROPERTY_SLUG_ALIASES[s]) return PROPERTY_SLUG_ALIASES[s];
   if (/^imovel-(\d+)$/.test(s)) return Number(s.replace('imovel-', ''));
   return null;
 }

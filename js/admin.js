@@ -300,9 +300,33 @@ function setupSalePropertyUnitPicker() {
     updateSalePropertyUnitField();
 }
 
+function formatSaleUnitPriceLabel(price) {
+    var n = Number(price);
+    if (isNaN(n) || n <= 0) return '';
+    return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function showSaleUnitInputMode(useSelect) {
+    var unitInput = document.getElementById('saleUnitCode');
+    var unitSelect = document.getElementById('saleUnitSelect');
+    var datalist = document.getElementById('saleUnitCodeList');
+    if (unitInput) unitInput.style.display = useSelect ? 'none' : '';
+    if (unitSelect) unitSelect.style.display = useSelect ? '' : 'none';
+}
+
+function getSaleUnitCodeValue() {
+    var unitSelect = document.getElementById('saleUnitSelect');
+    var unitInput = document.getElementById('saleUnitCode');
+    if (unitSelect && unitSelect.style.display !== 'none') {
+        return (unitSelect.value || '').trim();
+    }
+    return (unitInput && unitInput.value || '').trim();
+}
+
 function updateSalePropertyUnitField() {
     var select = document.getElementById('saleProperty');
     var unitInput = document.getElementById('saleUnitCode');
+    var unitSelect = document.getElementById('saleUnitSelect');
     var unitLabel = document.getElementById('saleUnitCodeLabel');
     var hintEl = document.getElementById('saleUnitCodeHint');
     if (!select || !unitInput) return;
@@ -313,12 +337,18 @@ function updateSalePropertyUnitField() {
         unitInput.value = '';
         unitInput.disabled = false;
         unitInput.placeholder = 'Ex: APTO 102, casa 09 (obrigatório se houver várias unidades)';
+        if (unitSelect) {
+            unitSelect.innerHTML = '<option value="">Selecione a unidade</option>';
+            unitSelect.value = '';
+        }
+        showSaleUnitInputMode(false);
         if (unitLabel) unitLabel.textContent = 'Unidade';
         if (hintEl) hintEl.textContent = 'Empreendimentos com uma única unidade são preenchidos automaticamente.';
         return;
     }
 
     var raw = typeof getPropertyUnitsRaw === 'function' ? getPropertyUnitsRaw(propertyId) : null;
+    var data = typeof getPropertyUnits === 'function' ? getPropertyUnits(propertyId) : raw;
     var datalist = document.getElementById('saleUnitCodeList');
     if (datalist) {
         datalist.innerHTML = '';
@@ -328,37 +358,76 @@ function updateSalePropertyUnitField() {
         unitInput.value = '';
         unitInput.disabled = true;
         unitInput.placeholder = 'Sem unidades cadastradas para este imóvel';
+        if (unitSelect) {
+            unitSelect.innerHTML = '<option value="">Selecione a unidade</option>';
+            unitSelect.value = '';
+        }
+        showSaleUnitInputMode(false);
         if (unitLabel) unitLabel.textContent = 'Unidade';
         if (hintEl) hintEl.textContent = 'Cadastre as unidades em js/property-units.js ou escolha outro empreendimento.';
         return;
     }
 
     if (raw.units.length === 1) {
-        unitInput.value = raw.units[0].code;
+        var single = data && data.units && data.units[0] ? data.units[0] : raw.units[0];
+        unitInput.value = single.code;
         unitInput.disabled = true;
-        unitInput.placeholder = raw.units[0].code;
+        unitInput.placeholder = single.code;
+        if (unitSelect) {
+            unitSelect.innerHTML = '<option value="">Selecione a unidade</option>';
+            unitSelect.value = '';
+        }
+        showSaleUnitInputMode(false);
         if (unitLabel) unitLabel.textContent = 'Unidade (única)';
-        if (hintEl) hintEl.textContent = 'Preenchida automaticamente: ' + raw.units[0].code + '.';
+        var stTxt = typeof getUnitStatusText === 'function' ? getUnitStatusText(single.status) : '';
+        var priceTxt = formatSaleUnitPriceLabel(single.price);
+        if (hintEl) {
+            hintEl.textContent = 'Preenchida automaticamente: ' + single.code +
+                (stTxt ? ' — ' + stTxt : '') +
+                (priceTxt ? ' · ' + priceTxt : '') + '.';
+        }
         return;
     }
 
+    var units = data && data.units ? data.units : raw.units;
+    var prevCode = getSaleUnitCodeValue();
+    if (unitSelect) {
+        unitSelect.innerHTML = '<option value="">Selecione a unidade</option>';
+        var i;
+        for (i = 0; i < units.length; i++) {
+            var u = units[i];
+            var opt = document.createElement('option');
+            opt.value = u.code;
+            var statusLabel = typeof getUnitStatusText === 'function' ? getUnitStatusText(u.status) : String(u.status || '');
+            var priceLabel = formatSaleUnitPriceLabel(u.price);
+            opt.textContent = u.code + ' — ' + statusLabel + (priceLabel ? ' · ' + priceLabel : '');
+            unitSelect.appendChild(opt);
+        }
+        if (prevCode) unitSelect.value = prevCode;
+    }
+    unitInput.value = '';
     unitInput.disabled = false;
+    showSaleUnitInputMode(true);
     if (unitLabel) unitLabel.textContent = 'Unidade *';
     unitInput.placeholder = 'Selecione ou digite: ex. APTO 102, casa 07, cs 7';
     var codes = typeof listUnitCodesForProperty === 'function' ? listUnitCodesForProperty(propertyId) : [];
-    var i;
     if (datalist) {
         for (i = 0; i < codes.length; i++) {
-            var opt = document.createElement('option');
-            opt.value = codes[i];
-            datalist.appendChild(opt);
+            var dlOpt = document.createElement('option');
+            dlOpt.value = codes[i];
+            datalist.appendChild(dlOpt);
         }
     }
-    var preview = codes.slice(0, 6).join(', ');
-    if (codes.length > 6) preview += '…';
+    var disponivel = 0;
+    var assinado = 0;
+    for (i = 0; i < units.length; i++) {
+        var st = String(units[i].status || '').toLowerCase();
+        if (st === 'disponivel') disponivel++;
+        else if (st === 'assinado') assinado++;
+    }
     if (hintEl) {
-        hintEl.textContent = 'Obrigatório — ' + raw.units.length + ' unidades: ' + preview +
-            '. Pode digitar só o número (ex.: 102) se for único.';
+        hintEl.textContent = 'Obrigatório — ' + units.length + ' unidades (' +
+            disponivel + ' disponível, ' + assinado + ' assinado). Status e preço na lista.';
     }
 }
 
@@ -423,11 +492,13 @@ function updateSaleFormModeUi() {
     var subLbl = document.getElementById('saleFormSubmitLabel');
     var sp = document.getElementById('saleProperty');
     var su = document.getElementById('saleUnitCode');
+    var sus = document.getElementById('saleUnitSelect');
     if (titleEl) titleEl.textContent = editingSaleFirestoreId ? 'Editar venda' : 'Nova venda';
     if (cancelBtn) cancelBtn.style.display = editingSaleFirestoreId ? 'inline-flex' : 'none';
     if (subLbl) subLbl.textContent = editingSaleFirestoreId ? 'Salvar alterações' : 'Registrar venda';
     if (sp) sp.disabled = !!editingSaleFirestoreId;
     if (su) su.disabled = !!editingSaleFirestoreId;
+    if (sus) sus.disabled = !!editingSaleFirestoreId;
 }
 
 function cancelSaleEdit() {
@@ -459,6 +530,9 @@ function beginEditSale(saleId) {
     if (sp) sp.value = String(sale.propertyId);
     var su = document.getElementById('saleUnitCode');
     if (su) su.value = sale.unitCode || '';
+    if (typeof updateSalePropertyUnitField === 'function') updateSalePropertyUnitField();
+    var sus = document.getElementById('saleUnitSelect');
+    if (sus && sus.style.display !== 'none' && sale.unitCode) sus.value = sale.unitCode;
     var sn = document.getElementById('saleClientName');
     if (sn) sn.value = sale.clientName || '';
     var sc = document.getElementById('saleClientCPF');
@@ -572,7 +646,9 @@ async function handleSaleFormSubmission(e) {
         return;
     }
     
-    var unitRaw = (document.getElementById('saleUnitCode') && document.getElementById('saleUnitCode').value || '').trim();
+    var unitRaw = typeof getSaleUnitCodeValue === 'function'
+        ? getSaleUnitCodeValue()
+        : ((document.getElementById('saleUnitCode') && document.getElementById('saleUnitCode').value) || '').trim();
     var slot = typeof getSaleSlotInfoForProperty === 'function' ? getSaleSlotInfoForProperty(propertyId, unitRaw) : { error: 'Sistema de unidades indisponível', saleSlotKey: null };
     if (slot.error) {
         showMessage(slot.error, 'error');
@@ -1618,42 +1694,6 @@ function brokerRowAction(selectEl, id) {
     }
 }
 
-function renderBrokerProductionMigration(preview) {
-    var box = document.getElementById('brokerCampaignProductionBox');
-    var summaryEl = document.getElementById('brokerProductionSummary');
-    var stepsEl = document.getElementById('brokerProductionSteps');
-    var badgeEl = document.getElementById('brokerProductionStatusBadge');
-    var mig = preview && preview.productionMigration ? preview.productionMigration : null;
-    if (!box || !mig) {
-        if (box) box.hidden = true;
-        return;
-    }
-    box.hidden = false;
-    box.className = 'broker-production-box' + (mig.productionReady ? ' broker-production-box--ready' : '');
-    if (summaryEl) summaryEl.textContent = mig.summary || '';
-    if (badgeEl) {
-        badgeEl.textContent = mig.productionReady
-            ? 'Produção OK'
-            : (mig.isTestAccount ? 'Conta TESTE' : 'Pendente (' + (mig.pendingSteps || '?') + ')');
-    }
-    if (stepsEl) {
-        var html = '';
-        var steps = mig.steps || [];
-        var i;
-        for (i = 0; i < steps.length; i++) {
-            var st = steps[i];
-            html += '<li class="' + (st.done ? 'is-done' : '') + '">';
-            if (st.link) {
-                html += '<a href="' + st.link + '" target="_blank" rel="noopener">' + escapeHtml(st.label) + '</a>';
-            } else {
-                html += escapeHtml(st.label);
-            }
-            html += '</li>';
-        }
-        stepsEl.innerHTML = html;
-    }
-}
-
 function renderBrokerCampaignKpis(preview) {
     _brokerCampaignPreview = preview || null;
     var ready = preview ? (preview.readyToSend != null ? preview.readyToSend : preview.eligible) : 0;
@@ -1691,28 +1731,22 @@ function renderBrokerCampaignKpis(preview) {
     if (hint) {
         if (preview && preview.hasTemplate && preview.templateValid === false) {
             hint.textContent = 'Corrija o template Meta antes de disparar. ' + (preview.templateHint || '');
-        } else if (preview && preview.whatsappTestAccount) {
-            hint.textContent = (preview.whatsappTestAccountHint || 'Conta WhatsApp de TESTE na Meta.') +
-                ' Abra o checklist “Migrar para produção” acima para liberar envio a todos os corretores.';
         } else if (preview && preview.isReady && ready > 0) {
-            hint.textContent = 'Pronto: ' + ready + ' corretor(es) — 1 mensagem com nome, destaque, links do empreendimento e do site, notícia do dia + até 2 fotos e 1 vídeo.';
+            hint.textContent = 'Pronto para ' + ready + ' corretor(es). Destaque: ';
             if (preview.campaignWeek && preview.campaignWeek.featuredPropertyTitle) {
-                hint.textContent += ' Destaque: ' + preview.campaignWeek.featuredPropertyTitle;
+                hint.textContent += preview.campaignWeek.featuredPropertyTitle;
                 if (preview.campaignWeek.featuredPrice) hint.textContent += ' (' + preview.campaignWeek.featuredPrice + ')';
-                if (preview.campaignWeek.featuredPropertyUrl) hint.textContent += ' — ' + preview.campaignWeek.featuredPropertyUrl;
-            }
-            if (!preview.hasTemplate) {
-                hint.textContent += ' Sem template: só entrega se o corretor falou com a Bia nas últimas 24h.';
+            } else {
+                hint.textContent += 'automático';
             }
         } else if (preview && preview.duplicateRecordsInDb > 0) {
-            hint.textContent = 'Há duplicatas ativas. Abra Manutenção → Preparar base novamente.';
+            hint.textContent = 'Há duplicatas no cadastro. Clique Atualizar para reorganizar a base.';
         } else if (ready === 0) {
             hint.textContent = 'Nenhum destinatário elegível. Confira telefone (DDD+9) e coluna Campanha = Recebe.';
         } else {
             hint.textContent = preview && preview.nextWeeklyNote ? preview.nextWeeklyNote : '';
         }
     }
-    renderBrokerProductionMigration(preview);
 }
 
 function syncBrokerCampaignWeeklyCheckboxes(sourceEl) {
@@ -1726,19 +1760,38 @@ function syncBrokerCampaignWeeklyCheckboxes(sourceEl) {
 
 function onBrokerCampaignWeeklyToggleChange(el) {
     syncBrokerCampaignWeeklyCheckboxes(el);
+    var enabled = !!(el && el.checked);
+    updateBrokerCampaignWeeklyBarUi(enabled);
+    var statusEl = document.getElementById('brokerCampaignWeeklyStatus');
+    if (statusEl) statusEl.textContent = 'Salvando...';
+    adminPostJson('/brokerCampaignConfig', { enabled: enabled }).then(function(res) {
+        if (res && res.config) applyBrokerCampaignConfigFields(res.config);
+        updateBrokerCampaignWeeklyBarUi(enabled);
+        if (typeof showMessage === 'function') {
+            showMessage(enabled ? 'Campanha semanal ligada.' : 'Campanha semanal desligada.', 'success');
+        }
+        return loadBrokerCampaignPreview();
+    }).catch(function(err) {
+        if (el) el.checked = !enabled;
+        syncBrokerCampaignWeeklyCheckboxes(el);
+        updateBrokerCampaignWeeklyBarUi(!!(el && el.checked));
+        if (typeof showMessage === 'function') {
+            showMessage('Erro ao salvar interruptor: ' + (err.message || ''), 'error');
+        }
+    });
 }
 
 function updateBrokerCampaignWeeklyBarUi(enabled) {
-    var bar = document.querySelector('.broker-campaign-weekly-bar');
+    var wrap = document.querySelector('.broker-campaign-top__switch');
     var statusEl = document.getElementById('brokerCampaignWeeklyStatus');
-    if (bar) {
-        if (enabled) bar.classList.remove('is-off');
-        else bar.classList.add('is-off');
+    if (wrap) {
+        if (enabled) wrap.classList.remove('is-off');
+        else wrap.classList.add('is-off');
     }
-    if (statusEl) {
+    if (statusEl && statusEl.textContent !== 'Salvando...') {
         statusEl.textContent = enabled
-            ? 'Ligada — próximo envio automático: segunda-feira 08h'
-            : 'Desligada — só envia com Disparar agora ou Testar';
+            ? 'Ligada · próxima segunda 08h'
+            : 'Desligada · só manual';
     }
 }
 
@@ -1796,6 +1849,8 @@ function applyBrokerCampaignConfigFields(cfg) {
     if (contact && cfg.whatsappContato) contact.value = cfg.whatsappContato;
     if (cta && cfg.ctaText) cta.value = cfg.ctaText;
     if (tpl) tpl.value = cfg.templateName || 'campanha_corretor_msg';
+    var tplMulti = document.getElementById('brokerCampaignTemplateMulti');
+    if (tplMulti) tplMulti.value = cfg.templateNameMulti || 'campanha_corretor_msg4';
     if (tips && Array.isArray(cfg.usefulTips)) tips.value = cfg.usefulTips.join('\n');
     if (marketTitle) marketTitle.value = cfg.marketNewsTitle || '';
     if (marketText) marketText.value = cfg.marketNewsText || '';
@@ -1870,14 +1925,14 @@ function prepareBrokersPanelIfNeeded(force) {
     if (!force) {
         try {
             if (sessionStorage.getItem('brokerCampaignPrepared') === '1') {
-                if (statusEl) statusEl.textContent = 'Base preparada.';
+                if (statusEl) statusEl.textContent = '';
                 return loadBrokerCampaignPreview().then(function() {
                     return adminFetchJson('/brokerCampaignConfig').then(applyBrokerCampaignConfigFields);
                 });
             }
         } catch (e) {}
     }
-    if (statusEl) statusEl.textContent = 'Preparando base automaticamente...';
+    if (statusEl) statusEl.textContent = '';
     return adminPostJson('/brokerCampaignPrepare', {
         adminEmail: creds.email,
         adminPassword: creds.password,
@@ -1886,15 +1941,7 @@ function prepareBrokersPanelIfNeeded(force) {
     }, { timeoutMs: 300000 }).then(function(r) {
         try { sessionStorage.setItem('brokerCampaignPrepared', '1'); } catch (e) {}
         if (r && r.preview) renderBrokerCampaignKpis(r.preview);
-        if (statusEl) {
-            var msg = 'Pronto. Pode usar Disparar agora quando quiser.';
-            if (r && r.cleanup && r.cleanup.archivedPurged > 0) {
-                msg += ' (' + r.cleanup.archivedPurged + ' arquivados removidos.)';
-            } else if (r && r.cleanup && r.cleanup.duplicatesDeactivated > 0) {
-                msg += ' (' + r.cleanup.duplicatesDeactivated + ' duplicatas desativadas.)';
-            }
-            statusEl.textContent = msg;
-        }
+        if (statusEl) statusEl.textContent = '';
         return adminFetchJson('/brokerCampaignConfig').then(applyBrokerCampaignConfigFields);
     }).catch(function(err) {
         if (statusEl) statusEl.textContent = 'Erro na preparação: ' + (err.message || '');
@@ -2065,6 +2112,7 @@ function collectBrokerCampaignConfigPayload() {
     var cta = document.getElementById('brokerCampaignCta');
     var tips = document.getElementById('brokerCampaignTips');
     var tpl = document.getElementById('brokerCampaignTemplate');
+    var tplMulti = document.getElementById('brokerCampaignTemplateMulti');
     var feat = document.getElementById('brokerCampaignFeaturedProperty');
     var marketTitle = document.getElementById('brokerCampaignMarketTitle');
     var marketText = document.getElementById('brokerCampaignMarketText');
@@ -2079,6 +2127,8 @@ function collectBrokerCampaignConfigPayload() {
         siteUrl: siteUrl ? siteUrl.value : '',
         whatsappContato: contact ? contact.value : '',
         templateName: tpl ? String(tpl.value || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') : '',
+        templateNameMulti: tplMulti ? String(tplMulti.value || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') : '',
+        preferMultiVarTemplate: !!(tplMulti && String(tplMulti.value || '').trim()),
         templateLanguage: 'pt_BR',
         ctaText: cta ? cta.value : '',
         usefulTips: usefulTips,

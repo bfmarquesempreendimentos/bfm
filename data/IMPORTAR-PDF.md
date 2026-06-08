@@ -28,11 +28,11 @@
 **IDs dos empreendimentos:**
 - 1 = Porto Novo
 - 2 = Itaúna  
-- 3 = Amendoeiras
+- 3 = Bandeirantes
 - 4 = Laranjal
 - 5 = Apolo
 - 6 = Coelho
-- 7 = Caçador
+- 7 = Nova Cidade
 
 4. No Admin Panel, vá em **Reservas** e clique em **Importar do PDF**.
 

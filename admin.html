@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
     <link rel="stylesheet" href="styles/main.css?v=9">
-    <link rel="stylesheet" href="styles/admin.css?v=9">
+    <link rel="stylesheet" href="styles/admin.css?v=10">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -393,6 +393,9 @@
                     <div class="form-group">
                         <label id="saleUnitCodeLabel">Unidade</label>
                         <input type="text" id="saleUnitCode" list="saleUnitCodeList" placeholder="Ex: APTO 102, casa 09 (obrigatório se houver várias unidades)">
+                        <select id="saleUnitSelect" style="display:none;">
+                            <option value="">Selecione a unidade</option>
+                        </select>
                         <datalist id="saleUnitCodeList"></datalist>
                         <small class="form-hint" id="saleUnitCodeHint">Empreendimentos com uma única unidade são preenchidos automaticamente.</small>
                     </div>
@@ -535,42 +538,28 @@
 
             <div id="brokerCampaignHub" class="broker-campaign-hub admin-table-container admin-table-container--elevated">
                 <div class="broker-campaign-hub__inner">
-                    <div class="broker-campaign-hub__head">
-                        <div>
+                    <div class="broker-campaign-top">
+                        <div class="broker-campaign-top__info">
                             <h3 class="broker-campaign-hub__title">Campanha WhatsApp</h3>
-                            <p class="broker-campaign-hub__intro">Corretores <strong>ativos</strong> entram na campanha automaticamente (coluna <strong>RECEBE</strong>). Envio semanal às segundas 08h ou manual abaixo.</p>
+                            <p class="broker-campaign-hub__intro">Corretores ativos com <strong>RECEBE</strong> · texto + fotos + vídeo</p>
                         </div>
-                        <p id="brokerCampaignPrepareStatus" class="broker-campaign-prepare-status">Preparando...</p>
-                    </div>
-
-                    <div class="broker-campaign-weekly-bar" role="group" aria-label="Campanha semanal automática">
-                        <label class="broker-campaign-weekly-toggle">
-                            <input type="checkbox" id="brokerCampaignEnabledTop" onchange="onBrokerCampaignWeeklyToggleChange(this)">
-                            <span class="broker-campaign-weekly-toggle__label">Campanha semanal automática (WhatsApp, segundas 08h — Brasília)</span>
-                        </label>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="saveBrokerCampaignConfig()">
-                            <i class="fas fa-save" aria-hidden="true"></i> Salvar
-                        </button>
-                        <span id="brokerCampaignWeeklyStatus" class="broker-campaign-weekly-status">—</span>
-                    </div>
-
-                    <div id="brokerCampaignProductionBox" class="broker-production-box" hidden role="region" aria-label="Migração WhatsApp produção">
-                        <div class="broker-production-box__head">
-                            <strong>Migrar para produção (Opção B)</strong>
-                            <span id="brokerProductionStatusBadge" class="broker-production-badge">—</span>
+                        <div class="broker-campaign-top__switch" role="group" aria-label="Campanha semanal automática">
+                            <label class="broker-switch" for="brokerCampaignEnabledTop">
+                                <input type="checkbox" id="brokerCampaignEnabledTop" class="broker-switch__input" onchange="onBrokerCampaignWeeklyToggleChange(this)">
+                                <span class="broker-switch__track" aria-hidden="true"><span class="broker-switch__thumb"></span></span>
+                                <span class="broker-switch__label">Semanal (seg 08h)</span>
+                            </label>
+                            <span id="brokerCampaignWeeklyStatus" class="broker-campaign-weekly-status">—</span>
                         </div>
-                        <p id="brokerProductionSummary" class="broker-production-summary"></p>
-                        <ol id="brokerProductionSteps" class="broker-production-steps"></ol>
-                        <p class="form-hint">Número alvo: <strong>+55 21 99759-0814</strong> (Bia). Após concluir, qualquer corretor recebe a campanha sem cadastro em números de teste.</p>
                     </div>
 
                     <div class="broker-campaign-kpis">
                         <div class="broker-kpi broker-kpi--ready">
-                            <span class="broker-kpi__label">Prontos para disparo</span>
+                            <span class="broker-kpi__label">Prontos</span>
                             <strong id="brokerKpiReady" class="broker-kpi__value" data-value="0">—</strong>
                         </div>
                         <div class="broker-kpi">
-                            <span class="broker-kpi__label">Ativos na campanha</span>
+                            <span class="broker-kpi__label">Ativos</span>
                             <strong id="brokerKpiActive" class="broker-kpi__value">—</strong>
                         </div>
                         <div class="broker-kpi">
@@ -578,12 +567,13 @@
                             <strong id="brokerKpiOptOut" class="broker-kpi__value">—</strong>
                         </div>
                         <div class="broker-kpi">
-                            <span class="broker-kpi__label">Sem telefone</span>
+                            <span class="broker-kpi__label">Sem tel.</span>
                             <strong id="brokerKpiNoPhone" class="broker-kpi__value">—</strong>
                         </div>
                     </div>
 
-                    <p id="brokerCampaignPreviewStats" class="broker-campaign-hint">Carregando...</p>
+                    <p id="brokerCampaignPreviewStats" class="broker-campaign-hint">Carregando resumo...</p>
+                    <p id="brokerCampaignPrepareStatus" class="broker-campaign-prepare-status" aria-live="polite"></p>
 
                     <div class="broker-campaign-primary">
                         <button type="button" id="brokerCampaignBtnSendNow" class="btn btn-success btn-lg broker-btn-send-now" onclick="sendBrokerCampaignNow()" disabled>
@@ -591,7 +581,7 @@
                         </button>
                         <div class="broker-campaign-test-inline">
                             <select id="brokerCampaignTestSelect" class="campaign-test-select" aria-label="Corretor para teste">
-                                <option value="">Teste em 1 corretor</option>
+                                <option value="">Corretor para teste</option>
                             </select>
                             <button type="button" id="brokerCampaignBtnTest" class="btn btn-secondary" onclick="sendBrokerCampaignTestSingle()">
                                 <i class="fas fa-vial" aria-hidden="true"></i> Testar
@@ -600,97 +590,56 @@
                     </div>
 
                     <details class="broker-campaign-details">
-                        <summary>Configuração da mensagem</summary>
-                        <div class="broker-campaign-details__body">
-                            <div class="campaign-form-grid">
-                                <label class="campaign-field-col">
-                                    <span>Título semanal</span>
-                                    <input type="text" id="brokerCampaignTitle" placeholder="Atualização semanal B F Marques">
-                                </label>
-                                <label class="campaign-field-col">
-                                    <span>URL do site</span>
-                                    <input type="text" id="brokerCampaignSiteUrl" placeholder="https://bfmarquesempreendimentos.github.io/bfm/">
-                                </label>
-                                <label class="campaign-field-col">
-                                    <span>WhatsApp suporte</span>
-                                    <input type="text" id="brokerCampaignContact" placeholder="(21) 99759-0814">
-                                </label>
-                                <label class="campaign-field-col campaign-field-col--wide">
-                                    <span>Template Meta (obrigatório se a Bia nunca falou com o corretor)</span>
-                                    <input type="text" id="brokerCampaignTemplate" list="brokerCampaignTemplateList" placeholder="campanha_corretor_msg" autocomplete="off">
-                                    <datalist id="brokerCampaignTemplateList"></datalist>
-                                    <small id="brokerCampaignTemplateHint" class="form-hint">1 mensagem + 2 fotos + 1 vídeo. Destaque e notícia editáveis abaixo. Template Meta só se a Meta exigir (24h).</small>
-                                    <label class="campaign-field-col campaign-field-col--wide" style="margin-top:10px;">
-                                        <span>ID da <strong>conta</strong> WhatsApp (WABA) — WhatsApp Manager → Configurações da conta (não é o número da Bia)</span>
-                                        <div class="broker-waba-row">
-                                            <input type="text" id="brokerCampaignWabaId" placeholder="ID da conta (WhatsApp Manager → Configurações da conta)" inputmode="numeric" autocomplete="off">
-                                            <button type="button" class="btn btn-secondary btn-sm" onclick="discoverBrokerCampaignWaba()">Detectar</button>
-                                            <button type="button" class="btn btn-primary btn-sm" onclick="saveBrokerCampaignWaba()">Salvar WABA</button>
-                                        </div>
-                                        <label class="campaign-field-col campaign-field-col--wide" style="margin-top:8px;">
-                                            <span>Número da <strong>Bia</strong> (phone_number_id — detectado automaticamente)</span>
-                                            <input type="text" id="brokerCampaignBiaPhoneId" readonly placeholder="Envie msg para a Bia ou Salvar WABA" class="input-readonly">
-                                        </label>
-                                        <small id="brokerCampaignWabaHint" class="form-hint">A Bia já atende leads pelo WhatsApp; o sistema usa o mesmo número dela para campanha. Não confunda com o ID da conta (WABA).</small>
-                                    </label>
-                                    <details class="broker-template-help">
-                                        <summary>Como criar o template na Meta (clique aqui)</summary>
-                                        <ol class="broker-template-help__steps">
-                                            <li>Entre em <a href="https://business.facebook.com" target="_blank" rel="noopener">business.facebook.com</a> → <strong>WhatsApp Manager</strong> → <strong>Modelos de mensagem</strong> → <strong>Criar modelo</strong>.</li>
-                                            <li>Nome: <code>campanha_corretor_msg</code> · Categoria: <strong>Marketing</strong> · Idioma: <strong>Português (Brasil)</strong>.</li>
-                                            <li>No corpo, cole (texto <em>depois</em> do {{1}} é obrigatório):<br><code>🏡 B F Marques Empreendimentos&#10;&#10;{{1}}&#10;&#10;Equipe comercial parceira.</code></li>
-                                            <li>Exemplo da variável {{1}} (a Meta pede):<br><code>Olá, João! Site: https://bfmarquesempreendimentos.github.io/bfm/ — Ofertas da semana no ar. Suporte: (21) 99759-0814</code></li>
-                                            <li>Envie para análise e aguarde <strong>Aprovado</strong> (horas ou até 48h).</li>
-                                            <li>Volte aqui, preencha <strong>campanha_corretor_msg</strong> no campo acima, Salvar → Testar → Disparar.</li>
-                                        </ol>
-                                    </details>
-                                </label>
-                            </div>
-                            <div class="campaign-form-grid">
-                                <label class="campaign-field-col campaign-field-col--wide">
-                                    <span>Destaque da semana</span>
-                                    <select id="brokerCampaignFeaturedProperty">
-                                        <option value="">Automático (rotação por semana)</option>
-                                    </select>
-                                    <small class="form-hint">Escolha o empreendimento das fotos/vídeo e do link direto. Salve antes de Testar ou Disparar.</small>
-                                </label>
-                                <label class="campaign-field-col campaign-field-col--wide">
-                                    <span>Notícia de mercado — título</span>
-                                    <input type="text" id="brokerCampaignMarketTitle" placeholder="Deixe vazio para notícia automática (muda a cada dia)">
-                                </label>
-                                <label class="campaign-field-col campaign-field-col--wide">
-                                    <span>Notícia de mercado — texto</span>
-                                    <textarea id="brokerCampaignMarketText" rows="2" placeholder="Deixe vazio para usar rotação automática"></textarea>
-                                </label>
-                            </div>
-                            <p id="brokerCampaignWeekPreview" class="broker-campaign-hint" style="margin:8px 0 12px;"></p>
+                        <summary>Personalizar mensagem</summary>
+                        <div class="broker-campaign-details__body broker-campaign-config-slim">
+                            <label class="campaign-field-full">
+                                <span>Destaque da semana</span>
+                                <select id="brokerCampaignFeaturedProperty">
+                                    <option value="">Automático (rotação por semana)</option>
+                                </select>
+                            </label>
+                            <p id="brokerCampaignWeekPreview" class="broker-campaign-hint broker-campaign-week-preview"></p>
                             <label class="campaign-field-full">
                                 <span>Chamada comercial (CTA)</span>
                                 <input type="text" id="brokerCampaignCta" placeholder="Divulgue as ofertas da semana...">
                             </label>
                             <label class="campaign-field-full">
-                                <span>Dicas (uma por linha)</span>
-                                <textarea id="brokerCampaignTips" rows="3" placeholder="Dica 1"></textarea>
+                                <span>Dicas rotativas (uma por linha)</span>
+                                <textarea id="brokerCampaignTips" rows="3" placeholder="Dica MCMV: confirme renda antes da simulação."></textarea>
                             </label>
-                            <label class="campaign-test-row">
-                                <input type="checkbox" id="brokerCampaignEnabled" onchange="syncBrokerCampaignWeeklyCheckboxes(this)">
-                                <span>Mesmo interruptor da campanha semanal (acima). Segundas 08h — Brasília.</span>
+                            <label class="campaign-field-full">
+                                <span>WhatsApp suporte comercial</span>
+                                <input type="text" id="brokerCampaignContact" placeholder="(21) 99555-7010">
                             </label>
+                            <details class="broker-campaign-optional">
+                                <summary>Notícia de mercado (opcional)</summary>
+                                <label class="campaign-field-full">
+                                    <span>Título</span>
+                                    <input type="text" id="brokerCampaignMarketTitle" placeholder="Vazio = rotação automática">
+                                </label>
+                                <label class="campaign-field-full">
+                                    <span>Texto</span>
+                                    <textarea id="brokerCampaignMarketText" rows="2" placeholder="Vazio = rotação automática"></textarea>
+                                </label>
+                            </details>
                             <button type="button" class="btn btn-primary" onclick="saveBrokerCampaignConfig()">
-                                <i class="fas fa-save" aria-hidden="true"></i> Salvar configuração
+                                <i class="fas fa-save" aria-hidden="true"></i> Salvar personalização
                             </button>
                         </div>
                     </details>
 
-                    <details class="broker-campaign-details">
-                        <summary>Manutenção do cadastro</summary>
-                        <div class="broker-campaign-details__body">
-                            <p class="form-hint">A base é preparada automaticamente ao abrir esta página. Use só se precisar forçar nova limpeza.</p>
-                            <button type="button" class="btn btn-secondary" onclick="prepareBrokersPanelManual(true)">
-                                <i class="fas fa-broom" aria-hidden="true"></i> Preparar base novamente
-                            </button>
-                        </div>
-                    </details>
+                    <div class="broker-campaign-tech-hidden" hidden aria-hidden="true">
+                        <input type="checkbox" id="brokerCampaignEnabled">
+                        <input type="text" id="brokerCampaignTitle">
+                        <input type="text" id="brokerCampaignSiteUrl">
+                        <input type="text" id="brokerCampaignTemplate" list="brokerCampaignTemplateList">
+                        <datalist id="brokerCampaignTemplateList"></datalist>
+                        <input type="text" id="brokerCampaignTemplateMulti">
+                        <small id="brokerCampaignTemplateHint"></small>
+                        <input type="text" id="brokerCampaignWabaId">
+                        <input type="text" id="brokerCampaignBiaPhoneId">
+                        <small id="brokerCampaignWabaHint"></small>
+                    </div>
                 </div>
             </div>
 
@@ -1298,7 +1247,7 @@
     <script src="js/whatsapp-leads.js?v=3"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=31"></script>
+    <script src="js/admin.js?v=32"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

@@ -101,7 +101,7 @@ const pricePrefix = property.title === 'Casa Luxo Maricá'
 ```
 
 **⚠️ OBSERVAÇÃO:**
-- Card especial para Amendoeiras (ID 3) possui classe adicional `.property-card--amendoeiras`
+- Card especial para Bandeirantes (ID 3) possui classe adicional `.property-card--bandeirantes`
 
 ---
 
@@ -378,8 +378,8 @@ if (priceFilter) priceFilter.addEventListener('input', filterProperties);
    - 1 quarto, 1 banheiro
    - 9 imagens, 0 vídeos
 
-3. **Edifício Amendoeiras - Rua Lopes da Cruz, 136** (ID 3) ⭐
-   - Classe especial: `.property-card--amendoeiras`
+3. **Edifício Bandeirantes - Rua Lopes da Cruz, 136** (ID 3) ⭐
+   - Classe especial: `.property-card--bandeirantes`
    - **Override de mídia configurado:**
      - 8 imagens reordenadas (amendoeiras-08 é a primeira)
      - 3 vídeos (amendoeiras-01.mp4, 02.mp4, 03.mp4)
@@ -394,7 +394,7 @@ if (priceFilter) priceFilter.addEventListener('input', filterProperties);
 6. **Residencial Coelho - Rua Dr. Lopes da Cruz** (ID 6)
    - Empreendimento na Rua Dr. Lopes da Cruz
 
-7. **Edifício Caçador - Rua Alcio Souto, 576** (ID 7)
+7. **Edifício Nova Cidade - Rua Alcio Souto, 576** (ID 7)
    - Endereço: Rua Alcio Souto, 576
 
 8. **Casa Luxo Maricá** (ID 8) ⭐

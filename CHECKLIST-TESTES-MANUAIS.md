@@ -53,11 +53,11 @@ Use este checklist para testes manuais no navegador.
 
 - [ ] **Card 1 - Porto Novo:** Prefixo "À partir de:" **PRESENTE** ✅
 - [ ] **Card 2 - Itaúna:** Prefixo "À partir de:" **PRESENTE** ✅
-- [ ] **Card 3 - Amendoeiras:** Prefixo "À partir de:" **PRESENTE** ✅
+- [ ] **Card 3 - Bandeirantes:** Prefixo "À partir de:" **PRESENTE** ✅
 - [ ] **Card 4 - Laranjal:** Prefixo "À partir de:" **PRESENTE** ✅
 - [ ] **Card 5 - Apolo:** Prefixo "À partir de:" **PRESENTE** ✅
 - [ ] **Card 6 - Coelho:** Prefixo "À partir de:" **PRESENTE** ✅
-- [ ] **Card 7 - Caçador:** Prefixo "À partir de:" **PRESENTE** ✅
+- [ ] **Card 7 - Nova Cidade:** Prefixo "À partir de:" **PRESENTE** ✅
 - [ ] **Card 8 - Casa Luxo Maricá:** Prefixo "À partir de:" **AUSENTE** ✅
 
 **Formato esperado:**
@@ -132,12 +132,12 @@ Para cada card:
 - [ ] **Badges de status nos cards** (coloridos)
 - [ ] Botões "Reservar", "Ver Detalhes", "Docs" **NÃO abrem modal de acesso restrito**
 
-### 2.3 Detalhes do Imóvel - Edifício Amendoeiras
+### 2.3 Detalhes do Imóvel - Edifício Bandeirantes
 **⭐ TESTE CRÍTICO**
 
-- [ ] Clicar em "Ver Detalhes" do **Edifício Amendoeiras**
+- [ ] Clicar em "Ver Detalhes" do **Edifício Bandeirantes**
 - [ ] Modal grande (fullscreen ou semi-fullscreen) abre
-- [ ] Título: "Edifício Amendoeiras - Rua Lopes da Cruz, 136"
+- [ ] Título: "Edifício Bandeirantes - Rua Lopes da Cruz, 136"
 - [ ] Localização com ícone: "📍 São Gonçalo - RJ"
 - [ ] Preço exibido: "R$ 180.000"
 - [ ] Botão de rolar para baixo (⬇️) visível
@@ -415,7 +415,7 @@ Repetir testes de galeria com:
 - [ ] Atributo `onerror` funciona
 
 ### 9.2 Vídeos Não Carregam
-- [ ] Abrir detalhes do Amendoeiras
+- [ ] Abrir detalhes do Bandeirantes
 - [ ] Simular erro de rede
 - [ ] Clicar em thumbnail de vídeo
 - [ ] Player mostra **erro de carregamento** (não trava página)

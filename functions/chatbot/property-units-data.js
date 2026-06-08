@@ -81,8 +81,8 @@ module.exports = {
         }
     },
     
-    3: { // Amendoeiras
-        name: "EDIFÍCIO AMENDOEIRAS - R LOPES DA CRUZ, 136",
+    3: { // Bandeirantes
+        name: "EDIFÍCIO BANDEIRANTES - R LOPES DA CRUZ, 136",
         units: [
             { code: "APTO 101", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 201", price: 165000, bedrooms: 2, status: "disponivel" },
@@ -192,8 +192,8 @@ module.exports = {
         }
     },
     
-    7: { // Edifício Caçador - APTO 102 e APTO 205 assinados; APTO 110 reservado
-        name: "EDIFÍCIO CAÇADOR - RUA ALCIO SOUTO, 576",
+    7: { // Edifício Nova Cidade - APTO 102 e APTO 205 assinados; APTO 110 reservado
+        name: "EDIFÍCIO NOVA CIDADE - RUA ALCIO SOUTO, 576",
         units: [
             { code: "APTO 101", price: 160000, bedrooms: 2, status: "disponivel" },
             { code: "APTO 201", price: 165000, bedrooms: 2, status: "disponivel" },

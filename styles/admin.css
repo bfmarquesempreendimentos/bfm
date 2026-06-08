@@ -2819,21 +2819,113 @@ button.wa-stat.wa-stat--click:focus {
 /* Campanha WhatsApp corretores */
 .broker-campaign-hub { margin-bottom: 16px; }
 .broker-campaign-hub__inner { padding: 18px 20px; }
-.broker-campaign-hub__head {
+.broker-campaign-top {
+    display: -webkit-box;
+    display: -ms-flexbox;
     display: flex;
-    flex-wrap: wrap;
+    -webkit-box-pack: justify;
+    -ms-flex-pack: justify;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    -ms-flex-wrap: wrap;
+    flex-wrap: wrap;
+    gap: 14px;
     margin-bottom: 14px;
 }
-.broker-campaign-hub__title { margin: 0 0 6px 0; font-size: 1.15rem; }
-.broker-campaign-hub__intro { margin: 0; color: var(--bf-text-muted, #64748b); font-size: 0.92rem; }
+.broker-campaign-top__switch {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    gap: 10px;
+}
+.broker-campaign-top__switch.is-off .broker-switch__label { color: #64748b; }
+.broker-campaign-hub__title { margin: 0 0 4px 0; font-size: 1.15rem; }
+.broker-campaign-hub__intro { margin: 0; color: var(--bf-text-muted, #64748b); font-size: 0.88rem; }
 .broker-campaign-prepare-status {
+    margin: 0 0 8px 0;
+    font-size: 0.82rem;
+    color: #64748b;
+}
+.broker-switch {
+    display: -webkit-inline-box;
+    display: -ms-inline-flexbox;
+    display: inline-flex;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    gap: 10px;
     margin: 0;
-    font-size: 0.88rem;
-    color: #047857;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.broker-switch__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+.broker-switch__track {
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    position: relative;
+    vertical-align: middle;
+    -webkit-transition: background 0.2s;
+    transition: background 0.2s;
+}
+.broker-switch__thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    -webkit-transition: left 0.2s;
+    transition: left 0.2s;
+}
+.broker-switch__input:checked + .broker-switch__track {
+    background: #16a34a;
+}
+.broker-switch__input:checked + .broker-switch__track .broker-switch__thumb {
+    left: 23px;
+}
+.broker-switch__input:focus + .broker-switch__track {
+    outline: 2px solid #93c5fd;
+    outline-offset: 2px;
+}
+.broker-switch__label {
     font-weight: 600;
+    font-size: 0.9rem;
+    color: #0f172a;
+}
+.broker-campaign-config-slim .campaign-field-full { margin-bottom: 12px; }
+.broker-campaign-week-preview { margin: 4px 0 10px 0; font-size: 0.85rem; }
+.broker-campaign-optional {
+    margin: 8px 0 12px 0;
+    padding: 10px 12px;
+    border: 1px dashed #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+.broker-campaign-optional summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: #475569;
 }
 .broker-production-box {
     margin: 0 0 14px 0;
@@ -2948,6 +3040,7 @@ button.wa-stat.wa-stat--click:focus {
     border-color: #fecaca;
 }
 .broker-campaign-kpis {
+    margin-bottom: 10px;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 10px;

@@ -87,7 +87,7 @@ Grid de Cards (3 colunas em desktop):
 ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
 │ [Foto]       │  │ [Foto]       │  │ [Foto]       │
 │              │  │              │  │              │
-│ Porto Novo   │  │ Itaúna       │  │ Amendoeiras  │
+│ Porto Novo   │  │ Itaúna       │  │ Bandeirantes  │
 │ 📍 Porto Novo│  │ 📍 Nova      │  │ 📍 Lopes da  │
 │              │  │    Cidade    │  │    Cruz      │
 │ 🛏️ 1  🚿 1   │  │ 🛏️ 1  🚿 1   │  │ 🛏️ 2  🚿 2   │
@@ -119,7 +119,7 @@ Grid de Cards (3 colunas em desktop):
 ┌──────────────┐  ┌──────────────┐
 │ [Foto]       │  │ [Foto]       │
 │              │  │              │
-│ Caçador      │  │ Casa Luxo    │ ⭐ EXCEÇÃO
+│ Nova Cidade      │  │ Casa Luxo    │ ⭐ EXCEÇÃO
 │ 📍 Alcio     │  │    Maricá    │
 │    Souto     │  │ 📍 Maricá    │
 │ 🛏️ 2  🚿 1   │  │ 🛏️ 3  🚿  2   │
@@ -213,14 +213,14 @@ Grid de Cards (3 colunas em desktop):
 
 ## 🖼️ TESTE 5: Galeria de Fotos (Corretor Logado)
 
-### Passo 6: Clicar em "Ver Detalhes" do Edifício Amendoeiras
+### Passo 6: Clicar em "Ver Detalhes" do Edifício Bandeirantes
 
 **O que deve ser visto:**
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                                                       [×]    │
-│  Edifício Amendoeiras - Rua Lopes da Cruz, 136             │
+│  Edifício Bandeirantes - Rua Lopes da Cruz, 136             │
 │  📍 São Gonçalo - RJ                                        │
 │                                     R$ 180.000  [⬇️ Rolar] │
 │                                                             │
@@ -450,7 +450,7 @@ Grid de Cards (3 colunas em desktop):
 **Testes de filtro:**
 
 1. **Filtro de Tipo = "Casa"**
-   - Resultado: 4 imóveis (Itaúna, Coelho, Caçador, Casa Luxo Maricá)
+   - Resultado: 4 imóveis (Itaúna, Coelho, Nova Cidade, Casa Luxo Maricá)
 
 2. **Filtro de Status = "Disponível"**
    - Resultado: Imóveis com status verde

@@ -979,11 +979,11 @@ body {
     }
 }
 
-.property-card--amendoeiras .property-image {
+.property-card--bandeirantes .property-image {
     background: #111;
 }
 
-.property-card--amendoeiras .property-image img {
+.property-card--bandeirantes .property-image img {
     object-fit: cover;
     object-position: center;
 }

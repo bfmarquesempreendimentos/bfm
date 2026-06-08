@@ -11,11 +11,11 @@ let currentGalleryMediaIndex = 0;
 var PROPERTY_URL_SLUGS = {
     1: 'porto-novo',
     2: 'residencial-itauna',
-    3: 'edificio-amendoeiras',
+    3: 'edificio-bandeirantes',
     4: 'condominio-laranjal',
     5: 'residencial-apolo',
     6: 'residencial-coelho',
-    7: 'edificio-cacador',
+    7: 'edificio-nova-cidade',
     8: 'casa-luxo-marica'
 };
 var _lastOpenedImovelFromUrl = null;
@@ -270,7 +270,7 @@ function loadProperties() {
         },
         {
             id: 3,
-            title: 'Edifício Amendoeiras - Rua Lopes da Cruz, 136',
+            title: 'Edifício Bandeirantes - Rua Lopes da Cruz, 136',
             type: 'apartamento',
             location: 'Amendoeira, Rio de Janeiro - RJ',
             address: 'Rua Lopes da Cruz, 136, Amendoeira, Rio de Janeiro - RJ',
@@ -283,7 +283,7 @@ function loadProperties() {
             status: 'disponivel',
             images: propertyMediaOverrides[3].images,
             videos: propertyMediaOverrides[3].videos,
-            description: 'Apartamentos no Edifício Amendoeira com 20 unidades disponíveis (101 a 210). Apartamentos de 1 quarto com excelente aproveitamento de espaço. Prédio moderno em localização privilegiada com fácil acesso ao comércio e transporte.',
+            description: 'Apartamentos no Edifício Bandeirantes com 20 unidades disponíveis (101 a 210). Apartamentos de 1 quarto com excelente aproveitamento de espaço. Prédio moderno em localização privilegiada com fácil acesso ao comércio e transporte.',
             features: ['20 Unidades Disponíveis', '1 Quarto', 'Área de Serviço', 'Localização Central', 'Próximo ao Comércio'],
             reservedUntil: null,
             reservedBy: null
@@ -385,7 +385,7 @@ function loadProperties() {
         },
         {
             id: 7,
-            title: 'Edifício Caçador - Rua Alcio Souto, 576',
+            title: 'Edifício Nova Cidade - Rua Alcio Souto, 576',
             type: 'apartamento',
             location: 'Luiz Caçador, Rio de Janeiro - RJ',
             address: 'Rua Alcio Souto, 576, Luiz Caçador, Rio de Janeiro - RJ',
@@ -409,7 +409,7 @@ function loadProperties() {
             videos: [
                 'assets/videos/cacador/cacador-01.mp4'
             ],
-            description: 'Apartamentos no Edifício Caçador com 20 unidades disponíveis (101 a 210). Apartamentos de 1 quarto em prédio moderno. Excelente localização com infraestrutura completa no entorno.',
+            description: 'Apartamentos no Edifício Nova Cidade com 20 unidades disponíveis (101 a 210). Apartamentos de 1 quarto em prédio moderno. Excelente localização com infraestrutura completa no entorno.',
             features: ['20 Apartamentos', '1 Quarto', 'Prédio Moderno', 'Área de Serviço', 'Boa Localização'],
             reservedUntil: null,
             reservedBy: null
@@ -484,6 +484,11 @@ function loadProperties() {
     startHeroSlideshow(visibleProperties);
 }
 
+var PROPERTY_SLUG_ALIASES = {
+    'edificio-amendoeiras': 3,
+    'edificio-cacador': 7
+};
+
 function propertyIdFromSlug(slug) {
     var s = String(slug || '').trim().toLowerCase();
     if (!s) return 0;
@@ -492,6 +497,7 @@ function propertyIdFromSlug(slug) {
     for (i = 0; i < keys.length; i++) {
         if (PROPERTY_URL_SLUGS[keys[i]] === s) return Number(keys[i]);
     }
+    if (PROPERTY_SLUG_ALIASES[s]) return PROPERTY_SLUG_ALIASES[s];
     if (/^imovel-(\d+)$/.test(s)) return parseInt(s.replace('imovel-', ''), 10);
     return 0;
 }
@@ -701,7 +707,7 @@ function displayProperties(propertiesToShow) {
 // Create property card element
 function createPropertyCard(property) {
     const card = document.createElement('div');
-    card.className = property.id === 3 ? 'property-card property-card--amendoeiras' : 'property-card';
+    card.className = property.id === 3 ? 'property-card property-card--bandeirantes' : 'property-card';
     card.onclick = () => showPropertyDetails(property.id);
     
     const brokerView = typeof isBroker === 'function' ? isBroker() : false;

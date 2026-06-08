@@ -57,28 +57,26 @@ O sistema envia no `{{1}}` o **mesmo texto** da campanha para quem já conversou
 
 ### Amostra da variável {{1}} (obrigatório na Meta)
 
-Na seção **Amostras de variáveis**, cole este exemplo em `{{1}}` (a Meta exige amostra para aprovar):
+Na seção **Amostras de variáveis**, cole este exemplo em `{{1}}` (sem repetir cabeçalho/rodapé fixos do template — fotos e vídeo vêm em mensagens separadas):
 
 ```
-B F MARQUES EMPREENDIMENTOS
-Material oficial para corretores — semana 23
+Ola, Joao!
 
-Ola, Joao! Obrigado pela parceria.
-
-Destaque desta semana: Edificio Cacador
+Destaque desta semana: Edificio Nova Cidade
 Rua Alcio Souto, 576, Luiz Cacador, Sao Goncalo - RJ
-Venda a partir de R$ 160.000,00. Engenharia ate R$193.000,00 (referencia do predio).
+Venda a partir de R$ 160.000,00. Engenharia ate R$193.000,00 referencia do predio.
 Minha Casa Minha Vida
 Mapa: https://maps.app.goo.gl/N4CNvNQwx1KW8FCH6
 
-Empreendimento (fotos, videos, unidades):
-https://bfmarquesempreendimentos.github.io/bfm/?p=edificio-cacador
+Link do empreendimento:
+https://bfmarquesempreendimentos.github.io/bfm/imovel/edificio-nova-cidade
 
-Portfolio completo:
+Portfolio:
 https://bfmarquesempreendimentos.github.io/bfm/
 
-A seguir: fotos e video do destaque para repassar ao cliente.
-Suporte comercial: Bruno Marques (21) 99555-7010
+Dica MCMV: confirme renda bruta familiar e nome limpo antes da simulacao.
+Divulgue as ofertas da semana para seus leads e traga sua visita agendada.
+Suporte comercial: Bruno Marques 21 99555-7010
 ```
 
 Após o template, o sistema envia **uma mensagem de texto completa** (apresentação + link) e **fotos/vídeo** com legendas com preço e site.
@@ -125,7 +123,64 @@ O **mesmo texto** e enviado pela API da Meta para todos os aparelhos. Pequenas d
 
 ---
 
-## Opção formatada (5 variáveis — mensagem mais organizada)
+## Opção recomendada para cold contact (6 variáveis — parágrafos reais)
+
+Use este modelo quando quiser **semana, destaque e links em blocos separados** (melhor leitura no iPhone). O sistema tenta este template **antes** do `campanha_corretor_msg` de 1 variável.
+
+| Campo | Valor |
+|--------|--------|
+| **Nome do template** | `campanha_corretor_msg4` |
+| **Categoria** | Marketing |
+| **Idioma** | Português (Brasil) — `pt_BR` |
+| **Cabeçalho** | Nenhum |
+| **Rodapé** | Nenhum |
+| **Botões** | Nenhum |
+
+### Corpo (copie e cole)
+
+```
+Material oficial para corretores parceiros B F Marques Empreendimentos:
+
+Semana {{1}}
+
+Ola, {{2}}! Obrigado pela parceria.
+
+{{3}}
+
+Empreendimento: {{4}}
+Portfolio: {{5}}
+
+{{6}}
+
+Obrigado pela parceria. Duvidas ou visitas: responda esta mensagem.
+```
+
+### Amostras das variáveis (na ordem {{1}} a {{6}})
+
+| Variável | Exemplo |
+|----------|---------|
+| {{1}} | `24` |
+| {{2}} | `Carolina` |
+| {{3}} | Ver bloco abaixo |
+| {{4}} | `https://bfmarquesempreendimentos.github.io/bfm/imovel/edificio-nova-cidade` |
+| {{5}} | `https://bfmarquesempreendimentos.github.io/bfm/` |
+| {{6}} | `Dica MCMV: confirme renda bruta familiar e nome limpo antes da simulacao. Divulgue as ofertas da semana para seus leads e traga sua visita agendada. Suporte comercial: Bruno Marques 21 99555-7010` |
+
+**Exemplo de {{3}}:**
+
+```
+Destaque desta semana: Edificio Nova Cidade
+Rua Alcio Souto, 576, Luiz Cacador, Sao Goncalo - RJ
+Venda a partir de R$ 160.000,00. Engenharia ate R$193.000,00 referencia do predio.
+Minha Casa Minha Vida
+Mapa: https://maps.app.goo.gl/N4CNvNQwx1KW8FCH6
+```
+
+No painel **Corretores → Configuração**, o campo **Template multi-variável** deve ser `campanha_corretor_msg4` (padrão do sistema). Se ainda não estiver aprovado na Meta, o envio cai automaticamente no `campanha_corretor_msg` (1 variável).
+
+---
+
+## Opção formatada (5 variáveis — legado)
 
 Use só se quiser título, link e dica em campos separados.
 

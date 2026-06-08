@@ -399,9 +399,13 @@ function buildCampaignMessageLines(config, broker, now, profile) {
   parts.push(forTemplate ? 'B F MARQUES EMPREENDIMENTOS' : '🏡 *B F MARQUES EMPREENDIMENTOS*');
   parts.push(T('Material oficial para corretores — semana ' + ctx.week));
   parts.push('');
-  parts.push(forTemplate
-    ? ('Ola, ' + ctx.firstName + '! Obrigado pela parceria.')
-    : ('Olá, *' + ctx.firstName + '*! Obrigado pela parceria.'));
+  if (forTemplate && profile.shortGreeting) {
+    parts.push('Ola, ' + ctx.firstName + '!');
+  } else {
+    parts.push(forTemplate
+      ? ('Ola, ' + ctx.firstName + '! Obrigado pela parceria.')
+      : ('Olá, *' + ctx.firstName + '*! Obrigado pela parceria.'));
+  }
 
   if (f) {
     parts.push('');
@@ -431,16 +435,24 @@ function buildCampaignMessageLines(config, broker, now, profile) {
     var mapsUrl = getMapsUrlForCampaign(f);
     if (mapsUrl) parts.push(forTemplate ? ('Mapa: ' + mapsUrl) : ('🗺️ Mapa (abrir ou copiar): ' + mapsUrl));
     parts.push('');
-    parts.push(forTemplate
-      ? 'Empreendimento desta semana - fotos, videos, unidades:'
-      : bold('🔗 Empreendimento desta semana (fotos, videos, unidades):'));
+    if (profile.linkLabelsCompact) {
+      parts.push(forTemplate ? 'Link do empreendimento:' : bold('🔗 Link do empreendimento:'));
+    } else {
+      parts.push(forTemplate
+        ? 'Empreendimento desta semana - fotos, videos, unidades:'
+        : bold('🔗 Empreendimento desta semana (fotos, videos, unidades):'));
+    }
     parts.push(getPropertyPageUrlForTemplate(f, ctx.siteUrl));
   }
 
   parts.push('');
-  parts.push(forTemplate
-    ? 'Portfolio completo - todos os imoveis:'
-    : bold('🌐 Portfolio completo (todos os imoveis):'));
+  if (profile.linkLabelsCompact) {
+    parts.push(forTemplate ? 'Portfolio:' : bold('🌐 Portfolio:'));
+  } else {
+    parts.push(forTemplate
+      ? 'Portfolio completo - todos os imoveis:'
+      : bold('🌐 Portfolio completo (todos os imoveis):'));
+  }
   parts.push(getPortfolioUrl(ctx.siteUrl));
   if (profile.othersTeaser && ctx.othersTeaser) parts.push(T(ctx.othersTeaser));
 
@@ -475,16 +487,37 @@ var CAMPAIGN_TEMPLATE_PROFILES = [
   { priceExamples: 0, featuresMax: 0, descMax: 0, marketText: false, marketTitle: false, tip: false, othersTeaser: false, mediaNote: false, forTemplate: true },
 ];
 
-/** Remove cabecalho duplicado quando o template Meta ja traz "B F Marques Empreendimentos". */
+/** Remove cabecalho/rodape duplicados quando o template Meta ja traz texto fixo. */
 function stripCampaignTemplateFixedHeader(body) {
   var lines = String(body || '').split('\n');
   var start = 0;
-  if (lines.length) {
-    var first = String(lines[0]).trim();
-    if (first.indexOf('B F MARQUES') >= 0 || first.indexOf('🏡') >= 0) {
-      start = 1;
-      while (start < lines.length && !String(lines[start]).trim()) start += 1;
+  while (start < lines.length) {
+    var head = String(lines[start]).trim();
+    if (!head) {
+      start += 1;
+      continue;
     }
+    if (head.indexOf('B F MARQUES') >= 0 || head.indexOf('🏡') >= 0) {
+      start += 1;
+      continue;
+    }
+    if (head.indexOf('Material oficial para corretores') >= 0) {
+      start += 1;
+      continue;
+    }
+    break;
+  }
+  while (lines.length > start) {
+    var tail = String(lines[lines.length - 1]).trim();
+    if (!tail) {
+      lines.pop();
+      continue;
+    }
+    if (tail === 'Obrigado pela parceria.' || tail.indexOf('Obrigado pela parceria') === 0) {
+      lines.pop();
+      continue;
+    }
+    break;
   }
   return lines.slice(start).join('\n');
 }
@@ -501,16 +534,18 @@ var CAMPAIGN_DIRECT_PROFILE = {
   forTemplate: false,
 };
 
-/** Perfil completo ASCII — máximo de conteúdo aceito pela Meta no {{1}}. */
+/** Perfil completo ASCII — {{1}} unico sem repetir cabecalho, midia nem rodape do template. */
 var CAMPAIGN_FULL_ASCII_PROFILE = {
   priceExamples: 2,
   featuresMax: 2,
   descMax: 0,
-  marketText: true,
-  marketTitle: true,
+  marketText: false,
+  marketTitle: false,
   tip: true,
   othersTeaser: false,
-  mediaNote: true,
+  mediaNote: false,
+  linkLabelsCompact: true,
+  shortGreeting: true,
   forTemplate: true,
 };
 
@@ -808,6 +843,102 @@ function buildCampanhaCorretorBodyComponents(config, broker, now, useSimple) {
     type: 'body',
     parameters: [{ type: 'text', text: bodyText }],
   }];
+}
+
+/** Bloco do imovel para campanha_corretor_msg4 ({{3}}). */
+function buildCampanhaCorretorMsg4PropertyBlock(config, broker, now, compact) {
+  var ctx = buildCampaignContext(config, broker, now);
+  var f = ctx.featured;
+  var T = function(s) { return stripAccentsForTemplate(String(s || '')); };
+  var lines = [];
+  if (!f) return 'Destaque da semana no portfolio.';
+  lines.push('Destaque desta semana: ' + T(f.title));
+  var addrLine = getPropertyAddressLine(f);
+  if (addrLine) lines.push(T(addrLine));
+  var exCount = compact ? 1 : 2;
+  var priceLine = buildCampaignPriceSummary(f.id, exCount, true);
+  if (priceLine) lines.push(T(priceLine));
+  else {
+    var minSale = getFeaturedMinSalePrice(f);
+    if (minSale != null) lines.push('Venda a partir de ' + formatPriceBr(minSale));
+  }
+  if (f.mcmv) lines.push('Minha Casa Minha Vida');
+  var featLine = pickFeaturesLine(f, compact ? 1 : 2, true);
+  if (featLine) lines.push(T(featLine));
+  var mapsUrl = getMapsUrlForCampaign(f);
+  if (mapsUrl) lines.push('Mapa: ' + mapsUrl);
+  return finalizeTemplateVar1Body(lines.join('\n'));
+}
+
+/** Rodape (dica + CTA + suporte) para campanha_corretor_msg4 ({{6}}). */
+function buildCampanhaCorretorMsg4FooterBlock(config, broker, now) {
+  var ctx = buildCampaignContext(config, broker, now);
+  var T = function(s) { return stripAccentsForTemplate(String(s || '')); };
+  var lines = [];
+  if (ctx.tip) lines.push(T(ctx.tip));
+  if (ctx.cta) lines.push(T(ctx.cta));
+  lines.push('Suporte comercial: ' + ctx.contato);
+  return finalizeTemplateVar1Body(lines.join('\n'));
+}
+
+function sanitizeMsg4UrlVar(url) {
+  var s = String(url || '').trim().replace(/\s/g, '');
+  if (!s) s = 'https://bfmarquesempreendimentos.github.io/bfm/';
+  if (s.length > 2000) s = s.substring(0, 2000);
+  return s;
+}
+
+/** Meta rejeita multilinha em variaveis do msg4 (132018) — versao flat para API. */
+function sanitizeMsg4TextVar(text, flat) {
+  var s = finalizeTemplateVar1Body(stripAccentsForTemplate(String(text || '')));
+  if (flat) s = flattenTemplateVar1ForMeta(s);
+  s = sanitizeWhatsAppTemplateParam(s);
+  if (s.length > 1024) s = s.substring(0, 1021) + '...';
+  return s;
+}
+
+function buildCampanhaCorretorMsg4VarTexts(config, broker, now, opts) {
+  opts = opts || {};
+  var compact = !!opts.compact;
+  var flat = opts.flat !== false;
+  var ctx = buildCampaignContext(config, broker, now);
+  var f = ctx.featured;
+  var portfolioUrl = getPortfolioUrl(ctx.siteUrl);
+  var propUrl = f ? getPropertyPageUrlForTemplate(f, ctx.siteUrl) : portfolioUrl;
+  var propertyRaw = buildCampanhaCorretorMsg4PropertyBlock(config, broker, now, compact);
+  var footerRaw = buildCampanhaCorretorMsg4FooterBlock(config, broker, now);
+  return {
+    week: sanitizeMsg4TextVar(String(ctx.week), true),
+    firstName: sanitizeMsg4TextVar(ctx.firstName, true),
+    propertyBlock: sanitizeMsg4TextVar(propertyRaw, flat),
+    propertyUrl: sanitizeMsg4UrlVar(propUrl),
+    portfolioUrl: sanitizeMsg4UrlVar(portfolioUrl),
+    footerBlock: sanitizeMsg4TextVar(footerRaw, flat),
+  };
+}
+
+function buildCampanhaCorretorMsg4Components(config, broker, now, compact) {
+  var v = buildCampanhaCorretorMsg4VarTexts(config, broker, now, { compact: !!compact, flat: true });
+  return [{
+    type: 'body',
+    parameters: [
+      { type: 'text', text: v.week },
+      { type: 'text', text: v.firstName },
+      { type: 'text', text: v.propertyBlock },
+      { type: 'text', text: v.propertyUrl },
+      { type: 'text', text: v.portfolioUrl },
+      { type: 'text', text: v.footerBlock },
+    ],
+  }];
+}
+
+/** Variantes do template multi-variavel — flat primeiro (evita 132018 na API). */
+function getCampanhaCorretorMsg4Candidates(config, broker, now) {
+  return [
+    buildCampanhaCorretorMsg4VarTexts(config, broker, now, { compact: false, flat: true }),
+    buildCampanhaCorretorMsg4VarTexts(config, broker, now, { compact: true, flat: true }),
+    buildCampanhaCorretorMsg4VarTexts(config, broker, now, { compact: false, flat: false }),
+  ];
 }
 
 function delayMs(ms) {
@@ -1178,10 +1309,11 @@ module.exports = {
   buildTemplateMarketingVar1Compact,
   getTemplateVar1Candidates,
   buildTemplateVar1Components,
+  buildCampanhaCorretorMsg4Components,
+  getCampanhaCorretorMsg4Candidates,
   getPropertyPageUrlForTemplate,
   buildPremiumFollowUpText,
   buildPremiumFollowUpTextForTemplate,
-  buildRichCampaignSingleBody,
   buildCampanhaCorretorBodyComponents,
   sendBrokerCampaignFollowUpMedia,
   sendBrokerCampaignTemplateMedia,
