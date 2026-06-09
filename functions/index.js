@@ -3779,8 +3779,24 @@ exports.clientBoletosMe = functions.https.onRequest(async (req, res) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
   try {
-    var email = String(req.query.email || '').trim().toLowerCase();
-    var uid = String(req.query.uid || '').trim();
+    var email = '';
+    var uid = '';
+    var tokenB = null;
+    var authHeaderB = req.headers.authorization;
+    if (authHeaderB && authHeaderB.indexOf('Bearer ') === 0) tokenB = authHeaderB.split('Bearer ')[1];
+    if (!tokenB && req.query.idToken) tokenB = String(req.query.idToken);
+    if (tokenB) {
+      try {
+        var decodedB = await admin.auth().verifyIdToken(tokenB);
+        email = String(decodedB.email || '').trim().toLowerCase();
+      } catch (eTok) {
+        return res.status(403).json({ error: 'Token inválido ou expirado' });
+      }
+    } else {
+      // Legado (sem sessão Firebase Auth): consulta pelo e-mail/uid informado
+      email = String(req.query.email || '').trim().toLowerCase();
+      uid = String(req.query.uid || '').trim();
+    }
     if (!email && !uid) return res.status(400).json({ error: 'email ou uid obrigatório' });
     var db = admin.firestore();
     var q = db.collection('boletos');
@@ -3812,7 +3828,21 @@ exports.clientTimelineMe = functions.https.onRequest(async (req, res) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
   try {
-    var email = String(req.query.email || '').trim().toLowerCase();
+    var email = '';
+    var tokenT = null;
+    var authHeaderT = req.headers.authorization;
+    if (authHeaderT && authHeaderT.indexOf('Bearer ') === 0) tokenT = authHeaderT.split('Bearer ')[1];
+    if (!tokenT && req.query.idToken) tokenT = String(req.query.idToken);
+    if (tokenT) {
+      try {
+        var decodedT = await admin.auth().verifyIdToken(tokenT);
+        email = String(decodedT.email || '').trim().toLowerCase();
+      } catch (eTokT) {
+        return res.status(403).json({ error: 'Token inválido ou expirado' });
+      }
+    } else {
+      email = String(req.query.email || '').trim().toLowerCase();
+    }
     if (!email) return res.status(400).json({ error: 'email obrigatório' });
     var db = admin.firestore();
     var events = [];
@@ -3868,6 +3898,47 @@ exports.clientTimelineMe = functions.https.onRequest(async (req, res) => {
     return res.json(events);
       } catch (err) {
     console.error('clientTimelineMe:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Reparos do cliente autenticado — escopo seguro pelo token Firebase (sem expor reparos de outros). */
+exports.clientRepairsMe = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var token = null;
+    var authHeader = req.headers.authorization;
+    if (authHeader && authHeader.indexOf('Bearer ') === 0) token = authHeader.split('Bearer ')[1];
+    if (!token && req.query.idToken) token = String(req.query.idToken);
+    if (!token) return res.status(401).json({ error: 'Token necessário' });
+    var decoded;
+    try {
+      decoded = await admin.auth().verifyIdToken(token);
+    } catch (eTok) {
+      return res.status(403).json({ error: 'Token inválido ou expirado' });
+    }
+    var email = String(decoded.email || '').trim().toLowerCase();
+    var uid = String(decoded.uid || '').trim();
+    var db = admin.firestore();
+    var byId = {};
+    if (email) {
+      var snapE = await db.collection('repairRequests').where('clientEmail', '==', email).get();
+      snapE.forEach(function(doc) { byId[doc.id] = Object.assign({ firestoreId: doc.id }, doc.data()); });
+    }
+    if (uid) {
+      var snapU = await db.collection('repairRequests').where('clientUid', '==', uid).get();
+      snapU.forEach(function(doc) { byId[doc.id] = Object.assign({ firestoreId: doc.id }, doc.data()); });
+    }
+    var repairs = Object.keys(byId).map(function(k) { return byId[k]; });
+    repairs.sort(function(a, b) { return new Date(b.createdAt || 0) - new Date(a.createdAt || 0); });
+    return res.json(repairs);
+  } catch (err) {
+    console.error('clientRepairsMe:', err);
     return res.status(500).json({ error: err.message });
   }
 });

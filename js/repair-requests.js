@@ -389,6 +389,8 @@ async function submitRepairRequest(event) {
 
 // Cloud Function getRepairs - fonte confiável no Mac (Firestore client falha às vezes)
 var GET_REPAIRS_URL = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs';
+// Endpoint seguro por token (só os reparos do próprio cliente) — preferido quando há sessão Firebase
+var GET_CLIENT_REPAIRS_URL = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/clientRepairsMe';
 
 // Carregar solicitações de reparo do cliente
 async function loadClientRepairs() {
@@ -400,13 +402,28 @@ async function loadClientRepairs() {
     let repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
     let fromServer = [];
     if (typeof fetch === 'function') {
-        try {
-            var resp = await fetch(GET_REPAIRS_URL + '?t=' + Date.now(), { cache: 'no-store', credentials: 'omit' });
-            if (resp.ok) {
-                var data = await resp.json();
-                if (data && Array.isArray(data) && data.length > 0) fromServer = data;
-            }
-        } catch (e1) { console.warn('getRepairs falhou:', e1); }
+        var clientToken = null;
+        if (typeof getClientIdToken === 'function') {
+            try { clientToken = await getClientIdToken(); } catch (eTok) { clientToken = null; }
+        }
+        if (clientToken) {
+            try {
+                var respMe = await fetch(GET_CLIENT_REPAIRS_URL + '?idToken=' + encodeURIComponent(clientToken), { cache: 'no-store', credentials: 'omit' });
+                if (respMe.ok) {
+                    var dataMe = await respMe.json();
+                    if (dataMe && Array.isArray(dataMe)) fromServer = dataMe;
+                }
+            } catch (eMe) { console.warn('clientRepairsMe falhou:', eMe); }
+        }
+        if (fromServer.length === 0) {
+            try {
+                var resp = await fetch(GET_REPAIRS_URL + '?t=' + Date.now(), { cache: 'no-store', credentials: 'omit' });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    if (data && Array.isArray(data) && data.length > 0) fromServer = data;
+                }
+            } catch (e1) { console.warn('getRepairs falhou:', e1); }
+        }
     }
     if (fromServer.length === 0 && typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {
         try {

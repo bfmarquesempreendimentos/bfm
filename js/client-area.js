@@ -202,7 +202,7 @@ async function registerClient(event) {
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
             const uid = userCredential.user.uid;
             
-            var clientProperties = [];
+            let clientProperties = [];
             var regToken = await userCredential.user.getIdToken();
             if (typeof fetchClientPropertySalesMe === 'function') {
                 const sales = await fetchClientPropertySalesMe(regToken);
@@ -431,6 +431,19 @@ function getClientCloudBaseUrl() {
     return 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
 }
 
+/** Token Firebase do cliente logado (ou null se for login legado sem Firebase Auth). */
+function getClientIdToken() {
+    try {
+        if (typeof getFirebaseAuth === 'function') {
+            var auth = getFirebaseAuth();
+            if (auth && auth.currentUser && auth.currentUser.getIdToken) {
+                return auth.currentUser.getIdToken();
+            }
+        }
+    } catch (e) {}
+    return Promise.resolve(null);
+}
+
 function loadClientBoletos() {
     var listEl = document.getElementById('clientBoletosList');
     if (!listEl || !currentClient) return;
@@ -441,7 +454,11 @@ function loadClientBoletos() {
         return;
     }
     var q = email ? ('email=' + encodeURIComponent(email)) : ('uid=' + encodeURIComponent(uid));
-    fetch(getClientCloudBaseUrl() + '/clientBoletosMe?' + q, { cache: 'no-store' })
+    getClientIdToken().then(function(idToken) {
+    var boletosUrl = idToken
+        ? (getClientCloudBaseUrl() + '/clientBoletosMe?idToken=' + encodeURIComponent(idToken))
+        : (getClientCloudBaseUrl() + '/clientBoletosMe?' + q);
+    fetch(boletosUrl, { cache: 'no-store' })
         .then(function(r) { return r.ok ? r.json() : []; })
         .then(function(rows) {
             if (!rows || !rows.length) {
@@ -465,6 +482,7 @@ function loadClientBoletos() {
         .catch(function() {
             listEl.innerHTML = '<p>Não foi possível carregar boletos agora.</p>';
         });
+    });
 }
 
 // Funções auxiliares para o manual
@@ -568,7 +586,11 @@ function loadClientHistory() {
         renderItems(local.slice().reverse());
         return;
     }
-    fetch(getClientCloudBaseUrl() + '/clientTimelineMe?email=' + encodeURIComponent(email), { cache: 'no-store' })
+    getClientIdToken().then(function(idToken) {
+    var timelineUrl = idToken
+        ? (getClientCloudBaseUrl() + '/clientTimelineMe?idToken=' + encodeURIComponent(idToken))
+        : (getClientCloudBaseUrl() + '/clientTimelineMe?email=' + encodeURIComponent(email));
+    fetch(timelineUrl, { cache: 'no-store' })
         .then(function(r) { return r.ok ? r.json() : []; })
         .then(function(remote) {
             var merged = [];
@@ -585,6 +607,7 @@ function loadClientHistory() {
         .catch(function() {
             renderItems(local.slice().reverse());
         });
+    });
 }
 
 // Obter ícone do histórico

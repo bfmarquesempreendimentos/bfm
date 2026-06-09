@@ -37,7 +37,8 @@
         }
 
         let browser = 'Outro';
-        if (/Edg\//i.test(ua)) browser = 'Edge';
+        if (/Trident\//i.test(ua) || /MSIE /i.test(ua)) browser = 'Internet Explorer';
+        else if (/Edg\//i.test(ua)) browser = 'Edge';
         else if (/OPR\//i.test(ua) || /Opera/i.test(ua)) browser = 'Opera';
         else if (/Chrome/i.test(ua) && !/Edg/i.test(ua)) browser = 'Chrome';
         else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
