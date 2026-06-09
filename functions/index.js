@@ -2495,12 +2495,18 @@ exports.adminProvisionAuth = functions.https.onRequest(async (req, res) => {
     }
     var email = String(body.adminEmail || '').trim().toLowerCase();
     var password = String(body.adminPassword || '');
+    var created = false;
+    var synced = false;
     try {
       await admin.auth().createUser({ email: email, password: password, emailVerified: true });
+      created = true;
     } catch (createErr) {
       if (createErr.code !== 'auth/email-already-exists') throw createErr;
+      var existing = await admin.auth().getUserByEmail(email);
+      await admin.auth().updateUser(existing.uid, { password: password, emailVerified: true });
+      synced = true;
     }
-    return res.json({ ok: true, email: email });
+    return res.json({ ok: true, email: email, created: created, synced: synced });
   } catch (err) {
     console.error('adminProvisionAuth:', err);
     return res.status(500).json({ error: err.message });

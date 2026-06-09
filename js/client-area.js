@@ -107,7 +107,15 @@ async function loginClient(event) {
             return;
         } catch (error) {
             console.error('Erro no login Firebase:', error);
-            showMessage('Email ou senha incorretos.', 'error');
+            var clientMsg = 'Email ou senha incorretos.';
+            if (error && error.code === 'auth/too-many-requests') {
+                clientMsg = 'Muitas tentativas. Aguarde alguns minutos ou use "Esqueci minha senha".';
+            } else if (error && error.code === 'auth/user-not-found') {
+                clientMsg = 'Conta não encontrada. Cadastre-se ou confira o email informado.';
+            } else if (error && (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password')) {
+                clientMsg = 'Email ou senha incorretos. Use "Esqueci minha senha" se necessário.';
+            }
+            showMessage(clientMsg, 'error');
             return;
         }
     }

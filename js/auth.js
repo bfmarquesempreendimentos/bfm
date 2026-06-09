@@ -202,25 +202,41 @@ function handleLogin(e) {
         });
     }
 
+    function brokerAuthNeedsProvision(err) {
+        if (!err || !err.code) return false;
+        return err.code === 'auth/user-not-found' ||
+            err.code === 'auth/wrong-password' ||
+            err.code === 'auth/invalid-credential';
+    }
+
+    function formatBrokerAuthError(err) {
+        if (!err) return 'Email ou senha incorretos.';
+        if (err.code === 'auth/too-many-requests') return 'Muitas tentativas. Aguarde alguns minutos.';
+        if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+            return 'Email ou senha incorretos.';
+        }
+        if (err.message && err.message.indexOf('Firebase:') === 0) return 'Email ou senha incorretos.';
+        return err.message || 'Email ou senha incorretos.';
+    }
+
     auth.signInWithEmailAndPassword(email, password)
         .then(function(cred) { return finishBrokerSession(cred.user); })
         .catch(function(err) {
-            if (err && err.code === 'auth/user-not-found') {
-                return fetch(base + '/brokerProvisionAuth', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: email, password: password }),
-                    cache: 'no-store'
-                }).then(function(r) { return r.json().then(function(j) { if (!r.ok) throw new Error(j.error || 'Falha ao provisionar'); return auth.signInWithEmailAndPassword(email, password); }); })
-                    .then(function(cred2) { return finishBrokerSession(cred2.user); });
-            }
-            throw err;
+            if (!brokerAuthNeedsProvision(err)) throw err;
+            return fetch(base + '/brokerProvisionAuth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, password: password }),
+                cache: 'no-store'
+            }).then(function(r) {
+                return r.json().then(function(j) {
+                    if (!r.ok) throw new Error(j.error || 'Email ou senha incorretos.');
+                    return auth.signInWithEmailAndPassword(email, password);
+                });
+            }).then(function(cred2) { return finishBrokerSession(cred2.user); });
         })
         .catch(function(err) {
-            var msg = 'Email ou senha incorretos.';
-            if (err && err.code === 'auth/wrong-password') msg = 'Senha incorreta.';
-            else if (err && err.message) msg = err.message;
-            showAuthMessage(msg, 'error');
+            showAuthMessage(formatBrokerAuthError(err), 'error');
         });
 }
 

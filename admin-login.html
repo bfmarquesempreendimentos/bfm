@@ -105,6 +105,23 @@
             try { sessionStorage.removeItem('adminSession'); } catch (e) {}
         }
 
+        function authNeedsProvision(err) {
+            if (!err || !err.code) return false;
+            return err.code === 'auth/user-not-found' ||
+                err.code === 'auth/wrong-password' ||
+                err.code === 'auth/invalid-credential';
+        }
+
+        function formatAuthError(err) {
+            if (!err) return 'Não foi possível entrar. Tente novamente.';
+            if (err.code === 'auth/too-many-requests') return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+            if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+                return 'Email ou senha incorretos.';
+            }
+            if (err.message && err.message.indexOf('Firebase:') === 0) return 'Email ou senha incorretos.';
+            return err.message || 'Não foi possível entrar. Tente novamente.';
+        }
+
         function provisionAdminAuth(email, password) {
             return fetch(FUNCTIONS_BASE + '/adminProvisionAuth', {
                 method: 'POST',
@@ -131,29 +148,26 @@
             }
             btn.disabled = true;
             var auth = firebase.auth();
+
+            function tryProvisionAndSignIn(firstErr) {
+                if (!authNeedsProvision(firstErr)) throw firstErr;
+                return provisionAdminAuth(email, password).then(function(res) {
+                    if (!res.ok) throw new Error((res.data && res.data.error) || 'Credenciais inválidas.');
+                    return auth.signInWithEmailAndPassword(email, password);
+                }).then(function(cred2) {
+                    saveAdminSession(cred2.user, meta);
+                    window.location.href = 'admin.html?t=' + Date.now();
+                });
+            }
+
             auth.signInWithEmailAndPassword(email, password)
                 .then(function(cred) {
                     saveAdminSession(cred.user, meta);
                     window.location.href = 'admin.html?t=' + Date.now();
                 })
+                .catch(function(err) { return tryProvisionAndSignIn(err); })
                 .catch(function(err) {
-                    if (err && err.code === 'auth/user-not-found') {
-                        return provisionAdminAuth(email, password).then(function(res) {
-                            if (!res.ok) throw new Error((res.data && res.data.error) || 'Falha ao provisionar conta');
-                            return auth.signInWithEmailAndPassword(email, password);
-                        }).then(function(cred2) {
-                            saveAdminSession(cred2.user, meta);
-                            window.location.href = 'admin.html?t=' + Date.now();
-                        });
-                    }
-                    throw err;
-                })
-                .catch(function(err) {
-                    var msg = 'Credenciais inválidas.';
-                    if (err && err.code === 'auth/wrong-password') msg = 'Senha incorreta.';
-                    else if (err && err.code === 'auth/too-many-requests') msg = 'Muitas tentativas. Aguarde e tente novamente.';
-                    else if (err && err.message) msg = err.message;
-                    showLoginError(msg);
+                    showLoginError(formatAuthError(err));
                 })
                 .finally(function() { btn.disabled = false; });
         });

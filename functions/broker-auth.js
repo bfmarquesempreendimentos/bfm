@@ -53,9 +53,13 @@ async function ensureBrokerFirebaseUser(email, password) {
   var norm = String(email || '').trim().toLowerCase();
   try {
     await admin.auth().createUser({ email: norm, password: password, emailVerified: true });
-    return { created: true };
+    return { created: true, synced: false };
   } catch (err) {
-    if (err.code === 'auth/email-already-exists') return { created: false };
+    if (err.code === 'auth/email-already-exists') {
+      var existing = await admin.auth().getUserByEmail(norm);
+      await admin.auth().updateUser(existing.uid, { password: password, emailVerified: true });
+      return { created: false, synced: true };
+    }
     throw err;
   }
 }
