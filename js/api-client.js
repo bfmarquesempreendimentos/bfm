@@ -28,7 +28,8 @@
         if (method === 'GET' && options.cacheBust !== false) {
             url += (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
         }
-        var headers = { 'Content-Type': 'application/json' };
+        var headers = {};
+        if (method !== 'GET') headers['Content-Type'] = 'application/json';
         if (options.headers) {
             var hk;
             for (hk in options.headers) {

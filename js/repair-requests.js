@@ -332,10 +332,20 @@ async function submitRepairRequest(event) {
         var savedToServer = false;
         if (typeof fetch === 'function') {
             try {
+                var repairToken = null;
+                if (typeof getClientIdToken === 'function') {
+                    repairToken = await getClientIdToken();
+                }
+                var repairHeaders = { 'Content-Type': 'application/json' };
+                var repairPayload = repairRequest;
+                if (repairToken) {
+                    repairHeaders.Authorization = 'Bearer ' + repairToken;
+                    repairPayload = Object.assign({}, repairRequest, { idToken: repairToken });
+                }
                 var resp = await fetch(createRepairUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(repairRequest)
+                    headers: repairHeaders,
+                    body: JSON.stringify(repairPayload)
                 });
                 if (resp.ok) savedToServer = true;
                 else console.warn('createRepair:', resp.status, await resp.text());
@@ -414,15 +424,6 @@ async function loadClientRepairs() {
                     if (dataMe && Array.isArray(dataMe)) fromServer = dataMe;
                 }
             } catch (eMe) { console.warn('clientRepairsMe falhou:', eMe); }
-        }
-        if (fromServer.length === 0) {
-            try {
-                var resp = await fetch(GET_REPAIRS_URL + '?t=' + Date.now(), { cache: 'no-store', credentials: 'omit' });
-                if (resp.ok) {
-                    var data = await resp.json();
-                    if (data && Array.isArray(data) && data.length > 0) fromServer = data;
-                }
-            } catch (e1) { console.warn('getRepairs falhou:', e1); }
         }
     }
     if (fromServer.length === 0 && typeof getAllRepairRequestsFromFirestore === 'function' && typeof firebaseAvailable === 'function' && firebaseAvailable()) {

@@ -1,7 +1,7 @@
 'use strict';
 
 const admin = require('firebase-admin');
-const { verifyAdminFromBody } = require('./admin-accounts');
+const { verifyAdminAuth } = require('./admin-auth');
 const { resolveSaleSlot } = require('./sale-unit-validation');
 
 function allowCors(res) {
@@ -21,7 +21,7 @@ async function adminPropertySalesList(req, res) {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   var body = parseJsonBody(req);
-  if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
   try {
     var db = admin.firestore();
     var snap = await db.collection('propertySales').get();
@@ -139,7 +139,7 @@ async function adminPropertySaleMutate(req, res) {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   var body = parseJsonBody(req);
-  if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
   var action = String(body.action || '').toLowerCase();
   var db = admin.firestore();
   var auth = admin.auth();
@@ -272,7 +272,7 @@ async function adminMergeClientProperty(req, res) {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   var body = parseJsonBody(req);
-  if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
   var clientEmail = String(body.clientEmail || '').trim().toLowerCase();
   var propertyFromSale = body.propertyFromSale;
   if (!clientEmail || !propertyFromSale) return res.status(400).json({ error: 'Dados incompletos' });
@@ -376,7 +376,7 @@ async function adminMigrateLegacySaleSlots(req, res) {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   var body = parseJsonBody(req);
-  if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
   try {
     var db = admin.firestore();
     var snap = await db.collection('propertySales').get();
@@ -428,7 +428,7 @@ async function adminSetUnitStatusOverrides(req, res) {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   var body = parseJsonBody(req);
-  if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
   var items = Array.isArray(body.items) ? body.items : [];
   if (!items.length) return res.status(400).json({ error: 'items obrigatório' });
   try {
@@ -452,7 +452,7 @@ async function adminSyncCatalogUnitStatuses(req, res) {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   var body = parseJsonBody(req);
-  if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
   try {
     var catalog = require('./chatbot/property-units-data');
     var db = admin.firestore();

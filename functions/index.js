@@ -41,6 +41,7 @@ const {
 const propertySalesHandlers = require('./property-sales-handlers');
 const brokerCampaignContent = require('./chatbot/broker-campaign-content');
 const { verifyAdminFromBody, verifyAdminFromReq } = require('./admin-accounts');
+const { verifyAdminAuth } = require('./admin-auth');
 
 admin.initializeApp();
 
@@ -2244,7 +2245,6 @@ exports.getBrokers = functions.https.onRequest(async (req, res) => {
         email: d.email || '',
         phone: d.phone || '',
         creci: d.creci || '',
-        password: d.password || '',
         isActive: d.isActive !== undefined ? d.isActive : false,
         whatsappCampaignOptOut: !!d.whatsappCampaignOptOut,
         isAdmin: d.isAdmin || false,
@@ -2260,6 +2260,68 @@ exports.getBrokers = functions.https.onRequest(async (req, res) => {
     return res.json(deduped);
   } catch (err) {
     console.error('Erro ao buscar corretores:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Login de corretor (validação server-side; senha nunca volta na listagem). */
+exports.brokerLogin = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var body = req.body || {};
+    var email = String(body.email || '').trim().toLowerCase();
+    var password = String(body.password || '');
+    if (!email || !password) return res.status(400).json({ error: 'Email e senha obrigatórios' });
+    var db = admin.firestore();
+    var snap = await db.collection('brokers').where('email', '==', email).limit(5).get();
+    if (snap.empty) return res.status(401).json({ error: 'Email ou senha incorretos' });
+    var match = null;
+    snap.forEach(function(doc) {
+      if (match) return;
+      var d = doc.data() || {};
+      if (String(d.password || '') === password && isBrokerActiveFlag(d.isActive)) {
+        match = {
+          id: doc.id,
+          name: d.name || '',
+          cpf: d.cpf || '',
+          email: d.email || '',
+          phone: d.phone || '',
+          creci: d.creci || '',
+          isActive: true,
+          isAdmin: !!d.isAdmin,
+        };
+      }
+    });
+    if (!match) return res.status(401).json({ error: 'Email ou senha incorretos' });
+    return res.json({ ok: true, broker: match });
+  } catch (err) {
+    console.error('brokerLogin:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Cria conta Firebase Auth para admin (primeiro login; exige credencial legada válida). */
+exports.adminProvisionAuth = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var body = req.body || {};
+    if (!verifyAdminFromBody(body)) {
+      return res.status(403).json({ error: 'Credenciais inválidas' });
+    }
+    var email = String(body.adminEmail || '').trim().toLowerCase();
+    var password = String(body.adminPassword || '');
+    try {
+      await admin.auth().createUser({ email: email, password: password, emailVerified: true });
+    } catch (createErr) {
+      if (createErr.code !== 'auth/email-already-exists') throw createErr;
+    }
+    return res.json({ ok: true, email: email });
+  } catch (err) {
+    console.error('adminProvisionAuth:', err);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -2563,18 +2625,38 @@ exports.adminSyncCatalogUnitStatuses = functions.https.onRequest((req, res) =>
 exports.createRepair = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   try {
     const body = req.body;
     if (!body || typeof body !== 'object') return res.status(400).json({ error: 'Payload inválido' });
+    var repairToken = null;
+    var repairAuthHeader = req.headers.authorization;
+    if (repairAuthHeader && repairAuthHeader.indexOf('Bearer ') === 0) {
+      repairToken = repairAuthHeader.split('Bearer ')[1];
+    }
+    if (!repairToken && body.idToken) repairToken = String(body.idToken);
+    var repairDecoded = null;
+    if (repairToken) {
+      try {
+        repairDecoded = await admin.auth().verifyIdToken(repairToken);
+      } catch (eRepairTok) {
+        return res.status(403).json({ error: 'Token inválido ou expirado' });
+      }
+    } else if (!(await verifyAdminAuth(req)).ok) {
+      return res.status(401).json({ error: 'Autenticação necessária' });
+    }
+    var repairClientEmail = repairDecoded
+      ? String(repairDecoded.email || '').trim().toLowerCase()
+      : String(body.clientEmail || '').trim().toLowerCase();
+    var repairClientUid = repairDecoded ? String(repairDecoded.uid || '') : (body.clientUid || null);
     const repair = {
       id: body.id || Date.now(),
       clientId: body.clientId || null,
-      clientUid: body.clientUid || null,
+      clientUid: repairClientUid || null,
       clientName: body.clientName || '',
-      clientEmail: body.clientEmail || '',
+      clientEmail: repairClientEmail || '',
       clientPhone: body.clientPhone || '',
       clientCpf: body.clientCpf || '',
       propertyId: body.propertyId || '',
@@ -2611,12 +2693,13 @@ exports.createRepair = functions.https.onRequest(async (req, res) => {
 exports.getRepairs = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   res.set('Pragma', 'no-cache');
 
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const db = admin.firestore();
@@ -2640,7 +2723,7 @@ exports.adminDashboardBundle = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
-  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const wa = await getLeadStats();
@@ -2752,7 +2835,7 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
-  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const action = req.query.action || 'list';
@@ -2874,7 +2957,7 @@ exports.chatbotInboxAssume = functions
     allowCors(res);
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-    if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+    if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
 
     try {
       const body = req.body || {};
@@ -2899,7 +2982,7 @@ exports.chatbotInboxReturnToBot = functions.https.onRequest(async (req, res) => 
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const body = req.body || {};
@@ -2921,7 +3004,7 @@ exports.chatbotInboxSend = functions
     allowCors(res);
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-    if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+    if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
 
     try {
       const body = req.body || {};
@@ -3000,7 +3083,7 @@ exports.chatbotInboxDeleteMessage = functions.https.onRequest(async (req, res) =
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const body = req.body || {};
@@ -3021,7 +3104,7 @@ exports.chatbotInboxMarkRead = functions.https.onRequest(async (req, res) => {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const body = req.body || {};
@@ -3041,7 +3124,7 @@ exports.chatbotInboxUpdateStatus = functions.https.onRequest(async (req, res) =>
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const body = req.body || {};
@@ -3069,7 +3152,7 @@ exports.chatbotInboxFollowUp = functions.https.onRequest(async (req, res) => {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
   try {
     const body = req.body || {};
     const raw = (body.phone || '').trim();
@@ -3090,7 +3173,7 @@ exports.chatbotInboxUpdateCategory = functions.https.onRequest(async (req, res) 
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const body = req.body || {};
@@ -3191,7 +3274,7 @@ exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
       return res.json(config);
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-    if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+    if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
 
     const body = req.body || {};
     const allowed = {
@@ -3238,7 +3321,7 @@ exports.brokerCampaignDiscoverWaba = functions
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
     try {
       const body = req.body || {};
-      if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+      if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
       const db = admin.firestore();
       const resolved = await getOrResolveWabaId(db);
       const listed = resolved.wabaId
@@ -3265,7 +3348,7 @@ exports.brokerCampaignSaveWaba = functions
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   try {
     const body = req.body || {};
-    if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+    if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
     const wabaId = String(body.wabaId || '').replace(/\D/g, '');
     if (!wabaId || wabaId.length < 8) {
       return res.status(400).json({ error: 'Informe o ID da conta WhatsApp (WABA), só números.' });
@@ -3311,7 +3394,7 @@ exports.brokerCampaignWhatsAppDiag = functions
     allowCors(res);
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
-    if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+    if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
     try {
       const db = admin.firestore();
       const settings = await loadWhatsappSettings(db);
@@ -3380,7 +3463,7 @@ exports.brokerCampaignPreview = functions
     allowCors(res);
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
-    if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+    if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
     try {
       const preview = await getBrokerCampaignPreview(admin.firestore());
       return res.json(preview);
@@ -3396,7 +3479,7 @@ exports.brokerCampaignTemplates = functions
     allowCors(res);
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
-    if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+    if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
     try {
       const listed = await listApprovedMessageTemplates();
       return res.json(listed);
@@ -3410,7 +3493,7 @@ exports.brokerCampaignRunStatus = functions.https.onRequest(async (req, res) => 
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
-  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
   try {
     const runId = String((req.query && req.query.runId) || '').trim();
     if (!runId) return res.status(400).json({ error: 'runId obrigatório' });
@@ -3449,7 +3532,7 @@ exports.brokerCampaignSendNow = functions
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
     try {
       const body = req.body || {};
-      if (!verifyAdminFromBody(body)) {
+      if (!(await verifyAdminAuth(req)).ok) {
         return res.status(403).json({ error: 'Acesso negado. Faça login no painel admin.' });
       }
       const brokerId = String(body.brokerId || '').trim();
@@ -3476,7 +3559,7 @@ exports.brokerSyncLeads = functions.https.onRequest(async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   try {
     const body = req.body || {};
-    if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+    if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
     const db = admin.firestore();
     const brokerIndex = await buildBrokerPhoneIndex(db);
     const snap = await db.collection('chatbot_leads').get();
@@ -3534,7 +3617,7 @@ exports.brokerCampaignMetrics = functions.https.onRequest(async (req, res) => {
   if (req.method !== 'POST' && req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
   try {
     const body = req.method === 'POST' ? (req.body || {}) : (req.query || {});
-    if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+    if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
     const db = admin.firestore();
 
     // Início da última campanha (segunda 08:00 BRT = 11:00 UTC).
@@ -3606,7 +3689,7 @@ exports.biaLearning = functions.https.onRequest(async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   try {
     const body = req.body || {};
-    if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+    if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
     const db = admin.firestore();
     const autoRef = db.collection('bia_training').doc('auto');
     const globalRef = db.collection('bia_training').doc('global');
@@ -3691,7 +3774,7 @@ exports.brokerCampaignPrepare = functions.https.onRequest(async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   try {
     const body = req.body || {};
-    if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+    if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
     const db = admin.firestore();
     const result = await prepareBrokersCampaignBase(db, {
       forceCleanup: !!body.forceCleanup,
@@ -3711,7 +3794,7 @@ exports.adminCleanupBrokerDuplicates = functions.https.onRequest(async (req, res
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   try {
     const body = req.body || {};
-    if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+    if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
     const purgeArchived = !!(body.purgeArchived);
     const result = await cleanupBrokerDuplicatesInternal(admin.firestore(), { purgeArchived: purgeArchived });
     return res.json({ ok: true, ...result });
@@ -3775,7 +3858,7 @@ exports.patchRepair = functions.https.onRequest(async (req, res) => {
 exports.clientBoletosMe = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
   try {
@@ -3785,17 +3868,13 @@ exports.clientBoletosMe = functions.https.onRequest(async (req, res) => {
     var authHeaderB = req.headers.authorization;
     if (authHeaderB && authHeaderB.indexOf('Bearer ') === 0) tokenB = authHeaderB.split('Bearer ')[1];
     if (!tokenB && req.query.idToken) tokenB = String(req.query.idToken);
-    if (tokenB) {
-      try {
-        var decodedB = await admin.auth().verifyIdToken(tokenB);
-        email = String(decodedB.email || '').trim().toLowerCase();
-      } catch (eTok) {
-        return res.status(403).json({ error: 'Token inválido ou expirado' });
-      }
-    } else {
-      // Legado (sem sessão Firebase Auth): consulta pelo e-mail/uid informado
-      email = String(req.query.email || '').trim().toLowerCase();
-      uid = String(req.query.uid || '').trim();
+    if (!tokenB) return res.status(401).json({ error: 'Token necessário' });
+    try {
+      var decodedB = await admin.auth().verifyIdToken(tokenB);
+      email = String(decodedB.email || '').trim().toLowerCase();
+      uid = String(decodedB.uid || '').trim();
+    } catch (eTok) {
+      return res.status(403).json({ error: 'Token inválido ou expirado' });
     }
     if (!email && !uid) return res.status(400).json({ error: 'email ou uid obrigatório' });
     var db = admin.firestore();
@@ -3824,7 +3903,7 @@ exports.clientBoletosMe = functions.https.onRequest(async (req, res) => {
 exports.clientTimelineMe = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
   try {
@@ -3833,15 +3912,12 @@ exports.clientTimelineMe = functions.https.onRequest(async (req, res) => {
     var authHeaderT = req.headers.authorization;
     if (authHeaderT && authHeaderT.indexOf('Bearer ') === 0) tokenT = authHeaderT.split('Bearer ')[1];
     if (!tokenT && req.query.idToken) tokenT = String(req.query.idToken);
-    if (tokenT) {
-      try {
-        var decodedT = await admin.auth().verifyIdToken(tokenT);
-        email = String(decodedT.email || '').trim().toLowerCase();
-      } catch (eTokT) {
-        return res.status(403).json({ error: 'Token inválido ou expirado' });
-      }
-    } else {
-      email = String(req.query.email || '').trim().toLowerCase();
+    if (!tokenT) return res.status(401).json({ error: 'Token necessário' });
+    try {
+      var decodedT = await admin.auth().verifyIdToken(tokenT);
+      email = String(decodedT.email || '').trim().toLowerCase();
+    } catch (eTokT) {
+      return res.status(403).json({ error: 'Token inválido ou expirado' });
     }
     if (!email) return res.status(400).json({ error: 'email obrigatório' });
     var db = admin.firestore();

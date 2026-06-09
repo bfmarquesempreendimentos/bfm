@@ -45,6 +45,11 @@ function formatRelativeMinutes(mins) {
   return 'há ' + d + ' dia(s)';
 }
 
+function waInboxGetToken() {
+  if (typeof getAdminIdToken === 'function') return getAdminIdToken();
+  return Promise.resolve(null);
+}
+
 function waInboxGetCreds() {
   if (typeof getAdminApiCredentials === 'function') return getAdminApiCredentials();
   try {
@@ -61,11 +66,14 @@ function waInboxApi(path, options) {
   options = options || {};
   var method = (options.method || 'GET').toUpperCase();
   var body = options.body;
+  return waInboxGetToken().then(function(token) {
   var headers = { 'Content-Type': 'application/json' };
   var creds = waInboxGetCreds();
   var url = waInboxBaseUrl + path;
 
-  if (method === 'POST') {
+  if (token) {
+    headers.Authorization = 'Bearer ' + token;
+  } else if (method === 'POST') {
     body = body || {};
     if (!body.adminEmail && creds.email) body.adminEmail = creds.email;
     if (!body.adminPassword && creds.password) body.adminPassword = creds.password;
@@ -89,6 +97,7 @@ function waInboxApi(path, options) {
       }
       return data;
     });
+  });
   });
 }
 

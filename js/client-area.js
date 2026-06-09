@@ -52,23 +52,11 @@ async function loginClient(event) {
     const login = document.getElementById('clientLogin').value;
     const password = document.getElementById('clientPassword').value;
 
-    // Admin override
-    if (login.toLowerCase() === ADMIN_CLIENT.email.toLowerCase() && password === ADMIN_CLIENT.password) {
-        currentClient = {
-            name: ADMIN_CLIENT.name,
-            email: ADMIN_CLIENT.email,
-            cpf: '00000000000',
-            phone: '',
-            properties: [],
-            isAdmin: true
-        };
-        localStorage.setItem('currentClient', JSON.stringify(currentClient));
-        showMessage('Login admin realizado com sucesso!', 'success');
-        showClientDashboard();
+    if (typeof getFirebaseAuth !== 'function' || !firebaseAvailable()) {
+        showMessage('Login indisponível. Atualize a página ou use um navegador moderno (Chrome, Safari, Edge).', 'error');
         return;
     }
 
-    // Firebase Auth (se disponível)
     if (typeof getFirebaseAuth === 'function' && firebaseAvailable()) {
         try {
             const auth = getFirebaseAuth();
@@ -122,51 +110,6 @@ async function loginClient(event) {
             showMessage('Email ou senha incorretos.', 'error');
             return;
         }
-    }
-    
-    // Buscar cliente no localStorage (apenas por email)
-    const clients = JSON.parse(localStorage.getItem('clients') || '[]');
-    const client = clients.find(c => 
-        c.email.toLowerCase() === login.toLowerCase() && c.password === password
-    );
-    
-    if (client) {
-        var eligibleLocal = typeof hasPropertySale === 'function' && hasPropertySale(client.cpf);
-        if (!eligibleLocal && typeof fetchClientSaleEligibility === 'function') {
-            eligibleLocal = await fetchClientSaleEligibility(client.email, client.cpf);
-        }
-        if (!eligibleLocal) {
-            showMessage('CPF não encontrado em nossas vendas. Entre em contato conosco.', 'error');
-            return;
-        }
-        
-        // Carregar propriedades do cliente baseado no CPF
-        if (typeof getPropertiesByCPF !== 'undefined') {
-            const sales = getPropertiesByCPF(client.cpf);
-            if (sales && sales.length > 0) {
-                client.properties = sales.map(sale => {
-                    if (typeof saleToClientProperty !== 'undefined') {
-                        return saleToClientProperty(sale);
-                    }
-                    return {
-                        id: sale.id,
-                        propertyId: sale.propertyId,
-                        title: sale.propertyTitle,
-                        price: sale.salePrice,
-                        purchaseDate: sale.saleDate,
-                        status: 'vendido'
-                    };
-                });
-            }
-        }
-        
-        currentClient = { ...client };
-        delete currentClient.password; // Não armazenar senha na sessão
-        localStorage.setItem('currentClient', JSON.stringify(currentClient));
-        showMessage('Login realizado com sucesso!', 'success');
-        showClientDashboard();
-    } else {
-        showMessage('Email ou senha incorretos.', 'error');
     }
 }
 
@@ -453,11 +396,12 @@ function loadClientBoletos() {
         listEl.innerHTML = '<p>Nenhum boleto disponível.</p>';
         return;
     }
-    var q = email ? ('email=' + encodeURIComponent(email)) : ('uid=' + encodeURIComponent(uid));
     getClientIdToken().then(function(idToken) {
-    var boletosUrl = idToken
-        ? (getClientCloudBaseUrl() + '/clientBoletosMe?idToken=' + encodeURIComponent(idToken))
-        : (getClientCloudBaseUrl() + '/clientBoletosMe?' + q);
+    if (!idToken) {
+        listEl.innerHTML = '<p>Faça login novamente para ver seus boletos.</p>';
+        return;
+    }
+    var boletosUrl = getClientCloudBaseUrl() + '/clientBoletosMe?idToken=' + encodeURIComponent(idToken);
     fetch(boletosUrl, { cache: 'no-store' })
         .then(function(r) { return r.ok ? r.json() : []; })
         .then(function(rows) {
@@ -587,9 +531,11 @@ function loadClientHistory() {
         return;
     }
     getClientIdToken().then(function(idToken) {
-    var timelineUrl = idToken
-        ? (getClientCloudBaseUrl() + '/clientTimelineMe?idToken=' + encodeURIComponent(idToken))
-        : (getClientCloudBaseUrl() + '/clientTimelineMe?email=' + encodeURIComponent(email));
+    if (!idToken) {
+        renderItems(local.slice().reverse());
+        return;
+    }
+    var timelineUrl = getClientCloudBaseUrl() + '/clientTimelineMe?idToken=' + encodeURIComponent(idToken);
     fetch(timelineUrl, { cache: 'no-store' })
         .then(function(r) { return r.ok ? r.json() : []; })
         .then(function(remote) {

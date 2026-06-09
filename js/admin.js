@@ -30,8 +30,18 @@ function closeAdminSidebar() {
 }
 
 function initializeAdminPanel() {
-    // Check admin authentication
     if (!isAdminAuthenticated()) {
+        redirectToLogin();
+        return;
+    }
+    var legacyCreds = getAdminApiCredentials();
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        firebase.auth().onAuthStateChanged(function(user) {
+            if (!user && (!legacyCreds.email || !legacyCreds.password)) {
+                redirectToLogin();
+            }
+        });
+    } else if (!legacyCreds.email || !legacyCreds.password) {
         redirectToLogin();
         return;
     }
@@ -67,8 +77,7 @@ function initializeAdminPanel() {
             for (var k in byId) { if (byId.hasOwnProperty(k)) local.push(byId[k]); }
             localStorage.setItem('repairRequests', JSON.stringify(local));
         }
-        var url = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs?t=' + Date.now();
-        fetch(url, { cache: 'no-store', credentials: 'omit' }).then(function(res) { return res.ok ? res.json() : []; }).then(function(data) {
+        adminFetchJson('/getRepairs').then(function(data) {
             if (data && Array.isArray(data) && data.length > 0) {
                 mergeAndSave(data);
                 return;
@@ -116,8 +125,26 @@ function adminLogout() {
     if (confirm('Tem certeza que deseja sair?')) {
         localStorage.removeItem('adminUser');
         try { sessionStorage.removeItem('adminSession'); } catch (e) {}
+        try {
+            if (typeof firebase !== 'undefined' && firebase.auth) {
+                firebase.auth().signOut().catch(function() {});
+            }
+        } catch (e) {}
         window.location.href = 'admin-login.html?logout=1&t=' + Date.now();
     }
+}
+
+/** Token Firebase do admin (preferido) ou credenciais legadas (transição). */
+function getAdminIdToken() {
+    return new Promise(function(resolve) {
+        try {
+            if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) {
+                firebase.auth().currentUser.getIdToken().then(resolve).catch(function() { resolve(null); });
+                return;
+            }
+        } catch (e) {}
+        resolve(null);
+    });
 }
 
 function getAdminApiCredentials() {
@@ -1038,52 +1065,69 @@ function adminAppendCreds(path) {
 }
 
 function adminFetchJson(path) {
-    var authedPath = adminAppendCreds(path);
-    if (typeof ApiClient !== 'undefined' && ApiClient.get) {
-        return ApiClient.get(authedPath).catch(function() { return null; });
-    }
-    var sep = authedPath.indexOf('?') >= 0 ? '&' : '?';
-    return fetch(ADMIN_FUNCTIONS_BASE + authedPath + sep + '_=' + Date.now(), { cache: 'no-store', credentials: 'omit' })
-        .then(function(res) {
+    return getAdminIdToken().then(function(token) {
+        var headers = { 'Content-Type': 'application/json' };
+        var urlPath = path;
+        if (token) {
+            headers.Authorization = 'Bearer ' + token;
+        } else {
+            urlPath = adminAppendCreds(path);
+        }
+        if (typeof ApiClient !== 'undefined' && ApiClient.request) {
+            return ApiClient.request(urlPath, { method: 'GET', headers: headers }).catch(function() { return null; });
+        }
+        var sep = urlPath.indexOf('?') >= 0 ? '&' : '?';
+        return fetch(ADMIN_FUNCTIONS_BASE + urlPath + sep + '_=' + Date.now(), {
+            cache: 'no-store',
+            credentials: 'omit',
+            headers: headers
+        }).then(function(res) {
             if (!res.ok) return null;
             return res.text().then(function(txt) {
                 if (!txt || !String(txt).trim()) return null;
-                try {
-                    return JSON.parse(txt);
-                } catch (e) {
-                    return null;
-                }
+                try { return JSON.parse(txt); } catch (e) { return null; }
             });
-        })
-        .catch(function() { return null; });
+        }).catch(function() { return null; });
+    });
 }
 
 function adminPostJson(path, payload, extra) {
     payload = payload || {};
-    if (!payload.adminEmail || !payload.adminPassword) {
-        var creds = getAdminApiCredentials();
-        if (creds.email && creds.password) {
-            if (!payload.adminEmail) payload.adminEmail = creds.email;
-            if (!payload.adminPassword) payload.adminPassword = creds.password;
-        }
-    }
-    if (typeof ApiClient !== 'undefined' && ApiClient.post) {
-        return ApiClient.post(path, payload, extra || {});
-    }
-    return fetch(ADMIN_FUNCTIONS_BASE + path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload || {}),
-        cache: 'no-store',
-        credentials: 'omit'
-    }).then(function(res) {
-        return res.text().then(function(txt) {
-            var data = null;
-            try { data = txt ? JSON.parse(txt) : null; } catch (_) { data = null; }
-            if (!res.ok) {
-                throw new Error((data && data.error) ? data.error : ('Erro ' + res.status));
+    return getAdminIdToken().then(function(token) {
+        var headers = { 'Content-Type': 'application/json' };
+        if (token) {
+            headers.Authorization = 'Bearer ' + token;
+            if (payload.idToken) delete payload.idToken;
+        } else if (!payload.adminEmail || !payload.adminPassword) {
+            var creds = getAdminApiCredentials();
+            if (creds.email && creds.password) {
+                if (!payload.adminEmail) payload.adminEmail = creds.email;
+                if (!payload.adminPassword) payload.adminPassword = creds.password;
             }
-            return data || { success: true };
+        }
+        if (typeof ApiClient !== 'undefined' && ApiClient.request) {
+            return ApiClient.request(path, {
+                method: 'POST',
+                body: payload,
+                headers: headers,
+                timeoutMs: (extra && extra.timeoutMs) || 180000
+            });
+        }
+        return fetch(ADMIN_FUNCTIONS_BASE + path, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(payload || {}),
+            cache: 'no-store',
+            credentials: 'omit'
+        }).then(function(res) {
+            return res.text().then(function(txt) {
+                var data = null;
+                try { data = txt ? JSON.parse(txt) : null; } catch (_) { data = null; }
+                if (!res.ok) {
+                    throw new Error((data && data.error) ? data.error : ('Erro ' + res.status));
+                }
+                return data || { success: true };
+            });
         });
     });
 }

@@ -48,8 +48,14 @@ async function pushLocalRepairsToServer() {
 }
 
 async function fetchRepairsFromCloudFunction() {
-    var fetchOpts = { cache: 'no-store', credentials: 'omit', mode: 'cors' };
     var bestResult = [];
+    if (typeof adminFetchJson === 'function') {
+        try {
+            var dataAuth = await adminFetchJson('/getRepairs');
+            if (dataAuth && Array.isArray(dataAuth)) return dataAuth;
+        } catch (eAuth) {}
+    }
+    var fetchOpts = { cache: 'no-store', credentials: 'omit', mode: 'cors' };
     var url = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs';
     for (var attempt = 0; attempt < 3; attempt++) {
         try {

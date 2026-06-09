@@ -343,15 +343,31 @@ function pushReconcileStatusesToServerIfAdmin() {
     }
     if (!items.length) return;
     var url = getCloudFunctionsBaseUrlUnits() + '/adminSetUnitStatusOverrides';
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            adminEmail: creds.email,
-            adminPassword: creds.password,
-            items: items,
-        }),
-    }).catch(function() {});
+    var postPayload = { items: items };
+    var doPost = function(headers, payload) {
+        fetch(url, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(payload),
+        }).catch(function() {});
+    };
+    if (typeof getAdminIdToken === 'function') {
+        getAdminIdToken().then(function(token) {
+            var headers = { 'Content-Type': 'application/json' };
+            if (token) {
+                headers.Authorization = 'Bearer ' + token;
+                doPost(headers, postPayload);
+            } else if (creds && creds.email && creds.password) {
+                postPayload.adminEmail = creds.email;
+                postPayload.adminPassword = creds.password;
+                doPost(headers, postPayload);
+            }
+        });
+        return;
+    }
+    postPayload.adminEmail = creds.email;
+    postPayload.adminPassword = creds.password;
+    doPost({ 'Content-Type': 'application/json' }, postPayload);
 }
 
 function pushUnitStatusToServer(propertyId, unitCode, status) {
@@ -366,17 +382,30 @@ function pushUnitStatusToServer(propertyId, unitCode, status) {
             }
         }
     } catch (e) {}
-    if (!creds || !creds.email || !creds.password || typeof fetch === 'undefined') return;
+    if (typeof fetch === 'undefined') return;
     var url = getCloudFunctionsBaseUrlUnits() + '/adminSetUnitStatusOverrides';
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            adminEmail: creds.email,
-            adminPassword: creds.password,
-            items: [{ propertyId: propertyId, unitCode: unitCode, status: status }],
-        }),
-    }).catch(function() {});
+    var postPayload = { items: [{ propertyId: propertyId, unitCode: unitCode, status: status }] };
+    var doPost = function(headers, payload) {
+        fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(payload) }).catch(function() {});
+    };
+    if (typeof getAdminIdToken === 'function') {
+        getAdminIdToken().then(function(token) {
+            var headers = { 'Content-Type': 'application/json' };
+            if (token) {
+                headers.Authorization = 'Bearer ' + token;
+                doPost(headers, postPayload);
+            } else if (creds && creds.email && creds.password) {
+                postPayload.adminEmail = creds.email;
+                postPayload.adminPassword = creds.password;
+                doPost(headers, postPayload);
+            }
+        });
+        return;
+    }
+    if (!creds || !creds.email || !creds.password) return;
+    postPayload.adminEmail = creds.email;
+    postPayload.adminPassword = creds.password;
+    doPost({ 'Content-Type': 'application/json' }, postPayload);
 }
 
 function normalizeUnitSlotToken(raw) {

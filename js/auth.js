@@ -146,48 +146,53 @@ function setupAuthForms() {
     }
 }
 
-// Handle login form submission
+// Handle login form submission (validação server-side; senha não trafega na listagem)
 function handleLogin(e) {
     e.preventDefault();
     
     const email = (e.target.email.value || '').trim().toLowerCase();
     const password = e.target.password.value;
     
-    // Validate input
     if (!email || !password) {
         showAuthMessage('Por favor, preencha todos os campos.', 'error');
         return;
     }
-    
-    // Find broker (email comparado sem diferenciar maiúsculas/minúsculas)
-    const broker = brokers.find(b => (b.email || '').toLowerCase() === email && b.password === password && b.isActive);
-    
-    if (broker) {
-        // Login successful
-        currentUser = {
-            id: broker.id,
-            name: broker.name,
-            email: broker.email,
-            phone: broker.phone,
-            creci: broker.creci,
-            type: 'broker'
-        };
-        
-        // Save to localStorage
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        
-        // Update UI
-        updateUIForLoggedUser();
-        closeLoginModal();
-        showMessage('Login realizado com sucesso!', 'success');
-        
-        // Redirect to broker dashboard if it exists
-        if (typeof showBrokerDashboard === 'function') {
-            showBrokerDashboard();
-        }
-    } else {
-        showAuthMessage('Email ou senha incorretos.', 'error');
-    }
+
+    var base = (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL)
+        ? CONFIG.cloudFunctions.baseURL
+        : 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+
+    fetch(base + '/brokerLogin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password }),
+        cache: 'no-store',
+        credentials: 'omit'
+    }).then(function(res) {
+        return res.json().then(function(data) {
+            if (!res.ok || !data || !data.ok || !data.broker) {
+                throw new Error((data && data.error) ? data.error : 'Email ou senha incorretos.');
+            }
+            var broker = data.broker;
+            currentUser = {
+                id: broker.id,
+                name: broker.name,
+                email: broker.email,
+                phone: broker.phone,
+                creci: broker.creci,
+                type: 'broker'
+            };
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            updateUIForLoggedUser();
+            closeLoginModal();
+            showMessage('Login realizado com sucesso!', 'success');
+            if (typeof showBrokerDashboard === 'function') {
+                showBrokerDashboard();
+            }
+        });
+    }).catch(function(err) {
+        showAuthMessage(err.message || 'Email ou senha incorretos.', 'error');
+    });
 }
 
 // Handle register form submission

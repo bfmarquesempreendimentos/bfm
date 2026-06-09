@@ -16,7 +16,6 @@
             justify-content: center;
             font-family: 'Inter', sans-serif;
         }
-        
         .admin-login-container {
             background: white;
             border-radius: 15px;
@@ -25,77 +24,27 @@
             width: 100%;
             max-width: 400px;
         }
-        
-        .login-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .login-header h1 {
-            color: #2c3e50;
-            margin-bottom: 10px;
-        }
-        
-        .login-header p {
-            color: #7f8c8d;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #2c3e50;
-            font-weight: 500;
-        }
-        
+        .login-header { text-align: center; margin-bottom: 30px; }
+        .login-header h1 { color: #2c3e50; margin-bottom: 10px; }
+        .login-header p { color: #7f8c8d; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 500; }
         .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 1rem;
-            outline: none;
-            transition: border-color 0.3s ease;
+            width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px;
+            font-size: 1rem; outline: none; transition: border-color 0.3s ease;
         }
-        
-        .form-group input:focus {
-            border-color: #3498db;
-        }
-        
+        .form-group input:focus { border-color: #3498db; }
         .btn-login {
-            width: 100%;
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
-            border: none;
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            width: 100%; background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white; border: none; padding: 15px; border-radius: 8px;
+            font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease;
         }
-        
-        .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(52, 152, 219, 0.4);
-        }
-        
-        .back-link {
-            text-align: center;
-            margin-top: 20px;
-        }
-        
-        .back-link a {
-            color: #3498db;
-            text-decoration: none;
-        }
-        
-        .back-link a:hover {
-            text-decoration: underline;
-        }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(52, 152, 219, 0.4); }
+        .btn-login:disabled { opacity: 0.7; cursor: wait; transform: none; }
+        .back-link { text-align: center; margin-top: 20px; }
+        .back-link a { color: #3498db; text-decoration: none; }
+        .back-link a:hover { text-decoration: underline; }
+        .login-error { color: #c0392b; font-size: 0.9rem; margin-top: 10px; text-align: center; display: none; }
     </style>
 </head>
 <body>
@@ -104,77 +53,140 @@
             <h1><i class="fas fa-shield-alt"></i> Acesso Administrativo</h1>
             <p>Entre com suas credenciais de administrador</p>
         </div>
-        
         <form id="adminLoginForm">
             <div class="form-group">
                 <label for="adminEmail">Email:</label>
-                <input type="email" id="adminEmail" name="email" required>
+                <input type="email" id="adminEmail" name="email" required autocomplete="username">
             </div>
-            
             <div class="form-group">
                 <label for="adminPassword">Senha:</label>
-                <input type="password" id="adminPassword" name="password" required>
+                <input type="password" id="adminPassword" name="password" required autocomplete="current-password">
             </div>
-            
-            <button type="submit" class="btn-login">
+            <button type="submit" class="btn-login" id="adminLoginBtn">
                 <i class="fas fa-sign-in-alt"></i> Entrar
             </button>
+            <p class="login-error" id="adminLoginError"></p>
         </form>
-        
         <div class="back-link">
             <a href="index.html">← Voltar ao site</a>
         </div>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="js/firebase.js"></script>
     <script>
         var ADMIN_ACCOUNTS = [
-            { email: 'brunoferreiramarques@gmail.com', password: '123456', name: 'Bruno Marques' },
-            { email: 'raphaelmonteirodasilva@yahoo.com.br', password: '123456', name: 'Raphael Monteiro' }
+            { email: 'brunoferreiramarques@gmail.com', name: 'Bruno Marques' },
+            { email: 'raphaelmonteirodasilva@yahoo.com.br', name: 'Raphael Monteiro' }
         ];
+        var FUNCTIONS_BASE = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+
+        function getAdminMeta(email) {
+            var e = String(email || '').trim().toLowerCase();
+            for (var i = 0; i < ADMIN_ACCOUNTS.length; i++) {
+                if (ADMIN_ACCOUNTS[i].email === e) return ADMIN_ACCOUNTS[i];
+            }
+            return null;
+        }
+
+        function showLoginError(msg) {
+            var el = document.getElementById('adminLoginError');
+            if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+        }
+
+        function saveAdminSession(user, meta) {
+            localStorage.setItem('adminUser', JSON.stringify({
+                email: meta.email,
+                name: meta.name,
+                loginTime: new Date().toISOString(),
+                authProvider: 'firebase'
+            }));
+            try { sessionStorage.removeItem('adminSession'); } catch (e) {}
+        }
+
+        function provisionAdminAuth(email, password) {
+            return fetch(FUNCTIONS_BASE + '/adminProvisionAuth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminEmail: email, adminPassword: password }),
+                cache: 'no-store'
+            }).then(function(r) { return r.json().then(function(j) { return { ok: r.ok, data: j }; }); });
+        }
 
         document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
-            const email = (document.getElementById('adminEmail').value || '').trim().toLowerCase();
-            const password = document.getElementById('adminPassword').value;
-            
-            const account = ADMIN_ACCOUNTS.find(function(a) { return a.email.toLowerCase() === email && a.password === password; });
-            if (account) {
-                localStorage.removeItem('adminUser');
-                localStorage.setItem('adminUser', JSON.stringify({
-                    email: account.email,
-                    name: account.name,
-                    loginTime: new Date().toISOString()
-                }));
-                try {
-                    sessionStorage.setItem('adminSession', JSON.stringify({
-                        email: account.email,
-                        password: password
-                    }));
-                } catch (e) {}
-                window.location.href = 'admin.html?t=' + Date.now();
-            } else {
-                alert('Credenciais inválidas!');
+            var email = (document.getElementById('adminEmail').value || '').trim().toLowerCase();
+            var password = document.getElementById('adminPassword').value;
+            var meta = getAdminMeta(email);
+            var btn = document.getElementById('adminLoginBtn');
+            showLoginError('');
+            if (!meta) {
+                showLoginError('Este email não está autorizado como administrador.');
+                return;
             }
+            if (!firebase || !firebase.auth) {
+                showLoginError('Firebase Auth indisponível. Atualize a página.');
+                return;
+            }
+            btn.disabled = true;
+            var auth = firebase.auth();
+            auth.signInWithEmailAndPassword(email, password)
+                .then(function(cred) {
+                    saveAdminSession(cred.user, meta);
+                    window.location.href = 'admin.html?t=' + Date.now();
+                })
+                .catch(function(err) {
+                    if (err && err.code === 'auth/user-not-found') {
+                        return provisionAdminAuth(email, password).then(function(res) {
+                            if (!res.ok) throw new Error((res.data && res.data.error) || 'Falha ao provisionar conta');
+                            return auth.signInWithEmailAndPassword(email, password);
+                        }).then(function(cred2) {
+                            saveAdminSession(cred2.user, meta);
+                            window.location.href = 'admin.html?t=' + Date.now();
+                        });
+                    }
+                    throw err;
+                })
+                .catch(function(err) {
+                    var msg = 'Credenciais inválidas.';
+                    if (err && err.code === 'auth/wrong-password') msg = 'Senha incorreta.';
+                    else if (err && err.code === 'auth/too-many-requests') msg = 'Muitas tentativas. Aguarde e tente novamente.';
+                    else if (err && err.message) msg = err.message;
+                    showLoginError(msg);
+                })
+                .finally(function() { btn.disabled = false; });
         });
 
         if (/[?&]logout=1/.test(window.location.search)) {
             localStorage.removeItem('adminUser');
             try { sessionStorage.removeItem('adminSession'); } catch (e) {}
+            if (firebase && firebase.auth) {
+                firebase.auth().signOut().catch(function() {});
+            }
         }
-        var stored = localStorage.getItem('adminUser');
-        if (stored) {
-            var loginLink = document.createElement('p');
-            loginLink.style.cssText = 'text-align:center;margin-top:12px;font-size:0.9rem;';
-            loginLink.innerHTML = 'Já logado. <a href="admin.html">Entrar no painel</a> &nbsp;|&nbsp; <a href="#" id="switchUser">Trocar de conta</a>';
-            document.querySelector('.back-link').parentNode.insertBefore(loginLink, document.querySelector('.back-link'));
-            document.getElementById('switchUser').onclick = function(e) {
-                e.preventDefault();
-                localStorage.removeItem('adminUser');
-                window.location.reload();
-            };
+
+        if (firebase && firebase.auth) {
+            firebase.auth().onAuthStateChanged(function(user) {
+                if (!user) return;
+                var meta = getAdminMeta(user.email);
+                if (meta && localStorage.getItem('adminUser')) {
+                    var link = document.createElement('p');
+                    link.style.cssText = 'text-align:center;margin-top:12px;font-size:0.9rem;';
+                    link.innerHTML = 'Sessão ativa. <a href="admin.html">Entrar no painel</a> &nbsp;|&nbsp; <a href="#" id="switchUser">Trocar de conta</a>';
+                    if (!document.getElementById('switchUser')) {
+                        document.querySelector('.back-link').parentNode.insertBefore(link, document.querySelector('.back-link'));
+                        document.getElementById('switchUser').onclick = function(ev) {
+                            ev.preventDefault();
+                            firebase.auth().signOut().then(function() {
+                                localStorage.removeItem('adminUser');
+                                window.location.reload();
+                            });
+                        };
+                    }
+                }
+            });
         }
     </script>
 </body>
 </html>
-
