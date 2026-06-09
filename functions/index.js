@@ -1830,6 +1830,37 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
       ? db.collection('broker_campaign_logs').doc(resumeRun.runId)
       : db.collection('broker_campaign_logs').doc());
 
+  // Trava anti-duplicação: impede que duas execuções (cron de resume + envio manual,
+  // ou crons sobrepostos) processem o MESMO run ao mesmo tempo e reenviem WhatsApp.
+  // A trava é liberada ao concluir/parar; se a função morrer, expira pelo TTL.
+  var CAMPAIGN_LOCK_TTL_MS = 570000; // ~9,5 min (acima do timeout máx. da função)
+  var campaignLockToken = 'lk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  try {
+    var lockAcquired = await db.runTransaction(async function(tx) {
+      var lockSnap = await tx.get(runRef);
+      var ld = lockSnap.exists ? (lockSnap.data() || {}) : {};
+      var prevLockAt = ld.lockedAt ? new Date(ld.lockedAt).getTime() : 0;
+      var lockFresh = prevLockAt && (Date.now() - prevLockAt) < CAMPAIGN_LOCK_TTL_MS;
+      if (lockFresh) return false;
+      tx.set(runRef, {
+        lockedAt: new Date().toISOString(),
+        lockToken: campaignLockToken,
+      }, { merge: true });
+      return true;
+    });
+    if (!lockAcquired) {
+      return {
+        ok: true,
+        skipped: true,
+        reason: 'already_running',
+        runId: runRef.id,
+        message: 'Outro disparo desta campanha já está em execução. Aguarde concluir.',
+      };
+    }
+  } catch (lockErr) {
+    console.warn('Trava de campanha falhou (segue sem trava):', lockErr.message);
+  }
+
   const results = [];
   const sendable = [];
   const sentPhones = {};
@@ -1914,6 +1945,7 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     if (isBulkSend && Date.now() - loopStartedAt > maxLoopMs) {
       await runRef.set({
         status: 'partial',
+        lockedAt: null,
         lastProcessedIndex: i - 1,
         partialResults: results,
         partialAt: new Date().toISOString(),
@@ -2084,6 +2116,7 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
   await runRef.set({
     finishedAt: new Date().toISOString(),
     status: 'done',
+    lockedAt: null,
     sent: sent,
     errors: errors,
     skipped: skipped,
