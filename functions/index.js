@@ -2,8 +2,8 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-const { verifyWebhook, processWebhook } = require('./chatbot/webhook');
-const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveMessage, deleteConversationMessage, setModoHumano, returnToBot, markAdminRead, getLastConversationMessage, normalizeWhatsAppPhone, recordInboundActivity, recordAdminBiaTraining } = require('./chatbot/lead-manager');
+const { verifyWebhook, processWebhook, validateSignature } = require('./chatbot/webhook');
+const { getAllLeads, getLeadStats, getLeadByPhone, getConversationHistory, saveMessage, deleteConversationMessage, setModoHumano, returnToBot, markAdminRead, getLastConversationMessage, normalizeWhatsAppPhone, recordInboundActivity, recordAdminBiaTraining, brokerPhoneMatchKeys } = require('./chatbot/lead-manager');
 const { processAllFollowUps } = require('./chatbot/follow-up-engine');
 const { setFollowUpExclusion: leadSetFollowUpExclusion } = require('./chatbot/lead-manager');
 const { getPropertyById } = require('./chatbot/property-data');
@@ -296,12 +296,30 @@ async function buildBrokerPhoneIndex(db) {
   const index = {};
   snapshot.docs.forEach(function(doc) {
     const data = doc.data() || {};
-    const phone = normalizeWhatsAppPhone(data.phone) || normalizeBrazilWhatsApp(data.phone);
-    if (!phone) return;
     const entry = { id: doc.id, name: data.name || '', isActive: isBrokerActiveFlag(data.isActive) };
-    if (!index[phone] || entry.isActive) index[phone] = entry;
+    const keys = brokerPhoneMatchKeys(data.phone);
+    if (!keys.length) {
+      const fallback = normalizeBrazilWhatsApp(data.phone);
+      if (fallback) keys.push(fallback);
+    }
+    keys.forEach(function(phone) {
+      if (!index[phone] || entry.isActive) index[phone] = entry;
+    });
   });
   return index;
+}
+
+/** Procura corretor no índice tolerando o 9º dígito. */
+function lookupBrokerInIndex(index, rawPhone) {
+  if (!index) return null;
+  const keys = brokerPhoneMatchKeys(rawPhone);
+  var i;
+  for (i = 0; i < keys.length; i++) {
+    if (index[keys[i]]) return index[keys[i]];
+  }
+  const fallback = normalizeBrazilWhatsApp(rawPhone);
+  if (fallback && index[fallback]) return index[fallback];
+  return null;
 }
 
 async function loadWhatsappSettings(db) {
@@ -891,12 +909,17 @@ function getWeekOfYearNumber(date) {
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
 
+function getCampaignRunWeekKey(now) {
+  var d = now || new Date();
+  return String(d.getFullYear()) + '-W' + getWeekOfYearNumber(d);
+}
+
 function getDefaultBrokerCampaignConfig() {
   return {
     enabled: true,
     siteUrl: 'https://bfmarquesempreendimentos.github.io/bfm/',
     whatsappContato: '(21) 99555-7010',
-    skipMetaTemplate: true,
+    skipMetaTemplate: false,
     campaignMaxImages: 2,
     campaignMaxVideos: 1,
     featuredPropertyId: 7,
@@ -995,6 +1018,10 @@ async function getBrokerCampaignConfig(db) {
     merged.preferMultiVarTemplate = true;
     persist.preferMultiVarTemplate = true;
   }
+  if (current.skipMetaTemplate === undefined || current.skipMetaTemplate === true) {
+    merged.skipMetaTemplate = false;
+    persist.skipMetaTemplate = false;
+  }
   if (Object.keys(persist).length) {
     persist.updatedAt = new Date().toISOString();
     await ref.set(persist, { merge: true });
@@ -1033,15 +1060,18 @@ async function sendCampanhaCorretorTemplateMsg4(waPhone, templateName, lang, waS
   for (vi = 0; vi < candidates.length; vi++) {
     try {
       var v = candidates[vi];
+      var stripNl = function(t) {
+        return String(t || '').replace(/\r\n/g, ' ').replace(/\n/g, ' ').replace(/ {2,}/g, ' ').trim();
+      };
       var comps = [{
         type: 'body',
         parameters: [
-          { type: 'text', text: v.week },
-          { type: 'text', text: v.firstName },
-          { type: 'text', text: v.propertyBlock },
-          { type: 'text', text: v.propertyUrl },
-          { type: 'text', text: v.portfolioUrl },
-          { type: 'text', text: v.footerBlock },
+          { type: 'text', text: stripNl(v.week) },
+          { type: 'text', text: stripNl(v.firstName) },
+          { type: 'text', text: stripNl(v.propertyBlock) },
+          { type: 'text', text: stripNl(v.propertyUrl) },
+          { type: 'text', text: stripNl(v.portfolioUrl) },
+          { type: 'text', text: stripNl(v.footerBlock) },
         ],
       }];
       var resp = await sendTemplateMessage(waPhone, templateName, lang, comps, waSendOpts);
@@ -1308,7 +1338,8 @@ function directCampaignNeedsTemplateFallback(directResult) {
 }
 
 async function sendBrokerCampaignFollowUpAfterTemplate(waPhone, config, broker, now, waSendOpts, hasSession) {
-  await new Promise(function(resolve) { setTimeout(resolve, 2500); });
+  var mediaDelayMs = config.skipDeliveryVerify ? 1000 : 2500;
+  await new Promise(function(resolve) { setTimeout(resolve, mediaDelayMs); });
 
   // Apos campanha_corretor_msg (Marketing), midia livre nao entrega fora da janela 24h.
   var tplMedia = await brokerCampaignContent.sendBrokerCampaignTemplateMedia(
@@ -1351,8 +1382,9 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now, db) {
     throw new Error('Número da Bia (phone_number_id) não configurado. Abra Corretores → Salvar WABA ou envie uma mensagem para a Bia e tente de novo.');
   }
 
+  var forceTemplate = config.forceMetaTemplate === true;
   var hasSession = db ? await brokerHasWhatsAppSessionWindow(db, waPhone) : false;
-  var skipTemplateFirst = config.skipMetaTemplate !== false && hasSession;
+  var skipTemplateFirst = !forceTemplate && config.skipMetaTemplate !== false && hasSession;
   if (hasSession && skipTemplateFirst) {
     try {
       var directResult = await brokerCampaignContent.sendBrokerCampaignDirect(
@@ -1431,6 +1463,9 @@ async function sendBrokerCampaignWhatsApp(config, broker, waPhone, now, db) {
         } catch (multiErr) {
           lastErr = multiErr;
         }
+      }
+      if (forceTemplate && config.preferMultiVarTemplate !== false) {
+        throw lastErr || new Error('Template campanha_corretor_msg4 nao enviado.');
       }
     }
 
@@ -1691,9 +1726,43 @@ async function verifyCampaignMessageDelivery(sendMeta) {
   };
 }
 
+async function findIncompleteWeeklyCampaignRun(db, weekKey) {
+  try {
+    var stateSnap = await db.collection('broker_campaign').doc('weekly_state').get();
+    if (!stateSnap.exists) return null;
+    var state = stateSnap.data() || {};
+    if (state.weekKey !== weekKey) return null;
+    if (state.status !== 'running' && state.status !== 'partial') return null;
+    if (!state.runId) return null;
+    var runSnap = await db.collection('broker_campaign_logs').doc(String(state.runId)).get();
+    if (!runSnap.exists) return null;
+    var data = runSnap.data() || {};
+    if (!data.sendableBrokerIds || !data.sendableBrokerIds.length) return null;
+    if (data.lastProcessedIndex == null || data.lastProcessedIndex < 0) return null;
+    if (data.lastProcessedIndex >= data.sendableBrokerIds.length - 1) return null;
+    return { runId: runSnap.id, data: data };
+  } catch (e) {
+    return null;
+  }
+}
+
+async function updateWeeklyCampaignState(db, weekKey, runId, status) {
+  if (!db || !weekKey || !runId) return;
+  try {
+    await db.collection('broker_campaign').doc('weekly_state').set({
+      weekKey: weekKey,
+      runId: runId,
+      status: status || 'running',
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+  } catch (e) { /* ignore */ }
+}
+
 async function sendWeeklyBrokerCampaignInternal(payload) {
+  payload = payload || {};
   const db = admin.firestore();
   const now = new Date();
+  const weekKey = getCampaignRunWeekKey(now);
   let config = await getBrokerCampaignConfig(db);
   const wabaSync = await getOrResolveWabaId(db);
   const templateStatus = await getBrokerCampaignTemplateStatus(config, db);
@@ -1727,22 +1796,65 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     return { ok: true, skipped: true, reason: 'Campanha desativada no painel/configuração.' };
   }
 
+  var isBulkCampaign = !payload.brokerId && !payload.phone;
+  var isBulkWeekly = payload.type === 'weekly' && isBulkCampaign;
+  var isBulkSend = isBulkCampaign && (payload.type === 'weekly' || payload.force);
+  if (isBulkSend) {
+    config = Object.assign({}, config, {
+      forceMetaTemplate: true,
+      skipDeliveryVerify: true,
+      preferMultiVarTemplate: true,
+    });
+  }
+
   const targetList = await listBrokerCampaignTargets(db, payload);
+  var resumeRun = null;
+  if (payload.resumeRunId) {
+    var rrSnap = await db.collection('broker_campaign_logs').doc(String(payload.resumeRunId)).get();
+    if (rrSnap.exists) {
+      var rrData = rrSnap.data() || {};
+      if ((rrData.status === 'partial' || rrData.status === 'running') &&
+          rrData.sendableBrokerIds && rrData.sendableBrokerIds.length &&
+          rrData.lastProcessedIndex != null && rrData.lastProcessedIndex >= 0 &&
+          rrData.lastProcessedIndex < rrData.sendableBrokerIds.length - 1) {
+        resumeRun = { runId: rrSnap.id, data: rrData };
+      }
+    }
+  } else if (isBulkWeekly && payload.resume !== false) {
+    resumeRun = await findIncompleteWeeklyCampaignRun(db, weekKey);
+  }
+
   const runRef = payload.runId
     ? db.collection('broker_campaign_logs').doc(payload.runId)
-    : db.collection('broker_campaign_logs').doc();
-
-  await runRef.set({
-    type: payload.type || 'weekly',
-    forced: !!payload.force,
-    startedAt: new Date().toISOString(),
-    totalTargets: targetList.length,
-    status: 'running',
-  }, { merge: true });
+    : (resumeRun && resumeRun.runId
+      ? db.collection('broker_campaign_logs').doc(resumeRun.runId)
+      : db.collection('broker_campaign_logs').doc());
 
   const results = [];
   const sendable = [];
   const sentPhones = {};
+  var resumeFromIndex = -1;
+
+  if (resumeRun && resumeRun.data) {
+    var savedIds = resumeRun.data.sendableBrokerIds || [];
+    var idMap = {};
+    targetList.forEach(function(b) { idMap[String(b.id)] = b; });
+    var si;
+    for (si = 0; si < savedIds.length; si++) {
+      var rid = String(savedIds[si]);
+      if (!idMap[rid]) continue;
+      var rb = idMap[rid];
+      var rw = normalizeBrazilWhatsApp(rb.phone);
+      if (!rw || sentPhones[rw]) continue;
+      sentPhones[rw] = true;
+      sendable.push({ broker: rb, waPhone: rw });
+    }
+    resumeFromIndex = Number(resumeRun.data.lastProcessedIndex);
+    if (Array.isArray(resumeRun.data.partialResults)) {
+      results.push.apply(results, resumeRun.data.partialResults);
+    }
+  }
+
   targetList.forEach(function(broker) {
     const waPhone = normalizeBrazilWhatsApp(broker.phone);
     if (!waPhone) {
@@ -1755,21 +1867,78 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
       return;
     }
     if (sentPhones[waPhone]) {
-      results.push({
-        brokerId: broker.id,
-        name: broker.name || '',
-        status: 'skipped',
-        reason: 'Telefone duplicado no cadastro',
-      });
+      if (!resumeRun) {
+        results.push({
+          brokerId: broker.id,
+          name: broker.name || '',
+          status: 'skipped',
+          reason: 'Telefone duplicado no cadastro',
+        });
+      }
       return;
     }
     sentPhones[waPhone] = true;
     sendable.push({ broker: broker, waPhone: waPhone });
   });
 
-  const waAccount = await getWhatsAppAccountInfo();
+  if (!resumeRun) {
+    await runRef.set({
+      type: payload.type || 'weekly',
+      forced: !!payload.force,
+      weekKey: weekKey,
+      startedAt: new Date().toISOString(),
+      totalTargets: targetList.length,
+      eligible: sendable.length,
+      sendableBrokerIds: sendable.map(function(s) { return s.broker.id; }),
+      status: 'running',
+      lastProcessedIndex: -1,
+    }, { merge: true });
+    if (isBulkWeekly) {
+      await updateWeeklyCampaignState(db, weekKey, runRef.id, 'running');
+    }
+  } else {
+    await runRef.set({
+      status: 'running',
+      resumedAt: new Date().toISOString(),
+      eligible: sendable.length,
+    }, { merge: true });
+  }
 
-  for (let i = 0; i < sendable.length; i++) {
+  const waAccount = await getWhatsAppAccountInfo();
+  const loopStartedAt = Date.now();
+  const maxLoopMs = isBulkSend ? 528000 : 280000;
+  var loopStartIndex = resumeFromIndex + 1;
+  if (loopStartIndex < 0) loopStartIndex = 0;
+
+  for (let i = loopStartIndex; i < sendable.length; i++) {
+    if (isBulkSend && Date.now() - loopStartedAt > maxLoopMs) {
+      await runRef.set({
+        status: 'partial',
+        lastProcessedIndex: i - 1,
+        partialResults: results,
+        partialAt: new Date().toISOString(),
+        sent: results.filter(function(r) { return r.status === 'sent' || r.status === 'accepted'; }).length,
+        errors: results.filter(function(r) { return r.status === 'error'; }).length,
+        skipped: results.filter(function(r) { return r.status === 'skipped'; }).length,
+      }, { merge: true });
+      if (isBulkWeekly) {
+        await updateWeeklyCampaignState(db, weekKey, runRef.id, 'partial');
+      }
+      return {
+        ok: true,
+        status: 'partial',
+        sent: results.filter(function(r) { return r.status === 'sent' || r.status === 'accepted'; }).length,
+        errors: results.filter(function(r) { return r.status === 'error'; }).length,
+        skipped: results.filter(function(r) { return r.status === 'skipped'; }).length,
+        totalTargets: targetList.length,
+        eligible: sendable.length,
+        processed: i,
+        remaining: sendable.length - i,
+        runId: runRef.id,
+        weekKey: weekKey,
+        resumeHint: 'Execucao parcial — continuacao automatica agendada ou dispare manualmente.',
+      };
+    }
     const item = sendable[i];
     try {
       const sendMeta = await sendBrokerCampaignWhatsApp(config, item.broker, item.waPhone, now, db);
@@ -1791,7 +1960,9 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
           rowNote = 'API aceitou, mas conta de TESTE da Meta só entrega para números cadastrados em API Setup → números de teste.';
         }
         var msgId = sendMeta.waMessageId || (sendMeta.media && sendMeta.media.waMessageId) || '';
-        var deliveryCheck = await verifyCampaignMessageDelivery(sendMeta);
+        var deliveryCheck = config.skipDeliveryVerify
+          ? { deliveryStatus: 'skipped', deliveryHint: '', deliveryFailed: false }
+          : await verifyCampaignMessageDelivery(sendMeta);
         if (deliveryCheck.deliveryFailed && sendMeta.mode === 'template' &&
             sendMeta.media && sendMeta.media.skipped) {
           var err131047 = false;
@@ -1874,8 +2045,17 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
         error: err.message || 'Falha ao enviar',
       });
     }
+    if (isBulkSend && (i % 3 === 2 || i === sendable.length - 1)) {
+      await runRef.set({
+        lastProcessedIndex: i,
+        partialResults: results,
+        sent: results.filter(function(r) { return r.status === 'sent' || r.status === 'accepted'; }).length,
+        errors: results.filter(function(r) { return r.status === 'error'; }).length,
+        skipped: results.filter(function(r) { return r.status === 'skipped'; }).length,
+      }, { merge: true });
+    }
     if (i < sendable.length - 1) {
-      await new Promise(function(resolve) { setTimeout(resolve, 350); });
+      await new Promise(function(resolve) { setTimeout(resolve, isBulkSend ? 200 : 350); });
     }
   }
 
@@ -1910,7 +2090,11 @@ async function sendWeeklyBrokerCampaignInternal(payload) {
     eligible: sendable.length,
     issues: issues,
     issuesTruncated: results.length - sent > issues.length,
+    lastProcessedIndex: sendable.length ? sendable.length - 1 : -1,
   }, { merge: true });
+  if (isBulkWeekly) {
+    await updateWeeklyCampaignState(db, weekKey, runRef.id, 'done');
+  }
 
   return {
     ok: true,
@@ -1996,6 +2180,11 @@ exports.chatbotWebhook = functions
       return verifyWebhook(req, res);
     }
     if (req.method === 'POST') {
+      // Valida assinatura da Meta quando WHATSAPP_APP_SECRET estiver configurado.
+      if (!validateSignature(req, process.env.WHATSAPP_APP_SECRET)) {
+        console.warn('[Webhook] POST rejeitado: assinatura x-hub-signature-256 inválida');
+        return res.sendStatus(403);
+      }
       return processWebhook(req, res);
     }
     return res.sendStatus(405);
@@ -2543,7 +2732,7 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
       snapAll.forEach(function(doc) {
         const data = doc.data() || {};
         const phone = normalizeWhatsAppPhone(data.phone || doc.id) || doc.id;
-        if (brokerIndex[phone]) brokersInWa += 1;
+        if (lookupBrokerInIndex(brokerIndex, phone)) brokersInWa += 1;
         else leadsOnlyInWa += 1;
       });
       return res.json(Object.assign({}, stats, {
@@ -2561,7 +2750,7 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
       }
       if (!lead) return res.status(404).json({ error: 'Conversa não encontrada' });
       const brokerIndexConvo = await buildBrokerPhoneIndex(db);
-      const brokerMatch = brokerIndexConvo[norm];
+      const brokerMatch = lookupBrokerInIndex(brokerIndexConvo, norm) || lookupBrokerInIndex(brokerIndexConvo, raw);
       if (brokerMatch) {
         lead = Object.assign({}, lead, {
           isBroker: true,
@@ -2597,7 +2786,7 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
     snapshot.forEach(function(doc) {
       const data = doc.data() || {};
       const phone = normalizeWhatsAppPhone(data.phone || doc.id) || doc.id;
-      const broker = brokerIndex[phone];
+      const broker = lookupBrokerInIndex(brokerIndex, phone);
       leads.push({
         id: doc.id,
         phone: phone,
@@ -2899,7 +3088,7 @@ exports.chatbotFollowUp = functions
 exports.brokerWeeklyCampaign = functions
   .runWith({
     secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
-    timeoutSeconds: 300,
+    timeoutSeconds: 540,
     memory: '512MB',
   })
   .pubsub.schedule('every monday 08:00')
@@ -2908,6 +3097,43 @@ exports.brokerWeeklyCampaign = functions
     const result = await sendWeeklyBrokerCampaignInternal({ type: 'weekly', force: false });
     console.log('brokerWeeklyCampaign:', JSON.stringify(result));
     return null;
+  });
+
+async function runWeeklyCampaignResumeIfPending(label) {
+  const db = admin.firestore();
+  const weekKey = getCampaignRunWeekKey(new Date());
+  const incomplete = await findIncompleteWeeklyCampaignRun(db, weekKey);
+  if (!incomplete) {
+    console.log(label + ': nenhuma campanha parcial pendente para ' + weekKey);
+    return null;
+  }
+  const result = await sendWeeklyBrokerCampaignInternal({ type: 'weekly', force: false, resume: true });
+  console.log(label + ':', JSON.stringify(result));
+  return null;
+}
+
+exports.brokerWeeklyCampaignResume = functions
+  .runWith({
+    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
+    timeoutSeconds: 540,
+    memory: '512MB',
+  })
+  .pubsub.schedule('every monday 08:15')
+  .timeZone('America/Sao_Paulo')
+  .onRun(function() {
+    return runWeeklyCampaignResumeIfPending('brokerWeeklyCampaignResume');
+  });
+
+exports.brokerWeeklyCampaignResume2 = functions
+  .runWith({
+    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
+    timeoutSeconds: 540,
+    memory: '512MB',
+  })
+  .pubsub.schedule('every monday 08:30')
+  .timeZone('America/Sao_Paulo')
+  .onRun(function() {
+    return runWeeklyCampaignResumeIfPending('brokerWeeklyCampaignResume2');
   });
 
 exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
@@ -3166,7 +3392,7 @@ exports.brokerCampaignRunStatus = functions.https.onRequest(async (req, res) => 
 exports.brokerCampaignSendNow = functions
   .runWith({
     secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
-    timeoutSeconds: 300,
+    timeoutSeconds: 540,
     memory: '512MB',
   })
   .https.onRequest(async (req, res) => {
@@ -3184,6 +3410,7 @@ exports.brokerCampaignSendNow = functions
         force: true,
         brokerId: brokerId,
         phone: body.phone || '',
+        resumeRunId: body.resumeRunId ? String(body.resumeRunId).trim() : '',
       };
 
       const result = await sendWeeklyBrokerCampaignInternal(internalPayload);
@@ -3193,6 +3420,221 @@ exports.brokerCampaignSendNow = functions
       return res.status(500).json({ error: err.message });
     }
   });
+
+/** Reprocessa chatbot_leads e marca os que são corretores (corrige detecção antiga). */
+exports.brokerSyncLeads = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const body = req.body || {};
+    if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+    const db = admin.firestore();
+    const brokerIndex = await buildBrokerPhoneIndex(db);
+    const snap = await db.collection('chatbot_leads').get();
+    var updated = 0;
+    var alreadyOk = 0;
+    var samples = [];
+    var batch = db.batch();
+    var ops = 0;
+    var i;
+    for (i = 0; i < snap.docs.length; i++) {
+      var doc = snap.docs[i];
+      var data = doc.data() || {};
+      var phone = normalizeWhatsAppPhone(data.phone || doc.id) || doc.id;
+      var broker = lookupBrokerInIndex(brokerIndex, phone);
+      if (!broker) continue;
+      if (data.isBroker && data.followUpExcluded) { alreadyOk += 1; continue; }
+      batch.set(doc.ref, {
+        isBroker: true,
+        brokerId: broker.id,
+        brokerName: broker.name || '',
+        contactType: 'corretor',
+        categoria: 'corretor',
+        followUpExcluded: true,
+        followUpExcludeReason: 'corretor_cadastrado',
+        followUpPaused: true,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      ops += 1;
+      updated += 1;
+      if (samples.length < 20) samples.push({ phone: phone, name: broker.name || '' });
+      if (ops >= 400) {
+        await batch.commit();
+        batch = db.batch();
+        ops = 0;
+      }
+    }
+    if (ops > 0) await batch.commit();
+    return res.json({
+      ok: true,
+      totalLeads: snap.size,
+      brokersMarcados: updated,
+      jaEstavamOk: alreadyOk,
+      exemplos: samples,
+    });
+  } catch (err) {
+    console.error('brokerSyncLeads:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Métricas simples da campanha de corretores (resposta e visitas). */
+exports.brokerCampaignMetrics = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST' && req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const body = req.method === 'POST' ? (req.body || {}) : (req.query || {});
+    if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+    const db = admin.firestore();
+
+    // Início da última campanha (segunda 08:00 BRT = 11:00 UTC).
+    var now = new Date();
+    var since = new Date(now.getTime());
+    var dow = since.getUTCDay();
+    var diff = (dow + 6) % 7; // dias desde segunda
+    since.setUTCDate(since.getUTCDate() - diff);
+    since.setUTCHours(11, 0, 0, 0);
+    if (since.getTime() > now.getTime()) since.setUTCDate(since.getUTCDate() - 7);
+    var sinceIso = since.toISOString();
+
+    const brokerIndex = await buildBrokerPhoneIndex(db);
+    var brokersAtivos = 0;
+    const brokerSnap = await db.collection('brokers').get();
+    brokerSnap.forEach(function(d) {
+      var data = d.data() || {};
+      if (!isBrokerActiveFlag(data.isActive)) return;
+      if (brokerPhoneMatchKeys(data.phone).length) brokersAtivos += 1;
+    });
+
+    const leadSnap = await db.collection('chatbot_leads').get();
+    var corretoresResponderam = 0;
+    var visitasAgendadas = 0;
+    var biaSlips = 0;
+    var respostasDetalhe = [];
+    leadSnap.forEach(function(doc) {
+      var data = doc.data() || {};
+      var phone = normalizeWhatsAppPhone(data.phone || doc.id) || doc.id;
+      var broker = lookupBrokerInIndex(brokerIndex, phone);
+      if (data.biaSlip) biaSlips += 1;
+      if (!broker) return;
+      var lastUser = data.lastUserMessageAt || '';
+      if (lastUser && lastUser >= sinceIso) {
+        corretoresResponderam += 1;
+        if (respostasDetalhe.length < 30) {
+          respostasDetalhe.push({ phone: phone, name: broker.name || data.name || '', at: lastUser });
+        }
+      }
+      var motivo = String(data.encaminhadoMotivo || data.notes || '').toLowerCase();
+      var temVisita = (data.scheduledVisit && data.scheduledVisit.date) || motivo.indexOf('visita') >= 0;
+      if (temVisita) visitasAgendadas += 1;
+    });
+
+    var taxaResposta = brokersAtivos > 0
+      ? Math.round((corretoresResponderam / brokersAtivos) * 1000) / 10
+      : 0;
+
+    return res.json({
+      ok: true,
+      desde: sinceIso,
+      brokersAtivos: brokersAtivos,
+      corretoresResponderam: corretoresResponderam,
+      taxaRespostaPct: taxaResposta,
+      visitasAgendadasCorretores: visitasAgendadas,
+      biaSlips: biaSlips,
+      respostas: respostasDetalhe,
+    });
+  } catch (err) {
+    console.error('brokerCampaignMetrics:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Painel de aprendizado da Bia: lições automáticas, orientações do atendente e regras do gestor. */
+exports.biaLearning = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const body = req.body || {};
+    if (!verifyAdminFromBody(body)) return res.status(403).json({ error: 'Acesso negado' });
+    const db = admin.firestore();
+    const autoRef = db.collection('bia_training').doc('auto');
+    const globalRef = db.collection('bia_training').doc('global');
+    const action = String(body.action || 'list').trim();
+
+    if (action === 'list') {
+      const autoSnap = await autoRef.get();
+      const globalSnap = await globalRef.get();
+      const autoData = autoSnap.exists ? (autoSnap.data() || {}) : {};
+      const globalData = globalSnap.exists ? (globalSnap.data() || {}) : {};
+      return res.json({
+        ok: true,
+        lessons: autoData.lessons || [],
+        manual: autoData.manual || [],
+        snippets: (globalData.snippets || []).slice(-25).reverse(),
+      });
+    }
+
+    if (action === 'addGuideline') {
+      const text = String(body.text || '').trim();
+      if (text.length < 3) return res.status(400).json({ error: 'Texto muito curto' });
+      const snap = await autoRef.get();
+      const data = snap.exists ? (snap.data() || {}) : {};
+      let manual = Array.isArray(data.manual) ? data.manual.slice() : [];
+      manual.push({ text: text.substring(0, 400), by: String(body.adminEmail || 'admin'), at: new Date().toISOString() });
+      if (manual.length > 40) manual = manual.slice(-40);
+      await autoRef.set({ manual: manual, updatedAt: new Date().toISOString() }, { merge: true });
+      return res.json({ ok: true, manual: manual });
+    }
+
+    if (action === 'deleteGuideline') {
+      const at = String(body.at || '');
+      const snap = await autoRef.get();
+      const data = snap.exists ? (snap.data() || {}) : {};
+      let manual = Array.isArray(data.manual) ? data.manual.slice() : [];
+      manual = manual.filter(function(m) { return (typeof m === 'string' ? m : m.at) !== at; });
+      await autoRef.set({ manual: manual, updatedAt: new Date().toISOString() }, { merge: true });
+      return res.json({ ok: true, manual: manual });
+    }
+
+    if (action === 'deleteLesson') {
+      const key = String(body.key || '');
+      const snap = await autoRef.get();
+      const data = snap.exists ? (snap.data() || {}) : {};
+      let lessons = Array.isArray(data.lessons) ? data.lessons.slice() : [];
+      lessons = lessons.filter(function(l) { return l.key !== key; });
+      await autoRef.set({ lessons: lessons, updatedAt: new Date().toISOString() }, { merge: true });
+      return res.json({ ok: true, lessons: lessons });
+    }
+
+    if (action === 'clearLessons') {
+      await autoRef.set({ lessons: [], updatedAt: new Date().toISOString() }, { merge: true });
+      return res.json({ ok: true, lessons: [] });
+    }
+
+    if (action === 'deleteSnippet') {
+      const at = String(body.at || '');
+      const snap = await globalRef.get();
+      const data = snap.exists ? (snap.data() || {}) : {};
+      let snippets = Array.isArray(data.snippets) ? data.snippets.slice() : [];
+      snippets = snippets.filter(function(s) { return s.at !== at; });
+      await globalRef.set({ snippets: snippets, updatedAt: new Date().toISOString() }, { merge: true });
+      return res.json({ ok: true });
+    }
+
+    if (action === 'clearSnippets') {
+      await globalRef.set({ snippets: [], updatedAt: new Date().toISOString() }, { merge: true });
+      return res.json({ ok: true });
+    }
+
+    return res.status(400).json({ error: 'Ação inválida' });
+  } catch (err) {
+    console.error('biaLearning:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 /** Prepara base (limpa duplicatas/arquivados) e devolve preview pronto para disparo */
 exports.brokerCampaignPrepare = functions.https.onRequest(async (req, res) => {

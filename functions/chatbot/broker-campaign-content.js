@@ -846,7 +846,8 @@ function buildCampanhaCorretorBodyComponents(config, broker, now, useSimple) {
 }
 
 /** Bloco do imovel para campanha_corretor_msg4 ({{3}}). */
-function buildCampanhaCorretorMsg4PropertyBlock(config, broker, now, compact) {
+function buildCampanhaCorretorMsg4PropertyBlock(config, broker, now, compact, opts) {
+  opts = opts || {};
   var ctx = buildCampaignContext(config, broker, now);
   var f = ctx.featured;
   var T = function(s) { return stripAccentsForTemplate(String(s || '')); };
@@ -865,8 +866,10 @@ function buildCampanhaCorretorMsg4PropertyBlock(config, broker, now, compact) {
   if (f.mcmv) lines.push('Minha Casa Minha Vida');
   var featLine = pickFeaturesLine(f, compact ? 1 : 2, true);
   if (featLine) lines.push(T(featLine));
-  var mapsUrl = getMapsUrlForCampaign(f);
-  if (mapsUrl) lines.push('Mapa: ' + mapsUrl);
+  if (!opts.noMaps) {
+    var mapsUrl = getMapsUrlForCampaign(f);
+    if (mapsUrl) lines.push('Mapa: ' + mapsUrl);
+  }
   return finalizeTemplateVar1Body(lines.join('\n'));
 }
 
@@ -905,7 +908,9 @@ function buildCampanhaCorretorMsg4VarTexts(config, broker, now, opts) {
   var f = ctx.featured;
   var portfolioUrl = getPortfolioUrl(ctx.siteUrl);
   var propUrl = f ? getPropertyPageUrlForTemplate(f, ctx.siteUrl) : portfolioUrl;
-  var propertyRaw = buildCampanhaCorretorMsg4PropertyBlock(config, broker, now, compact);
+  var propertyRaw = buildCampanhaCorretorMsg4PropertyBlock(config, broker, now, compact, {
+    noMaps: !!opts.noMaps,
+  });
   var footerRaw = buildCampanhaCorretorMsg4FooterBlock(config, broker, now);
   return {
     week: sanitizeMsg4TextVar(String(ctx.week), true),
@@ -937,7 +942,7 @@ function getCampanhaCorretorMsg4Candidates(config, broker, now) {
   return [
     buildCampanhaCorretorMsg4VarTexts(config, broker, now, { compact: false, flat: true }),
     buildCampanhaCorretorMsg4VarTexts(config, broker, now, { compact: true, flat: true }),
-    buildCampanhaCorretorMsg4VarTexts(config, broker, now, { compact: false, flat: false }),
+    buildCampanhaCorretorMsg4VarTexts(config, broker, now, { compact: true, flat: true, noMaps: true }),
   ];
 }
 

@@ -45,49 +45,80 @@ function isBrokerActiveFlag(value) {
   return s === 'true' || s === '1' || s === 'sim' || s === 'ativo';
 }
 
+/**
+ * Gera chaves de comparação de telefone tolerantes ao 9º dígito (Brasil).
+ * Ex.: 5521998080191 e 552198080191 viram o mesmo conjunto de chaves.
+ */
+function brokerPhoneMatchKeys(raw) {
+  var keys = [];
+  var norm = normalizeWhatsAppPhone(raw);
+  if (!norm) return keys;
+  keys.push(norm);
+  if (norm.indexOf('55') === 0 && norm.length >= 12) {
+    var ddd = norm.substring(2, 4);
+    var rest = norm.substring(4);
+    if (rest.length === 9 && rest.charAt(0) === '9') {
+      keys.push('55' + ddd + rest.substring(1));
+    } else if (rest.length === 8) {
+      keys.push('55' + ddd + '9' + rest);
+    }
+  }
+  return keys;
+}
+
 async function findRegisteredBrokerByPhone(phone) {
-  var norm = normalizeWhatsAppPhone(phone);
-  if (!norm) return null;
+  var lookupKeys = brokerPhoneMatchKeys(phone);
+  if (!lookupKeys.length) return null;
   var now = Date.now();
   if (!brokerPhoneCache.map || now - brokerPhoneCache.at > BROKER_CACHE_MS) {
     var snap = await getDb().collection('brokers').get();
     var map = {};
     snap.forEach(function(doc) {
       var d = doc.data() || {};
-      var p = normalizeWhatsAppPhone(d.phone);
-      if (!p) return;
       var entry = {
         id: doc.id,
         name: d.name || '',
         email: d.email || '',
         isActive: isBrokerActiveFlag(d.isActive),
       };
-      if (!map[p] || (entry.isActive && !map[p].isActive)) map[p] = entry;
+      var brokerKeys = brokerPhoneMatchKeys(d.phone);
+      brokerKeys.forEach(function(k) {
+        if (!map[k] || (entry.isActive && !map[k].isActive)) map[k] = entry;
+      });
     });
     brokerPhoneCache = { at: now, map: map };
   }
-  var hit = brokerPhoneCache.map[norm];
-  if (!hit || !hit.isActive) return null;
-  return hit;
+  var i;
+  for (i = 0; i < lookupKeys.length; i++) {
+    var hit = brokerPhoneCache.map[lookupKeys[i]];
+    if (hit && hit.isActive) return hit;
+  }
+  return null;
 }
 
 function getBrokerBiaPromptBlock(broker) {
   var first = String((broker && broker.name) || '').trim().split(' ')[0] || 'parceiro(a)';
   return '\n\n## MODO CORRETOR CADASTRADO (PRIORIDADE MÁXIMA)\n' +
-    'Quem conversa é um *corretor parceiro* cadastrado: *' + first + '*. Esta conversa NÃO é lead/cliente final.\n\n' +
-    '### O que você PODE fazer\n' +
-    '- Tirar dúvidas sobre imóveis, empreendimentos, unidades, MCMV e condições gerais, usando listar_imoveis, detalhes_imovel e simular_financiamento quando ajudar o corretor a orientar o cliente dele.\n' +
-    '- Para *quais unidades estão disponíveis, reservadas ou assinadas* e *valor de engenharia*, use SEMPRE as ferramentas estoque_empreendimento e consultar_unidade (dados oficiais do sistema — não invente status nem valor).\n' +
-    '- Tom profissional entre parceiros (sem roteiro de "primeira moradia" de consumidor).\n\n' +
-    '### O que você NÃO resolve — encaminhe ao Bruno\n' +
-    'Para *reserva de unidade*, *aprovação de financiamento*, *valores fechados*, *aprovação de proposta* ou decisão comercial/contratual: diga que é com o *Bruno Marques (gestão comercial)* no WhatsApp *' + BRUNO_CORRETOR_PHONE_DISPLAY + '*.\n' +
+    'Quem conversa é um *corretor parceiro* cadastrado: *' + first + '*. Esta conversa NÃO é lead/cliente final. Trate como colega profissional do mercado imobiliário.\n\n' +
+    '### CONTATO HUMANO = SEMPRE BRUNO (NUNCA DAVI)\n' +
+    '- O único contato humano para o corretor é o *Bruno Marques* no WhatsApp *' + BRUNO_CORRETOR_PHONE_DISPLAY + '* (gestão comercial).\n' +
+    '- *NUNCA* cite o "Davi" nem o número (21) 99759-0814 para corretor. Davi é só para cliente final — aqui é Bruno.\n' +
+    '- Para *reserva de unidade*, *aprovação de financiamento*, *valores fechados*, *proposta*, *agendamento/visita* ou qualquer decisão comercial: direcione ao *Bruno Marques ' + BRUNO_CORRETOR_PHONE_DISPLAY + '*. Não use encaminhar_humano no lugar do Bruno; passe o WhatsApp do Bruno.\n' +
+    '- O telefone do Bruno é *EXCLUSIVO para corretores* — nunca passe para cliente final.\n\n' +
+    '### NÃO EXPLIQUE NADA TÉCNICO (O CORRETOR JÁ SABE)\n' +
+    '- *NÃO* explique como funciona o Minha Casa Minha Vida, faixas de renda, subsídio, taxas de juros, ITBI/registro, prazo ou regras do programa. O corretor é profissional e já domina isso.\n' +
+    '- *NÃO* peça renda bruta familiar, CPF, "nome limpo" nem faça roteiro de qualificação de consumidor.\n' +
+    '- *NÃO* ofereça simulação de financiamento por iniciativa própria nem dê discurso de "sair do aluguel". Só rode simular_financiamento se o corretor pedir explicitamente um número.\n' +
+    '- Seja objetivo e direto, de profissional para profissional. Responda só o que foi perguntado, com dados concretos.\n\n' +
+    '### O que você FORNECE ao corretor (dados objetivos)\n' +
+    '- Preço de venda, *valor de engenharia*, status de unidade (disponível/reservado/assinado): use SEMPRE estoque_empreendimento e consultar_unidade (dados oficiais — não invente).\n' +
+    '- Características, endereço e mapa dos empreendimentos: use listar_imoveis e detalhes_imovel.\n' +
     '- Não invente preço, desconto, aprovação ou reserva.\n\n' +
-    '### REGRA CONFIDENCIAL\n' +
-    '- O telefone do Bruno (*' + BRUNO_CORRETOR_PHONE_DISPLAY + '*) é *EXCLUSIVO para corretores*. NUNCA mencione Bruno nem esse número para clientes finais/leads — nesta conversa é corretor, pode informar.\n\n' +
+    '### COMO CONHECER O LOCAL / PEGAR A CHAVE (VISITA DO CORRETOR)\n' +
+    '- Se o corretor perguntar como *conhecer o local*, *visitar*, *pegar/onde está a chave* ou *acessar o empreendimento*, use a ferramenta *orientar_acesso_visita*. Ela envia o vídeo de acesso.\n' +
+    '- Explique que a chave fica escondida no *quadro de luz da Enel* do empreendimento — *mesmo padrão em todos* (o vídeo mostra onde) e que ele pode ir conhecer com o cliente. Para combinar horário/suporte, contato é o *Bruno ' + BRUNO_CORRETOR_PHONE_DISPLAY + '*.\n' +
+    '- Essa orientação de chave é *exclusiva para corretor* — nunca passe para cliente final.\n\n' +
     '### Outras regras\n' +
-    '- Não insista em "nome limpo do CPF" como para cliente final.\n' +
-    '- Para reserva/financiamento aprovado/proposta/valores fechados, não use encaminhar_humano no lugar do Bruno — passe o WhatsApp do Bruno.\n' +
-    '- Visitas operacionais com clientes do corretor: pode citar Davi (21) 99759-0814.\n' +
     '- Não pressione follow-up de lead.';
 }
 
@@ -277,9 +308,64 @@ async function recordAdminBiaTraining(phone, text, adminEmail) {
   }
 }
 
+/** Lições automáticas: a Bia aprende com os próprios erros recorrentes. */
+var BIA_AUTO_LESSONS = {
+  citou_davi: 'NUNCA cite "Davi" nem o número (21) 99759-0814 para corretor cadastrado. O contato do corretor é SEMPRE o Bruno Marques (21) 99555-7010.',
+  pediu_cpf_nome_limpo: 'NUNCA peça CPF nem "nome limpo" para corretor cadastrado — ele não é cliente final.',
+  pediu_renda: 'NUNCA peça renda para corretor cadastrado. Dê só dados objetivos (preço, engenharia, estoque, endereço).',
+  explicou_mcmv: 'NÃO explique Minha Casa Minha Vida, subsídio, faixas nem use "sair do aluguel" com corretor. Ele já domina o programa.',
+};
+
+/** Registra/contabiliza uma lição quando a Bia comete um erro conhecido. */
+async function recordBiaAutoLesson(key) {
+  if (!key || !BIA_AUTO_LESSONS[key]) return;
+  const db = getDb();
+  const ref = db.collection('bia_training').doc('auto');
+  const snap = await ref.get();
+  const data = snap.exists ? (snap.data() || {}) : {};
+  let lessons = Array.isArray(data.lessons) ? data.lessons.slice() : [];
+  let found = false;
+  const nowIso = new Date().toISOString();
+  lessons.forEach(function(l) {
+    if (l.key === key) {
+      l.count = (l.count || 1) + 1;
+      l.lastAt = nowIso;
+      l.text = BIA_AUTO_LESSONS[key];
+      found = true;
+    }
+  });
+  if (!found) {
+    lessons.push({ key: key, text: BIA_AUTO_LESSONS[key], count: 1, firstAt: nowIso, lastAt: nowIso });
+  }
+  if (lessons.length > 30) lessons = lessons.slice(-30);
+  await ref.set({ lessons: lessons, updatedAt: nowIso }, { merge: true });
+}
+
 async function getBiaTrainingPromptExtra(phone) {
   const db = getDb();
   const parts = [];
+  try {
+    const autoSnap = await db.collection('bia_training').doc('auto').get();
+    if (autoSnap.exists) {
+      const autoData = autoSnap.data() || {};
+      const manual = (autoData.manual || []);
+      if (manual.length) {
+        parts.push('\n\n## REGRAS DEFINIDAS PELO GESTOR (PRIORIDADE MÁXIMA — sempre siga)');
+        manual.forEach(function(m) {
+          parts.push('- ' + (typeof m === 'string' ? m : (m.text || '')));
+        });
+      }
+      const lessons = (autoData.lessons || []);
+      if (lessons.length) {
+        parts.push('\n\n## LIÇÕES APRENDIDAS (erros já cometidos — NUNCA repita)');
+        lessons.forEach(function(l) {
+          parts.push('- ' + (l.text || ''));
+        });
+      }
+    }
+  } catch (eAuto) {
+    console.warn('getBiaTrainingPromptExtra auto:', eAuto.message);
+  }
   try {
     const globalSnap = await db.collection('bia_training').doc('global').get();
     if (globalSnap.exists) {
@@ -565,12 +651,14 @@ module.exports = {
   recordInboundActivity,
   queueInboundEmailAlert,
   recordAdminBiaTraining,
+  recordBiaAutoLesson,
   getBiaTrainingPromptExtra,
   setFollowUpExclusion: function(phone, excluded, reason, by) {
     var apply = require('./follow-up-engine').setFollowUpExclusion;
     return apply(getDb(), phone, excluded, reason, by);
   },
   findRegisteredBrokerByPhone,
+  brokerPhoneMatchKeys,
   getBrokerBiaPromptBlock,
   BRUNO_CORRETOR_PHONE_DISPLAY,
 };

@@ -1,5 +1,9 @@
 // Properties management system
 
+// Versão do catálogo: ao mudar nomes/dados oficiais, incremente para invalidar
+// caches antigos do navegador (evita exibir nomes/dados desatualizados).
+var PROPERTIES_CATALOG_VERSION = '2026-06-08';
+
 // Property management functions
 function addProperty(propertyData) {
     const newProperty = {
@@ -81,10 +85,20 @@ function deleteProperty(propertyId) {
 // Save properties to localStorage
 function saveProperties() {
     localStorage.setItem('properties', JSON.stringify(properties));
+    try { localStorage.setItem('propertiesCatalogVersion', PROPERTIES_CATALOG_VERSION); } catch (e) {}
 }
 
 // Load properties from localStorage
 function loadPropertiesFromStorage() {
+    // Invalida cache antigo: se a versão do catálogo mudou, descarta os dados
+    // salvos para sempre exibir o catálogo oficial atualizado (nomes/cidade/quartos).
+    var storedVersion = null;
+    try { storedVersion = localStorage.getItem('propertiesCatalogVersion'); } catch (e) {}
+    if (storedVersion !== PROPERTIES_CATALOG_VERSION) {
+        try { localStorage.removeItem('properties'); } catch (e) {}
+        properties = [];
+        return;
+    }
     const savedProperties = localStorage.getItem('properties');
     if (savedProperties) {
         properties = JSON.parse(savedProperties);

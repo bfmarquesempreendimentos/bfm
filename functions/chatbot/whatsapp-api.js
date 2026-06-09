@@ -41,7 +41,7 @@ async function sendTextMessage(to, text, options = {}) {
   if (options.phoneNumberId) rememberCloudPhoneNumberId(options.phoneNumberId);
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
 
-  console.log(`[WA-API] Enviando para ${to}, phoneNumberId=${phoneNumberId}, token=${token ? token.substring(0, 20) + '...' : 'VAZIO'}`);
+  console.log(`[WA-API] Enviando para ${to}, phoneNumberId=${phoneNumberId}, token=${token ? 'definido' : 'VAZIO'}`);
 
   const chunks = splitMessage(text, 4000);
   var lastMessageId = '';
@@ -55,10 +55,10 @@ async function sendTextMessage(to, text, options = {}) {
       }, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
-      console.log(`[WA-API] Resposta Meta:`, JSON.stringify(resp.data));
       if (resp.data && resp.data.messages && resp.data.messages[0] && resp.data.messages[0].id) {
         lastMessageId = resp.data.messages[0].id;
       }
+      console.log(`[WA-API] Mensagem aceita pela Meta. id=${lastMessageId || 'n/d'}`);
     } catch (err) {
       const status = err.response?.status;
       const metaError = err.response?.data?.error?.message || err.message;

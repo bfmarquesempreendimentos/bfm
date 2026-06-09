@@ -108,6 +108,12 @@
                             <span>WhatsApp</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="#bia-learning" onclick="showSection('bia-learning'); closeAdminSidebar();">
+                            <i class="fas fa-robot" aria-hidden="true"></i>
+                            <span>Bia (IA)</span>
+                        </a>
+                    </li>
                 </ul>
             </div>
             <div class="nav-group">
@@ -683,6 +689,73 @@
                     <tbody id="brokersTableBody">
                     </tbody>
                 </table>
+            </div>
+        </section>
+
+        <!-- Bia (IA) Learning Section -->
+        <section id="bia-learning" class="admin-section">
+            <div class="section-header">
+                <div class="section-header-main">
+                    <h2>Bia (IA) — Aprendizado</h2>
+                    <p class="section-subtitle">O que a Bia aprendeu com os erros, suas orientações ao vivo e as regras que você define.</p>
+                </div>
+                <div class="header-actions">
+                    <button type="button" class="btn btn-secondary" onclick="loadBiaLearning()">
+                        <i class="fas fa-refresh" aria-hidden="true"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-graduation-cap"></i></div>
+                    <div class="stat-info">
+                        <h3 id="biaLessonsCount">0</h3>
+                        <p>Lições aprendidas</p>
+                        <small class="stat-card-hint">Erros que a Bia evita repetir</small>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-gavel"></i></div>
+                    <div class="stat-info">
+                        <h3 id="biaManualCount">0</h3>
+                        <p>Regras do gestor</p>
+                        <small class="stat-card-hint">Prioridade máxima no comportamento</small>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-comment-dots"></i></div>
+                    <div class="stat-info">
+                        <h3 id="biaSnippetsCount">0</h3>
+                        <p>Orientações ao vivo</p>
+                        <small class="stat-card-hint">Correções feitas no atendimento</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card" style="margin-top: 16px;">
+                <h3 style="margin-top:0;"><i class="fas fa-gavel"></i> Regras definidas por você (gestor)</h3>
+                <p class="section-subtitle">Escreva uma regra de comportamento. A Bia vai seguir em TODAS as conversas, com prioridade máxima.</p>
+                <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+                    <input type="text" id="biaGuidelineInput" class="form-control" style="flex:1 1 280px; min-width:0;"
+                        placeholder="Ex.: Nunca prometa data de entrega de obra sem confirmar com o Bruno." maxlength="400">
+                    <button type="button" class="btn btn-primary" onclick="addBiaGuideline()">
+                        <i class="fas fa-plus" aria-hidden="true"></i> Adicionar regra
+                    </button>
+                </div>
+                <div id="biaManualList"></div>
+            </div>
+
+            <div class="content-card" style="margin-top: 16px;">
+                <h3 style="margin-top:0;"><i class="fas fa-graduation-cap"></i> Lições aprendidas automaticamente</h3>
+                <p class="section-subtitle">A Bia detecta os próprios "escorregões" e passa a evitá-los sozinha.</p>
+                <div id="biaLessonsList"></div>
+            </div>
+
+            <div class="content-card" style="margin-top: 16px;">
+                <h3 style="margin-top:0;"><i class="fas fa-comment-dots"></i> Orientações dadas no atendimento</h3>
+                <p class="section-subtitle">Quando você corrige a Bia em uma conversa, fica registrado aqui.</p>
+                <div id="biaSnippetsList"></div>
             </div>
         </section>
 

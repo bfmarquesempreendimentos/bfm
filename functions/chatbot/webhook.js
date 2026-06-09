@@ -205,13 +205,24 @@ function extractMessageContent(message) {
 }
 
 function validateSignature(req, appSecret) {
+  // Sem segredo configurado: não bloqueia (mantém o chatbot funcionando).
+  // Para ativar a proteção, defina o secret WHATSAPP_APP_SECRET (App Secret da Meta)
+  // e inclua-o em runWith({ secrets: [...] }) da função chatbotWebhook.
   if (!appSecret) return true;
-  const signature = req.headers['x-hub-signature-256'];
-  if (!signature) return false;
-  const expected = 'sha256=' + crypto.createHmac('sha256', appSecret)
-    .update(req.rawBody || JSON.stringify(req.body))
-    .digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  try {
+    const signature = req.headers['x-hub-signature-256'];
+    if (!signature) return false;
+    const expected = 'sha256=' + crypto.createHmac('sha256', appSecret)
+      .update(req.rawBody || Buffer.from(JSON.stringify(req.body)))
+      .digest('hex');
+    const sigBuf = Buffer.from(String(signature));
+    const expBuf = Buffer.from(expected);
+    if (sigBuf.length !== expBuf.length) return false;
+    return crypto.timingSafeEqual(sigBuf, expBuf);
+  } catch (e) {
+    console.warn('[Webhook] erro ao validar assinatura:', e.message);
+    return false;
+  }
 }
 
 module.exports = { verifyWebhook, processWebhook, validateSignature };

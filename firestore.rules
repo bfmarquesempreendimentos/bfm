@@ -66,12 +66,14 @@ service cloud.firestore {
       allow read, update: if true;
     }
 
+    // Campanha de corretores: manipulada apenas pelas Cloud Functions (Admin SDK).
+    // Nenhum acesso direto pelo cliente.
     match /broker_campaign/{docId} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
 
     match /broker_campaign_logs/{docId} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

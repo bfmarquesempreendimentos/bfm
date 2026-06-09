@@ -3,7 +3,7 @@
  * Não envia para: modo humano, exclusão manual, idade/financiamento bloqueado, visita agendada, etc.
  */
 const { sendFollowUp } = require('./templates');
-const { getLastConversationMessage } = require('./lead-manager');
+const { getLastConversationMessage, findRegisteredBrokerByPhone } = require('./lead-manager');
 const { getPropertyById } = require('./property-data');
 
 const HOUR = 1000 * 60 * 60;
@@ -158,6 +158,30 @@ async function backfillLeadUserTimestamps(db, phone, lead) {
 }
 
 async function runFollowUpForLead(docRef, lead, now, db) {
+  if (!lead.isBroker) {
+    var brokerHit = null;
+    try {
+      brokerHit = await findRegisteredBrokerByPhone(lead.phone);
+    } catch (_) {
+      brokerHit = null;
+    }
+    if (brokerHit) {
+      try {
+        await docRef.set({
+          isBroker: true,
+          brokerId: brokerHit.id,
+          brokerName: brokerHit.name || '',
+          contactType: 'corretor',
+          categoria: 'corretor',
+          followUpExcluded: true,
+          followUpExcludeReason: 'corretor_cadastrado',
+          followUpPaused: true,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+      } catch (_) {}
+      return { skipped: true, reason: 'corretor_cadastrado' };
+    }
+  }
   if (db) {
     lead = await backfillLeadUserTimestamps(db, lead.phone, lead);
     if (!lead.followUpExcluded) {
@@ -183,29 +207,39 @@ async function runFollowUpForLead(docRef, lead, now, db) {
   }
 
   const propertyTitle = getPropertyTitle(lead);
+
+  // Idempotência: avança o estágio ANTES de enviar. Assim, se houver qualquer
+  // falha, o próximo ciclo do cron NÃO reenvia o mesmo estágio (evita mensagem
+  // repetida ao lead). No pior caso, um follow-up deixa de ser enviado — o que é
+  // preferível a enviar duplicado.
+  var log = Array.isArray(lead.followUpLog) ? lead.followUpLog.slice() : [];
+  log.push({
+    stage: next.key,
+    at: now.toISOString(),
+    templateType: next.templateType,
+  });
+  if (log.length > 12) log = log.slice(-12);
+
+  var updates = {
+    followUpStage: next.key === 'd30' ? 'completed' : next.key,
+    lastFollowUpAt: now.toISOString(),
+    followUpLog: log,
+    updatedAt: now.toISOString(),
+  };
+
+  try {
+    await docRef.update(updates);
+  } catch (errUpd) {
+    // Não conseguimos reservar o estágio: aborta sem enviar para não arriscar duplicar.
+    return { error: 'reserva_estagio_falhou: ' + (errUpd.message || String(errUpd)) };
+  }
+
   try {
     await sendFollowUp(lead.phone, lead.name, propertyTitle, next.templateType);
-    var log = Array.isArray(lead.followUpLog) ? lead.followUpLog.slice() : [];
-    log.push({
-      stage: next.key,
-      at: now.toISOString(),
-      templateType: next.templateType,
-    });
-    if (log.length > 12) log = log.slice(-12);
-
-    var updates = {
-      followUpStage: next.key,
-      lastFollowUpAt: now.toISOString(),
-      followUpLog: log,
-      updatedAt: now.toISOString(),
-    };
-    if (next.key === 'd30') {
-      updates.followUpStage = 'completed';
-    }
-    await docRef.update(updates);
     return { sent: true, stage: next.key, templateType: next.templateType };
   } catch (err) {
-    return { error: err.message || String(err) };
+    // Estágio já avançado; registra o erro sem reenviar.
+    return { error: err.message || String(err), stageAdvanced: next.key };
   }
 }
 

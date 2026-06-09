@@ -2,18 +2,41 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <title>B F Marques Empreendimentos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Página não encontrada - B F Marques Empreendimentos</title>
   <script>
     (function () {
+      // URLs amigáveis de imóvel (/imovel/slug) continuam redirecionando para a home com o parâmetro.
       var path = String(window.location.pathname || '').replace(/^\/bfm\/?/, '').replace(/^\//, '');
       var match = path.match(/^imovel\/([a-z0-9-]+)/i);
       if (match && match[1]) {
         window.location.replace('/bfm/?p=' + encodeURIComponent(match[1]));
-        return;
       }
-      window.location.replace('/bfm/');
     })();
   </script>
+  <style>
+    body { margin: 0; font-family: 'Inter', Arial, sans-serif; background: #f7f8fa; color: #1f2937;
+      display: flex; min-height: 100vh; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+    .box { max-width: 480px; }
+    .code { font-size: 72px; font-weight: 700; color: #c89b3c; margin: 0; line-height: 1; }
+    h1 { font-size: 22px; margin: 12px 0 8px; }
+    p { color: #6b7280; line-height: 1.5; margin: 0 0 24px; }
+    .actions a { display: inline-block; margin: 6px; padding: 12px 20px; border-radius: 8px;
+      text-decoration: none; font-weight: 600; }
+    .primary { background: #c89b3c; color: #fff; }
+    .secondary { background: #fff; color: #1f2937; border: 1px solid #d1d5db; }
+  </style>
 </head>
-<body></body>
+<body>
+  <div class="box">
+    <p class="code">404</p>
+    <h1>Página não encontrada</h1>
+    <p>O endereço que você tentou acessar não existe ou foi movido. Confira nossos imóveis ou fale com a gente.</p>
+    <div class="actions">
+      <a class="primary" href="/bfm/">Ver imóveis</a>
+      <a class="secondary" href="/bfm/contato.html">Fale conosco</a>
+    </div>
+  </div>
+</body>
 </html>

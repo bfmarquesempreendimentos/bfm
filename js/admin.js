@@ -843,7 +843,166 @@ function showSection(sectionId) {
         case 'whatsapp-leads':
             if (typeof loadWhatsAppLeads === 'function') loadWhatsAppLeads();
             break;
+        case 'bia-learning':
+            if (typeof loadBiaLearning === 'function') loadBiaLearning();
+            break;
     }
+}
+
+function biaEscapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function biaFormatDate(iso) {
+    if (!iso) return '';
+    try {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+}
+
+function biaCallApi(action, extra) {
+    var creds = getAdminApiCredentials();
+    if (!creds.email || !creds.password) {
+        return Promise.reject(new Error('Faça login como administrador.'));
+    }
+    var payload = { action: action, adminEmail: creds.email, adminPassword: creds.password };
+    if (extra) {
+        var k;
+        for (k in extra) { if (extra.hasOwnProperty(k)) payload[k] = extra[k]; }
+    }
+    return adminPostJson('/biaLearning', payload);
+}
+
+function loadBiaLearning() {
+    var manualEl = document.getElementById('biaManualList');
+    var lessonsEl = document.getElementById('biaLessonsList');
+    var snippetsEl = document.getElementById('biaSnippetsList');
+    if (manualEl) manualEl.innerHTML = '<p class="text-muted">Carregando...</p>';
+    if (lessonsEl) lessonsEl.innerHTML = '';
+    if (snippetsEl) snippetsEl.innerHTML = '';
+
+    biaCallApi('list').then(function(data) {
+        data = data || {};
+        renderBiaManual(data.manual || []);
+        renderBiaLessons(data.lessons || []);
+        renderBiaSnippets(data.snippets || []);
+    }).catch(function(err) {
+        if (manualEl) manualEl.innerHTML = '<p class="text-muted">' + biaEscapeHtml(err.message || 'Erro ao carregar.') + '</p>';
+    });
+}
+
+function renderBiaManual(manual) {
+    var el = document.getElementById('biaManualList');
+    var countEl = document.getElementById('biaManualCount');
+    if (countEl) countEl.textContent = manual.length;
+    if (!el) return;
+    if (!manual.length) {
+        el.innerHTML = '<p class="text-muted">Nenhuma regra definida ainda.</p>';
+        return;
+    }
+    var html = '<ul class="bia-list">';
+    var i;
+    for (i = 0; i < manual.length; i++) {
+        var m = manual[i] || {};
+        var text = typeof m === 'string' ? m : (m.text || '');
+        var at = typeof m === 'string' ? '' : (m.at || '');
+        html += '<li class="bia-list-item">'
+            + '<div class="bia-list-text">' + biaEscapeHtml(text) + '</div>'
+            + '<div class="bia-list-meta">' + biaEscapeHtml(biaFormatDate(at)) + '</div>'
+            + '<button type="button" class="btn btn-sm btn-danger" onclick="deleteBiaGuideline(\'' + biaEscapeHtml(at) + '\')">Remover</button>'
+            + '</li>';
+    }
+    html += '</ul>';
+    el.innerHTML = html;
+}
+
+function renderBiaLessons(lessons) {
+    var el = document.getElementById('biaLessonsList');
+    var countEl = document.getElementById('biaLessonsCount');
+    if (countEl) countEl.textContent = lessons.length;
+    if (!el) return;
+    if (!lessons.length) {
+        el.innerHTML = '<p class="text-muted">A Bia ainda não registrou erros. Ótimo sinal!</p>';
+        return;
+    }
+    var html = '<ul class="bia-list">';
+    var i;
+    for (i = 0; i < lessons.length; i++) {
+        var l = lessons[i] || {};
+        html += '<li class="bia-list-item">'
+            + '<div class="bia-list-text">' + biaEscapeHtml(l.text || '') + '</div>'
+            + '<div class="bia-list-meta">Ocorrências: ' + (l.count || 1) + ' &middot; última: ' + biaEscapeHtml(biaFormatDate(l.lastAt)) + '</div>'
+            + '<button type="button" class="btn btn-sm btn-danger" onclick="deleteBiaLesson(\'' + biaEscapeHtml(l.key || '') + '\')">Remover</button>'
+            + '</li>';
+    }
+    html += '</ul>';
+    el.innerHTML = html;
+}
+
+function renderBiaSnippets(snippets) {
+    var el = document.getElementById('biaSnippetsList');
+    var countEl = document.getElementById('biaSnippetsCount');
+    if (countEl) countEl.textContent = snippets.length;
+    if (!el) return;
+    if (!snippets.length) {
+        el.innerHTML = '<p class="text-muted">Nenhuma orientação registrada ainda.</p>';
+        return;
+    }
+    var html = '<ul class="bia-list">';
+    var i;
+    for (i = 0; i < snippets.length; i++) {
+        var s = snippets[i] || {};
+        var who = s.admin ? (' &middot; por ' + biaEscapeHtml(s.admin)) : '';
+        var ph = s.phone ? (' &middot; tel ' + biaEscapeHtml(s.phone)) : '';
+        html += '<li class="bia-list-item">'
+            + '<div class="bia-list-text">' + biaEscapeHtml(s.text || '') + '</div>'
+            + '<div class="bia-list-meta">' + biaEscapeHtml(biaFormatDate(s.at)) + who + ph + '</div>'
+            + '<button type="button" class="btn btn-sm btn-danger" onclick="deleteBiaSnippet(\'' + biaEscapeHtml(s.at || '') + '\')">Remover</button>'
+            + '</li>';
+    }
+    html += '</ul>';
+    el.innerHTML = html;
+}
+
+function addBiaGuideline() {
+    var input = document.getElementById('biaGuidelineInput');
+    if (!input) return;
+    var text = (input.value || '').trim();
+    if (text.length < 3) {
+        alert('Escreva uma regra um pouco mais detalhada.');
+        return;
+    }
+    biaCallApi('addGuideline', { text: text }).then(function(data) {
+        input.value = '';
+        renderBiaManual((data && data.manual) || []);
+    }).catch(function(err) {
+        alert(err.message || 'Erro ao adicionar regra.');
+    });
+}
+
+function deleteBiaGuideline(at) {
+    if (!confirm('Remover esta regra?')) return;
+    biaCallApi('deleteGuideline', { at: at }).then(function(data) {
+        renderBiaManual((data && data.manual) || []);
+    }).catch(function(err) { alert(err.message || 'Erro.'); });
+}
+
+function deleteBiaLesson(key) {
+    if (!confirm('Remover esta lição?')) return;
+    biaCallApi('deleteLesson', { key: key }).then(function(data) {
+        renderBiaLessons((data && data.lessons) || []);
+    }).catch(function(err) { alert(err.message || 'Erro.'); });
+}
+
+function deleteBiaSnippet(at) {
+    if (!confirm('Remover esta orientação?')) return;
+    biaCallApi('deleteSnippet', { at: at }).then(function() {
+        loadBiaLearning();
+    }).catch(function(err) { alert(err.message || 'Erro.'); });
 }
 
 var ADMIN_FUNCTIONS_BASE = (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL)
@@ -1620,10 +1779,10 @@ async function loadBrokersData() {
         }
         actions += '</select>';
         return '<tr' + rowClass + '>' +
-            '<td><strong>' + (broker.name || '—') + '</strong></td>' +
-            '<td>' + (broker.email || '') + '</td>' +
-            '<td>' + (broker.phone || '—') + '</td>' +
-            '<td>' + (broker.creci || '—') + '</td>' +
+            '<td><strong>' + escapeHtml(broker.name || '—') + '</strong></td>' +
+            '<td>' + escapeHtml(broker.email || '') + '</td>' +
+            '<td>' + escapeHtml(broker.phone || '—') + '</td>' +
+            '<td>' + escapeHtml(broker.creci || '—') + '</td>' +
             '<td><span class="status-badge status-' + (campOn ? 'ativo' : 'inativo') + '">' + (campOn ? 'Recebe' : 'Opt-out') + '</span></td>' +
             '<td>' + formatDate(broker.createdAt) + '</td>' +
             '<td>' + actions + '</td>' +
@@ -1654,10 +1813,10 @@ function renderPendingBrokersSection() {
     var brokerId = function(id) { return typeof id === 'string' ? "'" + String(id).replace(/'/g, "\\'") + "'" : id; };
     tbody.innerHTML = pending.map(function(broker) {
         return '<tr class="broker-row-pending">' +
-            '<td><strong>' + (broker.name || '—') + '</strong></td>' +
-            '<td>' + (broker.email || '') + '</td>' +
-            '<td>' + (broker.phone || '—') + '</td>' +
-            '<td>' + (broker.creci || '—') + '</td>' +
+            '<td><strong>' + escapeHtml(broker.name || '—') + '</strong></td>' +
+            '<td>' + escapeHtml(broker.email || '') + '</td>' +
+            '<td>' + escapeHtml(broker.phone || '—') + '</td>' +
+            '<td>' + escapeHtml(broker.creci || '—') + '</td>' +
             '<td>' + formatDate(broker.createdAt) + '</td>' +
             '<td class="brokers-pending-actions">' +
             '<button type="button" class="btn btn-success btn-sm" onclick="approveBroker(' + brokerId(broker.id) + ')">' +

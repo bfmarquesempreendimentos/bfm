@@ -4,13 +4,21 @@ const { transcribeAudioBuffer } = require('./audio-transcription');
 const { getPropertyById, getPropertyMediaLists, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, properties } = require('./property-data');
 const { formatPropertyInventory, formatUnitDetail } = require('./property-inventory');
 const { simulateFinancing, formatSimulationResult } = require('./finance-simulator');
-const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone, queueInboundEmailAlert, getBiaTrainingPromptExtra, setFollowUpExclusion, findRegisteredBrokerByPhone, getBrokerBiaPromptBlock, BRUNO_CORRETOR_PHONE_DISPLAY } = require('./lead-manager');
+const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone, queueInboundEmailAlert, getBiaTrainingPromptExtra, recordBiaAutoLesson, setFollowUpExclusion, findRegisteredBrokerByPhone, getBrokerBiaPromptBlock, BRUNO_CORRETOR_PHONE_DISPLAY } = require('./lead-manager');
 const { detectAgeFinancingBlock } = require('./follow-up-engine');
 const { sendWelcomeMessage, sendBrokerWelcomeMessage } = require('./templates');
 
 function delay(ms) {
   return new Promise(function(resolve) { setTimeout(resolve, ms); });
 }
+
+/**
+ * Vídeo de acesso para o corretor (mostra onde a chave fica escondida: no quadro
+ * de luz da Enel — mesmo padrão em todos os empreendimentos).
+ * Conteúdo EXCLUSIVO para corretores cadastrados.
+ */
+const BROKER_VISIT_ACCESS_VIDEO_URL =
+  'https://bfmarquesempreendimentos.github.io/bfm/assets/videos/amendoeiras/amendoeiras-03.mp4';
 
 function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -69,6 +77,36 @@ ${getPropertiesSummaryForAI()}
 25. Não pressione financiamento para quem já indicou bloqueio por idade; ofereça apenas informações gerais ou encaminhe ao humano se pedir
 26. *NUNCA* informe o telefone do Bruno Marques (21) 99555-7010 para clientes/leads — esse contato é *exclusivo* para corretores cadastrados (o sistema ativa o modo corretor automaticamente quando aplicável)
 27. Perguntas sobre unidade específica, reservada ou disponível: use estoque_empreendimento ou consultar_unidade — nunca chute status. Valor de engenharia só informe se a ferramenta retornar (modo corretor)`;
+
+/**
+ * Cérebro DEDICADO para corretor cadastrado (curto e objetivo, sem roteiro de consumidor).
+ * Usado no lugar do SYSTEM_PROMPT quando o contato é corretor.
+ */
+function buildBrokerSystemPrompt(broker) {
+  var first = String((broker && broker.name) || '').trim().split(' ')[0] || 'parceiro(a)';
+  return 'Você é a *Bia*, assistente da *B F Marques Empreendimentos*, falando com um *CORRETOR PARCEIRO CADASTRADO*: *' + first + '*. ' +
+    'Trate como colega profissional do mercado imobiliário — NÃO é cliente final.\n\n' +
+    '## ESTILO (OBRIGATÓRIO)\n' +
+    '- Respostas *curtas e diretas*: no máximo 2 a 4 linhas. Sem enrolação, sem discurso de vendas.\n' +
+    '- Responda só o que foi perguntado, com dados concretos. Pode usar 1 emoji no máximo.\n' +
+    '- Tom profissional entre parceiros.\n\n' +
+    '## NUNCA FAÇA\n' +
+    '- NÃO explique como funciona o Minha Casa Minha Vida, faixas, subsídio, taxas, ITBI, prazos ou regras do programa. O corretor já sabe.\n' +
+    '- NÃO peça renda, CPF nem "nome limpo". NÃO faça qualificação de consumidor.\n' +
+    '- NÃO ofereça simulação por conta própria nem use frases tipo "sair do aluguel". Só rode simular_financiamento se ele pedir um número.\n' +
+    '- NUNCA cite "Davi" nem o número (21) 99759-0814. O contato do corretor é SEMPRE o *Bruno Marques (21) 99555-7010*.\n\n' +
+    '## O QUE VOCÊ FORNECE\n' +
+    '- Preço de venda, *valor de engenharia* e status de unidade (disponível/reservado/assinado): use estoque_empreendimento e consultar_unidade (dados oficiais, não invente).\n' +
+    '- Características, endereço e mapa: use detalhes_imovel, listar_imoveis e endereco_imovel.\n' +
+    '- Fotos/vídeo de um imóvel: detalhes_imovel já envia automático; mais mídia, use enviar_midias_imovel.\n\n' +
+    '## VISITA / CHAVE\n' +
+    '- Se perguntar como conhecer o local, visitar, pegar/onde está a chave ou acessar o empreendimento, use *orientar_acesso_visita* (envia o vídeo). A chave fica no *quadro de luz da Enel* — mesmo padrão em todos os empreendimentos.\n\n' +
+    '## ENCAMINHAR AO BRUNO\n' +
+    '- Reserva, financiamento aprovado, valores fechados, proposta, agendamento/visita ou decisão comercial: direcione ao *Bruno Marques (21) 99555-7010* (não use encaminhar_humano no lugar do Bruno).\n' +
+    '- Esse número é exclusivo para corretor; nunca passe para cliente final.\n\n' +
+    '## EMPREENDIMENTOS\n' +
+    getPropertiesSummaryForAI();
+}
 
 const TOOLS = [
   {
@@ -195,6 +233,26 @@ const TOOLS = [
         codigo_unidade: { type: 'string', description: 'Código da unidade como no estoque' },
       },
       required: ['imovel_id', 'codigo_unidade'],
+    },
+  },
+  {
+    name: 'endereco_imovel',
+    description: 'Retorna o endereço completo e o link do mapa (Google Maps) de um empreendimento. Use quando perguntarem "onde fica", "qual o endereço", "manda a localização" — responda na hora, NÃO encaminhe para humano.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        imovel_id: { type: 'number', description: 'ID do empreendimento (1 a 8)' },
+      },
+      required: ['imovel_id'],
+    },
+  },
+  {
+    name: 'orientar_acesso_visita',
+    description: 'EXCLUSIVO PARA CORRETOR CADASTRADO. Use quando o corretor perguntar como conhecer o local, visitar, pegar/onde está a chave ou acessar o empreendimento. Envia o vídeo de acesso (onde a chave fica escondida — mesmo local para todos os empreendimentos). NUNCA use para cliente final.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: [],
     },
   },
 ];
@@ -383,6 +441,43 @@ async function executeTool(toolName, input, context) {
       });
     }
 
+    case 'endereco_imovel': {
+      const propAddr = getPropertyById(input.imovel_id);
+      if (!propAddr) return 'Imóvel não encontrado.';
+      var addrParts = [];
+      addrParts.push('📍 ' + propAddr.title);
+      if (propAddr.address) addrParts.push(propAddr.address);
+      if (propAddr.location) addrParts.push(propAddr.location);
+      if (propAddr.mapsUrl) addrParts.push('🗺️ Mapa: ' + propAddr.mapsUrl);
+      return addrParts.join('\n');
+    }
+
+    case 'orientar_acesso_visita': {
+      if (!context.isBroker) {
+        return 'Orientação de acesso/chave é exclusiva para corretores cadastrados. Para cliente final, use agendar_visita.';
+      }
+      var waOptKey = { phoneNumberId: context.phoneNumberId };
+      var keyVideoSent = false;
+      if (BROKER_VISIT_ACCESS_VIDEO_URL) {
+        try {
+          await sendVideoMessage(
+            context.from,
+            BROKER_VISIT_ACCESS_VIDEO_URL,
+            '🔑 Onde fica a chave: no quadro de luz da Enel (mesmo padrão em todos os empreendimentos)',
+            waOptKey
+          );
+          keyVideoSent = true;
+          await saveMessage(context.from, 'assistant', '[Vídeo de acesso/chave enviado ao corretor]', 'bot');
+        } catch (keyErr) {
+          console.error('orientar_acesso_visita vídeo:', keyErr.message);
+        }
+      }
+      return (keyVideoSent
+        ? 'Vídeo de acesso enviado. '
+        : 'Vídeo de acesso indisponível no momento; oriente apenas por texto. ') +
+        'Diga ao corretor, de forma objetiva: a chave fica escondida no *quadro de luz da Enel* do empreendimento — é o MESMO padrão em todos os empreendimentos (o vídeo mostra onde). Ele pode ir conhecer com o cliente. Para combinar horário ou suporte na visita, o contato é o Bruno Marques ' + BRUNO_CORRETOR_PHONE_DISPLAY + '. NÃO explique MCMV nem peça dados do corretor.';
+    }
+
     case 'enviar_midias_imovel': {
       const property = getPropertyById(input.imovel_id);
       if (!property) return 'Imóvel não encontrado.';
@@ -417,6 +512,25 @@ async function notifyManager(leadPhone, propertyTitle, visitDate, reason, waOpti
   } catch (err) {
     console.error('Erro ao notificar gerente:', err.message);
   }
+}
+
+/** Detecta quando a Bia "escorrega" no modo corretor (conteúdo que não deveria mandar p/ corretor). */
+function detectBrokerReplySlip(text) {
+  var t = String(text || '').toLowerCase();
+  if (!t) return '';
+  if (t.indexOf('davi') >= 0 || t.indexOf('99759-0814') >= 0 || t.indexOf('997590814') >= 0) {
+    return 'citou_davi';
+  }
+  if (/nome\s+limpo|cpf\s+(sem\s+restri|limpo|est[aá]\s+limpo)/.test(t)) {
+    return 'pediu_cpf_nome_limpo';
+  }
+  if (/renda\s+bruta|sua\s+renda|renda\s+familiar/.test(t)) {
+    return 'pediu_renda';
+  }
+  if (/subs[ií]dio|minha\s+casa\s+minha\s+vida|sair\s+do\s+aluguel/.test(t)) {
+    return 'explicou_mcmv';
+  }
+  return '';
 }
 
 function getConsecutiveUserMessages(messages) {
@@ -624,9 +738,7 @@ async function handleIncomingMessage(messageData) {
     var cleanNameRule = cleanNameMissing
       ? '\n\nQualificação obrigatória pendente nesta conversa: pergunte de forma direta se o cliente está com NOME LIMPO (CPF sem restrição), pois isso é requisito essencial para MCMV.'
       : '';
-    var brokerBlock = '';
     if (registeredBroker) {
-      brokerBlock = getBrokerBiaPromptBlock(registeredBroker);
       cleanNameRule = '';
     }
     var trainingExtra = '';
@@ -635,13 +747,22 @@ async function handleIncomingMessage(messageData) {
     } catch (te) {
       console.warn('getBiaTrainingPromptExtra:', te.message);
     }
-    var contactLabel = registeredBroker ? 'Corretor cadastrado' : 'Lead/cliente';
-    var leadContext = SYSTEM_PROMPT + brokerBlock +
-      `\n\nDados do contato (${contactLabel}): Nome: ${(registeredBroker && registeredBroker.name) || lead.name || 'Desconhecido'}, Status: ${lead.status}, Nome limpo: ${cleanNameStatus}, Imóveis de interesse: ${(lead.interestedProperties || []).join(', ') || 'Nenhum ainda'}` +
-      cleanNameRule + trainingExtra;
+    var leadContext;
+    // Teto de segurança só p/ não cortar respostas longas (ex.: lista de estoque).
+    // A brevidade do corretor é controlada pelo prompt, não por este limite.
+    var brokerMaxTokens = 1024;
+    if (registeredBroker) {
+      leadContext = buildBrokerSystemPrompt(registeredBroker) +
+        `\n\nDados do corretor: Nome: ${registeredBroker.name || lead.name || 'Corretor(a)'}, Imóveis de interesse: ${(lead.interestedProperties || []).join(', ') || 'Nenhum ainda'}` +
+        trainingExtra;
+    } else {
+      leadContext = SYSTEM_PROMPT +
+        `\n\nDados do contato (Lead/cliente): Nome: ${lead.name || 'Desconhecido'}, Status: ${lead.status}, Nome limpo: ${cleanNameStatus}, Imóveis de interesse: ${(lead.interestedProperties || []).join(', ') || 'Nenhum ainda'}` +
+        cleanNameRule + trainingExtra;
+    }
     let response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
+      max_tokens: registeredBroker ? brokerMaxTokens : 1024,
       system: leadContext,
       tools: TOOLS,
       messages: dedupedMessages,
@@ -679,7 +800,7 @@ async function handleIncomingMessage(messageData) {
 
       response = await client.messages.create({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+        max_tokens: registeredBroker ? brokerMaxTokens : 1024,
         system: leadContext,
         tools: TOOLS,
         messages: dedupedMessages,
@@ -696,6 +817,27 @@ async function handleIncomingMessage(messageData) {
     }
 
     console.log('Resposta do Claude para ' + phone + ' (' + finalText.length + ' chars)');
+
+    if (registeredBroker) {
+      var slip = detectBrokerReplySlip(finalText);
+      if (slip) {
+        try {
+          await updateLead(phone, {
+            revisarBot: true,
+            biaSlip: slip,
+            biaSlipAt: new Date().toISOString(),
+            notes: 'Bia escorregou no modo corretor: ' + slip,
+          });
+        } catch (slipErr) {
+          console.warn('registrar biaSlip:', slipErr.message);
+        }
+        try {
+          await recordBiaAutoLesson(slip);
+        } catch (lessonErr) {
+          console.warn('recordBiaAutoLesson:', lessonErr.message);
+        }
+      }
+    }
 
     await saveMessage(phone, 'assistant', finalText, 'bot');
     await recordInboundActivity(phone, finalText);

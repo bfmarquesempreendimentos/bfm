@@ -38,8 +38,7 @@ async function handleGeneralContact(event) {
             showMessage('Erro ao enviar mensagem. Tente novamente ou ligue para (21) 99759-0814', 'error');
         }
     } else {
-        showMessage('Mensagem enviada com sucesso! Entraremos em contato em breve.', 'success');
-        document.getElementById('generalContactForm').reset();
+        showMessage('Não foi possível enviar a mensagem agora. Tente novamente mais tarde ou ligue para (21) 99759-0814.', 'error');
     }
 }
 
@@ -74,8 +73,7 @@ async function handleLandOffer(event) {
             showMessage('Erro ao enviar proposta. Tente novamente ou ligue para (21) 99759-0814', 'error');
         }
     } else {
-        showMessage('Proposta de terreno enviada com sucesso! Nossa equipe entrará em contato em breve.', 'success');
-        document.getElementById('landOfferForm').reset();
+        showMessage('Não foi possível enviar a proposta agora. Tente novamente mais tarde ou ligue para (21) 99759-0814.', 'error');
     }
 }
 

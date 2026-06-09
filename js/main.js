@@ -210,8 +210,8 @@ function loadProperties() {
             id: 1,
             title: 'Condomínio Porto Novo - Rua Lourival Martins, 31',
             type: 'apartamento',
-            location: 'Porto Novo, Rio de Janeiro - RJ',
-            address: 'Rua Lourival Martins, 31, Porto Novo, Rio de Janeiro - RJ',
+            location: 'Porto Novo, São Gonçalo - RJ',
+            address: 'Rua Lourival Martins, 31, Porto Novo, São Gonçalo - RJ',
             mapsUrl: 'https://maps.app.goo.gl/FmuFKNprhngr2hGG9',
             price: 150000,
             bedrooms: 1,
@@ -242,8 +242,8 @@ function loadProperties() {
             id: 2,
             title: 'Residencial Itaúna - Rua Alcio Souto',
             type: 'casa',
-            location: 'Nova Cidade, Rio de Janeiro - RJ',
-            address: 'Rua Alcio Souto, 348, Nova Cidade, Rio de Janeiro - RJ',
+            location: 'Nova Cidade, São Gonçalo - RJ',
+            address: 'Rua Alcio Souto, 348, Nova Cidade, São Gonçalo - RJ',
             mapsUrl: 'https://maps.app.goo.gl/gyF6ERJs1rrKHkbZ9',
             price: 155000,
             bedrooms: 1,
@@ -272,8 +272,8 @@ function loadProperties() {
             id: 3,
             title: 'Edifício Bandeirantes - Rua Lopes da Cruz, 136',
             type: 'apartamento',
-            location: 'Amendoeira, Rio de Janeiro - RJ',
-            address: 'Rua Lopes da Cruz, 136, Amendoeira, Rio de Janeiro - RJ',
+            location: 'Amendoeira, São Gonçalo - RJ',
+            address: 'Rua Lopes da Cruz, 136, Amendoeira, São Gonçalo - RJ',
             mapsUrl: 'https://maps.app.goo.gl/i3eExj2Wk3vD2xQNA',
             price: 160000,
             bedrooms: 1,
@@ -292,8 +292,8 @@ function loadProperties() {
             id: 4,
             title: 'Condomínio Laranjal - Rua Jussara, 178',
             type: 'casa',
-            location: 'Laranjal, Rio de Janeiro - RJ',
-            address: 'Rua Jussara, 178, Laranjal, Rio de Janeiro - RJ',
+            location: 'Laranjal, São Gonçalo - RJ',
+            address: 'Rua Jussara, 178, Laranjal, São Gonçalo - RJ',
             mapsUrl: 'https://maps.app.goo.gl/sjoAjX93gB5aN8EV6',
             price: 145000,
             bedrooms: 1,
@@ -311,7 +311,7 @@ function loadProperties() {
             ],
             videos: [],
             description: 'Casas no Condomínio Laranjal com 15 unidades disponíveis. Empreendimento familiar em bairro tranquilo, ideal para quem busca qualidade de vida e segurança.',
-            features: ['15 Unidades', 'Casa Base a 14 Quartos', 'Condomínio Fechado', 'Bairro Tranquilo', 'Cozinha'],
+            features: ['15 Unidades', 'Casas térreas de 1 quarto', 'Condomínio Fechado', 'Bairro Tranquilo', 'Cozinha'],
             reservedUntil: null,
             reservedBy: null
         },
@@ -355,8 +355,8 @@ function loadProperties() {
             id: 6,
             title: 'Residencial Coelho - Rua Dr. Lopes da Cruz',
             type: 'casa',
-            location: 'Coelho, Rio de Janeiro - RJ',
-            address: 'Rua Lopes da Cruz, 122, Coelho, Rio de Janeiro - RJ',
+            location: 'Coelho, São Gonçalo - RJ',
+            address: 'Rua Lopes da Cruz, 122, Coelho, São Gonçalo - RJ',
             mapsUrl: 'https://maps.app.goo.gl/XBHZuNsdxTTVmnw66',
             price: 145000,
             bedrooms: 1,
@@ -387,8 +387,8 @@ function loadProperties() {
             id: 7,
             title: 'Edifício Nova Cidade - Rua Alcio Souto, 576',
             type: 'apartamento',
-            location: 'Luiz Caçador, Rio de Janeiro - RJ',
-            address: 'Rua Alcio Souto, 576, Luiz Caçador, Rio de Janeiro - RJ',
+            location: 'Luiz Caçador, São Gonçalo - RJ',
+            address: 'Rua Alcio Souto, 576, Luiz Caçador, São Gonçalo - RJ',
             mapsUrl: 'https://maps.app.goo.gl/N4CNvNQwx1KWBFCH6',
             price: 160000,
             bedrooms: 1,
@@ -1005,7 +1005,7 @@ function showPropertyDetails(propertyId) {
         
         <div class="reservation-section">
             ${brokerView ? reservationInfo : ''}
-            ${brokerView ? actionButton : `<button class="btn btn-primary" onclick="scrollToSection('contact')">Fale Conosco</button>`}
+            ${brokerView ? actionButton : `<a class="btn btn-primary" href="contato.html">Fale Conosco</a>`}
         </div>
     `;
     
@@ -1044,14 +1044,16 @@ function handleRestrictedAction(action, propertyId) {
     const brokerView = typeof isBroker === 'function' ? isBroker() : false;
     const isAdminUser = !!localStorage.getItem('adminUser');
     const canViewFullDetails = brokerView || isAdminUser;
-    
-    if (!canViewFullDetails) {
-        showRestrictedAccessModal();
-        return;
-    }
-    
+
+    // Ver detalhes é público (mesmo comportamento do clique no card).
     if (action === 'details') {
         showPropertyDetails(propertyId);
+        return;
+    }
+
+    // Reservar e documentos seguem restritos a corretor/admin.
+    if (!canViewFullDetails) {
+        showRestrictedAccessModal();
         return;
     }
     
