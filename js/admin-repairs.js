@@ -31,13 +31,20 @@ async function pushLocalRepairsToServer() {
         return;
     }
     if (typeof showMessage === 'function') showMessage('Enviando ' + toPush.length + ' reparo(s) para o servidor...', 'info');
-    var url = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/createRepair';
+    var base = (typeof ADMIN_FUNCTIONS_BASE !== 'undefined' && ADMIN_FUNCTIONS_BASE)
+        ? ADMIN_FUNCTIONS_BASE
+        : 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
     var ok = 0;
     for (var k = 0; k < toPush.length; k++) {
         try {
-            var r = await fetch(url, {
+            var headers = { 'Content-Type': 'application/json' };
+            if (typeof getAdminIdToken === 'function') {
+                var adminTok = await getAdminIdToken();
+                if (adminTok) headers.Authorization = 'Bearer ' + adminTok;
+            }
+            var r = await fetch(base + '/createRepair', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: headers,
                 body: JSON.stringify(toPush[k])
             });
             if (r.ok) ok++;
@@ -183,6 +190,26 @@ async function loadAdminRepairs() {
     }).join('');
 }
 
+function fillRepairResponsavelOptions(selectedId) {
+    var sel = document.getElementById('repairEditResponsavel');
+    if (!sel) return;
+    var brokers = [];
+    try { brokers = JSON.parse(localStorage.getItem('brokers') || '[]'); } catch (e) {}
+    if ((!brokers || !brokers.length) && typeof brokers !== 'undefined' && Array.isArray(window.brokers)) {
+        brokers = window.brokers;
+    }
+    var html = '<option value="">Não atribuído</option>';
+    for (var i = 0; i < brokers.length; i++) {
+        var b = brokers[i];
+        if (!b || b.isActive === false) continue;
+        var bid = String(b.id || '');
+        var label = (b.name || b.email || bid).replace(/</g, '&lt;');
+        html += '<option value="' + bid.replace(/"/g, '&quot;') + '">' + label + '</option>';
+    }
+    sel.innerHTML = html;
+    if (selectedId) sel.value = String(selectedId);
+}
+
 function openRepairEditModal(repairId) {
     const repairs = getAdminRepairs();
     const repair = repairs.find(r => r.id === repairId);
@@ -191,6 +218,13 @@ function openRepairEditModal(repairId) {
         return;
     }
     window._editingRepairId = repairId;
+    var tipoEl = document.getElementById('repairEditTipo');
+    if (tipoEl) tipoEl.value = repair.tipo || 'geral';
+    fillRepairResponsavelOptions(repair.responsavelId || '');
+    var custoEst = document.getElementById('repairEditCustoEstimado');
+    var custoTot = document.getElementById('repairEditCustoTotal');
+    if (custoEst) custoEst.value = repair.custoEstimado != null && repair.custoEstimado !== '' ? repair.custoEstimado : '';
+    if (custoTot) custoTot.value = repair.custoTotal != null && repair.custoTotal !== '' ? repair.custoTotal : '';
     document.getElementById('repairEditStatus').value = repair.status || 'pendente';
     document.getElementById('repairEditVisitDate').value = repair.visitDate ? repair.visitDate.slice(0, 16) : '';
     document.getElementById('repairEditResponse').value = '';
@@ -208,6 +242,18 @@ async function saveRepairStatus() {
     const newStatus = document.getElementById('repairEditStatus').value;
     const visitDate = document.getElementById('repairEditVisitDate').value;
     const responseText = document.getElementById('repairEditResponse').value.trim();
+    var tipoEl = document.getElementById('repairEditTipo');
+    var respEl = document.getElementById('repairEditResponsavel');
+    var custoEstEl = document.getElementById('repairEditCustoEstimado');
+    var custoTotEl = document.getElementById('repairEditCustoTotal');
+    var newTipo = tipoEl ? tipoEl.value : 'geral';
+    var respId = respEl ? respEl.value : '';
+    var respNome = '';
+    if (respEl && respId && respEl.options[respEl.selectedIndex]) {
+        respNome = respEl.options[respEl.selectedIndex].text;
+    }
+    var custoEstimado = custoEstEl && custoEstEl.value !== '' ? Number(custoEstEl.value) : null;
+    var custoTotal = custoTotEl && custoTotEl.value !== '' ? Number(custoTotEl.value) : null;
 
     const repairs = getAdminRepairs();
     const index = repairs.findIndex(r => r.id === repairId);
@@ -225,6 +271,11 @@ async function saveRepairStatus() {
     };
     if (typeof addUpdatedBy === 'function') addUpdatedBy(newResponse);
     repair.status = newStatus;
+    repair.tipo = newTipo;
+    repair.responsavelId = respId || '';
+    repair.responsavelNome = respNome || '';
+    if (custoEstimado != null && !isNaN(custoEstimado)) repair.custoEstimado = custoEstimado;
+    if (custoTotal != null && !isNaN(custoTotal)) repair.custoTotal = custoTotal;
     repair.updatedAt = new Date().toISOString();
     if (typeof addUpdatedBy === 'function') addUpdatedBy(repair);
     if (visitDate) repair.visitDate = visitDate;
@@ -237,6 +288,11 @@ async function saveRepairStatus() {
     if (typeof updateRepairRequestInFirestore === 'function') {
         const updates = {
             status: newStatus,
+            tipo: newTipo,
+            responsavelId: respId || '',
+            responsavelNome: respNome || '',
+            custoEstimado: custoEstimado,
+            custoTotal: custoTotal,
             updatedAt: repair.updatedAt,
             visitDate: visitDate || null,
             responses: repair.responses
@@ -286,6 +342,7 @@ function viewAdminRepairDetails(repairId) {
         return;
     }
     const statusLabels = { pendente: 'Pendente', em_analise: 'Em Análise', em_andamento: 'Em Andamento', concluido: 'Concluído', cancelado: 'Cancelado' };
+    const tipoLabels = { manutencao: 'Manutenção', reclamacao: 'Reclamação', sugestao: 'Sugestão', geral: 'Geral' };
     const respList = (repair.responses || []).map(r => `<li><strong>${r.type === 'automatic' ? 'Automático' : 'Equipe'}</strong>: ${r.message} <small>(${typeof formatDate === 'function' ? formatDate(r.date) : r.date})</small></li>`).join('');
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -300,6 +357,10 @@ function viewAdminRepairDetails(repairId) {
                 <p><strong>Localização:</strong> ${repair.location || '-'}</p>
                 <p><strong>Descrição:</strong> ${repair.description || '-'}</p>
                 <p><strong>Status:</strong> ${statusLabels[repair.status] || repair.status}</p>
+                <p><strong>Tipo:</strong> ${tipoLabels[repair.tipo] || repair.tipo || 'Geral'}</p>
+                <p><strong>Responsável:</strong> ${repair.responsavelNome || '—'}</p>
+                ${repair.custoEstimado != null ? `<p><strong>Custo estimado:</strong> R$ ${Number(repair.custoEstimado).toFixed(2)}</p>` : ''}
+                ${repair.custoTotal != null ? `<p><strong>Custo total:</strong> R$ ${Number(repair.custoTotal).toFixed(2)}</p>` : ''}
                 <p><strong>Prioridade:</strong> ${repair.priority || 'Normal'}</p>
                 <p><strong>Data abertura:</strong> ${typeof formatDate === 'function' ? formatDate(repair.createdAt) : repair.createdAt}</p>
                 ${repair.visitDate ? `<p><strong>Data visita:</strong> ${typeof formatDate === 'function' ? formatDate(repair.visitDate) : repair.visitDate}</p>` : ''}

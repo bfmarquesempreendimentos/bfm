@@ -2422,22 +2422,33 @@ exports.adminMigrateBrokerPasswords = functions.https.onRequest(async (req, res)
     var snap = await db.collection('brokers').get();
     var migrated = 0;
     var skipped = 0;
-    var batch = db.batch();
-    var ops = 0;
-    snap.forEach(function(doc) {
+    var pending = [];
+    snap.docs.forEach(function(doc) {
       var d = doc.data() || {};
       if (d.passwordHash && isPasswordHashed(d.passwordHash)) { skipped += 1; return; }
-      if (!d.password) { skipped += 1; return; }
-      var fields = passwordFieldsForStorage(d.password);
-      batch.set(doc.ref, {
-        passwordHash: fields.passwordHash,
-        password: '',
-        passwordMigratedAt: new Date().toISOString(),
-      }, { merge: true });
+      var plain = String(d.password || '').trim();
+      if (!plain) { skipped += 1; return; }
+      var fields = passwordFieldsForStorage(plain);
+      pending.push({
+        ref: doc.ref,
+        data: {
+          passwordHash: fields.passwordHash,
+          password: '',
+          passwordMigratedAt: new Date().toISOString(),
+        },
+      });
       migrated += 1;
-      ops += 1;
     });
-    if (ops > 0) await batch.commit();
+    var chunk;
+    for (chunk = 0; chunk < pending.length; chunk += 400) {
+      var batch = db.batch();
+      var slice = pending.slice(chunk, chunk + 400);
+      var ci;
+      for (ci = 0; ci < slice.length; ci++) {
+        batch.set(slice[ci].ref, slice[ci].data, { merge: true });
+      }
+      await batch.commit();
+    }
     return res.json({ ok: true, migrated: migrated, skipped: skipped, total: snap.size });
   } catch (err) {
     console.error('adminMigrateBrokerPasswords:', err);

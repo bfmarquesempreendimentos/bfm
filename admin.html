@@ -533,6 +533,9 @@
                     <p class="section-subtitle">Cadastro no Firestore, campanha WhatsApp e reservas.</p>
                 </div>
                 <div class="header-actions">
+                    <button type="button" class="btn btn-secondary" onclick="runMigrateBrokerPasswords()" title="Uma vez: converte senhas plaintext dos corretores para hash">
+                        <i class="fas fa-lock" aria-hidden="true"></i> Migrar senhas
+                    </button>
                     <button type="button" class="btn btn-secondary" onclick="loadBrokersData()" title="Atualizar lista e preparar campanha">
                         <i class="fas fa-sync-alt" aria-hidden="true"></i> Atualizar
                     </button>
@@ -1242,8 +1245,33 @@
     <div id="repairEditModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeRepairEditModal()">&times;</span>
-            <h2>Editar Status do Reparo</h2>
+            <h2>Gerenciar Reparo</h2>
             <form onsubmit="saveRepairStatus(); return false;">
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select id="repairEditTipo">
+                        <option value="manutencao">Manutenção</option>
+                        <option value="reclamacao">Reclamação</option>
+                        <option value="sugestao">Sugestão</option>
+                        <option value="geral">Geral</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Responsável</label>
+                    <select id="repairEditResponsavel">
+                        <option value="">Não atribuído</option>
+                    </select>
+                </div>
+                <div class="form-group" style="display:flex;flex-wrap:wrap;margin-left:-8px;margin-right:-8px;">
+                    <div style="flex:1;min-width:140px;padding:0 8px;">
+                        <label>Custo estimado (R$)</label>
+                        <input type="number" id="repairEditCustoEstimado" min="0" step="0.01" placeholder="0,00">
+                    </div>
+                    <div style="flex:1;min-width:140px;padding:0 8px;">
+                        <label>Custo total (R$)</label>
+                        <input type="number" id="repairEditCustoTotal" min="0" step="0.01" placeholder="0,00">
+                    </div>
+                </div>
                 <div class="form-group">
                     <label>Novo Status</label>
                     <select id="repairEditStatus">

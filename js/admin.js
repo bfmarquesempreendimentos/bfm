@@ -176,6 +176,19 @@ function runMigrateLegacySaleSlots() {
         });
 }
 
+/** Uma vez após Onda 6: hasheia senhas plaintext dos corretores no Firestore. */
+function runMigrateBrokerPasswords() {
+    if (!confirm('Converter senhas em texto puro dos corretores para hash seguro? Execute só uma vez após a Onda 6.')) return;
+    adminPostJson('/adminMigrateBrokerPasswords', {})
+        .then(function(r) {
+            var msg = 'Senhas: ' + (r.migrated || 0) + ' migradas, ' + (r.skipped || 0) + ' ignoradas (de ' + (r.total || 0) + ' corretores).';
+            showMessage(msg, 'success');
+        })
+        .catch(function(err) {
+            showMessage(err.message || 'Erro na migração de senhas.', 'error');
+        });
+}
+
 // Setup admin event listeners
 function setupAdminEventListeners() {
     // Filter listeners

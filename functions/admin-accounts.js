@@ -62,6 +62,7 @@ function adminHasPermission(body, permission) {
 module.exports = {
   ADMIN_ACCOUNTS,
   ROLE_PERMISSIONS,
+  getAdminAccount,
   verifyAdminFromBody,
   verifyAdminFromReq,
   getAdminRoleFromBody,
