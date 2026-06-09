@@ -3,11 +3,7 @@
 // Credenciais centralizadas - em produção, sobrescreva via config ou variáveis de ambiente
 var DEMO_PASSWORD = (typeof CONFIG !== 'undefined' && CONFIG.auth && CONFIG.auth.demoPassword) ? CONFIG.auth.demoPassword : '123456';
 
-var brokers = [
-    { id: 1, name: 'João Silva', email: 'joao@construtora.com', phone: '(21) 99999-9999', creci: '12345-F', password: DEMO_PASSWORD, isActive: true, createdAt: new Date('2024-01-15') },
-    { id: 2, name: 'Maria Santos', email: 'maria@construtora.com', phone: '(21) 88888-8888', creci: '67890-F', password: DEMO_PASSWORD, isActive: true, createdAt: new Date('2024-02-10') },
-    { id: 3, name: 'Eduardo', email: 'sac1consultoria@gmail.com', phone: '', creci: '', password: DEMO_PASSWORD, isActive: true, createdAt: new Date('2024-01-01') }
-];
+var brokers = [];
 
 var ADMIN_BROKER = {
     email: (typeof CONFIG !== 'undefined' && CONFIG.auth && CONFIG.auth.adminEmail) ? CONFIG.auth.adminEmail : 'brunoferreiramarques@gmail.com',
@@ -38,7 +34,17 @@ function loadBrokersFromStorage() {
 }
 
 function saveBrokersToStorage() {
-    localStorage.setItem('brokers', JSON.stringify(brokers));
+    var stripped = brokers.map(function(b) {
+        var copy = {};
+        var k;
+        for (k in b) {
+            if (Object.prototype.hasOwnProperty.call(b, k) && k !== 'password' && k !== 'passwordHash') {
+                copy[k] = b[k];
+            }
+        }
+        return copy;
+    });
+    localStorage.setItem('brokers', JSON.stringify(stripped));
 }
 
 async function loadBrokersFromFirestore(opts) {
@@ -78,7 +84,6 @@ function ensureAdminBroker() {
             email: ADMIN_BROKER.email,
             phone: ADMIN_BROKER.phone,
             creci: ADMIN_BROKER.creci,
-            password: ADMIN_BROKER.password,
             isActive: true,
             isAdmin: true,
             createdAt: new Date()
@@ -146,7 +151,7 @@ function setupAuthForms() {
     }
 }
 
-// Handle login form submission (validação server-side; senha não trafega na listagem)
+// Handle login form submission (Firebase Auth + perfil via brokerMe)
 function handleLogin(e) {
     e.preventDefault();
     
@@ -158,29 +163,34 @@ function handleLogin(e) {
         return;
     }
 
+    if (typeof getFirebaseAuth !== 'function' || !firebaseAvailable || !firebaseAvailable()) {
+        showAuthMessage('Login indisponível. Use Chrome, Safari ou Edge atualizado.', 'error');
+        return;
+    }
+
     var base = (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL)
         ? CONFIG.cloudFunctions.baseURL
         : 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
 
-    fetch(base + '/brokerLogin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, password: password }),
-        cache: 'no-store',
-        credentials: 'omit'
-    }).then(function(res) {
-        return res.json().then(function(data) {
-            if (!res.ok || !data || !data.ok || !data.broker) {
-                throw new Error((data && data.error) ? data.error : 'Email ou senha incorretos.');
+    var auth = getFirebaseAuth();
+
+    function finishBrokerSession(user) {
+        return user.getIdToken().then(function(token) {
+            return fetch(base + '/brokerMe?idToken=' + encodeURIComponent(token), { cache: 'no-store' })
+                .then(function(res) { return res.json().then(function(data) { return { res: res, data: data, token: token }; }); });
+        }).then(function(result) {
+            if (!result.res.ok || !result.data || !result.data.ok || !result.data.broker) {
+                throw new Error((result.data && result.data.error) ? result.data.error : 'Corretor não autorizado.');
             }
-            var broker = data.broker;
+            var broker = result.data.broker;
             currentUser = {
                 id: broker.id,
                 name: broker.name,
                 email: broker.email,
                 phone: broker.phone,
                 creci: broker.creci,
-                type: 'broker'
+                type: 'broker',
+                isAdmin: !!broker.isAdmin
             };
             localStorage.setItem('currentUser', JSON.stringify(currentUser));
             updateUIForLoggedUser();
@@ -190,9 +200,28 @@ function handleLogin(e) {
                 showBrokerDashboard();
             }
         });
-    }).catch(function(err) {
-        showAuthMessage(err.message || 'Email ou senha incorretos.', 'error');
-    });
+    }
+
+    auth.signInWithEmailAndPassword(email, password)
+        .then(function(cred) { return finishBrokerSession(cred.user); })
+        .catch(function(err) {
+            if (err && err.code === 'auth/user-not-found') {
+                return fetch(base + '/brokerProvisionAuth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, password: password }),
+                    cache: 'no-store'
+                }).then(function(r) { return r.json().then(function(j) { if (!r.ok) throw new Error(j.error || 'Falha ao provisionar'); return auth.signInWithEmailAndPassword(email, password); }); })
+                    .then(function(cred2) { return finishBrokerSession(cred2.user); });
+            }
+            throw err;
+        })
+        .catch(function(err) {
+            var msg = 'Email ou senha incorretos.';
+            if (err && err.code === 'auth/wrong-password') msg = 'Senha incorreta.';
+            else if (err && err.message) msg = err.message;
+            showAuthMessage(msg, 'error');
+        });
 }
 
 // Handle register form submission
@@ -645,7 +674,7 @@ async function handleBrokerProfileSubmit() {
     currentUser.creci = creci;
     saveBrokersToStorage();
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    if (typeof updateBrokerInFirestore === 'function' && typeof broker.id === 'string') {
+    if (typeof updateBrokerInFirestore === 'function') {
         try {
             await updateBrokerInFirestore(broker.id, { name, email, phone, creci });
         } catch (e) { console.error(e); }

@@ -1,6 +1,6 @@
 rules_version = '2';
-// propertySales: apenas Cloud Functions (Admin SDK). Cliente: HTTPS clientPropertySalesMe / clientSaleEligibility.
-// unit_status_overrides: leitura pública (sem PII); escrita só servidor.
+// Dados sensíveis: apenas Cloud Functions (Admin SDK).
+// Cliente/corretor/admin usam HTTPS endpoints autenticados.
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() {
@@ -25,30 +25,29 @@ service cloud.firestore {
     }
 
     match /repairRequests/{docId} {
-      allow create: if request.resource.data.keys().hasAny(['description', 'clientId', 'clientEmail', 'propertyId']);
-      allow read, update, delete: if true;
+      allow read, write: if false;
     }
 
     match /emailAuditLog/{docId} {
       allow create: if true;
-      allow read: if isSignedIn();
+      allow read, update, delete: if false;
     }
 
     match /emailQueue/{docId} {
       allow create: if true;
-      allow read, update, delete: if isSignedIn();
+      allow read, update, delete: if false;
     }
 
     match /chatbot_leads/{docId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if false;
     }
 
     match /chatbot_conversations/{phone}/{sub=**} {
-      allow read: if isSignedIn();
+      allow read, write: if false;
     }
 
     match /chatbot_visits/{docId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if false;
     }
 
     match /site_visits/{docId} {
@@ -57,22 +56,30 @@ service cloud.firestore {
     }
 
     match /brokers/{docId} {
-      allow create: if request.resource.data.keys().hasAny(['email', 'name']);
-      allow read, update, delete: if true;
+      allow read, write: if false;
     }
 
     match /passwordResetTokens/{docId} {
-      allow create: if request.resource.data.keys().hasAny(['token', 'email']);
-      allow read, update: if true;
+      allow read, write: if false;
     }
 
-    // Campanha de corretores: manipulada apenas pelas Cloud Functions (Admin SDK).
-    // Nenhum acesso direto pelo cliente.
     match /broker_campaign/{docId} {
       allow read, write: if false;
     }
 
     match /broker_campaign_logs/{docId} {
+      allow read, write: if false;
+    }
+
+    match /boletos/{docId} {
+      allow read, write: if false;
+    }
+
+    match /client_timeline/{docId} {
+      allow read, write: if false;
+    }
+
+    match /bia_training/{docId} {
       allow read, write: if false;
     }
   }

@@ -41,7 +41,9 @@ const {
 const propertySalesHandlers = require('./property-sales-handlers');
 const brokerCampaignContent = require('./chatbot/broker-campaign-content');
 const { verifyAdminFromBody, verifyAdminFromReq } = require('./admin-accounts');
-const { verifyAdminAuth } = require('./admin-auth');
+const { verifyAdminAuth, extractIdToken } = require('./admin-auth');
+const { hashPassword, isPasswordHashed, passwordFieldsForStorage } = require('./broker-password');
+const brokerAuth = require('./broker-auth');
 
 admin.initializeApp();
 
@@ -2234,6 +2236,10 @@ exports.getBrokers = functions.https.onRequest(async (req, res) => {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
 
   try {
+    var activeOnlyQuery = req.query.activeOnly === '1' || req.query.activeOnly === 'true';
+    if (!activeOnlyQuery && !(await verifyAdminAuth(req)).ok) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
     const db = admin.firestore();
     const snapshot = await db.collection('brokers').get();
     const brokers = snapshot.docs.map(doc => {
@@ -2264,7 +2270,7 @@ exports.getBrokers = functions.https.onRequest(async (req, res) => {
   }
 });
 
-/** Login de corretor (validação server-side; senha nunca volta na listagem). */
+/** Login de corretor (validação server-side com hash; legado ainda aceito e migra no login). */
 exports.brokerLogin = functions.https.onRequest(async (req, res) => {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
@@ -2275,30 +2281,194 @@ exports.brokerLogin = functions.https.onRequest(async (req, res) => {
     var password = String(body.password || '');
     if (!email || !password) return res.status(400).json({ error: 'Email e senha obrigatórios' });
     var db = admin.firestore();
-    var snap = await db.collection('brokers').where('email', '==', email).limit(5).get();
-    if (snap.empty) return res.status(401).json({ error: 'Email ou senha incorretos' });
-    var match = null;
-    snap.forEach(function(doc) {
-      if (match) return;
-      var d = doc.data() || {};
-      if (String(d.password || '') === password && isBrokerActiveFlag(d.isActive)) {
-        match = {
-          id: doc.id,
-          name: d.name || '',
-          cpf: d.cpf || '',
-          email: d.email || '',
-          phone: d.phone || '',
-          creci: d.creci || '',
-          isActive: true,
-          isAdmin: !!d.isAdmin,
-        };
-      }
-    });
-    if (!match) return res.status(401).json({ error: 'Email ou senha incorretos' });
-    return res.json({ ok: true, broker: match });
+    var authResult = await brokerAuth.verifyBrokerCredentials(db, email, password);
+    if (!authResult.ok) {
+      if (authResult.inactive) return res.status(403).json({ error: 'Cadastro aguardando aprovação.' });
+      return res.status(401).json({ error: 'Email ou senha incorretos' });
+    }
+    await brokerAuth.upgradeBrokerPasswordHash(authResult.ref, authResult.data, password);
+    return res.json({ ok: true, broker: authResult.broker });
   } catch (err) {
     console.error('brokerLogin:', err);
     return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Perfil do corretor autenticado (Firebase idToken). */
+exports.brokerMe = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var token = extractIdToken(req);
+    if (!token) return res.status(401).json({ error: 'Token necessário' });
+    var broker = await brokerAuth.getBrokerFromIdToken(token);
+    if (!broker) return res.status(403).json({ error: 'Corretor não encontrado ou inativo' });
+    return res.json({ ok: true, broker: broker });
+  } catch (err) {
+    console.error('brokerMe:', err);
+    return res.status(403).json({ error: 'Token inválido ou expirado' });
+  }
+});
+
+/** Provisiona conta Firebase Auth do corretor (1º login; valida senha no Firestore). */
+exports.brokerProvisionAuth = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var body = req.body || {};
+    var email = String(body.email || '').trim().toLowerCase();
+    var password = String(body.password || '');
+    if (!email || !password) return res.status(400).json({ error: 'Email e senha obrigatórios' });
+    var db = admin.firestore();
+    var authResult = await brokerAuth.verifyBrokerCredentials(db, email, password);
+    if (!authResult.ok) return res.status(403).json({ error: 'Credenciais inválidas' });
+    await brokerAuth.upgradeBrokerPasswordHash(authResult.ref, authResult.data, password);
+    await brokerAuth.ensureBrokerFirebaseUser(email, password);
+    return res.json({ ok: true, email: email });
+  } catch (err) {
+    console.error('brokerProvisionAuth:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** CRUD de corretores pelo painel admin (senhas sempre hasheadas). */
+exports.adminBrokerMutate = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
+  try {
+    var body = req.body || {};
+    var action = String(body.action || 'update').trim().toLowerCase();
+    var db = admin.firestore();
+    var brokerId = String(body.brokerId || body.id || '').trim();
+
+    if (action === 'delete') {
+      if (!brokerId) return res.status(400).json({ error: 'brokerId obrigatório' });
+      await db.collection('brokers').doc(brokerId).delete();
+      return res.json({ ok: true, deleted: brokerId });
+    }
+
+    if (action === 'create') {
+      var emailNorm = String(body.email || '').trim().toLowerCase();
+      if (!body.name || !emailNorm) return res.status(400).json({ error: 'nome e email obrigatórios' });
+      var exists = await db.collection('brokers').where('email', '==', emailNorm).limit(1).get();
+      if (!exists.empty) return res.status(409).json({ error: 'Email já cadastrado' });
+      var createPwd = passwordFieldsForStorage(body.password || '');
+      var createRef = await db.collection('brokers').add({
+        name: String(body.name || '').trim(),
+        cpf: String(body.cpf || '').replace(/\D/g, ''),
+        email: emailNorm,
+        phone: String(body.phone || '').trim(),
+        creci: String(body.creci || '').trim(),
+        passwordHash: createPwd.passwordHash,
+        password: '',
+        isActive: body.isActive === true,
+        whatsappCampaignOptOut: body.whatsappCampaignOptOut === true,
+        isAdmin: body.isAdmin === true,
+        createdAt: new Date().toISOString(),
+        registrationStatus: 'admin_created',
+      });
+      return res.json({ ok: true, id: createRef.id });
+    }
+
+    if (!brokerId) return res.status(400).json({ error: 'brokerId obrigatório' });
+    var ref = db.collection('brokers').doc(brokerId);
+    var snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Corretor não encontrado' });
+    var updates = { updatedAt: new Date().toISOString() };
+    if (body.name != null) updates.name = String(body.name || '').trim();
+    if (body.cpf != null) updates.cpf = String(body.cpf || '').replace(/\D/g, '');
+    if (body.email != null) updates.email = String(body.email || '').trim().toLowerCase();
+    if (body.phone != null) updates.phone = String(body.phone || '').trim();
+    if (body.creci != null) updates.creci = String(body.creci || '').trim();
+    if (body.isActive != null) updates.isActive = body.isActive === true;
+    if (body.isAdmin != null) updates.isAdmin = body.isAdmin === true;
+    if (body.whatsappCampaignOptOut != null) updates.whatsappCampaignOptOut = body.whatsappCampaignOptOut === true;
+    if (body.password) {
+      var updPwd = passwordFieldsForStorage(body.password);
+      updates.passwordHash = updPwd.passwordHash;
+      updates.password = '';
+      var brokerEmail = String((body.email != null ? body.email : snap.data().email) || '').trim().toLowerCase();
+      if (brokerEmail) {
+        try {
+          var fbUser = await admin.auth().getUserByEmail(brokerEmail);
+          await admin.auth().updateUser(fbUser.uid, { password: String(body.password) });
+        } catch (fbErr) {
+          if (fbErr.code === 'auth/user-not-found') {
+            try { await brokerAuth.ensureBrokerFirebaseUser(brokerEmail, String(body.password)); } catch (e2) { /* ignore */ }
+          }
+        }
+      }
+    }
+    await ref.set(updates, { merge: true });
+    return res.json({ ok: true, id: brokerId });
+  } catch (err) {
+    console.error('adminBrokerMutate:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Migra senhas plaintext de corretores para hash scrypt (admin). */
+exports.adminMigrateBrokerPasswords = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
+  try {
+    var db = admin.firestore();
+    var snap = await db.collection('brokers').get();
+    var migrated = 0;
+    var skipped = 0;
+    var batch = db.batch();
+    var ops = 0;
+    snap.forEach(function(doc) {
+      var d = doc.data() || {};
+      if (d.passwordHash && isPasswordHashed(d.passwordHash)) { skipped += 1; return; }
+      if (!d.password) { skipped += 1; return; }
+      var fields = passwordFieldsForStorage(d.password);
+      batch.set(doc.ref, {
+        passwordHash: fields.passwordHash,
+        password: '',
+        passwordMigratedAt: new Date().toISOString(),
+      }, { merge: true });
+      migrated += 1;
+      ops += 1;
+    });
+    if (ops > 0) await batch.commit();
+    return res.json({ ok: true, migrated: migrated, skipped: skipped, total: snap.size });
+  } catch (err) {
+    console.error('adminMigrateBrokerPasswords:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Corretor autenticado atualiza próprio perfil (sem senha). */
+exports.brokerUpdateMe = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var token = extractIdToken(req);
+    if (!token) return res.status(401).json({ error: 'Token necessário' });
+    var decoded = await admin.auth().verifyIdToken(token);
+    var email = String(decoded.email || '').trim().toLowerCase();
+    var db = admin.firestore();
+    var row = await brokerAuth.findBrokerByEmail(db, email);
+    if (!row || !row.data.isActive) return res.status(403).json({ error: 'Corretor não encontrado ou inativo' });
+    var body = req.body || {};
+    var updates = { updatedAt: new Date().toISOString() };
+    if (body.name != null) updates.name = String(body.name || '').trim();
+    if (body.phone != null) updates.phone = String(body.phone || '').trim();
+    if (body.creci != null) updates.creci = String(body.creci || '').trim();
+    await row.ref.set(updates, { merge: true });
+    var merged = Object.assign({}, row.data, updates);
+    return res.json({ ok: true, broker: brokerAuth.brokerPublicProfile(row.id, merged) });
+  } catch (err) {
+    console.error('brokerUpdateMe:', err);
+    return res.status(403).json({ error: 'Token inválido ou expirado' });
   }
 });
 
@@ -2490,13 +2660,15 @@ exports.registerBroker = functions.https.onRequest(async (req, res) => {
     if (!existing.empty) {
       return res.status(409).json({ error: 'Email já cadastrado' });
     }
+    var pwdFields = passwordFieldsForStorage(password || '');
     const docRef = await db.collection('brokers').add({
       name: name || '',
       cpf: (cpf || '').replace(/\D/g, ''),
       email: emailNorm,
       phone: phone || '',
       creci: creci || '',
-      password: password || '',
+      passwordHash: pwdFields.passwordHash,
+      password: '',
       isActive: autoApproved,
       whatsappCampaignOptOut: false,
       createdAt: new Date().toISOString(),
@@ -3808,11 +3980,23 @@ exports.adminCleanupBrokerDuplicates = functions.https.onRequest(async (req, res
 exports.patchRepair = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   try {
     var body = req.body || {};
+    var isAdmin = (await verifyAdminAuth(req)).ok;
+    var clientEmail = '';
+    if (!isAdmin) {
+      var patchToken = extractIdToken(req);
+      if (!patchToken) return res.status(401).json({ error: 'Autenticação necessária' });
+      try {
+        var patchDecoded = await admin.auth().verifyIdToken(patchToken);
+        clientEmail = String(patchDecoded.email || '').trim().toLowerCase();
+      } catch (ePatchTok) {
+        return res.status(403).json({ error: 'Token inválido ou expirado' });
+      }
+    }
     var repairId = body.id != null ? Number(body.id) : null;
     var firestoreId = String(body.firestoreId || '').trim();
     if (!repairId && !firestoreId) return res.status(400).json({ error: 'id ou firestoreId obrigatório' });
@@ -3825,14 +4009,24 @@ exports.patchRepair = functions.https.onRequest(async (req, res) => {
       if (snap.empty) return res.status(404).json({ error: 'Reparo não encontrado' });
       ref = snap.docs[0].ref;
     }
+    var existing = (await ref.get()).data() || {};
+    if (!isAdmin) {
+      var ownerEmail = String(existing.clientEmail || '').trim().toLowerCase();
+      if (!ownerEmail || ownerEmail !== clientEmail) {
+        return res.status(403).json({ error: 'Acesso negado a este reparo' });
+      }
+    }
     var patch = { updatedAt: new Date().toISOString() };
-    if (body.status) patch.status = body.status;
-    if (body.tipo) patch.tipo = body.tipo;
-    if (body.responsavelId != null) patch.responsavelId = body.responsavelId;
-    if (body.responsavelNome != null) patch.responsavelNome = body.responsavelNome;
-    if (body.custoEstimado != null) patch.custoEstimado = Number(body.custoEstimado);
-    if (body.custoTotal != null) patch.custoTotal = Number(body.custoTotal);
-    if (body.slaDueAt != null) patch.slaDueAt = body.slaDueAt;
+    if (isAdmin && body.status) patch.status = body.status;
+    if (isAdmin && body.tipo) patch.tipo = body.tipo;
+    if (isAdmin && body.responsavelId != null) patch.responsavelId = body.responsavelId;
+    if (isAdmin && body.responsavelNome != null) patch.responsavelNome = body.responsavelNome;
+    if (isAdmin && body.custoEstimado != null) patch.custoEstimado = Number(body.custoEstimado);
+    if (isAdmin && body.custoTotal != null) patch.custoTotal = Number(body.custoTotal);
+    if (isAdmin && body.slaDueAt != null) patch.slaDueAt = body.slaDueAt;
+    if (isAdmin && body.visitDate != null) patch.visitDate = body.visitDate;
+    if (Array.isArray(body.responses)) patch.responses = body.responses;
+    if (Array.isArray(body.attachments)) patch.attachments = body.attachments;
     if (body.comentario && body.comentario.texto) {
       var doc = await ref.get();
       var data = doc.data() || {};
@@ -4015,6 +4209,124 @@ exports.clientRepairsMe = functions.https.onRequest(async (req, res) => {
     return res.json(repairs);
   } catch (err) {
     console.error('clientRepairsMe:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Salva token de redefinição de senha (corretor/cliente) — só servidor grava no Firestore. */
+exports.savePasswordResetToken = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var body = req.body || {};
+    var email = String(body.email || '').trim().toLowerCase();
+    var token = String(body.token || '').trim();
+    var entityId = String(body.brokerId || body.clientId || '').trim();
+    var type = String(body.type || 'broker').trim();
+    if (!email || !token) return res.status(400).json({ error: 'email e token obrigatórios' });
+    var db = admin.firestore();
+    var expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    var record = {
+      type: type,
+      email: email,
+      token: token,
+      expiresAt: expiresAt,
+      used: false,
+      createdAt: new Date().toISOString(),
+    };
+    if (type === 'client') record.clientId = entityId;
+    else record.brokerId = entityId;
+    var docRef = await db.collection('passwordResetTokens').add(record);
+    return res.json({ ok: true, id: docRef.id });
+  } catch (err) {
+    console.error('savePasswordResetToken:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Valida token de redefinição de senha (sem expor o token no Firestore client). */
+exports.verifyPasswordResetToken = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var token = String((req.query && req.query.token) || (req.body && req.body.token) || '').trim();
+    if (!token) return res.status(400).json({ error: 'token obrigatório' });
+    var db = admin.firestore();
+    var snap = await db.collection('passwordResetTokens').where('token', '==', token).where('used', '==', false).limit(1).get();
+    if (snap.empty) return res.status(404).json({ error: 'Token inválido ou expirado' });
+    var doc = snap.docs[0];
+    var data = doc.data() || {};
+    if (new Date(data.expiresAt) < new Date()) return res.status(410).json({ error: 'Token expirado' });
+    return res.json({
+      ok: true,
+      id: doc.id,
+      type: data.type || 'broker',
+      email: data.email || '',
+      brokerId: data.brokerId || '',
+      clientId: data.clientId || '',
+    });
+  } catch (err) {
+    console.error('verifyPasswordResetToken:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Conclui redefinição de senha (corretor: hash + Firebase Auth; cliente: Firebase Auth). */
+exports.completePasswordReset = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var body = req.body || {};
+    var token = String(body.token || '').trim();
+    var newPassword = String(body.newPassword || '');
+    if (!token || !newPassword) return res.status(400).json({ error: 'token e newPassword obrigatórios' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'Senha deve ter no mínimo 6 caracteres' });
+    var db = admin.firestore();
+    var snap = await db.collection('passwordResetTokens').where('token', '==', token).where('used', '==', false).limit(1).get();
+    if (snap.empty) return res.status(404).json({ error: 'Token inválido ou já utilizado' });
+    var doc = snap.docs[0];
+    var data = doc.data() || {};
+    if (new Date(data.expiresAt) < new Date()) return res.status(410).json({ error: 'Token expirado' });
+    var email = String(data.email || '').trim().toLowerCase();
+    var type = data.type || 'broker';
+
+    if (type === 'broker') {
+      var brokerId = String(data.brokerId || '').trim();
+      if (!brokerId) return res.status(400).json({ error: 'Corretor inválido' });
+      var pwdFields = passwordFieldsForStorage(newPassword);
+      await db.collection('brokers').doc(brokerId).set({
+        passwordHash: pwdFields.passwordHash,
+        password: '',
+        passwordResetAt: new Date().toISOString(),
+      }, { merge: true });
+      if (email) {
+        try {
+          var fbUser = await admin.auth().getUserByEmail(email);
+          await admin.auth().updateUser(fbUser.uid, { password: newPassword });
+        } catch (fbErr) {
+          if (fbErr.code === 'auth/user-not-found') {
+            await brokerAuth.ensureBrokerFirebaseUser(email, newPassword);
+          } else {
+            throw fbErr;
+          }
+        }
+      }
+    } else if (email) {
+      try {
+        var clientUser = await admin.auth().getUserByEmail(email);
+        await admin.auth().updateUser(clientUser.uid, { password: newPassword });
+      } catch (clientErr) {
+        if (clientErr.code !== 'auth/user-not-found') throw clientErr;
+      }
+    }
+
+    await doc.ref.update({ used: true, usedAt: new Date().toISOString() });
+    return res.json({ ok: true, type: type });
+  } catch (err) {
+    console.error('completePasswordReset:', err);
     return res.status(500).json({ error: err.message });
   }
 });

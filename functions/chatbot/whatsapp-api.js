@@ -41,7 +41,7 @@ async function sendTextMessage(to, text, options = {}) {
   if (options.phoneNumberId) rememberCloudPhoneNumberId(options.phoneNumberId);
   const url = `${GRAPH_API}/${phoneNumberId}/messages`;
 
-  console.log(`[WA-API] Enviando para ${to}, phoneNumberId=${phoneNumberId}, token=${token ? 'definido' : 'VAZIO'}`);
+  console.log('[WA-API] Enviando para ' + to + ', phoneNumberId=' + phoneNumberId);
 
   const chunks = splitMessage(text, 4000);
   var lastMessageId = '';
@@ -1004,11 +1004,11 @@ async function sendTemplateMessage(to, templateName, languageCode, components, o
     }, {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     });
-    console.log('[WA-API] Template enviado:', JSON.stringify(resp.data));
     var mid = '';
     if (resp.data && resp.data.messages && resp.data.messages[0]) {
       mid = resp.data.messages[0].id || '';
     }
+    console.log('[WA-API] Template enviado para', to, 'template=', templateName, 'messageId=', mid || '(sem id)');
     return { messageId: mid, to: to, templateName: templateName, language: languageCode || 'pt_BR' };
   } catch (err) {
     console.error('[WA-API] Erro template:', extractMetaError(err));

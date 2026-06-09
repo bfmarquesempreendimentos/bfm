@@ -51,21 +51,50 @@ function sanitizeForFirestore(obj) {
   return out;
 }
 
+async function callPatchRepairAPI(repairId, updates) {
+  var payload = Object.assign({ id: Number(repairId) }, updates || {});
+  var headers = { 'Content-Type': 'application/json' };
+  var token = null;
+  if (typeof getAdminIdToken === 'function') {
+    token = await getAdminIdToken();
+  }
+  if (!token && typeof getClientIdToken === 'function') {
+    token = await getClientIdToken();
+  }
+  if (token) headers.Authorization = 'Bearer ' + token;
+  var res = await fetch(FUNCTIONS_BASE + '/patchRepair', {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(payload),
+    cache: 'no-store',
+    credentials: 'omit'
+  });
+  if (!res.ok) return null;
+  var j = await res.json();
+  return (j && j.success) ? true : null;
+}
+
 async function saveRepairRequestToFirestore(repairRequest) {
-  const db = getFirebaseDb();
-  if (!db) return null;
-  var clean = sanitizeForFirestore(repairRequest);
-  const docRef = await db.collection('repairRequests').add(clean);
-  return docRef.id;
+  var token = null;
+  if (typeof getClientIdToken === 'function') token = await getClientIdToken();
+  var headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = 'Bearer ' + token;
+  var body = repairRequest || {};
+  if (token) body.idToken = token;
+  var res = await fetch(FUNCTIONS_BASE + '/createRepair', {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(body),
+    cache: 'no-store',
+    credentials: 'omit'
+  });
+  if (!res.ok) return null;
+  var j = await res.json();
+  return (j && j.firestoreId) ? j.firestoreId : null;
 }
 
 async function updateRepairRequestInFirestore(repairId, updates) {
-  const db = getFirebaseDb();
-  if (!db) return null;
-  const snapshot = await db.collection('repairRequests').where('id', '==', Number(repairId)).limit(1).get();
-  if (snapshot.empty) return null;
-  await snapshot.docs[0].ref.update({ ...updates, updatedAt: new Date().toISOString() });
-  return snapshot.docs[0].id;
+  return callPatchRepairAPI(repairId, updates);
 }
 
 async function getRepairRequestFromFirestore(repairId) {
@@ -78,16 +107,11 @@ async function getRepairRequestFromFirestore(repairId) {
 }
 
 async function getAllRepairRequestsFromFirestore() {
-  var db = getFirebaseDb();
-  if (!db) return [];
-  var snapshot = await db.collection('repairRequests').get();
-  return snapshot.docs.map(function(doc) {
-    var d = doc.data();
-    var out = {};
-    for (var k in d) { if (Object.prototype.hasOwnProperty.call(d, k)) out[k] = d[k]; }
-    out.firestoreId = doc.id;
-    return out;
-  });
+  if (typeof adminFetchJson === 'function') {
+    var data = await adminFetchJson('/getRepairs');
+    if (Array.isArray(data)) return data;
+  }
+  return [];
 }
 
 async function deleteRepairRequestFromFirestore(repairId) {
@@ -242,21 +266,22 @@ async function queueEmailInFirestore(payload) {
 const BROKERS_COLLECTION = 'brokers';
 
 async function saveBrokerToFirestore(broker) {
-  const db = getFirebaseDb();
-  if (!db) return null;
-  const data = {
-    name: broker.name,
-    cpf: broker.cpf || '',
-    email: (broker.email || '').trim().toLowerCase(),
-    phone: broker.phone || '',
-    creci: broker.creci || '',
-    password: broker.password || '',
-    isActive: broker.isActive !== undefined ? broker.isActive : false,
-    whatsappCampaignOptOut: broker.whatsappCampaignOptOut === true,
-    createdAt: broker.createdAt ? (broker.createdAt.toISOString ? broker.createdAt.toISOString() : broker.createdAt) : new Date().toISOString()
-  };
-  const docRef = await db.collection(BROKERS_COLLECTION).add(data);
-  return docRef.id;
+  if (typeof adminPostJson === 'function') {
+    var r = await adminPostJson('/adminBrokerMutate', {
+      action: 'create',
+      name: broker.name,
+      cpf: broker.cpf || '',
+      email: (broker.email || '').trim().toLowerCase(),
+      phone: broker.phone || '',
+      creci: broker.creci || '',
+      password: broker.password || '',
+      isActive: broker.isActive === true,
+      whatsappCampaignOptOut: broker.whatsappCampaignOptOut === true,
+      isAdmin: broker.isAdmin === true
+    });
+    return (r && r.id) ? r.id : null;
+  }
+  return null;
 }
 
 const FUNCTIONS_BASE = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
@@ -309,107 +334,103 @@ async function getBrokersFromAPI(activeOnly) {
 async function getBrokersFromFirestore(opts) {
   opts = opts || {};
   const fromApi = await getBrokersFromAPI(!!opts.activeOnly);
-  if (fromApi !== null) return fromApi;
-  const db = getFirebaseDb();
-  if (!db) return [];
-  try {
-    const snapshot = await db.collection(BROKERS_COLLECTION).get();
-    return snapshot.docs.map(doc => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        name: d.name,
-        cpf: d.cpf,
-        email: (d.email || '').trim().toLowerCase(),
-        phone: d.phone,
-        creci: d.creci,
-        password: d.password,
-        isActive: d.isActive !== undefined ? d.isActive : false,
-        whatsappCampaignOptOut: !!d.whatsappCampaignOptOut,
-        isAdmin: d.isAdmin || false,
-        createdAt: d.createdAt ? new Date(d.createdAt) : new Date()
-      };
-    }).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-  } catch (err) {
-    console.warn('getBrokersFromFirestore falhou:', err);
-    return [];
-  }
+  return fromApi !== null ? fromApi : [];
 }
 
 async function updateBrokerInFirestore(brokerId, updates) {
-  const db = getFirebaseDb();
-  if (!db) return false;
-  const ref = db.collection(BROKERS_COLLECTION).doc(brokerId);
-  const data = {};
-  if (updates.name !== undefined) data.name = updates.name;
-  if (updates.cpf !== undefined) data.cpf = updates.cpf;
-  if (updates.email !== undefined) data.email = (updates.email || '').trim().toLowerCase();
-  if (updates.phone !== undefined) data.phone = updates.phone;
-  if (updates.creci !== undefined) data.creci = updates.creci;
-  if (updates.password !== undefined) data.password = updates.password;
-  if (updates.isActive !== undefined) data.isActive = updates.isActive;
-  if (updates.whatsappCampaignOptOut !== undefined) data.whatsappCampaignOptOut = !!updates.whatsappCampaignOptOut;
-  await ref.update(data);
-  return true;
+  if (typeof adminPostJson === 'function') {
+    var payload = Object.assign({ action: 'update', brokerId: brokerId }, updates || {});
+    var r = await adminPostJson('/adminBrokerMutate', payload);
+    return !!(r && r.ok);
+  }
+  if (typeof getFirebaseAuth === 'function' && firebaseAvailable && firebaseAvailable()) {
+    var auth = getFirebaseAuth();
+    if (auth.currentUser) {
+      var token = await auth.currentUser.getIdToken();
+      var res = await fetch(FUNCTIONS_BASE + '/brokerUpdateMe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify(updates || {}),
+        cache: 'no-store'
+      });
+      return res.ok;
+    }
+  }
+  return false;
 }
 
 async function deleteBrokerFromFirestore(brokerId) {
-  const db = getFirebaseDb();
-  if (!db) return false;
-  try {
-    await db.collection(BROKERS_COLLECTION).doc(brokerId).delete();
-    return true;
-  } catch (err) {
-    console.warn('deleteBrokerFromFirestore:', err);
-    return false;
+  if (typeof adminPostJson === 'function') {
+    var r = await adminPostJson('/adminBrokerMutate', { action: 'delete', brokerId: brokerId });
+    return !!(r && r.ok);
   }
+  return false;
 }
 
 const PASSWORD_RESET_COLLECTION = 'passwordResetTokens';
 
 async function savePasswordResetToken(brokerId, email, token, type = 'broker') {
-  const db = getFirebaseDb();
-  if (!db) return null;
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora
-  const data = {
-    type: type || 'broker',
-    email,
-    token,
-    expiresAt,
-    used: false,
-    createdAt: new Date().toISOString()
-  };
-  if (type === 'broker') data.brokerId = brokerId;
-  else data.clientId = brokerId;
-  const docRef = await db.collection(PASSWORD_RESET_COLLECTION).add(data);
-  return docRef.id;
+  try {
+    var payload = {
+      type: type || 'broker',
+      email: email,
+      token: token,
+    };
+    if (type === 'client') payload.clientId = brokerId || '';
+    else payload.brokerId = brokerId || '';
+    var res = await fetch(FUNCTIONS_BASE + '/savePasswordResetToken', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      cache: 'no-store'
+    });
+    if (!res.ok) return null;
+    var j = await res.json();
+    return (j && j.id) ? j.id : 'ok';
+  } catch (err) {
+    console.warn('savePasswordResetToken API:', err);
+    return null;
+  }
 }
 
 async function getPasswordResetToken(token) {
-  const db = getFirebaseDb();
-  if (!db) return null;
-  const snapshot = await db.collection(PASSWORD_RESET_COLLECTION)
-    .where('token', '==', token)
-    .where('used', '==', false)
-    .limit(1)
-    .get();
-  if (snapshot.empty) return null;
-  const doc = snapshot.docs[0];
-  const data = doc.data();
-  if (new Date(data.expiresAt) < new Date()) return null;
-  return { id: doc.id, ...data, type: data.type || 'broker' };
+  try {
+    var res = await fetch(FUNCTIONS_BASE + '/verifyPasswordResetToken?token=' + encodeURIComponent(token), { cache: 'no-store' });
+    if (!res.ok) return null;
+    var j = await res.json();
+    if (!j || !j.ok) return null;
+    return {
+      id: j.id,
+      type: j.type || 'broker',
+      email: j.email,
+      brokerId: j.brokerId,
+      clientId: j.clientId,
+    };
+  } catch (err) {
+    console.warn('getPasswordResetToken API:', err);
+    return null;
+  }
+}
+
+async function completePasswordResetAPI(token, newPassword) {
+  try {
+    var res = await fetch(FUNCTIONS_BASE + '/completePasswordReset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token, newPassword: newPassword }),
+      cache: 'no-store'
+    });
+    if (!res.ok) return false;
+    var j = await res.json();
+    return !!(j && j.ok);
+  } catch (err) {
+    console.warn('completePasswordResetAPI:', err);
+    return false;
+  }
 }
 
 async function markPasswordResetTokenUsed(tokenDocId) {
-  const db = getFirebaseDb();
-  if (!db) return false;
-  try {
-    await db.collection(PASSWORD_RESET_COLLECTION).doc(tokenDocId).update({ used: true });
-    return true;
-  } catch (err) {
-    console.warn('markPasswordResetTokenUsed:', err);
-    return false;
-  }
+  return true;
 }
 
 function getCloudFunctionsBaseForSales() {
@@ -477,6 +498,7 @@ if (typeof window !== 'undefined') {
   window.deleteBrokerFromFirestore = deleteBrokerFromFirestore;
   window.savePasswordResetToken = savePasswordResetToken;
   window.getPasswordResetToken = getPasswordResetToken;
+  window.completePasswordResetAPI = completePasswordResetAPI;
   window.markPasswordResetTokenUsed = markPasswordResetTokenUsed;
   window.registerBrokerAPI = registerBrokerAPI;
   window.fetchClientPropertySalesMe = fetchClientPropertySalesMe;
