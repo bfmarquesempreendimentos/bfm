@@ -34,6 +34,17 @@ function verifyAdminFromBody(body) {
   return !!(acc && acc.password === password);
 }
 
+/** Valida admin a partir da requisição (corpo do POST OU query string do GET). */
+function verifyAdminFromReq(req) {
+  if (!req) return false;
+  if (verifyAdminFromBody(req.body)) return true;
+  if (req.query && verifyAdminFromBody({
+    adminEmail: req.query.adminEmail,
+    adminPassword: req.query.adminPassword,
+  })) return true;
+  return false;
+}
+
 function getAdminRoleFromBody(body) {
   var email = String((body && body.adminEmail) || '').trim().toLowerCase();
   var acc = getAdminAccount(email);
@@ -52,6 +63,7 @@ module.exports = {
   ADMIN_ACCOUNTS,
   ROLE_PERMISSIONS,
   verifyAdminFromBody,
+  verifyAdminFromReq,
   getAdminRoleFromBody,
   adminHasPermission,
 };

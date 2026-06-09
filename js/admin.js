@@ -1029,12 +1029,21 @@ function syncAdminDashboardLocalData() {
     }
 }
 
-function adminFetchJson(path) {
-    if (typeof ApiClient !== 'undefined' && ApiClient.get) {
-        return ApiClient.get(path).catch(function() { return null; });
-    }
+function adminAppendCreds(path) {
+    var creds = getAdminApiCredentials();
+    if (!creds.email || !creds.password) return path;
     var sep = path.indexOf('?') >= 0 ? '&' : '?';
-    return fetch(ADMIN_FUNCTIONS_BASE + path + sep + '_=' + Date.now(), { cache: 'no-store', credentials: 'omit' })
+    return path + sep + 'adminEmail=' + encodeURIComponent(creds.email) +
+        '&adminPassword=' + encodeURIComponent(creds.password);
+}
+
+function adminFetchJson(path) {
+    var authedPath = adminAppendCreds(path);
+    if (typeof ApiClient !== 'undefined' && ApiClient.get) {
+        return ApiClient.get(authedPath).catch(function() { return null; });
+    }
+    var sep = authedPath.indexOf('?') >= 0 ? '&' : '?';
+    return fetch(ADMIN_FUNCTIONS_BASE + authedPath + sep + '_=' + Date.now(), { cache: 'no-store', credentials: 'omit' })
         .then(function(res) {
             if (!res.ok) return null;
             return res.text().then(function(txt) {
@@ -1050,8 +1059,16 @@ function adminFetchJson(path) {
 }
 
 function adminPostJson(path, payload, extra) {
+    payload = payload || {};
+    if (!payload.adminEmail || !payload.adminPassword) {
+        var creds = getAdminApiCredentials();
+        if (creds.email && creds.password) {
+            if (!payload.adminEmail) payload.adminEmail = creds.email;
+            if (!payload.adminPassword) payload.adminPassword = creds.password;
+        }
+    }
     if (typeof ApiClient !== 'undefined' && ApiClient.post) {
-        return ApiClient.post(path, payload || {}, extra || {});
+        return ApiClient.post(path, payload, extra || {});
     }
     return fetch(ADMIN_FUNCTIONS_BASE + path, {
         method: 'POST',

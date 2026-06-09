@@ -45,12 +45,35 @@ function formatRelativeMinutes(mins) {
   return 'há ' + d + ' dia(s)';
 }
 
+function waInboxGetCreds() {
+  if (typeof getAdminApiCredentials === 'function') return getAdminApiCredentials();
+  try {
+    var s = sessionStorage.getItem('adminSession');
+    if (s) {
+      var o = JSON.parse(s);
+      if (o && o.email && o.password) return { email: o.email, password: o.password };
+    }
+  } catch (e) {}
+  return { email: '', password: '' };
+}
+
 function waInboxApi(path, options) {
   options = options || {};
-  var url = waInboxBaseUrl + path;
   var method = (options.method || 'GET').toUpperCase();
   var body = options.body;
   var headers = { 'Content-Type': 'application/json' };
+  var creds = waInboxGetCreds();
+  var url = waInboxBaseUrl + path;
+
+  if (method === 'POST') {
+    body = body || {};
+    if (!body.adminEmail && creds.email) body.adminEmail = creds.email;
+    if (!body.adminPassword && creds.password) body.adminPassword = creds.password;
+  } else if (creds.email && creds.password) {
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    url += sep + 'adminEmail=' + encodeURIComponent(creds.email) +
+      '&adminPassword=' + encodeURIComponent(creds.password);
+  }
 
   return fetch(url, {
     method: method,

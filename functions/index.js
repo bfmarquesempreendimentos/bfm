@@ -40,7 +40,7 @@ const {
 } = require('./chatbot/whatsapp-api');
 const propertySalesHandlers = require('./property-sales-handlers');
 const brokerCampaignContent = require('./chatbot/broker-campaign-content');
-const { verifyAdminFromBody } = require('./admin-accounts');
+const { verifyAdminFromBody, verifyAdminFromReq } = require('./admin-accounts');
 
 admin.initializeApp();
 
@@ -2607,6 +2607,7 @@ exports.adminDashboardBundle = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const wa = await getLeadStats();
@@ -2718,6 +2719,7 @@ exports.chatbotInbox = functions.https.onRequest(async (req, res) => {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const action = req.query.action || 'list';
@@ -2839,6 +2841,7 @@ exports.chatbotInboxAssume = functions
     allowCors(res);
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+    if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
 
     try {
       const body = req.body || {};
@@ -2863,6 +2866,7 @@ exports.chatbotInboxReturnToBot = functions.https.onRequest(async (req, res) => 
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const body = req.body || {};
@@ -2884,6 +2888,7 @@ exports.chatbotInboxSend = functions
     allowCors(res);
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+    if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
 
     try {
       const body = req.body || {};
@@ -2962,6 +2967,7 @@ exports.chatbotInboxDeleteMessage = functions.https.onRequest(async (req, res) =
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const body = req.body || {};
@@ -2982,6 +2988,7 @@ exports.chatbotInboxMarkRead = functions.https.onRequest(async (req, res) => {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const body = req.body || {};
@@ -3001,6 +3008,7 @@ exports.chatbotInboxUpdateStatus = functions.https.onRequest(async (req, res) =>
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const body = req.body || {};
@@ -3028,6 +3036,7 @@ exports.chatbotInboxFollowUp = functions.https.onRequest(async (req, res) => {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
   try {
     const body = req.body || {};
     const raw = (body.phone || '').trim();
@@ -3048,6 +3057,7 @@ exports.chatbotInboxUpdateCategory = functions.https.onRequest(async (req, res) 
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
 
   try {
     const body = req.body || {};
@@ -3148,6 +3158,7 @@ exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
       return res.json(config);
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+    if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
 
     const body = req.body || {};
     const allowed = {
@@ -3267,6 +3278,7 @@ exports.brokerCampaignWhatsAppDiag = functions
     allowCors(res);
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+    if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
     try {
       const db = admin.firestore();
       const settings = await loadWhatsappSettings(db);
@@ -3335,6 +3347,7 @@ exports.brokerCampaignPreview = functions
     allowCors(res);
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+    if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
     try {
       const preview = await getBrokerCampaignPreview(admin.firestore());
       return res.json(preview);
@@ -3350,6 +3363,7 @@ exports.brokerCampaignTemplates = functions
     allowCors(res);
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+    if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
     try {
       const listed = await listApprovedMessageTemplates();
       return res.json(listed);
@@ -3363,6 +3377,7 @@ exports.brokerCampaignRunStatus = functions.https.onRequest(async (req, res) => 
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+  if (!verifyAdminFromReq(req)) return res.status(403).json({ error: 'Acesso negado' });
   try {
     const runId = String((req.query && req.query.runId) || '').trim();
     if (!runId) return res.status(400).json({ error: 'runId obrigatório' });
