@@ -86,6 +86,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a href="#boletos" onclick="showSection('boletos'); closeAdminSidebar();">
+                            <i class="fas fa-barcode" aria-hidden="true"></i>
+                            <span>Boletos</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="#repairs" onclick="showSection('repairs'); closeAdminSidebar();">
                             <i class="fas fa-tools" aria-hidden="true"></i>
                             <span>Reparos</span>
@@ -481,6 +487,103 @@
                     <tbody id="salesTableBody">
                         <!-- Sales rows will be loaded here -->
                     </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Boletos Section -->
+        <section id="boletos" class="admin-section">
+            <div class="section-header">
+                <div class="section-header-main">
+                    <h2><i class="fas fa-barcode" aria-hidden="true"></i> Boletos</h2>
+                    <p class="section-subtitle">Parcelas do financiamento visíveis na Área do Cliente.</p>
+                </div>
+                <div class="header-actions">
+                    <button type="button" class="btn btn-secondary" onclick="loadAdminBoletos()">
+                        <i class="fas fa-sync-alt" aria-hidden="true"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+            <div class="admin-table-container admin-table-container--elevated" style="margin-bottom:20px;">
+                <h3 style="margin:0 0 12px;font-size:1rem;">Novo boleto / parcela</h3>
+                <form id="adminBoletoForm" onsubmit="submitAdminBoletoForm(event); return false;">
+                    <div style="display:flex;flex-wrap:wrap;margin:0 -8px;">
+                        <div class="form-group" style="flex:1;min-width:200px;padding:0 8px;">
+                            <label>Email do cliente *</label>
+                            <input type="email" id="adminBoletoEmail" required placeholder="cliente@email.com">
+                        </div>
+                        <div class="form-group" style="flex:0 0 120px;min-width:100px;padding:0 8px;">
+                            <label>Parcela</label>
+                            <input type="text" id="adminBoletoParcela" placeholder="12/120">
+                        </div>
+                        <div class="form-group" style="flex:1;min-width:160px;padding:0 8px;">
+                            <label>Imóvel</label>
+                            <input type="text" id="adminBoletoImovel" placeholder="Residencial X — APTO 101">
+                        </div>
+                        <div class="form-group" style="flex:0 0 140px;min-width:120px;padding:0 8px;">
+                            <label>Valor (R$) *</label>
+                            <input type="text" id="adminBoletoValor" required placeholder="850,00">
+                        </div>
+                        <div class="form-group" style="flex:0 0 160px;min-width:140px;padding:0 8px;">
+                            <label>Vencimento *</label>
+                            <input type="date" id="adminBoletoVencimento" required>
+                        </div>
+                        <div class="form-group" style="flex:1;min-width:180px;padding:0 8px;">
+                            <label>Comprovante (URL, se já pago)</label>
+                            <input type="url" id="adminBoletoComprovante" placeholder="https://...">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-plus" aria-hidden="true"></i> Cadastrar boleto</button>
+                </form>
+            </div>
+            <details class="admin-table-container admin-table-container--elevated" style="margin-bottom:20px;">
+                <summary style="cursor:pointer;font-weight:600;padding:4px 0;">Adicionar evento na timeline do cliente</summary>
+                <form id="adminTimelineForm" style="margin-top:12px;" onsubmit="submitAdminTimelineForm(event); return false;">
+                    <div style="display:flex;flex-wrap:wrap;margin:0 -8px;">
+                        <div class="form-group" style="flex:1;min-width:180px;padding:0 8px;">
+                            <label>Email *</label>
+                            <input type="email" id="adminTimelineEmail" required>
+                        </div>
+                        <div class="form-group" style="flex:0 0 140px;padding:0 8px;">
+                            <label>Tipo</label>
+                            <select id="adminTimelineType">
+                                <option value="evento">Evento</option>
+                                <option value="payment">Pagamento</option>
+                                <option value="document">Documento</option>
+                                <option value="contact">Contato</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex:1;min-width:180px;padding:0 8px;">
+                            <label>Título *</label>
+                            <input type="text" id="adminTimelineTitle" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Descrição</label>
+                        <textarea id="adminTimelineDesc" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-secondary">Registrar na timeline</button>
+                </form>
+            </details>
+            <div class="admin-table-container admin-table-container--elevated">
+                <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px;">
+                    <label style="margin:0;">Filtrar por email:</label>
+                    <input type="email" id="adminBoletosFilterEmail" placeholder="Todos os clientes" style="flex:1;min-width:200px;max-width:320px;padding:8px;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="loadAdminBoletos()">Filtrar</button>
+                </div>
+                <table class="admin-table" id="adminBoletosTable">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Parcela</th>
+                            <th>Imóvel</th>
+                            <th>Valor</th>
+                            <th>Vencimento</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminBoletosTableBody"></tbody>
                 </table>
             </div>
         </section>
@@ -1348,7 +1451,8 @@
     <script src="js/whatsapp-leads.js?v=4"></script>
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
-    <script src="js/admin.js?v=33"></script>
+    <script src="js/admin-boletos.js?v=1"></script>
+    <script src="js/admin.js?v=34"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

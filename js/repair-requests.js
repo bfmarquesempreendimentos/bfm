@@ -1,5 +1,10 @@
 // Sistema de Solicitação de Reparos
 
+function getRepairTipoLabel(tipo) {
+    var map = { manutencao: 'Manutenção', reclamacao: 'Reclamação', sugestao: 'Sugestão', geral: 'Geral' };
+    return map[tipo] || 'Geral';
+}
+
 let selectedFiles = [];
 
 // Mostrar formulário de solicitação de reparo
@@ -506,6 +511,7 @@ async function loadClientRepairs() {
                     <div>
                         <h5>Solicitação #${repair.id}</h5>
                         <p class="repair-property">${propertyName}</p>
+                        <p class="repair-meta" style="font-size:0.85rem;color:#666;margin:4px 0 0;">${getRepairTipoLabel(repair.tipo)}${repair.responsavelNome ? ' · Resp.: ' + repair.responsavelNome : ''}</p>
                     </div>
                     <div class="repair-status">
                         <span class="status-badge ${statusClass}">${statusText}</span>
@@ -660,6 +666,11 @@ function viewRepairDetails(repairId) {
             <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
             <h2>Detalhes da Solicitação #${repair.id}</h2>
             <div class="repair-details">
+                <div class="detail-item">
+                    <strong>Tipo:</strong>
+                    <span>${getRepairTipoLabel(repair.tipo)}</span>
+                </div>
+                ${repair.responsavelNome ? `<div class="detail-item"><strong>Responsável:</strong><span>${repair.responsavelNome}</span></div>` : ''}
                 <div class="detail-item">
                     <strong>Status:</strong>
                     <span class="status-badge status-${repair.status}">${getStatusText(repair.status)}</span>

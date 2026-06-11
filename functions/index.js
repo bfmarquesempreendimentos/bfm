@@ -4065,6 +4065,164 @@ exports.patchRepair = functions.https.onRequest(async (req, res) => {
   }
 });
 
+/** Calcula status efetivo do boleto (vencido se passou do vencimento). */
+function effectiveBoletoStatus(data) {
+  var d = data || {};
+  if (String(d.status || '').toLowerCase() === 'pago') return 'pago';
+  var venc = d.vencimento ? new Date(d.vencimento) : null;
+  if (venc && !isNaN(venc.getTime()) && venc.getTime() < Date.now()) return 'vencido';
+  return String(d.status || 'pendente').toLowerCase();
+}
+
+/** Admin: CRUD de boletos de clientes. */
+exports.adminBoletosMutate = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
+  try {
+    var body = req.body || {};
+    var action = String(body.action || 'list').trim().toLowerCase();
+    var db = admin.firestore();
+    var col = db.collection('boletos');
+
+    if (action === 'list') {
+      var filterEmail = String(body.clientEmail || '').trim().toLowerCase();
+      var snap;
+      if (filterEmail) {
+        snap = await col.where('clientEmail', '==', filterEmail).get();
+      } else {
+        snap = await col.limit(500).get();
+      }
+      var rows = [];
+      snap.forEach(function(doc) {
+        var d = doc.data() || {};
+        rows.push({
+          id: doc.id,
+          clientEmail: d.clientEmail || '',
+          clientUid: d.clientUid || '',
+          valor: d.valor != null ? Number(d.valor) : 0,
+          vencimento: d.vencimento || '',
+          parcela: d.parcela || '',
+          propertyTitle: d.propertyTitle || '',
+          status: effectiveBoletoStatus(d),
+          statusRaw: d.status || 'pendente',
+          comprovanteUrl: d.comprovanteUrl || '',
+          pagamentoEm: d.pagamentoEm || '',
+          createdAt: d.createdAt || '',
+        });
+      });
+      rows.sort(function(a, b) {
+        return new Date(a.vencimento || 0) - new Date(b.vencimento || 0);
+      });
+      return res.json({ ok: true, boletos: rows });
+    }
+
+    if (action === 'delete') {
+      var delId = String(body.boletoId || body.id || '').trim();
+      if (!delId) return res.status(400).json({ error: 'boletoId obrigatório' });
+      await col.doc(delId).delete();
+      return res.json({ ok: true, deleted: delId });
+    }
+
+    if (action === 'markPaid') {
+      var paidId = String(body.boletoId || body.id || '').trim();
+      if (!paidId) return res.status(400).json({ error: 'boletoId obrigatório' });
+      var paidRef = col.doc(paidId);
+      var paidSnap = await paidRef.get();
+      if (!paidSnap.exists) return res.status(404).json({ error: 'Boleto não encontrado' });
+      var paidData = paidSnap.data() || {};
+      var paidAt = body.pagamentoEm || new Date().toISOString();
+      await paidRef.set({
+        status: 'pago',
+        pagamentoEm: paidAt,
+        comprovanteUrl: body.comprovanteUrl != null ? String(body.comprovanteUrl) : (paidData.comprovanteUrl || ''),
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      if (paidData.clientEmail) {
+        await db.collection('client_timeline').add({
+          clientEmail: String(paidData.clientEmail).trim().toLowerCase(),
+          type: 'payment',
+          title: 'Parcela paga',
+          description: (paidData.parcela ? 'Parcela ' + paidData.parcela + ' — ' : '') +
+            (paidData.propertyTitle || 'Financiamento'),
+          date: paidAt,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      return res.json({ ok: true, id: paidId, status: 'pago' });
+    }
+
+    if (action === 'create') {
+      var emailC = String(body.clientEmail || '').trim().toLowerCase();
+      if (!emailC) return res.status(400).json({ error: 'clientEmail obrigatório' });
+      var valorC = Number(body.valor);
+      if (!valorC || isNaN(valorC) || valorC <= 0) return res.status(400).json({ error: 'valor inválido' });
+      if (!body.vencimento) return res.status(400).json({ error: 'vencimento obrigatório' });
+      var createRef = await col.add({
+        clientEmail: emailC,
+        clientUid: String(body.clientUid || '').trim(),
+        valor: valorC,
+        vencimento: String(body.vencimento),
+        parcela: String(body.parcela || '').trim(),
+        propertyTitle: String(body.propertyTitle || '').trim(),
+        saleId: String(body.saleId || '').trim(),
+        status: String(body.status || 'pendente').toLowerCase(),
+        comprovanteUrl: String(body.comprovanteUrl || '').trim(),
+        pagamentoEm: body.pagamentoEm || '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      return res.json({ ok: true, id: createRef.id });
+    }
+
+    if (action === 'update') {
+      var updId = String(body.boletoId || body.id || '').trim();
+      if (!updId) return res.status(400).json({ error: 'boletoId obrigatório' });
+      var upd = { updatedAt: new Date().toISOString() };
+      if (body.valor != null) upd.valor = Number(body.valor);
+      if (body.vencimento != null) upd.vencimento = String(body.vencimento);
+      if (body.parcela != null) upd.parcela = String(body.parcela || '');
+      if (body.propertyTitle != null) upd.propertyTitle = String(body.propertyTitle || '');
+      if (body.status != null) upd.status = String(body.status).toLowerCase();
+      if (body.comprovanteUrl != null) upd.comprovanteUrl = String(body.comprovanteUrl || '');
+      if (body.clientEmail != null) upd.clientEmail = String(body.clientEmail).trim().toLowerCase();
+      await col.doc(updId).set(upd, { merge: true });
+      return res.json({ ok: true, id: updId });
+    }
+
+    return res.status(400).json({ error: 'Ação inválida' });
+  } catch (err) {
+    console.error('adminBoletosMutate:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Admin: adiciona evento manual na timeline do cliente. */
+exports.adminTimelineEvent = functions.https.onRequest(async (req, res) => {
+  allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
+  try {
+    var body = req.body || {};
+    var email = String(body.clientEmail || '').trim().toLowerCase();
+    if (!email) return res.status(400).json({ error: 'clientEmail obrigatório' });
+    var docRef = await admin.firestore().collection('client_timeline').add({
+      clientEmail: email,
+      type: String(body.type || 'evento').trim(),
+      title: String(body.title || 'Atualização').trim(),
+      description: String(body.description || '').trim(),
+      date: body.date || new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    });
+    return res.json({ ok: true, id: docRef.id });
+  } catch (err) {
+    console.error('adminTimelineEvent:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 /** Boletos do cliente (email ou uid) */
 exports.clientBoletosMe = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
@@ -4098,7 +4256,18 @@ exports.clientBoletosMe = functions.https.onRequest(async (req, res) => {
     }
     var list = [];
     snap.forEach(function(doc) {
-      list.push({ id: doc.id, ...doc.data() });
+      var d = doc.data() || {};
+      list.push({
+        id: doc.id,
+        clientEmail: d.clientEmail || '',
+        valor: d.valor != null ? Number(d.valor) : 0,
+        vencimento: d.vencimento || '',
+        parcela: d.parcela || '',
+        propertyTitle: d.propertyTitle || '',
+        status: effectiveBoletoStatus(d),
+        comprovanteUrl: d.comprovanteUrl || '',
+        pagamentoEm: d.pagamentoEm || '',
+      });
     });
     list.sort(function(a, b) {
       return new Date(a.vencimento || 0) - new Date(b.vencimento || 0);

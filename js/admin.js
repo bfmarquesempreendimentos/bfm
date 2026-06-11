@@ -897,6 +897,9 @@ function showSection(sectionId) {
         case 'sales':
             loadSalesData();
             break;
+        case 'boletos':
+            if (typeof loadAdminBoletos === 'function') loadAdminBoletos();
+            break;
         case 'brokers':
             loadBrokersData();
             break;

@@ -343,7 +343,12 @@ function viewAdminRepairDetails(repairId) {
     }
     const statusLabels = { pendente: 'Pendente', em_analise: 'Em Análise', em_andamento: 'Em Andamento', concluido: 'Concluído', cancelado: 'Cancelado' };
     const tipoLabels = { manutencao: 'Manutenção', reclamacao: 'Reclamação', sugestao: 'Sugestão', geral: 'Geral' };
-    const respList = (repair.responses || []).map(r => `<li><strong>${r.type === 'automatic' ? 'Automático' : 'Equipe'}</strong>: ${r.message} <small>(${typeof formatDate === 'function' ? formatDate(r.date) : r.date})</small></li>`).join('');
+    const tipoLabels = { manutencao: 'Manutenção', reclamacao: 'Reclamação', sugestao: 'Sugestão', geral: 'Geral' };
+    const respList = (repair.responses || []).map(r => `<li><strong>${r.type === 'automatic' ? 'Automático' : r.type === 'client' ? 'Cliente' : 'Equipe'}</strong>: ${r.message} <small>(${typeof formatDate === 'function' ? formatDate(r.date) : r.date})</small></li>`).join('');
+    const comList = (repair.comentarios || []).map(function(c) {
+        return '<li><strong>' + (c.autorNome || 'Equipe') + '</strong>: ' + (c.texto || '') +
+            ' <small>(' + (typeof formatDate === 'function' ? formatDate(c.dataCriacao) : c.dataCriacao) + ')</small></li>';
+    }).join('');
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'block';
@@ -366,6 +371,7 @@ function viewAdminRepairDetails(repairId) {
                 ${repair.visitDate ? `<p><strong>Data visita:</strong> ${typeof formatDate === 'function' ? formatDate(repair.visitDate) : repair.visitDate}</p>` : ''}
                 ${(repair.attachments && repair.attachments.length) ? `<p><strong>Anexos:</strong> ${repair.attachments.length} arquivo(s)</p>` : ''}
                 ${respList ? `<h4>Histórico de Respostas</h4><ul style="margin:10px 0;">${respList}</ul>` : ''}
+                ${comList ? `<h4>Comentários internos</h4><ul style="margin:10px 0;">${comList}</ul>` : ''}
             </div>
         </div>
     `;

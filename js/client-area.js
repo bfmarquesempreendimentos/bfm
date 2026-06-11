@@ -399,8 +399,7 @@ function loadClientBoletos() {
     var listEl = document.getElementById('clientBoletosList');
     if (!listEl || !currentClient) return;
     var email = (currentClient.email || '').trim().toLowerCase();
-    var uid = currentClient.uid || '';
-    if (!email && !uid) {
+    if (!email && !currentClient.uid) {
         listEl.innerHTML = '<p>Nenhum boleto disponível.</p>';
         return;
     }
@@ -417,19 +416,35 @@ function loadClientBoletos() {
                 listEl.innerHTML = '<p>Nenhum boleto cadastrado pela construtora ainda. Em caso de dúvida, fale conosco pelo WhatsApp.</p>';
                 return;
             }
+            var pendentes = 0;
+            var vencidos = 0;
+            var pagos = 0;
             var html = '';
             for (var i = 0; i < rows.length; i++) {
                 var b = rows[i];
                 var st = String(b.status || 'pendente');
+                if (st === 'pago') pagos += 1;
+                else if (st === 'vencido') vencidos += 1;
+                else pendentes += 1;
                 var stLabel = st === 'pago' ? 'Pago' : (st === 'vencido' ? 'Vencido' : 'Pendente');
+                var stClass = st === 'pago' ? 'status-completed' : (st === 'vencido' ? 'status-cancelled' : 'status-pending');
                 html += '<div class="client-document-card">' +
-                    '<h5>Parcela — ' + escapeHtml(stLabel) + '</h5>' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
+                    '<h5>' + escapeHtml(b.parcela ? ('Parcela ' + b.parcela) : 'Parcela') +
+                    ' — <span class="status-badge ' + stClass + '">' + escapeHtml(stLabel) + '</span></h5>' +
+                    (b.propertyTitle ? '<small style="color:#666;">' + escapeHtml(b.propertyTitle) + '</small>' : '') +
+                    '</div>' +
                     '<p><strong>Vencimento:</strong> ' + escapeHtml(formatDate(b.vencimento)) + '</p>' +
                     '<p><strong>Valor:</strong> R$ ' + Number(b.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '</p>' +
-                    (b.comprovanteUrl ? '<a href="' + escapeHtml(b.comprovanteUrl) + '" target="_blank" rel="noopener" class="btn btn-primary">Comprovante</a>' : '') +
+                    (b.pagamentoEm && st === 'pago' ? '<p><strong>Pago em:</strong> ' + escapeHtml(formatDate(b.pagamentoEm)) + '</p>' : '') +
+                    (b.comprovanteUrl ? '<a href="' + escapeHtml(b.comprovanteUrl) + '" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Ver comprovante</a>' : '') +
                     '</div>';
             }
-            listEl.innerHTML = html;
+            var summary = '<div class="client-boletos-summary" style="margin-bottom:16px;padding:12px;background:#f8f9fa;border-radius:8px;">' +
+                '<strong>Resumo:</strong> ' + pagos + ' pago(s), ' + pendentes + ' pendente(s)' +
+                (vencidos ? (', <span style="color:#c0392b;">' + vencidos + ' vencido(s)</span>') : '') +
+                '</div>';
+            listEl.innerHTML = summary + html;
         })
         .catch(function() {
             listEl.innerHTML = '<p>Não foi possível carregar boletos agora.</p>';
@@ -573,6 +588,11 @@ function getHistoryIcon(type) {
         'payment': 'fa-money-bill',
         'contact': 'fa-phone',
         'meeting': 'fa-calendar',
+        'venda': 'fa-handshake',
+        'reserva': 'fa-bookmark',
+        'reparo': 'fa-tools',
+        'reparo_concluido': 'fa-check-circle',
+        'evento': 'fa-info-circle',
         'default': 'fa-circle'
     };
     return icons[type] || icons.default;
