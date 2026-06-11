@@ -22,34 +22,52 @@ function reserveProperty(propertyId) {
         return;
     }
 
-    var property = properties.find(function(p) { return p.id === propertyId; });
-    if (!property) {
-        showMessage('Imóvel não encontrado.', 'error');
+    var proceed = function() {
+        var property = null;
+        var pi;
+        for (pi = 0; pi < properties.length; pi++) {
+            if (properties[pi].id === propertyId) {
+                property = properties[pi];
+                break;
+            }
+        }
+        if (!property) {
+            showMessage('Imóvel não encontrado.', 'error');
+            return;
+        }
+
+        var raw = typeof getPropertyUnitsRaw === 'function' ? getPropertyUnitsRaw(propertyId) : null;
+        if (raw && raw.units && raw.units.length > 1) {
+            showMessage('Selecione a unidade na tabela do empreendimento para reservar.', 'info');
+            if (typeof showPropertyDetails === 'function') showPropertyDetails(propertyId);
+            return;
+        }
+
+        var unitCode = raw && raw.units && raw.units.length === 1 ? raw.units[0].code : '';
+        var selectedUnit = raw && raw.units && raw.units.length === 1 ? {
+            propertyId: propertyId,
+            unitCode: unitCode,
+            price: raw.units[0].price,
+            bedrooms: raw.units[0].bedrooms
+        } : null;
+
+        if (selectedUnit && typeof showUnitReservationForm === 'function') {
+            sessionStorage.setItem('selectedUnit', JSON.stringify(selectedUnit));
+            showUnitReservationForm(property, selectedUnit);
+            return;
+        }
+
+        showMessage('Este empreendimento exige seleção de unidade.', 'warning');
+    };
+
+    if (typeof ensureBrokerFirebaseSession === 'function') {
+        ensureBrokerFirebaseSession().then(proceed).catch(function(err) {
+            showMessage(err.message || 'Faça login novamente.', 'error');
+            openLoginModal();
+        });
         return;
     }
-
-    var raw = typeof getPropertyUnitsRaw === 'function' ? getPropertyUnitsRaw(propertyId) : null;
-    if (raw && raw.units && raw.units.length > 1) {
-        showMessage('Selecione a unidade na tabela do empreendimento para reservar.', 'info');
-        if (typeof showPropertyDetails === 'function') showPropertyDetails(propertyId);
-        return;
-    }
-
-    var unitCode = raw && raw.units && raw.units.length === 1 ? raw.units[0].code : '';
-    var selectedUnit = raw && raw.units && raw.units.length === 1 ? {
-        propertyId: propertyId,
-        unitCode: unitCode,
-        price: raw.units[0].price,
-        bedrooms: raw.units[0].bedrooms
-    } : null;
-
-    if (selectedUnit && typeof showUnitReservationForm === 'function') {
-        sessionStorage.setItem('selectedUnit', JSON.stringify(selectedUnit));
-        showUnitReservationForm(property, selectedUnit);
-        return;
-    }
-
-    showMessage('Este empreendimento exige seleção de unidade.', 'warning');
+    proceed();
 }
 
 function buildReservationFormTermsHtml() {
@@ -57,7 +75,7 @@ function buildReservationFormTermsHtml() {
     return '' +
         '<li>A reserva tem validade de ' + days + ' dias úteis (segunda a sexta) após aprovação</li>' +
         '<li>Toda solicitação passa pela aprovação do administrador</li>' +
-        '<li>Após o vencimento, a unidade volta automaticamente para disponível</li>' +
+        '<li>Após o vencimento, a unidade só é liberada quando o administrador clicar em Prorrogar ou Liberar</li>' +
         '<li>O corretor é responsável pelas informações do cliente</li>';
 }
 

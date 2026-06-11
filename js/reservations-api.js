@@ -11,6 +11,9 @@ function getReservationFunctionsBase() {
 }
 
 function getBrokerIdToken() {
+    if (typeof ensureBrokerFirebaseSession === 'function') {
+        return ensureBrokerFirebaseSession();
+    }
     return new Promise(function(resolve) {
         if (typeof getFirebaseAuth !== 'function') {
             resolve(null);

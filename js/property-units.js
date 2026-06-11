@@ -805,7 +805,7 @@ function selectUnit(propertyId, unitCode) {
     const propertyData = getPropertyUnits(propertyId);
     if (!propertyData) return;
     
-    const unit = propertyData.units.find(u => u.code === unitCode);
+    const unit = propertyData.units.filter(function(u) { return u.code === unitCode; })[0];
     if (!unit) return;
     
     if (unit.status !== 'disponivel') {
@@ -837,17 +837,27 @@ function reservePropertyUnit(propertyId, unitCode) {
         showMessage('Apenas corretores podem fazer reservas.', 'error');
         return;
     }
-    
-    const property = properties.find(p => p.id === propertyId);
-    const selectedUnit = JSON.parse(sessionStorage.getItem('selectedUnit'));
-    
-    if (!property || !selectedUnit) {
-        showMessage('Erro ao processar reserva da unidade.', 'error');
+
+    var openForm = function() {
+        const property = properties.filter(function(p) { return p.id === propertyId; })[0];
+        const selectedUnit = JSON.parse(sessionStorage.getItem('selectedUnit'));
+        
+        if (!property || !selectedUnit) {
+            showMessage('Erro ao processar reserva da unidade.', 'error');
+            return;
+        }
+        
+        showUnitReservationForm(property, selectedUnit);
+    };
+
+    if (typeof ensureBrokerFirebaseSession === 'function') {
+        ensureBrokerFirebaseSession().then(openForm).catch(function(err) {
+            showMessage(err.message || 'Faça login novamente.', 'error');
+            openLoginModal();
+        });
         return;
     }
-    
-    // Show reservation form with unit details
-    showUnitReservationForm(property, selectedUnit);
+    openForm();
 }
 
 // Show unit reservation form

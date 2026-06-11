@@ -77,8 +77,8 @@
     <script src="js/firebase.js"></script>
     <script>
         var ADMIN_ACCOUNTS = [
-            { email: 'brunoferreiramarques@gmail.com', name: 'Bruno Marques' },
-            { email: 'raphaelmonteirodasilva@yahoo.com.br', name: 'Raphael Monteiro' }
+            { email: 'brunoferreiramarques@gmail.com', name: 'Bruno Marques', role: 'super' },
+            { email: 'raphaelmonteirodasilva@yahoo.com.br', name: 'Raphael Monteiro', role: 'comercial' }
         ];
         var FUNCTIONS_BASE = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
 
@@ -99,6 +99,7 @@
             localStorage.setItem('adminUser', JSON.stringify({
                 email: meta.email,
                 name: meta.name,
+                role: meta.role || 'comercial',
                 loginTime: new Date().toISOString(),
                 authProvider: 'firebase'
             }));

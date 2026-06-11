@@ -704,6 +704,22 @@ function displayProperties(propertiesToShow) {
     });
 }
 
+function propertyCanBeReserved(propertyId) {
+    if (typeof getEnterpriseInventorySummary === 'function') {
+        var summary = getEnterpriseInventorySummary(propertyId);
+        if (summary) return summary.disponivel > 0;
+    }
+    var property = null;
+    var i;
+    for (i = 0; i < properties.length; i++) {
+        if (properties[i].id === propertyId) {
+            property = properties[i];
+            break;
+        }
+    }
+    return !!(property && property.status === 'disponivel');
+}
+
 // Create property card element
 function createPropertyCard(property) {
     const card = document.createElement('div');
@@ -720,9 +736,9 @@ function createPropertyCard(property) {
         'vendido': 'Vendido'
     };
     
-    const reserveButton = property.status === 'disponivel' 
+    const reserveButton = propertyCanBeReserved(property.id)
         ? `<button class="btn-reserve" onclick="event.stopPropagation(); handleRestrictedAction('reserve', ${property.id})">Reservar</button>`
-        : `<button class="btn-reserve" disabled>${statusText[property.status]}</button>`;
+        : `<button class="btn-reserve" disabled>${statusText[property.status] || 'Indisponível'}</button>`;
     
     const mediaOverride = getPropertyMediaOverride(property.id);
     const images = mediaOverride?.images || (Array.isArray(property.images) ? property.images : []);
@@ -889,9 +905,9 @@ function showPropertyDetails(propertyId) {
            </div>`
         : '';
     
-    const actionButton = property.status === 'disponivel'
+    const actionButton = propertyCanBeReserved(property.id)
         ? `<button class="btn btn-primary" onclick="reserveProperty(${property.id})">Reservar Imóvel</button>`
-        : `<button class="btn btn-primary" disabled>${statusText[property.status]}</button>`;
+        : `<button class="btn btn-primary" disabled>${statusText[property.status] || 'Indisponível'}</button>`;
     
     const headerHTML = `
         <div class="property-detail-header">
@@ -1362,6 +1378,9 @@ function checkUserSession() {
     if (userData) {
         currentUser = JSON.parse(userData);
         updateUIForLoggedUser();
+        if (typeof displayProperties === 'function' && typeof properties !== 'undefined' && properties.length) {
+            displayProperties(properties);
+        }
     }
 }
 

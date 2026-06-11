@@ -155,7 +155,15 @@ var CONFIG = {
     },
 
     /** Versão de cache para CSS/JS (incrementar a cada deploy público) */
-    assetVersion: '23'
+    assetVersion: '24',
+
+    /** Permissões por perfil do painel admin (espelha functions/admin-accounts.js) */
+    adminRoles: {
+        super: ['*'],
+        comercial: ['sales', 'leads', 'campaign', 'units', 'brokers', 'repairs_read', 'reservations'],
+        posvenda: ['repairs', 'clients', 'leads_read', 'units_read', 'reservations_read'],
+        financeiro: ['sales_read', 'repairs_read', 'dashboard', 'reservations_read']
+    }
 };
 
 // Função para obter configuração

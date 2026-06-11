@@ -2,7 +2,9 @@
 
 const admin = require('firebase-admin');
 const { verifyAdminAuth, extractIdToken } = require('./admin-auth');
+const { roleHasPermission } = require('./admin-accounts');
 const brokerAuth = require('./broker-auth');
+const propertyUnitsCatalog = require('./chatbot/property-units-data');
 const { resolveSaleSlot, getPropertyUnitsRaw } = require('./sale-unit-validation');
 const { allowCors, parseJsonBody, applyUnitStatusOverride } = require('./property-sales-handlers');
 const fcmPush = require('./fcm-push');
@@ -169,6 +171,34 @@ async function syncUnitForReservation(db, reservation, status) {
   await applyUnitStatusOverride(db, reservation.propertyId, reservation.unitCode, status);
 }
 
+function reservationActionPermission(action) {
+  var readActions = { list: true };
+  if (readActions[action]) return 'reservations_read';
+  return 'reservations';
+}
+
+function adminAuthCan(authResult, permission) {
+  if (!authResult || !authResult.ok) return false;
+  return roleHasPermission(authResult.role || 'comercial', permission);
+}
+
+function listCatalogPropertyIds() {
+  var ids = [];
+  var k;
+  for (k in propertyUnitsCatalog) {
+    if (Object.prototype.hasOwnProperty.call(propertyUnitsCatalog, k)) {
+      var n = Number(k);
+      ids.push(isNaN(n) ? k : n);
+    }
+  }
+  return ids;
+}
+
+function propertyTitleFromCatalog(propertyId, raw) {
+  if (raw && raw.name) return raw.name;
+  return 'Empreendimento ' + propertyId;
+}
+
 async function brokerCreateReservation(req, res) {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
@@ -297,10 +327,15 @@ async function adminReservationsMutate(req, res) {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-  if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
+  var authResult = await verifyAdminAuth(req);
+  if (!authResult.ok) return res.status(403).json({ error: 'Acesso negado' });
   try {
     var body = parseJsonBody(req);
     var action = String(body.action || 'list').trim().toLowerCase();
+    var neededPerm = reservationActionPermission(action);
+    if (!adminAuthCan(authResult, neededPerm)) {
+      return res.status(403).json({ error: 'Sem permissão para esta ação (' + neededPerm + ').' });
+    }
     var db = admin.firestore();
     var col = db.collection('reservations');
 
@@ -434,6 +469,195 @@ async function adminReservationsMutate(req, res) {
         imported++;
       }
       return res.json({ ok: true, imported: imported, skipped: skipped });
+    }
+
+    if (action === 'sync_from_inventory') {
+      var importedInv = 0;
+      var skippedInv = 0;
+      var alreadyInv = 0;
+      var propertyIds = listCatalogPropertyIds();
+      var overridesSnap = await db.collection('unit_status_overrides').get();
+      var overridesByProperty = {};
+      overridesSnap.forEach(function(doc) {
+        var d = doc.data() || {};
+        overridesByProperty[doc.id] = d.map || {};
+      });
+      var pi;
+      for (pi = 0; pi < propertyIds.length; pi++) {
+        var propertyId = propertyIds[pi];
+        var rawInv = getPropertyUnitsRaw(propertyId);
+        if (!rawInv || !rawInv.units || !rawInv.units.length) continue;
+        var ovMap = overridesByProperty[String(propertyId)] || {};
+        var ui;
+        for (ui = 0; ui < rawInv.units.length; ui++) {
+          var unitRow = rawInv.units[ui];
+          var effectiveStatus = ovMap[unitRow.code] || unitRow.status || 'disponivel';
+          if (effectiveStatus !== 'reservado') continue;
+          var slotResolvedSync = resolveSaleSlot(propertyId, unitRow.code);
+          if (slotResolvedSync.error) {
+            skippedInv++;
+            continue;
+          }
+          var uCodeSync = slotResolvedSync.unitCode;
+          var sKeySync = reservationSlotKey(propertyId, uCodeSync);
+          var conflictSync = await findConflictingReservation(db, sKeySync, null);
+          if (conflictSync) {
+            alreadyInv++;
+            continue;
+          }
+          var syncNow = isoNow();
+          var syncDoc = {
+            propertyId: typeof propertyId === 'number' ? propertyId : Number(propertyId) || propertyId,
+            propertyTitle: propertyTitleFromCatalog(propertyId, rawInv),
+            unitCode: uCodeSync || '',
+            unitPrice: unitRow.price != null ? unitRow.price : null,
+            unitBedrooms: unitRow.bedrooms != null ? unitRow.bedrooms : null,
+            reservationSlotKey: sKeySync,
+            brokerId: '',
+            brokerName: 'A definir',
+            brokerEmail: '',
+            brokerPhone: '',
+            client: {
+              name: 'Migrado do inventário',
+              email: '',
+              phone: '',
+              cpf: '',
+              notes: 'Unidade marcada como reservada no cadastro. Corretor a definir.',
+            },
+            requestedAt: syncNow,
+            createdAt: syncNow,
+            approvedAt: syncNow,
+            approvedBy: authResult.email || 'inventory_sync',
+            expiresAt: endOfBusinessDaysFrom(new Date(), RESERVATION_BUSINESS_DAYS).toISOString(),
+            status: 'active',
+            source: 'inventory_sync',
+            updatedAt: syncNow,
+          };
+          await col.add(syncDoc);
+          importedInv++;
+        }
+      }
+      return res.json({
+        ok: true,
+        imported: importedInv,
+        skipped: skippedInv,
+        already: alreadyInv,
+        total: importedInv + alreadyInv,
+      });
+    }
+
+    if (action === 'admin_create') {
+      var createPid = body.propertyId;
+      if (createPid === undefined || createPid === null || createPid === '') {
+        return res.status(400).json({ error: 'propertyId obrigatório' });
+      }
+      var slotResolvedCreate = resolveSaleSlot(createPid, body.unitCode);
+      if (slotResolvedCreate.error) return res.status(400).json({ error: slotResolvedCreate.error });
+      var uCodeCreate = slotResolvedCreate.unitCode;
+      var sKeyCreate = reservationSlotKey(createPid, uCodeCreate);
+      var conflictCreate = await findConflictingReservation(db, sKeyCreate, null);
+      if (conflictCreate) {
+        return res.status(409).json({ error: 'Já existe reserva pendente ou ativa para esta unidade.' });
+      }
+      var createStatus = String(body.status || 'active').trim().toLowerCase();
+      if (createStatus !== 'pending' && createStatus !== 'active') {
+        return res.status(400).json({ error: 'status deve ser pending ou active' });
+      }
+      if (createStatus === 'active') {
+        var stCreate = await getEffectiveUnitStatus(db, createPid, uCodeCreate);
+        if (stCreate !== 'disponivel' && stCreate !== 'reservado') {
+          return res.status(409).json({ error: 'Unidade não está disponível (' + stCreate + ').' });
+        }
+      }
+      var brokerIdCreate = String(body.brokerId || '').trim();
+      var brokerEmailCreate = String(body.brokerEmail || '').trim().toLowerCase();
+      var brokerRowCreate = null;
+      if (brokerIdCreate) {
+        var brokerSnap = await db.collection('brokers').doc(brokerIdCreate).get();
+        if (brokerSnap.exists) brokerRowCreate = { id: brokerSnap.id, data: brokerSnap.data() || {} };
+      } else if (brokerEmailCreate) {
+        brokerRowCreate = await brokerAuth.findBrokerByEmail(db, brokerEmailCreate);
+      }
+      var clientCreate = body.client || body.clientInfo || {};
+      var clientNameCreate = String(clientCreate.name || body.clientName || 'Reserva administrativa').trim();
+      var rawCreate = getPropertyUnitsRaw(createPid);
+      var unitPriceCreate = body.unitPrice != null ? Number(body.unitPrice) : null;
+      var unitBedroomsCreate = body.unitBedrooms != null ? Number(body.unitBedrooms) : null;
+      if (rawCreate && rawCreate.units && uCodeCreate) {
+        var uc;
+        for (uc = 0; uc < rawCreate.units.length; uc++) {
+          if (rawCreate.units[uc].code === uCodeCreate) {
+            if (unitPriceCreate == null) unitPriceCreate = rawCreate.units[uc].price;
+            if (unitBedroomsCreate == null) unitBedroomsCreate = rawCreate.units[uc].bedrooms;
+            break;
+          }
+        }
+      }
+      var nowCreate = isoNow();
+      var createDoc = {
+        propertyId: typeof createPid === 'number' ? createPid : Number(createPid) || createPid,
+        propertyTitle: String(body.propertyTitle || propertyTitleFromCatalog(createPid, rawCreate)).trim(),
+        unitCode: uCodeCreate || '',
+        unitPrice: unitPriceCreate,
+        unitBedrooms: unitBedroomsCreate,
+        reservationSlotKey: sKeyCreate,
+        brokerId: brokerRowCreate ? brokerRowCreate.id : '',
+        brokerName: brokerRowCreate ? (brokerRowCreate.data.name || '') : String(body.brokerName || 'A definir').trim(),
+        brokerEmail: brokerRowCreate ? (brokerRowCreate.data.email || brokerEmailCreate) : brokerEmailCreate,
+        brokerPhone: brokerRowCreate ? (brokerRowCreate.data.phone || '') : String(body.brokerPhone || '').trim(),
+        client: {
+          name: clientNameCreate,
+          email: String(clientCreate.email || '').trim(),
+          phone: String(clientCreate.phone || '').trim(),
+          cpf: String(clientCreate.cpf || '').replace(/\D/g, ''),
+          notes: String(clientCreate.notes || body.notes || '').trim(),
+        },
+        requestedAt: nowCreate,
+        createdAt: nowCreate,
+        status: createStatus,
+        source: 'admin_create',
+        notes: String(body.notes || '').trim(),
+        updatedAt: nowCreate,
+      };
+      if (createStatus === 'active') {
+        createDoc.approvedAt = nowCreate;
+        createDoc.approvedBy = authResult.email || 'admin';
+        createDoc.expiresAt = endOfBusinessDaysFrom(new Date(), RESERVATION_BUSINESS_DAYS).toISOString();
+      }
+      var createRef = await col.add(createDoc);
+      if (createStatus === 'active' && uCodeCreate) {
+        await applyUnitStatusOverride(db, createPid, uCodeCreate, 'reservado');
+      }
+      return res.json({ ok: true, reservation: reservationPublicRow(createRef.id, createDoc) });
+    }
+
+    if (action === 'assign_broker') {
+      var assignDocId = String(body.reservationId || body.id || '').trim();
+      if (!assignDocId) return res.status(400).json({ error: 'reservationId obrigatório' });
+      var assignRef = col.doc(assignDocId);
+      var assignSnap = await assignRef.get();
+      if (!assignSnap.exists) return res.status(404).json({ error: 'Reserva não encontrada' });
+      var assignBrokerId = String(body.brokerId || '').trim();
+      var assignEmail = String(body.brokerEmail || '').trim().toLowerCase();
+      var assignBroker = null;
+      if (assignBrokerId) {
+        var bSnap = await db.collection('brokers').doc(assignBrokerId).get();
+        if (bSnap.exists) assignBroker = { id: bSnap.id, data: bSnap.data() || {} };
+      } else if (assignEmail) {
+        assignBroker = await brokerAuth.findBrokerByEmail(db, assignEmail);
+      }
+      if (!assignBroker) return res.status(400).json({ error: 'Corretor não encontrado' });
+      var assignAt = isoNow();
+      var assignPatch = {
+        brokerId: assignBroker.id,
+        brokerName: assignBroker.data.name || '',
+        brokerEmail: assignBroker.data.email || assignEmail,
+        brokerPhone: assignBroker.data.phone || '',
+        updatedAt: assignAt,
+      };
+      await assignRef.set(assignPatch, { merge: true });
+      var assignMerged = Object.assign({}, assignSnap.data() || {}, assignPatch);
+      return res.json({ ok: true, reservation: reservationPublicRow(assignDocId, assignMerged) });
     }
 
     var docId = String(body.reservationId || body.id || '').trim();

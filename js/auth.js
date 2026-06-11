@@ -194,6 +194,9 @@ function handleLogin(e) {
             };
             localStorage.setItem('currentUser', JSON.stringify(currentUser));
             updateUIForLoggedUser();
+            if (typeof displayProperties === 'function' && typeof properties !== 'undefined') {
+                displayProperties(properties);
+            }
             closeLoginModal();
             showMessage('Login realizado com sucesso!', 'success');
             if (typeof showBrokerDashboard === 'function') {
@@ -911,3 +914,111 @@ function getPendingBrokers() {
     return brokers.filter(b => !b.isActive);
 }
 
+function getBrokerFunctionsBase() {
+    if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
+        return CONFIG.cloudFunctions.baseURL;
+    }
+    return 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+}
+
+function refreshBrokerSessionFromFirebase(user) {
+    if (!user || typeof user.getIdToken !== 'function') return Promise.resolve(false);
+    var base = getBrokerFunctionsBase();
+    return user.getIdToken().then(function(token) {
+        return fetch(base + '/brokerMe?idToken=' + encodeURIComponent(token), { cache: 'no-store' })
+            .then(function(res) { return res.json().then(function(data) { return { res: res, data: data }; }); });
+    }).then(function(result) {
+        if (!result.res.ok || !result.data || !result.data.ok || !result.data.broker) return false;
+        var broker = result.data.broker;
+        currentUser = {
+            id: broker.id,
+            name: broker.name,
+            email: broker.email,
+            phone: broker.phone,
+            creci: broker.creci,
+            type: 'broker',
+            isAdmin: !!broker.isAdmin
+        };
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        if (typeof updateUIForLoggedUser === 'function') updateUIForLoggedUser();
+        if (typeof initializeReservationSystem === 'function') initializeReservationSystem();
+        return true;
+    }).catch(function() { return false; });
+}
+
+function ensureBrokerFirebaseSession() {
+    return new Promise(function(resolve, reject) {
+        if (typeof getFirebaseAuth !== 'function' || !firebaseAvailable || !firebaseAvailable()) {
+            reject(new Error('Faça login como corretor para continuar.'));
+            return;
+        }
+        var auth = getFirebaseAuth();
+        function finish(user) {
+            if (!user) {
+                reject(new Error('Sessão expirada. Faça login novamente como corretor.'));
+                return;
+            }
+            user.getIdToken().then(resolve).catch(function() {
+                reject(new Error('Não foi possível validar a sessão.'));
+            });
+        }
+        if (auth.currentUser) {
+            finish(auth.currentUser);
+            return;
+        }
+        var settled = false;
+        var unsub = auth.onAuthStateChanged(function(user) {
+            if (settled) return;
+            settled = true;
+            if (typeof unsub === 'function') unsub();
+            finish(user);
+        });
+        setTimeout(function() {
+            if (settled) return;
+            settled = true;
+            if (typeof unsub === 'function') unsub();
+            if (auth.currentUser) finish(auth.currentUser);
+            else reject(new Error('Sessão expirada. Faça login novamente como corretor.'));
+        }, 5000);
+    });
+}
+
+function initBrokerAuthPersistence() {
+    if (typeof getFirebaseAuth !== 'function' || !firebaseAvailable || !firebaseAvailable()) return;
+    var auth = getFirebaseAuth();
+    var restoring = false;
+    auth.onAuthStateChanged(function(user) {
+        if (user) {
+            if (!currentUser || currentUser.type !== 'broker') {
+                if (!restoring) {
+                    restoring = true;
+                    refreshBrokerSessionFromFirebase(user).finally(function() { restoring = false; });
+                }
+            } else if (typeof initializeReservationSystem === 'function') {
+                initializeReservationSystem();
+            }
+            return;
+        }
+        if (currentUser && currentUser.type === 'broker') {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            if (typeof updateUIForLoggedUser === 'function') {
+                document.body.classList.remove('is-broker');
+                var loginButton = document.querySelector('.btn-login');
+                if (loginButton) {
+                    loginButton.innerHTML = '<i class="fas fa-user"></i> Área do Corretor';
+                    loginButton.onclick = openLoginModal;
+                }
+            }
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initBrokerAuthPersistence();
+});
+
+if (typeof window !== 'undefined') {
+    window.ensureBrokerFirebaseSession = ensureBrokerFirebaseSession;
+    window.refreshBrokerSessionFromFirebase = refreshBrokerSessionFromFirebase;
+}

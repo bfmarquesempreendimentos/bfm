@@ -9,13 +9,30 @@ const ADMIN_ACCOUNTS = [
   { email: 'raphaelmonteirodasilva@yahoo.com.br', password: '123456', role: 'comercial' },
 ];
 
-/** super: tudo | comercial: vendas/leads/campanha | posvenda: reparos/clientes | financeiro: leitura */
+/**
+ * super: tudo
+ * comercial: vendas/leads/campanha/unidades/corretores/reservas
+ * posvenda: reparos/clientes + leitura de reservas
+ * financeiro: leitura vendas/reservas/dashboard
+ *
+ * Permissões de reservas:
+ *   reservations       — criar, aprovar, rejeitar, prorrogar, liberar, importar
+ *   reservations_read  — apenas listar/visualizar/exportar
+ */
 const ROLE_PERMISSIONS = {
   super: ['*'],
-  comercial: ['sales', 'leads', 'campaign', 'units', 'brokers', 'repairs_read'],
-  posvenda: ['repairs', 'clients', 'leads_read', 'units_read'],
-  financeiro: ['sales_read', 'repairs_read', 'dashboard'],
+  comercial: ['sales', 'leads', 'campaign', 'units', 'brokers', 'repairs_read', 'reservations'],
+  posvenda: ['repairs', 'clients', 'leads_read', 'units_read', 'reservations_read'],
+  financeiro: ['sales_read', 'repairs_read', 'dashboard', 'reservations_read'],
 };
+
+function roleHasPermission(role, permission) {
+  var list = ROLE_PERMISSIONS[role] || [];
+  if (list.indexOf('*') >= 0) return true;
+  if (list.indexOf(permission) >= 0) return true;
+  if (permission === 'reservations_read' && list.indexOf('reservations') >= 0) return true;
+  return false;
+}
 
 function getAdminAccount(email) {
   var e = String(email || '').trim().toLowerCase();
@@ -53,10 +70,7 @@ function getAdminRoleFromBody(body) {
 
 function adminHasPermission(body, permission) {
   if (!verifyAdminFromBody(body)) return false;
-  var role = getAdminRoleFromBody(body);
-  var list = ROLE_PERMISSIONS[role] || [];
-  if (list.indexOf('*') >= 0) return true;
-  return list.indexOf(permission) >= 0;
+  return roleHasPermission(getAdminRoleFromBody(body), permission);
 }
 
 module.exports = {
@@ -67,4 +81,5 @@ module.exports = {
   verifyAdminFromReq,
   getAdminRoleFromBody,
   adminHasPermission,
+  roleHasPermission,
 };
