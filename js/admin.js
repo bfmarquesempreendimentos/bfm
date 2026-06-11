@@ -1431,23 +1431,29 @@ function loadExpiringReservations() {
         container.innerHTML = '<p class="empty-message">Faça login para ver reservas.</p>';
         return;
     }
-    adminPostJson('/adminReservationsMutate', { action: 'list', expiringSoon: true }).then(function(data) {
+    adminPostJson('/adminReservationsMutate', { action: 'list', needsDecision: true }).then(function(data) {
         var rows = (data && data.reservations) ? data.reservations : [];
         if (!rows.length) {
-            container.innerHTML = '<p class="empty-message">Nenhuma reserva expirando em breve.</p>';
+            container.innerHTML = '<p class="empty-message">Nenhuma reserva aguardando decisão ou vencendo em breve.</p>';
             return;
         }
         container.innerHTML = rows.map(function(reservation) {
             var title = reservation.propertyTitle || (getPropertyById(reservation.propertyId) || {}).title || 'Imóvel';
             var unit = reservation.unitCode ? ' — ' + reservation.unitCode : '';
-            var timeLeft = typeof formatTimeRemaining === 'function' ? formatTimeRemaining(reservation.expiresAt) : '';
+            var rid = String(reservation.id).replace(/'/g, "\\'");
+            var hint = reservation.renewalDue
+                ? 'Prazo venceu — prorrogar ou liberar'
+                : (typeof formatTimeRemaining === 'function' ? formatTimeRemaining(reservation.expiresAt) : '');
             return '<div class="activity-item">' +
-                '<div class="activity-icon reservation"><i class="fas fa-clock"></i></div>' +
-                '<div class="activity-text"><p>' + title + unit + '</p><small>' + timeLeft + '</small></div>' +
-                '</div>';
+                '<div class="activity-icon reservation"><i class="fas fa-' + (reservation.renewalDue ? 'exclamation-triangle' : 'clock') + '"></i></div>' +
+                '<div class="activity-text"><p>' + title + unit + '</p><small>' + hint + '</small>' +
+                '<div class="activity-actions" style="margin-top:6px;">' +
+                '<button type="button" class="btn btn-sm btn-primary" onclick="extendReservationAdmin(\'' + rid + '\')">Prorrogar</button> ' +
+                '<button type="button" class="btn btn-sm btn-secondary" onclick="releaseReservationAdmin(\'' + rid + '\')">Liberar</button>' +
+                '</div></div></div>';
         }).join('');
     }).catch(function() {
-        container.innerHTML = '<p class="empty-message">Nenhuma reserva expirando em breve.</p>';
+        container.innerHTML = '<p class="empty-message">Nenhuma reserva aguardando decisão.</p>';
     });
 }
 
@@ -1807,11 +1813,13 @@ function loadReservationsData() {
     var statusEl = document.getElementById('resFilterStatus');
     var propEl = document.getElementById('resFilterProperty');
     var expEl = document.getElementById('resFilterExpiring');
+    var renewalEl = document.getElementById('resFilterRenewalDue');
     var payload = {
         action: 'list',
         status: statusEl ? statusEl.value : '',
         propertyId: propEl ? propEl.value : '',
-        expiringSoon: expEl ? !!expEl.checked : false
+        expiringSoon: expEl ? !!expEl.checked : false,
+        renewalDue: renewalEl ? !!renewalEl.checked : false
     };
     adminReservationMutate(payload).then(function(data) {
         var rows = (data && data.reservations) ? data.reservations : [];
@@ -1824,9 +1832,11 @@ function loadReservationsData() {
         var elP = document.getElementById('resKpiPending');
         var elA = document.getElementById('resKpiActive');
         var elE = document.getElementById('resKpiExpiring');
+        var elR = document.getElementById('resKpiRenewal');
         if (elP) elP.textContent = stats.pending != null ? stats.pending : '0';
         if (elA) elA.textContent = stats.active != null ? stats.active : '0';
         if (elE) elE.textContent = stats.expiringToday != null ? stats.expiringToday : '0';
+        if (elR) elR.textContent = stats.renewalDue != null ? stats.renewalDue : '0';
         if (!rows.length) {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Nenhuma reserva encontrada.</td></tr>';
             return;
@@ -1838,23 +1848,29 @@ function loadReservationsData() {
             var clientName = (reservation.client && reservation.client.name) || (reservation.clientInfo && reservation.clientInfo.name) || 'N/A';
             var requested = reservation.requestedAt ? formatDate(reservation.requestedAt) : '—';
             var expires = reservation.expiresAt ? formatDate(reservation.expiresAt) : (reservation.status === 'pending' ? 'Após aprovação' : '—');
-            var statusLabel = typeof reservationStatusLabel === 'function' ? reservationStatusLabel(reservation.status) : getStatusText(reservation.status);
+            if (reservation.renewalDue) expires += ' (vencido — decidir)';
+            var statusLabel = typeof reservationDisplayStatus === 'function'
+                ? reservationDisplayStatus(reservation)
+                : (typeof reservationStatusLabel === 'function' ? reservationStatusLabel(reservation.status) : getStatusText(reservation.status));
+            var statusClass = reservation.renewalDue ? 'renewal-due' : reservation.status;
+            var rowClass = reservation.renewalDue ? ' class="row-renewal-due"' : '';
             var actions = '<button class="btn-action btn-view" onclick="viewReservation(\'' + rid + '\')" title="Detalhes"><i class="fas fa-eye"></i></button>';
             if (reservation.status === 'pending') {
                 actions += '<button class="btn-action btn-approve" onclick="approveReservationAdmin(\'' + rid + '\')" title="Aprovar"><i class="fas fa-check"></i></button>';
                 actions += '<button class="btn-action btn-delete" onclick="rejectReservationAdmin(\'' + rid + '\')" title="Rejeitar"><i class="fas fa-times"></i></button>';
             }
             if (reservation.status === 'active') {
-                actions += '<button class="btn-action btn-delete" onclick="cancelReservationAdmin(\'' + rid + '\')" title="Cancelar"><i class="fas fa-ban"></i></button>';
+                actions += '<button class="btn-action btn-approve" onclick="extendReservationAdmin(\'' + rid + '\')" title="Prorrogar 3 dias úteis"><i class="fas fa-clock"></i></button>';
+                actions += '<button class="btn-action btn-delete" onclick="releaseReservationAdmin(\'' + rid + '\')" title="Liberar unidade"><i class="fas fa-unlock"></i></button>';
             }
-            return '<tr>' +
+            return '<tr' + rowClass + '>' +
                 '<td>' + title + '</td>' +
                 '<td>' + (reservation.unitCode || '—') + '</td>' +
                 '<td>' + brokerName + '</td>' +
                 '<td>' + clientName + '</td>' +
                 '<td>' + requested + '</td>' +
                 '<td>' + expires + '</td>' +
-                '<td><span class="status-badge status-' + reservation.status + '">' + statusLabel + '</span></td>' +
+                '<td><span class="status-badge status-' + statusClass + '">' + statusLabel + '</span></td>' +
                 '<td><div class="action-buttons">' + actions + '</div></td>' +
                 '</tr>';
         }).join('');
@@ -1905,15 +1921,30 @@ function rejectReservationAdmin(reservationId) {
         .catch(function(err) { showMessage(err.message || 'Erro ao rejeitar.', 'error'); });
 }
 
-function cancelReservationAdmin(reservationId) {
-    if (!confirm('Cancelar esta reserva? A unidade voltará a ficar disponível.')) return;
-    adminReservationMutate({ action: 'cancel', reservationId: reservationId, cancelledBy: adminReservationActor() })
+function extendReservationAdmin(reservationId) {
+    if (!confirm('Prorrogar esta reserva por mais 3 dias úteis? A unidade continua reservada.')) return;
+    adminReservationMutate({ action: 'extend', reservationId: reservationId })
         .then(function() {
-            showMessage('Reserva cancelada.', 'success');
+            showMessage('Reserva prorrogada por 3 dias úteis.', 'success');
             loadReservationsData();
             loadExpiringReservations();
         })
-        .catch(function(err) { showMessage(err.message || 'Erro ao cancelar.', 'error'); });
+        .catch(function(err) { showMessage(err.message || 'Erro ao prorrogar.', 'error'); });
+}
+
+function releaseReservationAdmin(reservationId) {
+    if (!confirm('Liberar esta unidade? Ela voltará a ficar disponível (verde) no site.')) return;
+    adminReservationMutate({ action: 'release', reservationId: reservationId, cancelledBy: adminReservationActor() })
+        .then(function() {
+            showMessage('Unidade liberada.', 'success');
+            loadReservationsData();
+            loadExpiringReservations();
+        })
+        .catch(function(err) { showMessage(err.message || 'Erro ao liberar.', 'error'); });
+}
+
+function cancelReservationAdmin(reservationId) {
+    releaseReservationAdmin(reservationId);
 }
 
 var _brokerCampaignPreview = null;

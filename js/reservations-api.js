@@ -129,8 +129,16 @@ function normalizeReservationRow(row) {
         expiresAt: row.expiresAt,
         status: row.status,
         source: row.source || '',
-        rejectionReason: row.rejectionReason || ''
+        rejectionReason: row.rejectionReason || '',
+        renewalDue: !!row.renewalDue,
+        renewalDueAt: row.renewalDueAt || ''
     };
+}
+
+function reservationDisplayStatus(row) {
+    if (!row) return '';
+    if (row.status === 'active' && row.renewalDue) return 'Aguardando decisão';
+    return reservationStatusLabel(row.status);
 }
 
 if (typeof window !== 'undefined') {
@@ -139,7 +147,8 @@ if (typeof window !== 'undefined') {
     window.getBrokerIdToken = getBrokerIdToken;
     window.reservationPostJson = reservationPostJson;
     window.reservationFetchMy = reservationFetchMy;
-    window.previewReservationExpiry = previewReservationExpiry;
+        window.previewReservationExpiry = previewReservationExpiry;
     window.reservationStatusLabel = reservationStatusLabel;
+    window.reservationDisplayStatus = reservationDisplayStatus;
     window.normalizeReservationRow = normalizeReservationRow;
 }

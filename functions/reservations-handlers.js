@@ -71,6 +71,8 @@ function reservationPublicRow(docId, data) {
     source: d.source || 'broker_form',
     notes: d.notes || '',
     saleId: d.saleId || '',
+    renewalDue: !!d.renewalDue,
+    renewalDueAt: d.renewalDueAt || '',
   };
 }
 
@@ -102,31 +104,64 @@ async function findConflictingReservation(db, slotKey, excludeDocId) {
   return conflict;
 }
 
-async function expireStaleReservations(db) {
+/**
+ * Opção B: nunca expira sozinha. Marca renewalDue e avisa admin; unidade permanece reservada.
+ */
+async function processReservationRenewals(db) {
   var now = Date.now();
+  var dayMs = 24 * 60 * 60 * 1000;
   var snap = await db.collection('reservations').where('status', '==', 'active').get();
-  var expired = 0;
-  var batch = [];
-  snap.forEach(function(doc) {
-    var d = doc.data() || {};
-    var exp = d.expiresAt ? new Date(d.expiresAt).getTime() : 0;
-    if (!exp || exp > now) return;
-    batch.push({ ref: doc.ref, data: d });
-  });
+  var marked = 0;
+  var warned = 0;
+  var docs = [];
+  snap.forEach(function(doc) { docs.push({ ref: doc.ref, data: doc.data() || {}, id: doc.id }); });
   var i;
-  for (i = 0; i < batch.length; i++) {
-    var item = batch[i];
-    await item.ref.set({
-      status: 'expired',
-      expiredAt: isoNow(),
-      updatedAt: isoNow(),
-    }, { merge: true });
-    if (item.data.unitCode) {
-      await applyUnitStatusOverride(db, item.data.propertyId, item.data.unitCode, 'disponivel');
+  for (i = 0; i < docs.length; i++) {
+    var item = docs[i];
+    var d = item.data;
+    var exp = d.expiresAt ? new Date(d.expiresAt).getTime() : 0;
+    if (!exp) continue;
+
+    if (exp <= now && !d.renewalDue) {
+      var dueAt = isoNow();
+      await item.ref.set({
+        renewalDue: true,
+        renewalDueAt: dueAt,
+        updatedAt: dueAt,
+      }, { merge: true });
+      marked++;
+      if (!d.renewalNotifiedAt) {
+        await item.ref.set({ renewalNotifiedAt: dueAt }, { merge: true });
+        fcmPush.notifyAdmins(
+          db,
+          'Reserva aguarda sua decisão',
+          (d.propertyTitle || 'Imóvel') + (d.unitCode ? ' · ' + d.unitCode : '') +
+            ' — prazo venceu. Prorrogar ou liberar unidade?',
+          { type: 'reservation_renewal', reservationId: item.id },
+          'https://bfmarquesempreendimentos.github.io/bfm/admin.html#reservations'
+        ).catch(function() {});
+      }
+      continue;
     }
-    expired++;
+
+    if (!d.renewalDue && exp > now && exp <= now + dayMs && !d.renewalWarningAt) {
+      await item.ref.set({ renewalWarningAt: isoNow(), updatedAt: isoNow() }, { merge: true });
+      warned++;
+      fcmPush.notifyAdmins(
+        db,
+        'Reserva vence em 24h',
+        (d.propertyTitle || 'Imóvel') + (d.unitCode ? ' · ' + d.unitCode : '') +
+          ' — prepare-se para prorrogar ou liberar.',
+        { type: 'reservation_expiring_soon', reservationId: item.id },
+        'https://bfmarquesempreendimentos.github.io/bfm/admin.html#reservations'
+      ).catch(function() {});
+    }
   }
-  return expired;
+  return { marked: marked, warned: warned };
+}
+
+async function expireStaleReservations(db) {
+  return processReservationRenewals(db);
 }
 
 async function syncUnitForReservation(db, reservation, status) {
@@ -283,26 +318,37 @@ async function adminReservationsMutate(req, res) {
       var filterBroker = String(body.brokerId || '').trim();
       var filterProperty = body.propertyId != null && body.propertyId !== '' ? String(body.propertyId) : '';
       var expiringSoon = !!body.expiringSoon;
+      var filterRenewalDue = !!body.renewalDue;
+      var needsDecision = !!body.needsDecision;
       var now = Date.now();
       var dayMs = 24 * 60 * 60 * 1000;
       rows = rows.filter(function(r) {
         if (filterStatus && r.status !== filterStatus) return false;
         if (filterBroker && String(r.brokerId) !== filterBroker) return false;
         if (filterProperty && String(r.propertyId) !== filterProperty) return false;
+        if (filterRenewalDue && !r.renewalDue) return false;
+        if (needsDecision) {
+          if (r.status !== 'active') return false;
+          if (r.renewalDue) return true;
+          if (!r.expiresAt) return false;
+          var expNd = new Date(r.expiresAt).getTime();
+          return expNd > now && expNd <= now + dayMs;
+        }
         if (expiringSoon) {
           if (r.status !== 'active' || !r.expiresAt) return false;
           var exp = new Date(r.expiresAt).getTime();
-          if (exp <= now || exp > now + dayMs) return false;
+          if (!(exp > now && exp <= now + dayMs) && !r.renewalDue) return false;
         }
         return true;
       });
-      var stats = { pending: 0, active: 0, expiringToday: 0, total: rows.length };
+      var stats = { pending: 0, active: 0, expiringToday: 0, renewalDue: 0, total: rows.length };
       snap.forEach(function(doc) {
         var d = doc.data() || {};
         var st = d.status || '';
         if (st === 'pending') stats.pending++;
         if (st === 'active') {
           stats.active++;
+          if (d.renewalDue) stats.renewalDue++;
           var expT = d.expiresAt ? new Date(d.expiresAt).getTime() : 0;
           if (expT > now && expT <= now + dayMs) stats.expiringToday++;
         }
@@ -419,6 +465,10 @@ async function adminReservationsMutate(req, res) {
         approvedAt: approvedAt,
         approvedBy: body.approvedBy || 'admin',
         expiresAt: expiresApprove,
+        renewalDue: false,
+        renewalDueAt: '',
+        renewalNotifiedAt: '',
+        renewalWarningAt: '',
         updatedAt: approvedAt,
       };
       await ref.set(patchApprove, { merge: true });
@@ -452,19 +502,30 @@ async function adminReservationsMutate(req, res) {
       return res.json({ ok: true, id: docId, status: 'rejected' });
     }
 
-    if (action === 'cancel') {
+    if (action === 'cancel' || action === 'release') {
       if (existing.status !== 'active' && existing.status !== 'pending') {
-        return res.status(400).json({ error: 'Esta reserva não pode ser cancelada.' });
+        return res.status(400).json({ error: 'Esta reserva não pode ser liberada.' });
       }
       var cancelledAt = isoNow();
       await ref.set({
         status: 'cancelled',
         cancelledAt: cancelledAt,
         cancelledBy: body.cancelledBy || 'admin',
+        renewalDue: false,
         updatedAt: cancelledAt,
       }, { merge: true });
       if (existing.status === 'active' && existing.unitCode) {
         await syncUnitForReservation(db, existing, 'disponivel');
+      }
+      if (existing.brokerEmail) {
+        fcmPush.notifyUserEmail(
+          db,
+          existing.brokerEmail,
+          'Reserva encerrada',
+          (existing.propertyTitle || 'Imóvel') + (existing.unitCode ? ' · ' + existing.unitCode : '') + ' — unidade liberada.',
+          { type: 'reservation_released', reservationId: docId },
+          'https://bfmarquesempreendimentos.github.io/bfm/'
+        ).catch(function() {});
       }
       return res.json({ ok: true, id: docId, status: 'cancelled' });
     }
@@ -473,9 +534,29 @@ async function adminReservationsMutate(req, res) {
       if (existing.status !== 'active') {
         return res.status(400).json({ error: 'Somente reservas ativas podem ser prorrogadas.' });
       }
-      var baseDate = existing.expiresAt ? new Date(existing.expiresAt) : new Date();
-      var newExpires = endOfBusinessDaysFrom(baseDate, RESERVATION_BUSINESS_DAYS).toISOString();
-      await ref.set({ expiresAt: newExpires, updatedAt: isoNow() }, { merge: true });
+      var extendBase = existing.renewalDue ? new Date() : (existing.expiresAt ? new Date(existing.expiresAt) : new Date());
+      var newExpires = endOfBusinessDaysFrom(extendBase, RESERVATION_BUSINESS_DAYS).toISOString();
+      var extendedAt = isoNow();
+      await ref.set({
+        expiresAt: newExpires,
+        renewalDue: false,
+        renewalDueAt: '',
+        renewalNotifiedAt: '',
+        renewalWarningAt: '',
+        lastExtendedAt: extendedAt,
+        updatedAt: extendedAt,
+      }, { merge: true });
+      if (existing.brokerEmail) {
+        fcmPush.notifyUserEmail(
+          db,
+          existing.brokerEmail,
+          'Reserva prorrogada',
+          (existing.propertyTitle || 'Imóvel') + (existing.unitCode ? ' · ' + existing.unitCode : '') +
+            ' — novo prazo: 3 dias úteis.',
+          { type: 'reservation_extended', reservationId: docId },
+          'https://bfmarquesempreendimentos.github.io/bfm/'
+        ).catch(function() {});
+      }
       return res.json({ ok: true, id: docId, expiresAt: newExpires });
     }
 
@@ -489,6 +570,7 @@ async function adminReservationsMutate(req, res) {
 module.exports = {
   RESERVATION_BUSINESS_DAYS,
   endOfBusinessDaysFrom,
+  processReservationRenewals,
   brokerCreateReservation,
   brokerMyReservations,
   adminReservationsMutate,

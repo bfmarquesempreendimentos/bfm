@@ -3270,4 +3270,8 @@ button.wa-stat.wa-stat--click:focus {
     padding: 8px 0;
     border-bottom: 1px solid #f3f4f6;
 }
+.admin-kpi-card--alert { border-color: #f59e0b; background: #fffbeb; }
+.admin-kpi-card--alert .admin-kpi-value { color: #b45309; }
+.status-renewal-due { background: #fef3c7; color: #92400e; }
+tr.row-renewal-due { background: #fffbeb; }
 

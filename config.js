@@ -118,7 +118,7 @@ var CONFIG = {
 
     /** Web Push — chave pública em Firebase Console > Cloud Messaging > Web Push certificates */
     fcm: {
-        vapidKey: ''
+        vapidKey: 'BFaiXd48qrtQUkFcOto30n1czYxXJWyCBDxQk-bEmG-r_dS62kMXq8VUtxXeVagKoglyJXuyR_1Eys0OjdhsaQE'
     },
     
     // Configurações de Analytics
@@ -155,7 +155,7 @@ var CONFIG = {
     },
 
     /** Versão de cache para CSS/JS (incrementar a cada deploy público) */
-    assetVersion: '22'
+    assetVersion: '23'
 };
 
 // Função para obter configuração

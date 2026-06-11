@@ -278,8 +278,8 @@
                 
                 <div class="dashboard-card dashboard-card--stretch">
                     <div class="dashboard-card-head">
-                        <h3>Reservas expirando</h3>
-                        <span class="dashboard-card-hint">Próximas 24 h</span>
+                        <h3>Reservas — decisão</h3>
+                        <span class="dashboard-card-hint">Prorrogar ou liberar</span>
                     </div>
                     <div id="expiringReservations" class="reservations-list">
                         <!-- Expiring reservations will be loaded here -->
@@ -358,7 +358,7 @@
             <div class="section-header">
                 <div class="section-header-main">
                     <h2>Reservas</h2>
-                    <p class="section-subtitle">Prazo padrão: 3 dias úteis (seg–sex) após aprovação. Toda solicitação passa pelo admin.</p>
+                    <p class="section-subtitle">Prazo referência: 3 dias úteis após aprovação. Ao vencer, a unidade só libera quando você clicar em Liberar ou Prorrogar.</p>
                 </div>
                 <div class="header-actions">
                     <button type="button" class="btn btn-secondary" onclick="importReservasFromPdf()" title="Importar reservas do PDF para o Firestore">
@@ -373,7 +373,8 @@
             <div class="admin-kpi-row" id="reservationsKpiRow">
                 <div class="admin-kpi-card"><span class="admin-kpi-value" id="resKpiPending">—</span><span class="admin-kpi-label">Pendentes</span></div>
                 <div class="admin-kpi-card"><span class="admin-kpi-value" id="resKpiActive">—</span><span class="admin-kpi-label">Ativas</span></div>
-                <div class="admin-kpi-card"><span class="admin-kpi-value" id="resKpiExpiring">—</span><span class="admin-kpi-label">Vencem hoje</span></div>
+                <div class="admin-kpi-card admin-kpi-card--alert"><span class="admin-kpi-value" id="resKpiRenewal">—</span><span class="admin-kpi-label">Aguardando decisão</span></div>
+                <div class="admin-kpi-card"><span class="admin-kpi-value" id="resKpiExpiring">—</span><span class="admin-kpi-label">Vencem em 24h</span></div>
             </div>
 
             <div class="admin-filters-row" id="reservationsFilters">
@@ -388,6 +389,9 @@
                 <select id="resFilterProperty" onchange="loadReservationsData()">
                     <option value="">Todos empreendimentos</option>
                 </select>
+                <label class="admin-filter-check">
+                    <input type="checkbox" id="resFilterRenewalDue" onchange="loadReservationsData()"> Aguardando decisão
+                </label>
                 <label class="admin-filter-check">
                     <input type="checkbox" id="resFilterExpiring" onchange="loadReservationsData()"> Vencem em 24h
                 </label>
@@ -1482,7 +1486,7 @@
     <script src="js/main.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/properties.js"></script>
-    <script src="js/reservations-api.js?v=1"></script>
+    <script src="js/reservations-api.js?v=2"></script>
     <script src="js/reservations.js"></script>
     <script src="js/property-units.js?v=9"></script>
     <script src="js/pdf-seed-reservations.js"></script>
@@ -1498,7 +1502,7 @@
     <script src="js/fcm-push.js?v=1"></script>
     <script src="js/admin-dashboard-charts.js?v=1"></script>
     <script src="js/admin-reports.js?v=1"></script>
-    <script src="js/admin.js?v=36"></script>
+    <script src="js/admin.js?v=37"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
