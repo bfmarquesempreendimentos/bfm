@@ -17,33 +17,38 @@ function extractIdToken(req) {
 
 /** Aceita Bearer/idToken (preferido) ou credenciais legadas adminEmail/adminPassword (transição). */
 async function verifyAdminAuth(req) {
-  var token = extractIdToken(req);
-  if (token) {
-    try {
-      var decoded = await admin.auth().verifyIdToken(token);
-      var email = String(decoded.email || '').trim().toLowerCase();
-      var acc = getAdminAccount(email);
-      if (acc) {
-        return { ok: true, email: email, role: acc.role || 'comercial', via: 'token' };
+  try {
+    var token = extractIdToken(req);
+    if (token) {
+      try {
+        var decoded = await admin.auth().verifyIdToken(token);
+        var email = String(decoded.email || '').trim().toLowerCase();
+        var acc = getAdminAccount(email);
+        if (acc) {
+          return { ok: true, email: email, role: acc.role || 'comercial', via: 'token' };
+        }
+        return { ok: false, error: 'not_admin' };
+      } catch (e) {
+        return { ok: false, error: 'invalid_token' };
       }
-      return { ok: false, error: 'not_admin' };
-    } catch (e) {
-      return { ok: false, error: 'invalid_token' };
     }
+    if (verifyAdminFromReq(req)) {
+      var body = req.body || {};
+      var q = req.query || {};
+      var legacyEmail = String(body.adminEmail || q.adminEmail || '').trim().toLowerCase();
+      var accLegacy = getAdminAccount(legacyEmail);
+      return {
+        ok: true,
+        email: legacyEmail,
+        role: accLegacy ? (accLegacy.role || 'comercial') : null,
+        via: 'legacy',
+      };
+    }
+    return { ok: false, error: 'unauthorized' };
+  } catch (err) {
+    console.error('verifyAdminAuth:', err);
+    return { ok: false, error: 'auth_error' };
   }
-  if (verifyAdminFromReq(req)) {
-    var body = req.body || {};
-    var q = req.query || {};
-    var legacyEmail = String(body.adminEmail || q.adminEmail || '').trim().toLowerCase();
-    var accLegacy = getAdminAccount(legacyEmail);
-    return {
-      ok: true,
-      email: legacyEmail,
-      role: accLegacy ? (accLegacy.role || 'comercial') : null,
-      via: 'legacy',
-    };
-  }
-  return { ok: false, error: 'unauthorized' };
 }
 
 module.exports = {

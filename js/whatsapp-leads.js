@@ -67,37 +67,43 @@ function waInboxApi(path, options) {
   var method = (options.method || 'GET').toUpperCase();
   var body = options.body;
   return waInboxGetToken().then(function(token) {
-  var headers = { 'Content-Type': 'application/json' };
-  var creds = waInboxGetCreds();
-  var url = waInboxBaseUrl + path;
+    var headers = { 'Content-Type': 'application/json' };
+    var creds = waInboxGetCreds();
+    var url = waInboxBaseUrl + path;
 
-  if (token) {
-    headers.Authorization = 'Bearer ' + token;
-  } else if (method === 'POST') {
-    body = body || {};
-    if (!body.adminEmail && creds.email) body.adminEmail = creds.email;
-    if (!body.adminPassword && creds.password) body.adminPassword = creds.password;
-  } else if (creds.email && creds.password) {
-    var sep = url.indexOf('?') >= 0 ? '&' : '?';
-    url += sep + 'adminEmail=' + encodeURIComponent(creds.email) +
-      '&adminPassword=' + encodeURIComponent(creds.password);
-  }
+    if (token) {
+      headers.Authorization = 'Bearer ' + token;
+    } else if (method === 'POST') {
+      body = body || {};
+      if (!body.adminEmail && creds.email) body.adminEmail = creds.email;
+      if (!body.adminPassword && creds.password) body.adminPassword = creds.password;
+    } else if (creds.email && creds.password) {
+      var sep = url.indexOf('?') >= 0 ? '&' : '?';
+      url += sep + 'adminEmail=' + encodeURIComponent(creds.email) +
+        '&adminPassword=' + encodeURIComponent(creds.password);
+    } else {
+      return Promise.reject(new Error('Sessão expirada. Saia e entre novamente no painel.'));
+    }
 
-  return fetch(url, {
-    method: method,
-    headers: headers,
-    body: method === 'POST' && body ? JSON.stringify(body) : undefined,
-    cache: 'no-store',
-    credentials: 'omit'
-  }).then(function(res) {
-    return res.json().then(function(data) {
-      if (!res.ok) {
-        var msg = (data && data.error) ? String(data.error) : ('Erro ' + res.status);
-        throw new Error(msg);
-      }
-      return data;
+    return fetch(url, {
+      method: method,
+      headers: headers,
+      body: method === 'POST' && body ? JSON.stringify(body) : undefined,
+      cache: 'no-store',
+      credentials: 'omit'
+    }).then(function(res) {
+      return res.text().then(function(txt) {
+        var data = null;
+        try { data = txt ? JSON.parse(txt) : null; } catch (parseErr) { data = null; }
+        if (!res.ok) {
+          var msg = (data && data.error) ? String(data.error) : '';
+          if (!msg && res.status === 403) msg = 'Acesso negado. Entre novamente no painel.';
+          if (!msg) msg = 'Erro ' + res.status;
+          throw new Error(msg);
+        }
+        return data || {};
+      });
     });
-  });
   });
 }
 
@@ -212,7 +218,11 @@ function waInboxLoadList(quiet) {
     waInboxRenderList();
     if (!quiet) waInboxLoadStats();
   }).catch(function(err) {
-    if (listBody) listBody.innerHTML = '<div class="wa-loading">Erro ao carregar. <button type="button" onclick="waInboxRefresh()">Tentar novamente</button></div>';
+    var errMsg = (err && err.message) ? err.message : 'Erro ao carregar.';
+    if (listBody) {
+      listBody.innerHTML = '<div class="wa-loading">' + errMsg.replace(/</g, '&lt;') +
+        ' <button type="button" onclick="waInboxRefresh()">Tentar novamente</button></div>';
+    }
     if (typeof console !== 'undefined' && console.error) console.error(err);
   });
 }
