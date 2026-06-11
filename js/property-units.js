@@ -871,6 +871,13 @@ function showUnitReservationForm(property, selectedUnit) {
         approvedBy: null
     };
     
+    var expiryPreview = typeof previewReservationExpiry === 'function'
+        ? previewReservationExpiry(new Date(), typeof getReservationBusinessDays === 'function' ? getReservationBusinessDays() : 3)
+        : null;
+    var expiryHint = expiryPreview && typeof formatDate === 'function'
+        ? formatDate(expiryPreview)
+        : (getReservationBusinessDays ? getReservationBusinessDays() : 3) + ' dias úteis após aprovação';
+
     detailsContainer.innerHTML = `
         <div class="unit-reservation-form-container">
             <h2>Reservar Unidade</h2>
@@ -908,10 +915,10 @@ function showUnitReservationForm(property, selectedUnit) {
                 <div class="form-section">
                     <h4>Informações da Reserva</h4>
                     <div class="reservation-info">
-                        <p><strong>Corretor:</strong> ${currentUser.name}</p>
-                        <p><strong>CRECI:</strong> ${currentUser.creci}</p>
-                        <p><strong>Data da Reserva:</strong> ${formatDate(reservation.createdAt)}</p>
-                        <p><strong>Válida até:</strong> ${formatDate(reservation.expiresAt)}</p>
+                        <p><strong>Corretor solicitante:</strong> ${currentUser.name}</p>
+                        <p><strong>CRECI:</strong> ${currentUser.creci || '—'}</p>
+                        <p><strong>Solicitada em:</strong> ${typeof formatDate === 'function' ? formatDate(new Date()) : '—'}</p>
+                        <p><strong>Prazo após aprovação:</strong> ${expiryHint}</p>
                     </div>
                     
                     <div class="form-group">
@@ -927,12 +934,16 @@ function showUnitReservationForm(property, selectedUnit) {
                             <span class="checkmark"></span>
                             Concordo com os termos e condições da reserva
                         </label>
+                        <div class="terms-text">
+                            <h5>Termos da Reserva:</h5>
+                            <ul>${typeof buildReservationFormTermsHtml === 'function' ? buildReservationFormTermsHtml() : ''}</ul>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" onclick="closePropertyModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Confirmar Reserva da Unidade</button>
+                    <button type="submit" class="btn btn-primary">Enviar solicitação</button>
                 </div>
             </form>
         </div>
@@ -951,48 +962,61 @@ function showUnitReservationForm(property, selectedUnit) {
 // Handle unit reservation submission
 function handleUnitReservationSubmission(e, property, selectedUnit, reservation) {
     e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    
-    // Validate CPF
-    const cpf = formData.get('clientCPF');
+
+    var formData = new FormData(e.target);
+    var cpf = formData.get('clientCPF');
     if (!isValidCPF(cpf)) {
         showMessage('CPF inválido. Por favor, verifique o número digitado.', 'error');
         return;
     }
-    
-    // Update reservation with client info
-    reservation.clientInfo = {
-        name: formData.get('clientName'),
-        email: formData.get('clientEmail'),
-        phone: formData.get('clientPhone'),
-        cpf: cpf,
-        notes: formData.get('reservationNotes') || ''
+
+    var payload = {
+        propertyId: property.id,
+        propertyTitle: property.title,
+        unitCode: selectedUnit.unitCode,
+        unitPrice: selectedUnit.price,
+        unitBedrooms: selectedUnit.bedrooms,
+        client: {
+            name: formData.get('clientName'),
+            email: formData.get('clientEmail'),
+            phone: formData.get('clientPhone'),
+            cpf: cpf,
+            notes: formData.get('reservationNotes') || ''
+        }
     };
-    
-    // Add unit-specific information
-    reservation.unitCode = selectedUnit.unitCode;
-    reservation.unitPrice = selectedUnit.price;
-    reservation.unitBedrooms = selectedUnit.bedrooms;
-    if (typeof addCreatedBy === 'function') addCreatedBy(reservation);
-    // Add reservation to list
-    reservations.push(reservation);
-    
-    // Save to localStorage
-    localStorage.setItem('reservations', JSON.stringify(reservations));
-    
-    // Close modal and refresh display
-    closePropertyModal();
-    displayProperties(properties);
-    
-    // Create notification for admin approval
-    createUnitReservationNotification(reservation, property, selectedUnit, currentUser);
-    
-    // Show success message
-    showMessage(`Solicitação de reserva da unidade ${selectedUnit.unitCode} enviada! Aguarde aprovação do administrador.`, 'success');
-    
-    // Clear selected unit
-    sessionStorage.removeItem('selectedUnit');
+
+    var submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    submitReservationToServer(payload).then(function(data) {
+        closePropertyModal();
+        if (typeof displayProperties === 'function') displayProperties(properties);
+        sessionStorage.removeItem('selectedUnit');
+        var resRow = data && data.reservation ? data.reservation : null;
+        if (typeof createUnitReservationNotification === 'function' && resRow) {
+            createUnitReservationNotification(
+                typeof normalizeReservationRow === 'function' ? normalizeReservationRow(resRow) : resRow,
+                property,
+                selectedUnit,
+                currentUser
+            );
+        }
+        if (typeof sendEmail === 'function') {
+            var subject = 'Nova Solicitação de Reserva - ' + property.title;
+            var body = '<h2>Nova Solicitação de Reserva</h2>' +
+                '<p><strong>Imóvel:</strong> ' + property.title + '</p>' +
+                '<p><strong>Unidade:</strong> ' + selectedUnit.unitCode + '</p>' +
+                '<p><strong>Corretor:</strong> ' + currentUser.name + '</p>' +
+                '<p><strong>Cliente:</strong> ' + payload.client.name + '</p>' +
+                '<p>Acesse o painel administrativo para aprovar ou rejeitar.</p>';
+            sendEmail('bfmarquesempreendimentos@gmail.com', subject, body).catch(function() {});
+        }
+        showMessage('Solicitação de reserva da unidade ' + selectedUnit.unitCode + ' enviada! Aguarde aprovação do administrador.', 'success');
+    }).catch(function(err) {
+        showMessage(err.message || 'Erro ao enviar reserva.', 'error');
+    }).then(function() {
+        if (submitBtn) submitBtn.disabled = false;
+    });
 }
 
 // Create unit reservation notification
@@ -1002,6 +1026,7 @@ function createUnitReservationNotification(reservation, property, unit, broker) 
     
     return createNotification('unit_reservation_request', title, message, {
         reservationId: reservation.id,
+        firestoreReservationId: reservation.id,
         propertyId: property.id,
         unitCode: unit.unitCode,
         unitPrice: unit.price,

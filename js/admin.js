@@ -1404,38 +1404,32 @@ function loadRecentActivity() {
     renderDashboardActivityList(buildMergedDashboardActivity(null, null));
 }
 
-// Load expiring reservations
+// Load expiring reservations (dashboard — Firestore)
 function loadExpiringReservations() {
-    const container = document.getElementById('expiringReservations');
+    var container = document.getElementById('expiringReservations');
     if (!container) return;
-    
-    const activeReservations = getActiveReservations();
-    const expiringReservations = activeReservations.filter(reservation => {
-        const timeLeft = reservation.expiresAt.getTime() - Date.now();
-        return timeLeft <= 24 * 60 * 60 * 1000; // 24 hours
-    });
-    
-    if (expiringReservations.length === 0) {
-        container.innerHTML = '<p class="empty-message">Nenhuma reserva expirando em breve.</p>';
+    if (!ensureAdminApiReady()) {
+        container.innerHTML = '<p class="empty-message">Faça login para ver reservas.</p>';
         return;
     }
-    
-    container.innerHTML = expiringReservations.map(reservation => {
-        const property = getPropertyById(reservation.propertyId);
-        const timeLeft = formatTimeRemaining(reservation.expiresAt);
-        
-        return `
-            <div class="activity-item">
-                <div class="activity-icon reservation">
-                    <i class="fas fa-clock"></i>
-                </div>
-                <div class="activity-text">
-                    <p>${property && property.title ? property.title : 'Imóvel não encontrado'}</p>
-                    <small>${timeLeft}</small>
-                </div>
-            </div>
-        `;
-    }).join('');
+    adminPostJson('/adminReservationsMutate', { action: 'list', expiringSoon: true }).then(function(data) {
+        var rows = (data && data.reservations) ? data.reservations : [];
+        if (!rows.length) {
+            container.innerHTML = '<p class="empty-message">Nenhuma reserva expirando em breve.</p>';
+            return;
+        }
+        container.innerHTML = rows.map(function(reservation) {
+            var title = reservation.propertyTitle || (getPropertyById(reservation.propertyId) || {}).title || 'Imóvel';
+            var unit = reservation.unitCode ? ' — ' + reservation.unitCode : '';
+            var timeLeft = typeof formatTimeRemaining === 'function' ? formatTimeRemaining(reservation.expiresAt) : '';
+            return '<div class="activity-item">' +
+                '<div class="activity-icon reservation"><i class="fas fa-clock"></i></div>' +
+                '<div class="activity-text"><p>' + title + unit + '</p><small>' + timeLeft + '</small></div>' +
+                '</div>';
+        }).join('');
+    }).catch(function() {
+        container.innerHTML = '<p class="empty-message">Nenhuma reserva expirando em breve.</p>';
+    });
 }
 
 // Load properties data
@@ -1531,6 +1525,8 @@ function getStatusText(status) {
         'ativo': 'Ativo',
         'inativo': 'Inativo',
         'active': 'Ativa',
+        'pending': 'Pendente',
+        'rejected': 'Rejeitada',
         'expired': 'Expirada',
         'cancelled': 'Cancelada'
     };
@@ -1753,73 +1749,152 @@ function closePropertyModal() {
     editingProperty = null;
 }
 
-// Load reservations data
-function loadReservationsData() {
-    const tbody = document.getElementById('reservationsTableBody');
-    if (!tbody) return;
-    
-    const allReservations = getAllReservations();
-    
-    tbody.innerHTML = allReservations.map(reservation => {
-        const property = getPropertyById(reservation.propertyId);
-        const broker = brokers.find(b => b.id === reservation.brokerId);
-        
-        return `
-            <tr>
-                <td>${reservation.id}</td>
-                <td>${property?.title || 'N/A'}</td>
-                <td>${broker?.name || 'N/A'}</td>
-                <td>${reservation.clientInfo?.name || 'N/A'}</td>
-                <td>${formatDate(reservation.createdAt)}</td>
-                <td>${formatDate(reservation.expiresAt)}</td>
-                <td><span class="status-badge status-${reservation.status}">${getStatusText(reservation.status)}</span></td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn-action btn-view" onclick="viewReservation('${reservation.id}')">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        ${reservation.status === 'active' ? `
-                            <button class="btn-action btn-delete" onclick="cancelReservationAdmin('${reservation.id}')">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        ` : ''}
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
+// Load reservations data (Firestore)
+function populateReservationPropertyFilter() {
+    var sel = document.getElementById('resFilterProperty');
+    if (!sel || sel.dataset.populated === '1') return;
+    var opts = ['<option value="">Todos empreendimentos</option>'];
+    if (typeof properties !== 'undefined' && properties.length) {
+        properties.forEach(function(p) {
+            opts.push('<option value="' + p.id + '">' + (p.title || ('Empreendimento ' + p.id)) + '</option>');
+        });
+    }
+    sel.innerHTML = opts.join('');
+    sel.dataset.populated = '1';
 }
 
-// View reservation
+function adminReservationActor() {
+    if (typeof getCurrentActor === 'function') {
+        var actor = getCurrentActor();
+        if (actor) return { type: actor.type, email: actor.email, name: actor.name, at: new Date().toISOString() };
+    }
+    return 'admin';
+}
+
+function adminReservationMutate(payload) {
+    if (!ensureAdminApiReady()) return Promise.reject(new Error('Faça login no painel.'));
+    return adminPostJson('/adminReservationsMutate', payload);
+}
+
+function loadReservationsData() {
+    var tbody = document.getElementById('reservationsTableBody');
+    if (!tbody) return;
+    populateReservationPropertyFilter();
+    if (!ensureAdminApiReady()) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Faça login para ver reservas.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Carregando reservas...</td></tr>';
+    var statusEl = document.getElementById('resFilterStatus');
+    var propEl = document.getElementById('resFilterProperty');
+    var expEl = document.getElementById('resFilterExpiring');
+    var payload = {
+        action: 'list',
+        status: statusEl ? statusEl.value : '',
+        propertyId: propEl ? propEl.value : '',
+        expiringSoon: expEl ? !!expEl.checked : false
+    };
+    adminReservationMutate(payload).then(function(data) {
+        var rows = (data && data.reservations) ? data.reservations : [];
+        if (typeof window !== 'undefined') {
+            window._adminReservationsCache = rows.map(function(r) {
+                return typeof normalizeReservationRow === 'function' ? normalizeReservationRow(r) : r;
+            });
+        }
+        var stats = data && data.stats ? data.stats : {};
+        var elP = document.getElementById('resKpiPending');
+        var elA = document.getElementById('resKpiActive');
+        var elE = document.getElementById('resKpiExpiring');
+        if (elP) elP.textContent = stats.pending != null ? stats.pending : '0';
+        if (elA) elA.textContent = stats.active != null ? stats.active : '0';
+        if (elE) elE.textContent = stats.expiringToday != null ? stats.expiringToday : '0';
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Nenhuma reserva encontrada.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = rows.map(function(reservation) {
+            var rid = String(reservation.id).replace(/'/g, "\\'");
+            var title = reservation.propertyTitle || (getPropertyById(reservation.propertyId) || {}).title || 'N/A';
+            var brokerName = reservation.brokerName || 'N/A';
+            var clientName = (reservation.client && reservation.client.name) || (reservation.clientInfo && reservation.clientInfo.name) || 'N/A';
+            var requested = reservation.requestedAt ? formatDate(reservation.requestedAt) : '—';
+            var expires = reservation.expiresAt ? formatDate(reservation.expiresAt) : (reservation.status === 'pending' ? 'Após aprovação' : '—');
+            var statusLabel = typeof reservationStatusLabel === 'function' ? reservationStatusLabel(reservation.status) : getStatusText(reservation.status);
+            var actions = '<button class="btn-action btn-view" onclick="viewReservation(\'' + rid + '\')" title="Detalhes"><i class="fas fa-eye"></i></button>';
+            if (reservation.status === 'pending') {
+                actions += '<button class="btn-action btn-approve" onclick="approveReservationAdmin(\'' + rid + '\')" title="Aprovar"><i class="fas fa-check"></i></button>';
+                actions += '<button class="btn-action btn-delete" onclick="rejectReservationAdmin(\'' + rid + '\')" title="Rejeitar"><i class="fas fa-times"></i></button>';
+            }
+            if (reservation.status === 'active') {
+                actions += '<button class="btn-action btn-delete" onclick="cancelReservationAdmin(\'' + rid + '\')" title="Cancelar"><i class="fas fa-ban"></i></button>';
+            }
+            return '<tr>' +
+                '<td>' + title + '</td>' +
+                '<td>' + (reservation.unitCode || '—') + '</td>' +
+                '<td>' + brokerName + '</td>' +
+                '<td>' + clientName + '</td>' +
+                '<td>' + requested + '</td>' +
+                '<td>' + expires + '</td>' +
+                '<td><span class="status-badge status-' + reservation.status + '">' + statusLabel + '</span></td>' +
+                '<td><div class="action-buttons">' + actions + '</div></td>' +
+                '</tr>';
+        }).join('');
+    }).catch(function(err) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:#b91c1c;">' + (err.message || 'Erro ao carregar reservas.') + '</td></tr>';
+    });
+}
+
 function viewReservation(reservationId) {
-    const reservation = reservations.find(r => r.id === reservationId);
+    var list = (typeof window !== 'undefined' && window._adminReservationsCache) ? window._adminReservationsCache : getAllReservations();
+    var reservation = list.filter(function(r) { return String(r.id) === String(reservationId); })[0];
     if (!reservation) return;
-    
-    const property = getPropertyById(reservation.propertyId);
-    const broker = brokers.find(b => b.id === reservation.brokerId);
-    
-    const details = `
-        Reserva: ${reservation.id}
-        Imóvel: ${property?.title}
-        Corretor: ${broker?.name}
-        Cliente: ${reservation.clientInfo?.name}
-        Email: ${reservation.clientInfo?.email}
-        Telefone: ${reservation.clientInfo?.phone}
-        CPF: ${reservation.clientInfo?.cpf}
-        Status: ${getStatusText(reservation.status)}
-        Criada em: ${formatDate(reservation.createdAt)}
-        Expira em: ${formatDate(reservation.expiresAt)}
-    `;
-    
+    var client = reservation.clientInfo || reservation.client || {};
+    var details = [
+        'Empreendimento: ' + (reservation.propertyTitle || '—'),
+        'Unidade: ' + (reservation.unitCode || '—'),
+        'Corretor: ' + (reservation.brokerName || '—') + ' (' + (reservation.brokerEmail || '') + ')',
+        'Cliente: ' + (client.name || '—'),
+        'CPF: ' + (client.cpf || '—'),
+        'Telefone: ' + (client.phone || '—'),
+        'Email: ' + (client.email || '—'),
+        'Status: ' + (typeof reservationStatusLabel === 'function' ? reservationStatusLabel(reservation.status) : reservation.status),
+        'Solicitada em: ' + (reservation.requestedAt ? formatDate(reservation.requestedAt) : '—'),
+        'Expira em: ' + (reservation.expiresAt ? formatDate(reservation.expiresAt) : '—'),
+        client.notes ? ('Observações: ' + client.notes) : ''
+    ].filter(Boolean).join('\n');
     alert(details);
 }
 
-// Cancel reservation (admin)
+function approveReservationAdmin(reservationId) {
+    if (!confirm('Aprovar esta reserva? A unidade ficará reservada por 3 dias úteis.')) return;
+    adminReservationMutate({ action: 'approve', reservationId: reservationId, approvedBy: adminReservationActor() })
+        .then(function() {
+            showMessage('Reserva aprovada com sucesso!', 'success');
+            loadReservationsData();
+            loadExpiringReservations();
+        })
+        .catch(function(err) { showMessage(err.message || 'Erro ao aprovar.', 'error'); });
+}
+
+function rejectReservationAdmin(reservationId) {
+    var reason = prompt('Motivo da rejeição (opcional):') || '';
+    adminReservationMutate({ action: 'reject', reservationId: reservationId, reason: reason, rejectedBy: adminReservationActor() })
+        .then(function() {
+            showMessage('Reserva rejeitada.', 'success');
+            loadReservationsData();
+        })
+        .catch(function(err) { showMessage(err.message || 'Erro ao rejeitar.', 'error'); });
+}
+
 function cancelReservationAdmin(reservationId) {
-    if (confirm('Tem certeza que deseja cancelar esta reserva?')) {
-        cancelReservation(reservationId);
-        loadReservationsData();
-    }
+    if (!confirm('Cancelar esta reserva? A unidade voltará a ficar disponível.')) return;
+    adminReservationMutate({ action: 'cancel', reservationId: reservationId, cancelledBy: adminReservationActor() })
+        .then(function() {
+            showMessage('Reserva cancelada.', 'success');
+            loadReservationsData();
+            loadExpiringReservations();
+        })
+        .catch(function(err) { showMessage(err.message || 'Erro ao cancelar.', 'error'); });
 }
 
 var _brokerCampaignPreview = null;
@@ -2698,14 +2773,12 @@ function loadSettingsData() {
     const companyName = localStorage.getItem('companyName') || 'Construtora Premium';
     const contactEmail = localStorage.getItem('contactEmail') || 'contato@construtorapremium.com';
     const contactPhone = localStorage.getItem('contactPhone') || '(11) 99999-9999';
-    const reservationHours = localStorage.getItem('reservationHours') || '48';
     const maxReservations = localStorage.getItem('maxReservations') || '5';
     
     document.getElementById('companyName').value = companyName;
     document.getElementById('contactEmail').value = contactEmail;
     document.getElementById('contactPhone').value = contactPhone;
-    document.getElementById('reservationHours').value = reservationHours;
-    document.getElementById('maxReservations').value = maxReservations;
+    if (document.getElementById('maxReservations')) document.getElementById('maxReservations').value = maxReservations;
 }
 
 // Save general settings
@@ -2727,7 +2800,6 @@ function saveReservationSettings(e) {
     
     const formData = new FormData(e.target);
     
-    localStorage.setItem('reservationHours', formData.get('reservationHours'));
     localStorage.setItem('maxReservations', formData.get('maxReservations'));
     
     showMessage('Configurações de reserva salvas com sucesso!', 'success');
@@ -2740,50 +2812,51 @@ function exportProperties() {
 
 // Export reservations
 function exportReservations() {
-    const allReservations = getAllReservations();
-    
-    if (allReservations.length === 0) {
-        showMessage('Não há reservas para exportar.', 'warning');
+    if (!ensureAdminApiReady()) {
+        showMessage('Faça login para exportar.', 'error');
         return;
     }
-    
-    const csvData = allReservations.map(reservation => {
-        const property = getPropertyById(reservation.propertyId);
-        const broker = brokers.find(b => b.id === reservation.brokerId);
-        
-        return {
-            'ID': reservation.id,
-            'Imóvel': property?.title || 'N/A',
-            'Corretor': broker?.name || 'N/A',
-            'Cliente': reservation.clientInfo?.name || 'N/A',
-            'Email Cliente': reservation.clientInfo?.email || 'N/A',
-            'Telefone Cliente': reservation.clientInfo?.phone || 'N/A',
-            'CPF Cliente': reservation.clientInfo?.cpf || 'N/A',
-            'Status': getStatusText(reservation.status),
-            'Data Criação': formatDate(reservation.createdAt),
-            'Data Expiração': formatDate(reservation.expiresAt)
-        };
+    adminReservationMutate({ action: 'list' }).then(function(data) {
+        var allReservations = (data && data.reservations) ? data.reservations : [];
+        if (!allReservations.length) {
+            showMessage('Não há reservas para exportar.', 'warning');
+            return;
+        }
+        var csvData = allReservations.map(function(reservation) {
+            var client = reservation.client || reservation.clientInfo || {};
+            return {
+                'ID': reservation.id,
+                'Empreendimento': reservation.propertyTitle || 'N/A',
+                'Unidade': reservation.unitCode || 'N/A',
+                'Corretor': reservation.brokerName || 'N/A',
+                'Email Corretor': reservation.brokerEmail || 'N/A',
+                'Cliente': client.name || 'N/A',
+                'Email Cliente': client.email || 'N/A',
+                'Telefone Cliente': client.phone || 'N/A',
+                'CPF Cliente': client.cpf || 'N/A',
+                'Status': typeof reservationStatusLabel === 'function' ? reservationStatusLabel(reservation.status) : reservation.status,
+                'Solicitada em': reservation.requestedAt ? formatDate(reservation.requestedAt) : '',
+                'Expira em': reservation.expiresAt ? formatDate(reservation.expiresAt) : ''
+            };
+        });
+        var headers = Object.keys(csvData[0]);
+        var csvContent = headers.join(',') + '\n';
+        csvData.forEach(function(row) {
+            csvContent += headers.map(function(header) { return '"' + row[header] + '"'; }).join(',') + '\n';
+        });
+        var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        var link = document.createElement('a');
+        var url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'reservas_' + new Date().toISOString().split('T')[0] + '.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showMessage('Arquivo CSV de reservas exportado com sucesso!', 'success');
+    }).catch(function(err) {
+        showMessage(err.message || 'Erro ao exportar.', 'error');
     });
-    
-    const headers = Object.keys(csvData[0]);
-    let csvContent = headers.join(',') + '\n';
-    csvData.forEach(row => {
-        const rowData = headers.map(header => `"${row[header]}"`).join(',');
-        csvContent += rowData + '\n';
-    });
-    
-    // Create download link
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `reservas_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    showMessage('Arquivo CSV de reservas exportado com sucesso!', 'success');
 }
 
 // Exportar backup completo do sistema
@@ -2927,6 +3000,7 @@ function loadNotificationsData() {
 function getNotificationActions(notification) {
     switch (notification.type) {
         case 'reservation_request':
+        case 'unit_reservation_request':
             return `
                 <button class="btn-action btn-approve" onclick="event.stopPropagation(); approveReservationRequest('${notification.id}')">
                     <i class="fas fa-check"></i> Aprovar
@@ -3019,12 +3093,14 @@ function formatNotificationData(notification) {
     
     switch (notification.type) {
         case 'reservation_request':
+        case 'unit_reservation_request':
             html = `
                 <p><strong>Imóvel:</strong> ${data.propertyTitle}</p>
+                ${data.unitCode ? '<p><strong>Unidade:</strong> ' + data.unitCode + '</p>' : ''}
                 <p><strong>Corretor:</strong> ${data.brokerName}</p>
                 <p><strong>Cliente:</strong> ${data.clientName}</p>
-                <p><strong>CPF:</strong> ${data.clientCPF}</p>
-                <p><strong>Telefone:</strong> ${data.clientPhone}</p>
+                <p><strong>CPF:</strong> ${data.clientCPF || '—'}</p>
+                <p><strong>Telefone:</strong> ${data.clientPhone || '—'}</p>
             `;
             break;
         case 'reservation_expiring':
@@ -3049,6 +3125,7 @@ function formatNotificationData(notification) {
 function getNotificationTypeName(type) {
     const types = {
         'reservation_request': 'Solicitação de Reserva',
+        'unit_reservation_request': 'Solicitação de Reserva (Unidade)',
         'reservation_expiring': 'Reserva Expirando',
         'document_request': 'Solicitação de Documentos',
         'broker_access': 'Solicitação de Acesso'

@@ -23,10 +23,11 @@ var CONFIG = {
     
     // Configurações de Reserva
     reservations: {
-        defaultDurationHours: 48, // 2 dias
+        businessDays: 3,
         maxReservationsPerBroker: 5,
         allowCancellation: true,
         requireCPF: true,
+        requireAdminApproval: true,
         sendEmailNotifications: true
     },
     
@@ -149,7 +150,7 @@ var CONFIG = {
     },
 
     /** Versão de cache para CSS/JS (incrementar a cada deploy público) */
-    assetVersion: '20'
+    assetVersion: '21'
 };
 
 // Função para obter configuração

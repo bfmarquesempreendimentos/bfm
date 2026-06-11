@@ -154,101 +154,61 @@ function markNotificationAsRead(notificationId) {
 
 // Approve reservation request
 async function approveReservationRequest(notificationId) {
-    const notification = adminNotifications.find(n => n.id === notificationId);
-    if (!notification || notification.type !== 'reservation_request') {
-        return false;
-    }
-    
-    const reservation = reservations.find(r => r.id === notification.data.reservationId);
-    const property = properties.find(p => p.id === notification.data.propertyId);
-    
-    if (reservation && property) {
-        // Approve reservation
-        reservation.status = 'active';
-        reservation.approvedAt = new Date();
-        reservation.approvedBy = (typeof getCurrentActor === 'function' && getCurrentActor())
-            ? { type: getCurrentActor().type, email: getCurrentActor().email, name: getCurrentActor().name, at: new Date().toISOString() }
-            : 'admin';
-        
-        // Update property status
-        property.status = 'reservado';
-        property.reservedUntil = reservation.expiresAt;
-        property.reservedBy = notification.data.brokerName;
-        
-        // Update notification
-        notification.status = 'approved';
-        notification.approvedAt = new Date();
-        
-        // Save changes
-        saveNotifications();
-        localStorage.setItem('reservations', JSON.stringify(reservations));
-        localStorage.setItem('properties', JSON.stringify(properties));
-        
-        // Setup expiration notification
-        setupExpirationNotification(reservation);
-        
-        // Enviar email e WhatsApp ao corretor (solicitante)
-        const broker = typeof findBrokerById === 'function' ? findBrokerById(notification.data.brokerId) : null;
-        if (broker && broker.email && (typeof sendBrokerNotification === 'function' || typeof sendEmail === 'function')) {
-            const subject = 'Reserva Aprovada - B F Marques Empreendimentos';
-            const body = `
-                <h2>Olá, ${broker.name}!</h2>
-                <p>Sua solicitação de reserva do imóvel <strong>"${property.title}"</strong> para o cliente ${reservation.clientInfo.name} foi <strong>aprovada</strong>.</p>
-                <p>A reserva está ativa. Atenção ao prazo de validade.</p>
-                <p>Atenciosamente,<br><strong>B F Marques Empreendimentos</strong></p>
-            `;
-            const waMsg = `Olá, ${broker.name}! ✅ Sua reserva do imóvel "${property.title}" para ${reservation.clientInfo.name} foi APROVADA. Fique atento ao prazo de validade. B F Marques.`;
-            try {
-                if (typeof sendBrokerNotification === 'function') await sendBrokerNotification(broker, subject, body, waMsg);
-                else await sendEmail(broker.email, subject, body);
-            } catch (e) { console.error('Erro ao enviar notificação de aprovação:', e); }
+    var notification = adminNotifications.filter(function(n) { return n.id === notificationId; })[0];
+    if (!notification) return false;
+    var isReservation = notification.type === 'reservation_request' || notification.type === 'unit_reservation_request';
+    if (!isReservation) return false;
+
+    var firestoreId = notification.data.firestoreReservationId || notification.data.reservationId;
+    if (typeof adminReservationMutate === 'function' && firestoreId) {
+        try {
+            await adminReservationMutate({
+                action: 'approve',
+                reservationId: firestoreId,
+                approvedBy: (typeof adminReservationActor === 'function') ? adminReservationActor() : 'admin'
+            });
+            notification.status = 'approved';
+            notification.approvedAt = new Date();
+            saveNotifications();
+            if (typeof loadReservationsData === 'function') loadReservationsData();
+            showMessage('Reserva aprovada com sucesso!', 'success');
+            return true;
+        } catch (e) {
+            showMessage(e.message || 'Erro ao aprovar reserva.', 'error');
+            return false;
         }
-        
-        showMessage('Reserva aprovada com sucesso!', 'success');
-        return true;
     }
-    
     return false;
 }
 
 // Reject reservation request
-function rejectReservationRequest(notificationId, reason = '') {
-    const notification = adminNotifications.find(n => n.id === notificationId);
-    if (!notification || notification.type !== 'reservation_request') {
-        return false;
+function rejectReservationRequest(notificationId, reason) {
+    reason = reason || '';
+    var notification = adminNotifications.filter(function(n) { return n.id === notificationId; })[0];
+    if (!notification) return false;
+    var isReservation = notification.type === 'reservation_request' || notification.type === 'unit_reservation_request';
+    if (!isReservation) return false;
+
+    var firestoreId = notification.data.firestoreReservationId || notification.data.reservationId;
+    if (typeof adminReservationMutate === 'function' && firestoreId) {
+        return adminReservationMutate({
+            action: 'reject',
+            reservationId: firestoreId,
+            reason: reason,
+            rejectedBy: (typeof adminReservationActor === 'function') ? adminReservationActor() : 'admin'
+        }).then(function() {
+            notification.status = 'rejected';
+            notification.rejectedAt = new Date();
+            notification.rejectionReason = reason;
+            saveNotifications();
+            if (typeof loadReservationsData === 'function') loadReservationsData();
+            showMessage('Reserva rejeitada.', 'warning');
+            return true;
+        }).catch(function(e) {
+            showMessage(e.message || 'Erro ao rejeitar.', 'error');
+            return false;
+        });
     }
-    
-    const reservation = reservations.find(r => r.id === notification.data.reservationId);
-    const property = properties.find(p => p.id === notification.data.propertyId);
-    
-    if (reservation && property) {
-        // Reject reservation
-        reservation.status = 'rejected';
-        reservation.rejectedAt = new Date();
-        reservation.rejectedBy = (typeof getCurrentActor === 'function' && getCurrentActor())
-            ? { type: getCurrentActor().type, email: getCurrentActor().email, name: getCurrentActor().name, at: new Date().toISOString() }
-            : 'admin';
-        reservation.rejectionReason = reason;
-        
-        // Keep property available
-        property.status = 'disponivel';
-        property.reservedUntil = null;
-        property.reservedBy = null;
-        
-        // Update notification
-        notification.status = 'rejected';
-        notification.rejectedAt = new Date();
-        notification.rejectionReason = reason;
-        
-        // Save changes
-        saveNotifications();
-        localStorage.setItem('reservations', JSON.stringify(reservations));
-        localStorage.setItem('properties', JSON.stringify(properties));
-        
-        showMessage('Reserva rejeitada.', 'warning');
-        return true;
-    }
-    
     return false;
 }
 

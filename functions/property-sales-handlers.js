@@ -490,6 +490,8 @@ async function adminSyncCatalogUnitStatuses(req, res) {
 
 module.exports = {
   allowCors,
+  parseJsonBody,
+  applyUnitStatusOverride,
   adminPropertySalesList,
   adminPropertySaleMutate,
   adminMergeClientProperty,

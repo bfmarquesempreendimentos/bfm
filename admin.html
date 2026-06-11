@@ -346,10 +346,10 @@
             <div class="section-header">
                 <div class="section-header-main">
                     <h2>Reservas</h2>
-                    <p class="section-subtitle">Acompanhe prazos, corretores e status das reservas ativas.</p>
+                    <p class="section-subtitle">Prazo padrão: 3 dias úteis (seg–sex) após aprovação. Toda solicitação passa pelo admin.</p>
                 </div>
                 <div class="header-actions">
-                    <button type="button" class="btn btn-secondary" onclick="importReservasFromPdf()" title="Importar reservas do data/pdf-prontos-a-venda-import.json (só corretores cadastrados)">
+                    <button type="button" class="btn btn-secondary" onclick="importReservasFromPdf()" title="Importar reservas do PDF para o Firestore">
                         <i class="fas fa-file-import" aria-hidden="true"></i> Importar PDF
                     </button>
                     <button type="button" class="btn btn-secondary" onclick="exportReservations()">
@@ -358,23 +358,46 @@
                 </div>
             </div>
 
+            <div class="admin-kpi-row" id="reservationsKpiRow">
+                <div class="admin-kpi-card"><span class="admin-kpi-value" id="resKpiPending">—</span><span class="admin-kpi-label">Pendentes</span></div>
+                <div class="admin-kpi-card"><span class="admin-kpi-value" id="resKpiActive">—</span><span class="admin-kpi-label">Ativas</span></div>
+                <div class="admin-kpi-card"><span class="admin-kpi-value" id="resKpiExpiring">—</span><span class="admin-kpi-label">Vencem hoje</span></div>
+            </div>
+
+            <div class="admin-filters-row" id="reservationsFilters">
+                <select id="resFilterStatus" onchange="loadReservationsData()">
+                    <option value="">Todos os status</option>
+                    <option value="pending">Pendentes</option>
+                    <option value="active">Ativas</option>
+                    <option value="expired">Expiradas</option>
+                    <option value="cancelled">Canceladas</option>
+                    <option value="rejected">Rejeitadas</option>
+                </select>
+                <select id="resFilterProperty" onchange="loadReservationsData()">
+                    <option value="">Todos empreendimentos</option>
+                </select>
+                <label class="admin-filter-check">
+                    <input type="checkbox" id="resFilterExpiring" onchange="loadReservationsData()"> Vencem em 24h
+                </label>
+            </div>
+
             <!-- Reservations Table -->
             <div class="admin-table-container admin-table-container--elevated">
                 <table class="admin-table" id="reservationsTable">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Imóvel</th>
+                            <th>Empreendimento</th>
+                            <th>Unidade</th>
                             <th>Corretor</th>
                             <th>Cliente</th>
-                            <th>Data</th>
+                            <th>Solicitada em</th>
                             <th>Expira em</th>
                             <th>Status</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody id="reservationsTableBody">
-                        <!-- Reservation rows will be loaded here -->
+                        <tr><td colspan="8" style="text-align:center;padding:20px;">Carregando reservas...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1269,8 +1292,9 @@
                     <h3>Configurações de Reserva</h3>
                     <form id="reservationSettingsForm">
                         <div class="form-group">
-                            <label>Tempo de Reserva (horas):</label>
-                            <input type="number" id="reservationHours" value="48" min="1" max="168">
+                            <label>Prazo após aprovação:</label>
+                            <input type="text" value="3 dias úteis (segunda a sexta)" readonly disabled>
+                            <small class="form-hint">Definido no sistema. Contato com suporte para alterar.</small>
                         </div>
                         <div class="form-group">
                             <label>Máximo de Reservas por Corretor:</label>
@@ -1278,8 +1302,8 @@
                         </div>
                         <div class="form-group checkbox-group">
                             <label>
-                                <input type="checkbox" id="autoApproveReservations"> 
-                                Aprovar reservas automaticamente
+                                <input type="checkbox" id="autoApproveReservations" disabled>
+                                Aprovação automática (desativada — toda reserva passa pelo admin)
                             </label>
                         </div>
                         <button type="submit" class="btn btn-primary">Salvar</button>
@@ -1440,8 +1464,9 @@
     <script src="js/main.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/properties.js"></script>
+    <script src="js/reservations-api.js?v=1"></script>
     <script src="js/reservations.js"></script>
-    <script src="js/property-units.js?v=8"></script>
+    <script src="js/property-units.js?v=9"></script>
     <script src="js/pdf-seed-reservations.js"></script>
     <script src="js/pdf-import.js"></script>
     <script src="js/notifications.js"></script>
@@ -1452,7 +1477,7 @@
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
     <script src="js/admin-boletos.js?v=1"></script>
-    <script src="js/admin.js?v=34"></script>
+    <script src="js/admin.js?v=35"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>

@@ -79,6 +79,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /reservations/{docId} {
+      allow read, write: if false;
+    }
+
     match /bia_training/{docId} {
       allow read, write: if false;
     }

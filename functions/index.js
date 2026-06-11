@@ -39,6 +39,7 @@ const {
   explainMetaDeliveryError,
 } = require('./chatbot/whatsapp-api');
 const propertySalesHandlers = require('./property-sales-handlers');
+const reservationsHandlers = require('./reservations-handlers');
 const brokerCampaignContent = require('./chatbot/broker-campaign-content');
 const { verifyAdminFromBody, verifyAdminFromReq } = require('./admin-accounts');
 const { verifyAdminAuth, extractIdToken } = require('./admin-auth');
@@ -2808,6 +2809,16 @@ exports.adminSetUnitStatusOverrides = functions.https.onRequest((req, res) =>
 );
 exports.adminSyncCatalogUnitStatuses = functions.https.onRequest((req, res) =>
   propertySalesHandlers.adminSyncCatalogUnitStatuses(req, res)
+);
+
+exports.brokerCreateReservation = functions.https.onRequest((req, res) =>
+  reservationsHandlers.brokerCreateReservation(req, res)
+);
+exports.brokerMyReservations = functions.https.onRequest((req, res) =>
+  reservationsHandlers.brokerMyReservations(req, res)
+);
+exports.adminReservationsMutate = functions.https.onRequest((req, res) =>
+  reservationsHandlers.adminReservationsMutate(req, res)
 );
 
 // ─── API de Reparos: CRIAR (garante sync Mac/Windows - não depende do Firestore client) ──
