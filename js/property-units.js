@@ -802,27 +802,27 @@ function createUnitsTable(propertyId) {
 
 // Select unit for reservation
 function selectUnit(propertyId, unitCode) {
-    const propertyData = getPropertyUnits(propertyId);
+    var pid = typeof findPropertyByIdLoose === 'function' ? findPropertyByIdLoose(propertyId) : null;
+    var pidNorm = pid ? pid.id : propertyId;
+    const propertyData = getPropertyUnits(pidNorm);
     if (!propertyData) return;
     
     const unit = propertyData.units.filter(function(u) { return u.code === unitCode; })[0];
     if (!unit) return;
     
     if (unit.status !== 'disponivel') {
-        showMessage(`Esta unidade está ${getUnitStatusText(unit.status).toLowerCase()}.`, 'warning');
+        showMessage('Esta unidade está ' + getUnitStatusText(unit.status).toLowerCase() + '.', 'warning');
         return;
     }
     
-    // Store selected unit for reservation
     sessionStorage.setItem('selectedUnit', JSON.stringify({
-        propertyId: propertyId,
+        propertyId: pidNorm,
         unitCode: unitCode,
         price: unit.price,
         bedrooms: unit.bedrooms
     }));
     
-    // Start reservation process for this specific unit
-    reservePropertyUnit(propertyId, unitCode);
+    reservePropertyUnit(pidNorm, unitCode);
 }
 
 // Reserve specific unit
@@ -839,11 +839,46 @@ function reservePropertyUnit(propertyId, unitCode) {
     }
 
     var openForm = function() {
-        const property = properties.filter(function(p) { return p.id === propertyId; })[0];
-        const selectedUnit = JSON.parse(sessionStorage.getItem('selectedUnit'));
+        var property = typeof findPropertyByIdLoose === 'function'
+            ? findPropertyByIdLoose(propertyId)
+            : null;
+        var selectedUnit = null;
+        try {
+            selectedUnit = JSON.parse(sessionStorage.getItem('selectedUnit') || 'null');
+        } catch (e) {
+            selectedUnit = null;
+        }
+
+        if (!selectedUnit && unitCode && typeof getPropertyUnits === 'function') {
+            var unitData = getPropertyUnits(propertyId);
+            if (unitData && unitData.units) {
+                var match = unitData.units.filter(function(u) {
+                    return String(u.code) === String(unitCode);
+                })[0];
+                if (match) {
+                    selectedUnit = {
+                        propertyId: property ? property.id : propertyId,
+                        unitCode: match.code,
+                        price: match.price,
+                        bedrooms: match.bedrooms
+                    };
+                    sessionStorage.setItem('selectedUnit', JSON.stringify(selectedUnit));
+                }
+            }
+        }
+
+        if (!property && selectedUnit && selectedUnit.propertyId) {
+            property = typeof findPropertyByIdLoose === 'function'
+                ? findPropertyByIdLoose(selectedUnit.propertyId)
+                : null;
+        }
         
         if (!property || !selectedUnit) {
-            showMessage('Erro ao processar reserva da unidade.', 'error');
+            showMessage('Selecione uma unidade disponível (verde) na tabela antes de reservar.', 'warning');
+            return;
+        }
+        if (String(selectedUnit.unitCode || '') !== String(unitCode || selectedUnit.unitCode || '')) {
+            showMessage('Unidade selecionada não confere. Clique novamente na unidade verde.', 'warning');
             return;
         }
         
@@ -862,11 +897,14 @@ function reservePropertyUnit(propertyId, unitCode) {
 
 // Show unit reservation form
 function showUnitReservationForm(property, selectedUnit) {
-    const modal = document.getElementById('propertyModal');
-    const detailsContainer = document.getElementById('propertyDetails');
+    var modal = document.getElementById('propertyModal');
+    var detailsContainer = document.getElementById('propertyDetails');
+    var reservationId = typeof generateReservationId === 'function'
+        ? generateReservationId()
+        : ('RES' + Date.now() + Math.random().toString(36).substr(2, 9).toUpperCase());
     
-    const reservation = {
-        id: generateReservationId(),
+    var reservation = {
+        id: reservationId,
         propertyId: property.id,
         unitCode: selectedUnit.unitCode,
         brokerId: currentUser.id,
@@ -962,8 +1000,12 @@ function showUnitReservationForm(property, selectedUnit) {
     modal.style.display = 'block';
     
     // Setup form submission
-    const form = document.getElementById('unitReservationForm');
-    form.addEventListener('submit', (e) => handleUnitReservationSubmission(e, property, selectedUnit, reservation));
+    var form = document.getElementById('unitReservationForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            handleUnitReservationSubmission(e, property, selectedUnit, reservation);
+        });
+    }
     
     // Setup masks
     setupFormMasks();

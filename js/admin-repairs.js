@@ -343,7 +343,6 @@ function viewAdminRepairDetails(repairId) {
     }
     const statusLabels = { pendente: 'Pendente', em_analise: 'Em Análise', em_andamento: 'Em Andamento', concluido: 'Concluído', cancelado: 'Cancelado' };
     const tipoLabels = { manutencao: 'Manutenção', reclamacao: 'Reclamação', sugestao: 'Sugestão', geral: 'Geral' };
-    const tipoLabels = { manutencao: 'Manutenção', reclamacao: 'Reclamação', sugestao: 'Sugestão', geral: 'Geral' };
     const respList = (repair.responses || []).map(r => `<li><strong>${r.type === 'automatic' ? 'Automático' : r.type === 'client' ? 'Cliente' : 'Equipe'}</strong>: ${r.message} <small>(${typeof formatDate === 'function' ? formatDate(r.date) : r.date})</small></li>`).join('');
     const comList = (repair.comentarios || []).map(function(c) {
         return '<li><strong>' + (c.autorNome || 'Equipe') + '</strong>: ' + (c.texto || '') +

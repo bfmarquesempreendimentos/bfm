@@ -3,7 +3,6 @@
 // Global variables
 let currentUser = null;
 let properties = [];
-let reservations = [];
 let currentGalleryImages = [];
 let currentGalleryIndex = 0;
 let currentGalleryMedia = [];
@@ -709,14 +708,9 @@ function propertyCanBeReserved(propertyId) {
         var summary = getEnterpriseInventorySummary(propertyId);
         if (summary) return summary.disponivel > 0;
     }
-    var property = null;
-    var i;
-    for (i = 0; i < properties.length; i++) {
-        if (properties[i].id === propertyId) {
-            property = properties[i];
-            break;
-        }
-    }
+    var property = typeof findPropertyByIdLoose === 'function'
+        ? findPropertyByIdLoose(propertyId)
+        : null;
     return !!(property && property.status === 'disponivel');
 }
 

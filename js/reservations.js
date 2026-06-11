@@ -23,29 +23,34 @@ function reserveProperty(propertyId) {
     }
 
     var proceed = function() {
-        var property = null;
-        var pi;
-        for (pi = 0; pi < properties.length; pi++) {
-            if (properties[pi].id === propertyId) {
-                property = properties[pi];
-                break;
-            }
-        }
+        var property = typeof findPropertyByIdLoose === 'function'
+            ? findPropertyByIdLoose(propertyId)
+            : null;
         if (!property) {
             showMessage('Imóvel não encontrado.', 'error');
             return;
         }
-
-        var raw = typeof getPropertyUnitsRaw === 'function' ? getPropertyUnitsRaw(propertyId) : null;
+        var pid = property.id;
+        var raw = typeof getPropertyUnitsRaw === 'function' ? getPropertyUnitsRaw(pid) : null;
         if (raw && raw.units && raw.units.length > 1) {
+            var storedUnit = null;
+            try {
+                storedUnit = JSON.parse(sessionStorage.getItem('selectedUnit') || 'null');
+            } catch (e) { storedUnit = null; }
+            if (storedUnit && String(storedUnit.propertyId) === String(pid) && storedUnit.unitCode) {
+                if (typeof reservePropertyUnit === 'function') {
+                    reservePropertyUnit(pid, storedUnit.unitCode);
+                    return;
+                }
+            }
             showMessage('Selecione a unidade na tabela do empreendimento para reservar.', 'info');
-            if (typeof showPropertyDetails === 'function') showPropertyDetails(propertyId);
+            if (typeof showPropertyDetails === 'function') showPropertyDetails(pid);
             return;
         }
 
         var unitCode = raw && raw.units && raw.units.length === 1 ? raw.units[0].code : '';
         var selectedUnit = raw && raw.units && raw.units.length === 1 ? {
-            propertyId: propertyId,
+            propertyId: pid,
             unitCode: unitCode,
             price: raw.units[0].price,
             bedrooms: raw.units[0].bedrooms
@@ -195,3 +200,12 @@ function initializeReservationSystem() {
 document.addEventListener('DOMContentLoaded', function() {
     initializeReservationSystem();
 });
+
+if (typeof window !== 'undefined') {
+    window.generateReservationId = generateReservationId;
+    window.reserveProperty = reserveProperty;
+    window.getReservationBusinessDays = getReservationBusinessDays;
+    window.buildReservationFormTermsHtml = buildReservationFormTermsHtml;
+    window.submitReservationToServer = submitReservationToServer;
+    window.refreshBrokerReservations = refreshBrokerReservations;
+}
