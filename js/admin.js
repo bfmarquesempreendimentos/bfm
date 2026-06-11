@@ -1918,7 +1918,11 @@ function loadReservationsData() {
             }
             if (reservation.status === 'active') {
                 actions += '<button class="btn-action btn-approve" onclick="extendReservationAdmin(\'' + rid + '\')" title="Prorrogar 3 dias úteis"><i class="fas fa-clock"></i></button>';
+                actions += '<button class="btn-action btn-edit" onclick="markReservationSignedAdmin(\'' + rid + '\')" title="Marcar como assinado"><i class="fas fa-file-signature"></i></button>';
                 actions += '<button class="btn-action btn-delete" onclick="releaseReservationAdmin(\'' + rid + '\')" title="Liberar unidade"><i class="fas fa-unlock"></i></button>';
+            }
+            if (reservation.status === 'signed') {
+                actions += '<button class="btn-action btn-approve" onclick="openSaleFromReservation(\'' + rid + '\')" title="Cadastrar em Vendas"><i class="fas fa-shopping-cart"></i></button>';
             }
             }
             return '<tr' + rowClass + '>' +
@@ -2041,16 +2045,35 @@ function openAdminCreateReservationModal() {
     }
     propSel.innerHTML = propOpts.join('');
     if (brokerSel) {
-        var brokerOpts = ['<option value="">A definir depois</option>'];
-        var list = typeof getActiveBrokers === 'function' ? getActiveBrokers() : (typeof brokers !== 'undefined' ? brokers : []);
-        for (var i = 0; i < list.length; i++) {
-            if (list[i].isActive === false) continue;
-            brokerOpts.push('<option value="' + list[i].id + '">' + (list[i].name || list[i].email) + '</option>');
-        }
-        brokerSel.innerHTML = brokerOpts.join('');
+        brokerSel.innerHTML = '<option value="">Carregando corretores...</option>';
+        populateAdminReservationBrokers(brokerSel);
     }
     populateAdminReservationUnits();
     modal.style.display = 'block';
+}
+
+function populateAdminReservationBrokers(selectEl) {
+    if (!selectEl) return;
+    function renderBrokers(list) {
+        var brokerOpts = ['<option value="">A definir depois</option>'];
+        var sorted = (list || []).slice().sort(function(a, b) {
+            return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''));
+        });
+        for (var i = 0; i < sorted.length; i++) {
+            if (sorted[i].isActive === false) continue;
+            brokerOpts.push('<option value="' + sorted[i].id + '">' + (sorted[i].name || sorted[i].email) + '</option>');
+        }
+        selectEl.innerHTML = brokerOpts.join('');
+    }
+    if (typeof loadBrokersFromFirestore === 'function') {
+        loadBrokersFromFirestore().then(function() {
+            renderBrokers(typeof getAllBrokers === 'function' ? getAllBrokers() : []);
+        }).catch(function() {
+            renderBrokers(typeof getAllBrokers === 'function' ? getAllBrokers() : []);
+        });
+        return;
+    }
+    renderBrokers(typeof getAllBrokers === 'function' ? getAllBrokers() : []);
 }
 
 function closeAdminCreateReservationModal() {
@@ -2119,31 +2142,164 @@ function assignBrokerToReservation(reservationId) {
         showMessage('Sem permissão.', 'error');
         return;
     }
-    var list = typeof getActiveBrokers === 'function' ? getActiveBrokers() : (typeof brokers !== 'undefined' ? brokers : []);
-    if (!list.length) {
-        showMessage('Nenhum corretor cadastrado.', 'warning');
+    _assignBrokerReservationId = reservationId;
+    _assignBrokerList = [];
+    var modal = document.getElementById('assignBrokerModal');
+    var sel = document.getElementById('assignBrokerSelect');
+    var search = document.getElementById('assignBrokerSearch');
+    if (!modal || !sel) return;
+    if (search) search.value = '';
+    sel.innerHTML = '<option value="">Carregando corretores...</option>';
+    modal.style.display = 'block';
+
+    function finish(list) {
+        _assignBrokerList = (list || []).filter(function(b) { return b.isActive !== false; });
+        _assignBrokerList.sort(function(a, b) {
+            return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''));
+        });
+        renderAssignBrokerOptions(_assignBrokerList);
+    }
+
+    if (typeof loadBrokersFromFirestore === 'function') {
+        loadBrokersFromFirestore().then(function() {
+            finish(typeof getAllBrokers === 'function' ? getAllBrokers() : []);
+        }).catch(function() {
+            finish(typeof getAllBrokers === 'function' ? getAllBrokers() : []);
+        });
         return;
     }
-    var options = list.map(function(b, idx) {
-        return (idx + 1) + ' — ' + (b.name || b.email);
-    }).join('\n');
-    var choice = prompt('Digite o número do corretor:\n' + options);
-    if (!choice) return;
-    var idx = parseInt(choice, 10) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= list.length) {
-        showMessage('Opção inválida.', 'error');
+    finish(typeof getAllBrokers === 'function' ? getAllBrokers() : (typeof brokers !== 'undefined' ? brokers : []));
+}
+
+var _assignBrokerReservationId = null;
+var _assignBrokerList = [];
+
+function renderAssignBrokerOptions(list) {
+    var sel = document.getElementById('assignBrokerSelect');
+    if (!sel) return;
+    if (!list || !list.length) {
+        sel.innerHTML = '<option value="">Nenhum corretor ativo encontrado</option>';
+        return;
+    }
+    var html = [];
+    for (var i = 0; i < list.length; i++) {
+        var b = list[i];
+        var label = (b.name || b.email || 'Corretor') + (b.email ? ' — ' + b.email : '');
+        html.push('<option value="' + String(b.id).replace(/"/g, '&quot;') + '">' + label + '</option>');
+    }
+    sel.innerHTML = html.join('');
+}
+
+function filterAssignBrokerOptions() {
+    var search = document.getElementById('assignBrokerSearch');
+    var q = search ? String(search.value || '').toLowerCase().trim() : '';
+    if (!q) {
+        renderAssignBrokerOptions(_assignBrokerList);
+        return;
+    }
+    var filtered = _assignBrokerList.filter(function(b) {
+        var text = ((b.name || '') + ' ' + (b.email || '') + ' ' + (b.creci || '')).toLowerCase();
+        return text.indexOf(q) >= 0;
+    });
+    renderAssignBrokerOptions(filtered);
+}
+
+function closeAssignBrokerModal() {
+    var modal = document.getElementById('assignBrokerModal');
+    if (modal) modal.style.display = 'none';
+    _assignBrokerReservationId = null;
+}
+
+function confirmAssignBroker() {
+    var sel = document.getElementById('assignBrokerSelect');
+    if (!sel || !sel.value || !_assignBrokerReservationId) {
+        showMessage('Selecione um corretor.', 'warning');
         return;
     }
     adminReservationMutate({
         action: 'assign_broker',
-        reservationId: reservationId,
-        brokerId: list[idx].id
+        reservationId: _assignBrokerReservationId,
+        brokerId: sel.value
     }).then(function() {
         showMessage('Corretor atribuído.', 'success');
+        closeAssignBrokerModal();
         loadReservationsData();
     }).catch(function(err) {
         showMessage(err.message || 'Erro ao atribuir corretor.', 'error');
     });
+}
+
+function markReservationSignedAdmin(reservationId) {
+    if (!adminCan('reservations')) {
+        showMessage('Sem permissão.', 'error');
+        return;
+    }
+    if (!confirm('Marcar esta reserva como assinada?\n\nA unidade ficará como "Assinado" no inventário e poderá ser cadastrada em Vendas.')) return;
+    adminReservationMutate({
+        action: 'mark_signed',
+        reservationId: reservationId,
+        signedBy: adminReservationActor()
+    }).then(function(data) {
+        showMessage('Reserva marcada como assinada.', 'success');
+        loadReservationsData();
+        loadExpiringReservations();
+        if (confirm('Abrir o formulário de Vendas com os dados desta reserva?')) {
+            var row = data && data.reservation ? data.reservation : null;
+            openSaleFromReservation(reservationId, row);
+        }
+    }).catch(function(err) {
+        showMessage(err.message || 'Erro ao marcar como assinado.', 'error');
+    });
+}
+
+function openSaleFromReservation(reservationId, reservationRow) {
+    var reservation = reservationRow;
+    if (!reservation) {
+        var list = (typeof window !== 'undefined' && window._adminReservationsCache) ? window._adminReservationsCache : [];
+        reservation = list.filter(function(r) { return String(r.id) === String(reservationId); })[0];
+    }
+    if (!reservation) {
+        showMessage('Reserva não encontrada.', 'error');
+        return;
+    }
+    if (typeof loadSalesPropertyOptions === 'function') loadSalesPropertyOptions();
+    showSection('sales');
+    var propEl = document.getElementById('saleProperty');
+    if (propEl) {
+        propEl.value = String(reservation.propertyId);
+        if (typeof updateSalePropertyUnitField === 'function') updateSalePropertyUnitField();
+    }
+    var unitCode = reservation.unitCode || '';
+    var unitSelect = document.getElementById('saleUnitSelect');
+    var unitInput = document.getElementById('saleUnitCode');
+    if (unitSelect && unitSelect.style.display !== 'none') {
+        unitSelect.value = unitCode;
+    } else if (unitInput) {
+        unitInput.value = unitCode;
+    }
+    var client = reservation.client || reservation.clientInfo || {};
+    var nameEl = document.getElementById('saleClientName');
+    var cpfEl = document.getElementById('saleClientCPF');
+    var emailEl = document.getElementById('saleClientEmail');
+    var phoneEl = document.getElementById('saleClientPhone');
+    var priceEl = document.getElementById('salePrice');
+    var notesEl = document.getElementById('saleNotes');
+    if (nameEl) nameEl.value = client.name && client.name !== 'Migrado do inventário' ? client.name : '';
+    if (cpfEl) cpfEl.value = client.cpf || '';
+    if (emailEl) emailEl.value = client.email || '';
+    if (phoneEl) phoneEl.value = client.phone || '';
+    if (priceEl && reservation.unitPrice != null) {
+        priceEl.value = Number(reservation.unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    if (notesEl) {
+        var noteBits = [];
+        if (reservation.brokerName) noteBits.push('Corretor: ' + reservation.brokerName);
+        if (reservation.id) noteBits.push('Reserva: ' + reservation.id);
+        notesEl.value = noteBits.join(' · ');
+    }
+    var syncEl = document.getElementById('saleSyncUnitStatus');
+    if (syncEl) syncEl.checked = true;
+    showMessage('Formulário de Vendas preenchido com os dados da reserva. Complete CPF/email e anexe o contrato.', 'info');
 }
 
 var _brokerCampaignPreview = null;

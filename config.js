@@ -155,7 +155,7 @@ var CONFIG = {
     },
 
     /** Versão de cache para CSS/JS (incrementar a cada deploy público) */
-    assetVersion: '24',
+    assetVersion: '25',
 
     /** Permissões por perfil do painel admin (espelha functions/admin-accounts.js) */
     adminRoles: {

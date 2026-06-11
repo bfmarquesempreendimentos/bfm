@@ -754,6 +754,38 @@ async function adminReservationsMutate(req, res) {
       return res.json({ ok: true, id: docId, status: 'cancelled' });
     }
 
+    if (action === 'mark_signed') {
+      if (existing.status !== 'active') {
+        return res.status(400).json({ error: 'Somente reservas ativas podem ser marcadas como assinadas.' });
+      }
+      var signedAt = isoNow();
+      var patchSigned = {
+        status: 'signed',
+        signedAt: signedAt,
+        signedBy: body.signedBy || authResult.email || 'admin',
+        renewalDue: false,
+        renewalDueAt: '',
+        updatedAt: signedAt,
+      };
+      await ref.set(patchSigned, { merge: true });
+      if (existing.unitCode) {
+        await syncUnitForReservation(db, existing, 'assinado');
+      }
+      var mergedSigned = Object.assign({}, existing, patchSigned);
+      if (existing.brokerEmail) {
+        fcmPush.notifyUserEmail(
+          db,
+          existing.brokerEmail,
+          'Reserva assinada',
+          (existing.propertyTitle || 'Imóvel') + (existing.unitCode ? ' · ' + existing.unitCode : '') +
+            ' — pronta para cadastro em Vendas.',
+          { type: 'reservation_signed', reservationId: docId },
+          'https://bfmarquesempreendimentos.github.io/bfm/admin.html#sales'
+        ).catch(function() {});
+      }
+      return res.json({ ok: true, reservation: reservationPublicRow(docId, mergedSigned) });
+    }
+
     if (action === 'extend') {
       if (existing.status !== 'active') {
         return res.status(400).json({ error: 'Somente reservas ativas podem ser prorrogadas.' });

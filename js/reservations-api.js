@@ -99,7 +99,8 @@ function reservationStatusLabel(status) {
         expired: 'Expirada',
         cancelled: 'Cancelada',
         rejected: 'Rejeitada',
-        converted: 'Convertida em venda'
+        converted: 'Convertida em venda',
+        signed: 'Assinado'
     };
     return map[status] || status;
 }

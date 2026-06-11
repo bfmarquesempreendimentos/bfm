@@ -391,6 +391,7 @@
                     <option value="expired">Expiradas</option>
                     <option value="cancelled">Canceladas</option>
                     <option value="rejected">Rejeitadas</option>
+                    <option value="signed">Assinadas</option>
                 </select>
                 <select id="resFilterProperty" onchange="loadReservationsData()">
                     <option value="">Todos empreendimentos</option>
@@ -1438,6 +1439,26 @@
         </div>
     </div>
 
+    <!-- Assign Broker Modal -->
+    <div id="assignBrokerModal" class="modal">
+        <div class="modal-content property-form-modal">
+            <span class="close" onclick="closeAssignBrokerModal()">&times;</span>
+            <h2>Definir corretor</h2>
+            <div class="form-group">
+                <label for="assignBrokerSearch">Buscar por nome ou email</label>
+                <input type="text" id="assignBrokerSearch" placeholder="Digite para filtrar..." oninput="filterAssignBrokerOptions()">
+            </div>
+            <div class="form-group">
+                <label for="assignBrokerSelect">Corretor</label>
+                <select id="assignBrokerSelect" size="14" style="width:100%;min-height:240px;max-height:360px;overflow-y:auto;"></select>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeAssignBrokerModal()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmAssignBroker()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Repair Edit Modal -->
     <div id="repairEditModal" class="modal">
         <div class="modal-content">
@@ -1551,7 +1572,7 @@
     <script src="js/fcm-push.js?v=1"></script>
     <script src="js/admin-dashboard-charts.js?v=1"></script>
     <script src="js/admin-reports.js?v=1"></script>
-    <script src="js/admin.js?v=38"></script>
+    <script src="js/admin.js?v=39"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
