@@ -1,0 +1,57 @@
+# Publica o site estático em https://bfmarquesempreendimentos.github.io/bfm/
+# Na primeira vez: GitHub → repositório bfm → Settings → Pages → Source: GitHub Actions
+
+name: Publicar site (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Montar pasta do site (sem functions/backend)
+        run: |
+          mkdir -p public
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='functions' \
+            --exclude='node_modules' \
+            --exclude='tests' \
+            --exclude='.cursor' \
+            --exclude='agent-transcripts' \
+            --exclude='.firebase' \
+            --exclude='.venv' \
+            --exclude='venv' \
+            ./ public/
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
