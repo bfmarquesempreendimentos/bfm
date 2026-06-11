@@ -252,6 +252,18 @@
                 </div>
             </div>
 
+            <div class="dashboard-charts-row admin-kpi-row">
+                <div class="dashboard-card dashboard-card--chart">
+                    <canvas id="chartUnitsInventory" height="200"></canvas>
+                </div>
+                <div class="dashboard-card dashboard-card--chart">
+                    <canvas id="chartSalesMonth" height="200"></canvas>
+                </div>
+                <div class="dashboard-card dashboard-card--chart">
+                    <canvas id="chartRepairsStatus" height="200"></canvas>
+                </div>
+            </div>
+
             <!-- Recent Activity -->
             <div class="dashboard-grid">
                 <div class="dashboard-card dashboard-card--stretch">
@@ -893,7 +905,12 @@
             <div class="section-header">
                 <div class="section-header-main">
                     <h2>Relatórios</h2>
-                    <p class="section-subtitle">Gráficos e indicadores a partir dos dados locais do painel.</p>
+                    <p class="section-subtitle">Gráficos e indicadores a partir do Firestore (vendas, reservas, reparos).</p>
+                </div>
+                <div class="header-actions">
+                    <button type="button" class="btn btn-secondary" onclick="exportReportsPdf()">
+                        <i class="fas fa-file-pdf" aria-hidden="true"></i> Exportar PDF
+                    </button>
                 </div>
             </div>
 
@@ -1456,6 +1473,7 @@
     <script src="js/email-service.js"></script>
     <!-- Firebase (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
@@ -1477,7 +1495,11 @@
     <script src="js/admin-analytics.js"></script>
     <script src="js/admin-repairs.js?v=7"></script>
     <script src="js/admin-boletos.js?v=1"></script>
-    <script src="js/admin.js?v=35"></script>
+    <script src="js/fcm-push.js?v=1"></script>
+    <script src="js/admin-dashboard-charts.js?v=1"></script>
+    <script src="js/admin-reports.js?v=1"></script>
+    <script src="js/admin.js?v=36"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
 </html>

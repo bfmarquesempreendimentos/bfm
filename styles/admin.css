@@ -3255,4 +3255,19 @@ button.wa-stat.wa-stat--click:focus {
 }
 .admin-filters-row select { min-width: 180px; padding: 8px 10px; }
 .admin-filter-check { font-size: 0.9rem; color: #374151; }
+.dashboard-charts-row { margin-bottom: 20px; }
+.dashboard-card--chart {
+    flex: 1 1 280px;
+    min-width: 260px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+.performance-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
 

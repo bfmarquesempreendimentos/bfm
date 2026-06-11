@@ -354,6 +354,9 @@ function showClientDashboard() {
     loadClientProfile();
     
     showDashboardTab('properties');
+    if (typeof initFcmPush === 'function') {
+        setTimeout(function() { initFcmPush('client'); }, 1500);
+    }
 }
 
 // Mostrar tab do dashboard

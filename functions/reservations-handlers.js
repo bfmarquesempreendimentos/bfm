@@ -5,6 +5,7 @@ const { verifyAdminAuth, extractIdToken } = require('./admin-auth');
 const brokerAuth = require('./broker-auth');
 const { resolveSaleSlot, getPropertyUnitsRaw } = require('./sale-unit-validation');
 const { allowCors, parseJsonBody, applyUnitStatusOverride } = require('./property-sales-handlers');
+const fcmPush = require('./fcm-push');
 
 var RESERVATION_BUSINESS_DAYS = 3;
 var ACTIVE_STATUSES = { pending: true, active: true };
@@ -216,6 +217,13 @@ async function brokerCreateReservation(req, res) {
     };
 
     var ref = await db.collection('reservations').add(doc);
+    fcmPush.notifyAdmins(
+      db,
+      'Nova solicitação de reserva',
+      broker.name + ' — ' + (body.propertyTitle || 'Unidade') + (unitCode ? ' · ' + unitCode : ''),
+      { type: 'reservation', reservationId: ref.id },
+      'https://bfmarquesempreendimentos.github.io/bfm/admin.html#reservations'
+    ).catch(function() {});
     return res.json({ ok: true, reservation: reservationPublicRow(ref.id, doc) });
   } catch (err) {
     console.error('brokerCreateReservation:', err);
@@ -416,6 +424,16 @@ async function adminReservationsMutate(req, res) {
       await ref.set(patchApprove, { merge: true });
       await syncUnitForReservation(db, existing, 'reservado');
       var merged = Object.assign({}, existing, patchApprove);
+      if (existing.brokerEmail) {
+        fcmPush.notifyUserEmail(
+          db,
+          existing.brokerEmail,
+          'Reserva aprovada',
+          (existing.propertyTitle || 'Imóvel') + (existing.unitCode ? ' · ' + existing.unitCode : ''),
+          { type: 'reservation_approved', reservationId: docId },
+          'https://bfmarquesempreendimentos.github.io/bfm/'
+        ).catch(function() {});
+      }
       return res.json({ ok: true, reservation: reservationPublicRow(docId, merged) });
     }
 

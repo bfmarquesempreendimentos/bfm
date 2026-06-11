@@ -60,6 +60,9 @@ function initializeAdminPanel() {
     // Load initial data
     loadDashboardData();
     setupAdminEventListeners();
+    setTimeout(function() {
+        if (typeof initFcmPush === 'function') initFcmPush('admin');
+    }, 2500);
     // Pré-carregar reparos (Cloud Function primeiro - evita falhas do Firestore no Mac)
     (function preloadRepairs() {
         function mergeAndSave(fromServer) {
@@ -1216,10 +1219,22 @@ function renderDashboardActivityList(items) {
     }).join('');
 }
 
-function buildMergedDashboardActivity(repairsList, salesList) {
+function buildMergedDashboardActivity(repairsList, salesList, recentReservationsFromBundle) {
     var items = [];
     var i;
-    if (typeof reservations !== 'undefined' && reservations.length) {
+    if (Array.isArray(recentReservationsFromBundle) && recentReservationsFromBundle.length) {
+        for (i = 0; i < recentReservationsFromBundle.length; i++) {
+            var rv = recentReservationsFromBundle[i];
+            items.push({
+                t: new Date(rv.requestedAt || 0).getTime(),
+                type: 'reservation',
+                icon: 'fas fa-calendar-check',
+                text: 'Reserva: ' + (rv.propertyTitle || 'Imóvel') + (rv.unitCode ? ' · ' + rv.unitCode : '') +
+                    (rv.clientName ? ' · ' + rv.clientName : '') + ' (' + (rv.status || '') + ')',
+                time: formatDashboardRelativeTime(rv.requestedAt)
+            });
+        }
+    } else if (typeof reservations !== 'undefined' && reservations.length) {
         var resCopy = reservations.slice().sort(function(a, b) {
             return new Date(b.createdAt) - new Date(a.createdAt);
         }).slice(0, 6);
@@ -1285,7 +1300,9 @@ function applyRemoteDashboardWidgets(waStats, repairsOpen, salesCount, brokersAc
         if (waStats && waStats.emAtendimento > 0) bits.push(waStats.emAtendimento + ' em atendimento');
         if (waStats && waStats.followUpElegivel > 0) bits.push(waStats.followUpElegivel + ' follow-up ativo');
         if (waStats && waStats.followUpExcluded > 0) bits.push(waStats.followUpExcluded + ' sem follow-up');
-        if (bundleExtras && bundleExtras.funnelReservas > 0) bits.push(bundleExtras.funnelReservas + ' reservas');
+        if (bundleExtras && bundleExtras.reservationsPending > 0) bits.push(bundleExtras.reservationsPending + ' reservas pendentes');
+        if (bundleExtras && bundleExtras.reservationsActive > 0) bits.push(bundleExtras.reservationsActive + ' reservas ativas');
+        if (bundleExtras && bundleExtras.funnelReservas > 0) bits.push(bundleExtras.funnelReservas + ' reservas (vendas)');
         waSub.textContent = bits.join(' · ');
     }
     if (repEl) repEl.textContent = repairsOpen != null ? String(repairsOpen) : '0';
@@ -1307,6 +1324,7 @@ function fetchDashboardRemoteThenActivity(localBrokers) {
         var salesList = null;
         if (bundle && !bundle.error && bundle.wa) {
             applyRemoteDashboardWidgets(bundle.wa, bundle.repairsOpen, bundle.salesCount, bundle.brokersActive, localBrokers, bundle);
+            if (typeof renderDashboardCharts === 'function') renderDashboardCharts(bundle);
         } else {
             return Promise.all([
                 adminFetchJson('/getBrokers'),
@@ -1342,7 +1360,8 @@ function fetchDashboardRemoteThenActivity(localBrokers) {
             adminFetchJson('/getRepairs'),
             fetchDashboardSalesListForActivity()
         ]).then(function(rs) {
-            renderDashboardActivityList(buildMergedDashboardActivity(rs[0], rs[1]));
+            var recentRes = (bundle && bundle.recentReservations) ? bundle.recentReservations : null;
+            renderDashboardActivityList(buildMergedDashboardActivity(rs[0], rs[1], recentRes));
         });
     }).catch(function() {
         applyRemoteDashboardWidgets({ total: 0 }, 0, 0, undefined, localBrokers);
@@ -2761,11 +2780,7 @@ function closeBrokerModal() {
     editingBroker = null;
 }
 
-// Load reports data
-function loadReportsData() {
-    // In a real application, generate charts and reports
-    console.log('Loading reports data...');
-}
+// Load reports — implementado em js/admin-reports.js
 
 // Load settings data
 function loadSettingsData() {
@@ -2948,19 +2963,7 @@ function refreshDashboard() {
     showMessage('Dashboard atualizado!', 'success');
 }
 
-// Generate sales report
-function generateSalesReport() {
-    const startDate = document.getElementById('salesStartDate').value;
-    const endDate = document.getElementById('salesEndDate').value;
-    
-    if (!startDate || !endDate) {
-        alert('Por favor, selecione as datas de início e fim.');
-        return;
-    }
-    
-    // In a real application, generate actual sales report
-    showMessage('Relatório de vendas gerado!', 'success');
-}
+// Generate sales report — implementado em js/admin-reports.js
 
 // Load notifications data
 function loadNotificationsData() {

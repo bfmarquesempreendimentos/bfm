@@ -40,6 +40,7 @@ const {
 } = require('./chatbot/whatsapp-api');
 const propertySalesHandlers = require('./property-sales-handlers');
 const reservationsHandlers = require('./reservations-handlers');
+const fcmPush = require('./fcm-push');
 const brokerCampaignContent = require('./chatbot/broker-campaign-content');
 const { verifyAdminFromBody, verifyAdminFromReq } = require('./admin-accounts');
 const { verifyAdminAuth, extractIdToken } = require('./admin-auth');
@@ -2820,6 +2821,9 @@ exports.brokerMyReservations = functions.https.onRequest((req, res) =>
 exports.adminReservationsMutate = functions.https.onRequest((req, res) =>
   reservationsHandlers.adminReservationsMutate(req, res)
 );
+exports.registerFcmToken = functions.https.onRequest((req, res) =>
+  fcmPush.registerFcmToken(req, res)
+);
 
 // ─── API de Reparos: CRIAR (garante sync Mac/Windows - não depende do Firestore client) ──
 exports.createRepair = functions.https.onRequest(async (req, res) => {
@@ -2882,6 +2886,13 @@ exports.createRepair = functions.https.onRequest(async (req, res) => {
     };
     const db = admin.firestore();
     const docRef = await db.collection('repairRequests').add(repair);
+    fcmPush.notifyAdmins(
+      db,
+      'Novo chamado de reparo',
+      (repair.clientName || 'Cliente') + ' — ' + (repair.propertyTitle || repair.description || '').slice(0, 80),
+      { type: 'repair', firestoreId: docRef.id },
+      'https://bfmarquesempreendimentos.github.io/bfm/admin.html#repairs'
+    ).catch(function() {});
     return res.status(201).json({ success: true, id: repair.id, firestoreId: docRef.id });
   } catch (err) {
     console.error('Erro ao criar reparo:', err);
@@ -2928,16 +2939,42 @@ exports.adminDashboardBundle = functions.https.onRequest(async (req, res) => {
   try {
     const wa = await getLeadStats();
     const db = admin.firestore();
-    const [repSnap, salesSnap, brokerSnap] = await Promise.all([
+    const [repSnap, salesSnap, brokerSnap, resSnap] = await Promise.all([
       db.collection('repairRequests').get(),
       db.collection('propertySales').get(),
       db.collection('brokers').get(),
+      db.collection('reservations').get(),
     ]);
     let repairsOpen = 0;
+    var repairsByStatus = { pendente: 0, em_andamento: 0, concluido: 0, cancelado: 0, outro: 0 };
     repSnap.forEach((doc) => {
       const st = String(doc.data().status || '').toLowerCase();
       if (st !== 'concluido' && st !== 'cancelado') repairsOpen++;
+      if (repairsByStatus[st] != null) repairsByStatus[st]++;
+      else repairsByStatus.outro++;
     });
+    var reservationsPending = 0;
+    var reservationsActive = 0;
+    var recentReservations = [];
+    resSnap.forEach(function(doc) {
+      var d = doc.data() || {};
+      var st = String(d.status || '');
+      if (st === 'pending') reservationsPending++;
+      if (st === 'active') reservationsActive++;
+      recentReservations.push({
+        id: doc.id,
+        propertyTitle: d.propertyTitle || '',
+        unitCode: d.unitCode || '',
+        brokerName: d.brokerName || '',
+        clientName: (d.client && d.client.name) || '',
+        status: st,
+        requestedAt: d.requestedAt || d.createdAt || '',
+      });
+    });
+    recentReservations.sort(function(a, b) {
+      return new Date(b.requestedAt || 0) - new Date(a.requestedAt || 0);
+    });
+    recentReservations = recentReservations.slice(0, 8);
     let brokersActive = 0;
     brokerSnap.forEach((doc) => {
       if (doc.data().isActive === true) brokersActive++;
@@ -2959,15 +2996,33 @@ exports.adminDashboardBundle = functions.https.onRequest(async (req, res) => {
     });
     var visitas = 0;
     var reservas = 0;
+    var salesByMonth = {};
+    var now = new Date();
+    var mi;
+    for (mi = 0; mi < 6; mi++) {
+      var dt = new Date(now.getFullYear(), now.getMonth() - (5 - mi), 1);
+      var key = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+      salesByMonth[key] = 0;
+    }
     salesSnap.forEach(function(doc) {
       var d = doc.data() || {};
       if (d.visitScheduled || d.status === 'visita') visitas++;
       if (d.status === 'reservado' || d.reservationAt) reservas++;
+      var saleDate = d.saleDate || d.createdAt;
+      if (saleDate) {
+        var sd = new Date(saleDate);
+        if (!isNaN(sd.getTime())) {
+          var mk = sd.getFullYear() + '-' + String(sd.getMonth() + 1).padStart(2, '0');
+          if (salesByMonth[mk] != null) salesByMonth[mk]++;
+        }
+      }
     });
     return res.json({
       wa: wa,
       repairsOpen: repairsOpen,
+      repairsByStatus: repairsByStatus,
       salesCount: salesSnap.size,
+      salesByMonth: salesByMonth,
       brokersActive: brokersActive,
       brokersTotal: brokerSnap.size,
       unitsDisponivel: unitsDisponivel,
@@ -2975,6 +3030,9 @@ exports.adminDashboardBundle = functions.https.onRequest(async (req, res) => {
       unitsAssinado: unitsAssinado,
       funnelVisitas: visitas,
       funnelReservas: reservas,
+      reservationsPending: reservationsPending,
+      reservationsActive: reservationsActive,
+      recentReservations: recentReservations,
       followUpExcluded: wa.followUpExcluded || 0,
       followUpElegivel: wa.followUpElegivel || 0,
     });
@@ -4069,6 +4127,17 @@ exports.patchRepair = functions.https.onRequest(async (req, res) => {
       patch.comentarios = list;
     }
     await ref.set(patch, { merge: true });
+    if (isAdmin && body.status && existing.clientEmail) {
+      var stLabel = String(body.status);
+      fcmPush.notifyUserEmail(
+        db,
+        existing.clientEmail,
+        'Atualização do seu reparo',
+        'Status: ' + stLabel + (existing.propertyTitle ? ' — ' + existing.propertyTitle : ''),
+        { type: 'repair_status', firestoreId: firestoreId || ref.id, status: stLabel },
+        'https://bfmarquesempreendimentos.github.io/bfm/client-area.html'
+      ).catch(function() {});
+    }
     return res.json({ success: true });
   } catch (err) {
     console.error('patchRepair:', err);

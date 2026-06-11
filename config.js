@@ -115,6 +115,11 @@ var CONFIG = {
     cloudFunctions: {
         baseURL: 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net'
     },
+
+    /** Web Push — chave pública em Firebase Console > Cloud Messaging > Web Push certificates */
+    fcm: {
+        vapidKey: ''
+    },
     
     // Configurações de Analytics
     analytics: {
@@ -150,7 +155,7 @@ var CONFIG = {
     },
 
     /** Versão de cache para CSS/JS (incrementar a cada deploy público) */
-    assetVersion: '21'
+    assetVersion: '22'
 };
 
 // Função para obter configuração
