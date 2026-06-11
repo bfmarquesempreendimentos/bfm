@@ -37,7 +37,9 @@ function initializeAdminPanel() {
     var legacyCreds = getAdminApiCredentials();
     if (typeof firebase !== 'undefined' && firebase.auth) {
         firebase.auth().onAuthStateChanged(function(user) {
-            if (!user && (!legacyCreds.email || !legacyCreds.password)) {
+            if (user) return;
+            if (legacyCreds.email && legacyCreds.password) return;
+            if (localStorage.getItem('adminUser')) {
                 redirectToLogin();
             }
         });
@@ -138,13 +140,50 @@ function adminLogout() {
 function getAdminIdToken() {
     return new Promise(function(resolve) {
         try {
-            if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) {
-                firebase.auth().currentUser.getIdToken().then(resolve).catch(function() { resolve(null); });
+            if (typeof firebase === 'undefined' || !firebase.auth) {
+                resolve(null);
                 return;
             }
-        } catch (e) {}
-        resolve(null);
+            var auth = firebase.auth();
+            if (auth.currentUser) {
+                auth.currentUser.getIdToken().then(resolve).catch(function() { resolve(null); });
+                return;
+            }
+            var settled = false;
+            var unsub = auth.onAuthStateChanged(function(user) {
+                if (settled) return;
+                settled = true;
+                if (typeof unsub === 'function') unsub();
+                if (!user) {
+                    resolve(null);
+                    return;
+                }
+                user.getIdToken().then(resolve).catch(function() { resolve(null); });
+            });
+            setTimeout(function() {
+                if (settled) return;
+                settled = true;
+                if (typeof unsub === 'function') unsub();
+                resolve(null);
+            }, 4000);
+        } catch (e) {
+            resolve(null);
+        }
     });
+}
+
+function hasAdminFirebaseAuth() {
+    try {
+        return !!(typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser);
+    } catch (e) {
+        return false;
+    }
+}
+
+function ensureAdminApiReady() {
+    if (hasAdminFirebaseAuth()) return true;
+    var creds = getAdminApiCredentials();
+    return !!(creds.email && creds.password);
 }
 
 function getAdminApiCredentials() {
@@ -159,13 +198,12 @@ function getAdminApiCredentials() {
 }
 
 function runMigrateLegacySaleSlots() {
-    var creds = getAdminApiCredentials();
-    if (!creds.email || !creds.password) {
+    if (!ensureAdminApiReady()) {
         showMessage('Faça login novamente no painel para executar a migração.', 'error');
         return;
     }
     if (!confirm('Isso atualiza no Firestore todas as vendas sem saleSlotKey (legado). Continuar?')) return;
-    adminPostJson('/adminMigrateLegacySaleSlots', { adminEmail: creds.email, adminPassword: creds.password })
+    adminPostJson('/adminMigrateLegacySaleSlots', {})
         .then(function(r) {
             var msg = 'Migração concluída: ' + (r.updated || 0) + ' atualizadas, ' + (r.skippedAlreadyHadSlot || 0) + ' já tinham chave.';
             showMessage(msg, 'success');
@@ -181,8 +219,16 @@ function runMigrateBrokerPasswords() {
     if (!confirm('Converter senhas em texto puro dos corretores para hash seguro? Execute só uma vez após a Onda 6.')) return;
     adminPostJson('/adminMigrateBrokerPasswords', {})
         .then(function(r) {
-            var msg = 'Senhas: ' + (r.migrated || 0) + ' migradas, ' + (r.skipped || 0) + ' ignoradas (de ' + (r.total || 0) + ' corretores).';
-            showMessage(msg, 'success');
+            var migrated = r.migrated || 0;
+            var skipped = r.skipped || 0;
+            var total = r.total || 0;
+            var msg;
+            if (migrated === 0 && skipped === total && total > 0) {
+                msg = 'Todas as ' + total + ' senhas já estão protegidas com hash. Nada a migrar.';
+            } else {
+                msg = 'Senhas: ' + migrated + ' migradas, ' + skipped + ' ignoradas (de ' + total + ' corretores).';
+            }
+            showMessage(msg, migrated > 0 ? 'success' : 'info');
         })
         .catch(function(err) {
             showMessage(err.message || 'Erro na migração de senhas.', 'error');
@@ -207,20 +253,23 @@ async function loadSalesData() {
     setupSaleFormMasks();
     const photosGroup = document.getElementById('saleContractPhotosGroup');
     if (photosGroup) photosGroup.style.display = (typeof isSuperAdmin === 'function' && isSuperAdmin()) ? 'none' : 'block';
+    var token = await getAdminIdToken();
     var creds = getAdminApiCredentials();
-    if (creds.email && creds.password) {
-        try {
-            var data = await adminPostJson('/adminPropertySalesList', { adminEmail: creds.email, adminPassword: creds.password });
-            if (data && Array.isArray(data.sales)) {
-                localStorage.setItem('propertySales', JSON.stringify(data.sales));
+    if (!token && !(creds.email && creds.password)) {
+        showMessage('Sessão expirada. Saia e entre novamente no painel administrativo.', 'warning');
+        renderSalesTable();
+        updateSaleFormModeUi();
+        return;
+    }
+    try {
+        var data = await adminPostJson('/adminPropertySalesList', {});
+        if (data && Array.isArray(data.sales)) {
+            localStorage.setItem('propertySales', JSON.stringify(data.sales));
             if (typeof loadPropertySales === 'function') loadPropertySales();
-            }
-        } catch (e) {
-            console.warn('Erro ao carregar vendas:', e);
-            showMessage('Não foi possível carregar vendas. Faça login novamente no painel (email e senha) para renovar a sessão segura.', 'error');
         }
-    } else {
-        showMessage('Para carregar vendas, saia e entre no painel novamente com email e senha (sessão segura).', 'warning');
+    } catch (e) {
+        console.warn('Erro ao carregar vendas:', e);
+        showMessage('Não foi possível carregar vendas. Verifique sua sessão e tente novamente.', 'error');
     }
     renderSalesTable();
     updateSaleFormModeUi();
@@ -599,10 +648,9 @@ function beginEditSale(saleId) {
 
 async function handleSaleFormSubmission(e) {
     if (e && e.preventDefault) e.preventDefault();
-    
-    var creds = getAdminApiCredentials();
-    if (!creds.email || !creds.password) {
-        showMessage('Faça logout e login novamente no painel para registrar vendas com segurança.', 'error');
+
+    if (!ensureAdminApiReady()) {
+        showMessage('Sessão expirada. Saia e entre novamente no painel.', 'error');
         return;
     }
 
@@ -666,8 +714,6 @@ async function handleSaleFormSubmission(e) {
             notes: (document.getElementById('saleNotes') && document.getElementById('saleNotes').value) || '',
         };
         var updPayload = {
-            adminEmail: creds.email,
-            adminPassword: creds.password,
             action: 'update',
             saleFirestoreId: editingSaleFirestoreId,
             sale: patch,
@@ -726,8 +772,6 @@ async function handleSaleFormSubmission(e) {
 
     try {
         var result = await adminPostJson('/adminPropertySaleMutate', {
-            adminEmail: creds.email,
-            adminPassword: creds.password,
             action: 'create',
             sale: saleData,
             syncUnitStatus: syncUnit && !!slot.unitCode,
@@ -776,23 +820,17 @@ async function registerClientFromSaleAndSendCredentials(saleData, saleResult) {
 
     if (typeof sendClientCredentialsEmail !== 'function') return;
 
-    var creds = getAdminApiCredentials();
-
     if (r.created) {
         await sendClientCredentialsEmail(clientName, email, generatedPassword, true);
         showMessage('Credenciais enviadas por email ao cliente. Ele precisará alterar a senha no primeiro acesso.', 'success');
     } else if (r.error && String(r.error).indexOf('email-already-in-use') >= 0) {
-        if (creds.email && creds.password) {
-            try {
-                await adminPostJson('/adminMergeClientProperty', {
-                    adminEmail: creds.email,
-                    adminPassword: creds.password,
-                    clientEmail: email,
-                    propertyFromSale: propertyFromSale,
-                });
-            } catch (mergeErr) {
-                console.warn('merge cliente:', mergeErr);
-            }
+        try {
+            await adminPostJson('/adminMergeClientProperty', {
+                clientEmail: email,
+                propertyFromSale: propertyFromSale,
+            });
+        } catch (mergeErr) {
+            console.warn('merge cliente:', mergeErr);
         }
         await sendClientCredentialsEmail(clientName, email, null, false);
         showMessage('Cliente já cadastrado. Imóvel vinculado ao perfil (quando possível). Email enviado.', 'success');
@@ -802,15 +840,12 @@ async function registerClientFromSaleAndSendCredentials(saleData, saleResult) {
 async function deleteSale(saleId) {
     if (!confirm('Deseja remover esta venda? O vínculo do imóvel será removido do perfil do cliente no servidor, quando existir.')) return;
 
-    var creds = getAdminApiCredentials();
-    if (!creds.email || !creds.password) {
-        showMessage('Faça login novamente para excluir vendas.', 'error');
+    if (!ensureAdminApiReady()) {
+        showMessage('Sessão expirada. Saia e entre novamente no painel.', 'error');
         return;
     }
     try {
         await adminPostJson('/adminPropertySaleMutate', {
-            adminEmail: creds.email,
-            adminPassword: creds.password,
             action: 'delete',
             saleFirestoreId: String(saleId),
         });
@@ -905,11 +940,10 @@ function biaFormatDate(iso) {
 }
 
 function biaCallApi(action, extra) {
-    var creds = getAdminApiCredentials();
-    if (!creds.email || !creds.password) {
-        return Promise.reject(new Error('Faça login como administrador.'));
+    if (!ensureAdminApiReady()) {
+        return Promise.reject(new Error('Sessão expirada. Entre novamente no painel.'));
     }
-    var payload = { action: action, adminEmail: creds.email, adminPassword: creds.password };
+    var payload = { action: action };
     if (extra) {
         var k;
         for (k in extra) { if (extra.hasOwnProperty(k)) payload[k] = extra[k]; }
@@ -1258,9 +1292,8 @@ function applyRemoteDashboardWidgets(waStats, repairsOpen, salesCount, brokersAc
 }
 
 function fetchDashboardSalesListForActivity() {
-    var creds = getAdminApiCredentials();
-    if (!creds.email || !creds.password) return Promise.resolve(null);
-    return adminPostJson('/adminPropertySalesList', { adminEmail: creds.email, adminPassword: creds.password }).then(function(d) {
+    if (!ensureAdminApiReady()) return Promise.resolve(null);
+    return adminPostJson('/adminPropertySalesList', {}).then(function(d) {
         return d && d.sales ? d.sales : null;
     }).catch(function() { return null; });
 }
@@ -2150,9 +2183,8 @@ function loadBrokerCampaignPreview() {
 
 function prepareBrokersPanelIfNeeded(force) {
     var statusEl = document.getElementById('brokerCampaignPrepareStatus');
-    var creds = typeof getAdminApiCredentials === 'function' ? getAdminApiCredentials() : null;
-    if (!creds || !creds.email || !creds.password) {
-        if (statusEl) statusEl.textContent = 'Entre com email e senha do admin para preparar a campanha.';
+    if (!ensureAdminApiReady()) {
+        if (statusEl) statusEl.textContent = 'Entre no painel administrativo para preparar a campanha.';
         return loadBrokerCampaignPreview();
     }
     if (!force) {
@@ -2167,8 +2199,6 @@ function prepareBrokersPanelIfNeeded(force) {
     }
     if (statusEl) statusEl.textContent = '';
     return adminPostJson('/brokerCampaignPrepare', {
-        adminEmail: creds.email,
-        adminPassword: creds.password,
         purgeArchived: true,
         forceCleanup: !!force
     }, { timeoutMs: 300000 }).then(function(r) {
