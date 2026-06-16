@@ -217,7 +217,8 @@ function loadProperties() {
             bathrooms: 1,
             area: 50,
             parking: 0,
-            status: 'disponivel',
+            status: 'vendido',
+            hideFromSite: true,
             images: [
                 'assets/images/porto-novo/IMG_2689.jpg',
                 'assets/images/porto-novo/IMG_2677.jpg',
@@ -229,9 +230,8 @@ function loadProperties() {
                 'assets/images/porto-novo/IMG_2676.jpg'
             ],
             videos: [],
-            description: 'Apartamentos modernos no Condomínio Porto Novo com opções de 1 e 2 quartos. Unidades sem vaga de garagem, ideais para quem busca praticidade e localização estratégica. Acabamento de qualidade com pisos cerâmicos, janelas com grades de segurança e boa ventilação natural.',
-            features: ['Apartamentos de 1 e 2 quartos', 'Sem vaga de garagem', 'Acabamento moderno', 'Pisos cerâmicos', 'Grades de segurança', 'Boa ventilação', 'Localização estratégica', 'Fácil acesso ao transporte', 'Próximo ao comércio'],
-            hideFromSite: true,
+            description: 'Empreendimento totalmente vendido — mantido apenas para histórico interno.',
+            features: ['Empreendimento esgotado'],
             reservedUntil: null,
             reservedBy: null,
             matricula: '51.881 a 51.894',

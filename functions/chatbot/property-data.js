@@ -1,5 +1,8 @@
 const SITE_BASE_URL = 'https://bfmarquesempreendimentos.github.io/bfm';
 
+/** Empreendimentos fora de oferta (vendidos / retirados do portfólio ativo). */
+var OFFERING_EXCLUDED_PROPERTY_IDS = { 1: true };
+
 const properties = [
   {
     id: 1,
@@ -12,7 +15,7 @@ const properties = [
     bathrooms: 1,
     area: 50,
     parking: 0,
-    status: 'disponivel',
+    status: 'vendido',
     description: 'Apartamentos modernos com opções de 1 e 2 quartos. Acabamento de qualidade, pisos cerâmicos, janelas com grades de segurança e boa ventilação natural.',
     features: ['1 e 2 quartos', 'Acabamento moderno', 'Pisos cerâmicos', 'Grades de segurança', 'Boa ventilação', 'Próximo ao comércio'],
     mcmv: true,
@@ -244,6 +247,23 @@ function getPropertyIdFromSlug(slug) {
   return null;
 }
 
+function isPropertyOffered(p) {
+  if (!p || p.id == null) return false;
+  if (OFFERING_EXCLUDED_PROPERTY_IDS[Number(p.id)]) return false;
+  var st = String(p.status || '').toLowerCase();
+  if (st === 'vendido') return false;
+  return true;
+}
+
+function getOfferedProperties() {
+  var out = [];
+  var i;
+  for (i = 0; i < properties.length; i++) {
+    if (isPropertyOffered(properties[i])) out.push(properties[i]);
+  }
+  return out;
+}
+
 function getPropertyById(id) {
   var n = Number(id);
   return properties.filter(function(p) { return p.id === n; })[0] || null;
@@ -274,12 +294,16 @@ function getPropertyMediaLists(p) {
   return { images: images, videos: videos };
 }
 
-function filterProperties(filters = {}) {
-  let result = [...properties];
-  if (filters.type) result = result.filter(p => p.type.includes(filters.type));
-  if (filters.maxPrice) result = result.filter(p => p.price <= filters.maxPrice);
-  if (filters.mcmv) result = result.filter(p => p.mcmv === true);
-  if (filters.location) result = result.filter(p => p.location.toLowerCase().includes(filters.location.toLowerCase()));
+function filterProperties(filters) {
+  filters = filters || {};
+  var result = getOfferedProperties();
+  if (filters.type) result = result.filter(function(p) { return p.type.indexOf(filters.type) >= 0; });
+  if (filters.maxPrice) result = result.filter(function(p) { return p.price <= filters.maxPrice; });
+  if (filters.mcmv) result = result.filter(function(p) { return p.mcmv === true; });
+  if (filters.location) {
+    var loc = String(filters.location).toLowerCase();
+    result = result.filter(function(p) { return p.location.toLowerCase().indexOf(loc) >= 0; });
+  }
   return result;
 }
 
@@ -306,14 +330,24 @@ function formatPropertyFull(p) {
 }
 
 function getPropertiesSummaryForAI() {
-  return properties.map(p => {
-    const priceStr = p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    return `ID ${p.id}: ${p.title} | ${p.type} | ${p.location} | ${priceStr} | ${p.bedrooms} | ${p.area ? p.area + 'm²' : 'N/A'} | ${p.parking} vagas | MCMV: ${p.mcmv ? 'Sim' : 'Não'} | ${p.description}`;
+  return getOfferedProperties().map(function(p) {
+    var priceStr = p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    return 'ID ' + p.id + ': ' + p.title + ' | ' + p.type + ' | ' + p.location + ' | ' + priceStr + ' | ' + p.bedrooms + ' | ' + (p.area ? p.area + 'm²' : 'N/A') + ' | ' + p.parking + ' vagas | MCMV: ' + (p.mcmv ? 'Sim' : 'Não') + ' | ' + p.description;
   }).join('\n');
+}
+
+function getSoldPropertyReply(propertyId) {
+  if (Number(propertyId) === 1) {
+    return 'O *Condomínio Porto Novo* já foi totalmente vendido e não faz mais parte do nosso portfólio ativo. Posso te mostrar opções MCMV disponíveis hoje: Residencial Itaúna, Edifício Bandeirantes, Condomínio Laranjal, Residencial Apolo, Residencial Coelho ou Edifício Nova Cidade — é só pedir que eu listo com valores e fotos.';
+  }
+  return 'Este empreendimento não está mais disponível para venda. Use listar_imoveis para ver as opções atuais.';
 }
 
 module.exports = {
   properties,
+  OFFERING_EXCLUDED_PROPERTY_IDS,
+  isPropertyOffered,
+  getOfferedProperties,
   getPropertyById,
   getPropertySlug,
   getPropertyIdFromSlug,
@@ -324,5 +358,6 @@ module.exports = {
   formatPropertyShort,
   formatPropertyFull,
   getPropertiesSummaryForAI,
+  getSoldPropertyReply,
   SITE_BASE_URL,
 };

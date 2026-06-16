@@ -1,7 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { sendTextMessage, sendImageMessage, sendVideoMessage, sendInteractiveButtons, getWhatsAppMediaBuffer } = require('./whatsapp-api');
 const { transcribeAudioBuffer } = require('./audio-transcription');
-const { getPropertyById, getPropertyMediaLists, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, properties } = require('./property-data');
+const { getPropertyById, getPropertyMediaLists, filterProperties, formatPropertyShort, formatPropertyFull, getPropertiesSummaryForAI, isPropertyOffered, getSoldPropertyReply, properties } = require('./property-data');
 const { formatPropertyInventory, formatUnitDetail } = require('./property-inventory');
 const { simulateFinancing, formatSimulationResult } = require('./finance-simulator');
 const { getOrCreateLead, saveMessage, getConversationHistory, qualifyLead, addInterestedProperty, scheduleVisit, updateLead, incrementAdminUnread, inferCategoryFromMotivo, normalizeWhatsAppPhone, recordInboundActivity, getLeadByPhone, queueInboundEmailAlert, getBiaTrainingPromptExtra, recordBiaAutoLesson, setFollowUpExclusion, findRegisteredBrokerByPhone, getBrokerBiaPromptBlock, BRUNO_CORRETOR_PHONE_DISPLAY } = require('./lead-manager');
@@ -27,7 +27,7 @@ function getClient() {
 const SYSTEM_PROMPT = `Você é o assistente virtual de vendas da *B F Marques Empreendimentos*, uma construtora com 15 anos de experiência no Rio de Janeiro. Seu nome é *Bia*.
 
 ## SUA MISSÃO
-Ajudar famílias a *sair do aluguel* e conquistar *casa própria* com *Minha Casa Minha Vida*, com tom acolhedor e *direto*: crédito habitacional e simulação gratuita rápida. Conecte sempre com a vida real — menos gasto com aluguel, mais segurança, oportunidade na região (mencione *São Gonçalo* e cidades onde temos obra quando fizer sentido). Seu público é *baixa e média renda*; 7 dos 8 empreendimentos são MCMV (exceto Casa Luxo Maricá). Foque em Faixa 1 e 2, sem esquecer 3 e 4 quando o cliente se enquadrar nas novas regras de 2026.
+Ajudar famílias a *sair do aluguel* e conquistar *casa própria* com *Minha Casa Minha Vida*, com tom acolhedor e *direto*: crédito habitacional e simulação gratuita rápida. Conecte sempre com a vida real — menos gasto com aluguel, mais segurança, oportunidade na região (mencione *São Gonçalo* e cidades onde temos obra quando fizer sentido). Seu público é *baixa e média renda*; temos *7 empreendimentos ativos* — 6 perfil MCMV (IDs 2 a 7) e Casa Luxo Maricá (id 8) para alto padrão. Foque em Faixa 1 e 2, sem esquecer 3 e 4 quando o cliente se enquadrar nas novas regras de 2026.
 
 ## DADOS DA EMPRESA
 - Nome: B F Marques Empreendimentos
@@ -52,7 +52,7 @@ ${getPropertiesSummaryForAI()}
 ## REGRAS DE COMPORTAMENTO
 1. Sempre responda em português do Brasil, de forma amigável e acolhedora
 2. Use emojis com moderação para tornar a conversa agradável
-3. Quando o cliente perguntar sobre imóveis, use listar_imoveis – priorize MCMV (IDs 1 a 7); cite Casa Luxo Maricá (id 8) só se pedir alto padrão
+3. Quando o cliente perguntar sobre imóveis, use listar_imoveis – priorize MCMV (IDs 2 a 7); cite Casa Luxo Maricá (id 8) só se pedir alto padrão
 4. Quando pedir detalhes de um imóvel específico, use detalhes_imovel
 5. Simulação *gratuita e rápida*: assim que tiver nome (ou uso contexto), peça a *renda bruta familiar mensal* e o *valor aproximado do imóvel* e use simular_financiamento. Frase-tipo: “Me passa a renda bruta da família e um valor de imóvel que você imagina que eu te mostro na hora uma simulação gratuita.”
 6. Quando o cliente fornecer nome, renda bruta familiar ou CPF, use salvar_dados_lead
@@ -76,7 +76,8 @@ ${getPropertiesSummaryForAI()}
 24. Se o cliente disser que *não passa na idade*, que o *banco não libera por idade*, que tem *idade avançada* ou similar, use *marcar_sem_follow_up* — não insista com follow-up automático
 25. Não pressione financiamento para quem já indicou bloqueio por idade; ofereça apenas informações gerais ou encaminhe ao humano se pedir
 26. *NUNCA* informe o telefone do Bruno Marques (21) 99555-7010 para clientes/leads — esse contato é *exclusivo* para corretores cadastrados (o sistema ativa o modo corretor automaticamente quando aplicável)
-27. Perguntas sobre unidade específica, reservada ou disponível: use estoque_empreendimento ou consultar_unidade — nunca chute status. Valor de engenharia só informe se a ferramenta retornar (modo corretor)`;
+27. Perguntas sobre unidade específica, reservada ou disponível: use estoque_empreendimento ou consultar_unidade — nunca chute status. Valor de engenharia só informe se a ferramenta retornar (modo corretor)
+28. *Porto Novo (id 1) está ESGOTADO* — não ofereça, não agende visita, não envie mídias. Se perguntarem, explique com empatia que foi vendido e ofereça imediatamente as opções ativas (Itaúna, Bandeirantes, Laranjal, Apolo, Coelho, Nova Cidade ou Maricá)`;
 
 /**
  * Cérebro DEDICADO para corretor cadastrado (curto e objetivo, sem roteiro de consumidor).
@@ -104,6 +105,9 @@ function buildBrokerSystemPrompt(broker) {
     '## ENCAMINHAR AO BRUNO\n' +
     '- Reserva, financiamento aprovado, valores fechados, proposta, agendamento/visita ou decisão comercial: direcione ao *Bruno Marques (21) 99555-7010* (não use encaminhar_humano no lugar do Bruno).\n' +
     '- Esse número é exclusivo para corretor; nunca passe para cliente final.\n\n' +
+    '## EMPREENDIMENTOS ATIVOS\n' +
+    '- Porto Novo (id 1) *esgotado* — não divulgue nem consulte estoque.\n' +
+    '- Portfólio ativo: IDs 2 a 8 (MCMV 2–7 + Casa Luxo Maricá).\n\n' +
     '## EMPREENDIMENTOS\n' +
     getPropertiesSummaryForAI();
 }
@@ -128,7 +132,7 @@ const TOOLS = [
     input_schema: {
       type: 'object',
       properties: {
-        imovel_id: { type: 'number', description: 'ID do imóvel (1 a 8)' },
+        imovel_id: { type: 'number', description: 'ID do imóvel (2 a 8; id 1 Porto Novo esgotado)' },
       },
       required: ['imovel_id'],
     },
@@ -201,7 +205,7 @@ const TOOLS = [
     input_schema: {
       type: 'object',
       properties: {
-        imovel_id: { type: 'number', description: 'ID do imóvel (1 a 8)' },
+        imovel_id: { type: 'number', description: 'ID do imóvel (2 a 8; id 1 Porto Novo esgotado)' },
         enviar_mais: { type: 'boolean', description: 'True se o cliente já recebeu um lote e pediu mais mídias.' },
       },
       required: ['imovel_id'],
@@ -335,6 +339,12 @@ async function sendPropertyMedias(property, context, opts) {
 }
 
 async function executeTool(toolName, input, context) {
+  function guardOfferedProperty(property) {
+    if (!property) return 'Imóvel não encontrado.';
+    if (!isPropertyOffered(property)) return getSoldPropertyReply(property.id);
+    return null;
+  }
+
   switch (toolName) {
     case 'listar_imoveis': {
       const filters = {};
@@ -348,7 +358,8 @@ async function executeTool(toolName, input, context) {
 
     case 'detalhes_imovel': {
       const property = getPropertyById(input.imovel_id);
-      if (!property) return 'Imóvel não encontrado.';
+      var blocked = guardOfferedProperty(property);
+      if (blocked) return blocked;
       await addInterestedProperty(context.from, property.id);
       var mediaResult = await sendPropertyMedias(property, context, { fullGallery: true, enviar_mais: false });
       var detailText = formatPropertyFull(property);
@@ -379,7 +390,8 @@ async function executeTool(toolName, input, context) {
 
     case 'agendar_visita': {
       const property = getPropertyById(input.imovel_id);
-      if (!property) return 'Imóvel não encontrado para agendamento.';
+      var blockedVisit = guardOfferedProperty(property);
+      if (blockedVisit) return blockedVisit;
       await scheduleVisit(context.from, input.imovel_id, input.data_sugerida, input.observacoes || '');
       const motivo = `Solicitou visita: ${property.title} em ${input.data_sugerida}`;
       const categoria = inferCategoryFromMotivo(motivo);
@@ -428,6 +440,9 @@ async function executeTool(toolName, input, context) {
     }
 
     case 'estoque_empreendimento': {
+      var propInv = getPropertyById(input.imovel_id);
+      var blockedInv = guardOfferedProperty(propInv);
+      if (blockedInv) return blockedInv;
       var invOpts = {
         includeEngineering: !!context.isBroker,
         statusFilter: input.filtro_status || '',
@@ -436,6 +451,9 @@ async function executeTool(toolName, input, context) {
     }
 
     case 'consultar_unidade': {
+      var propUnit = getPropertyById(input.imovel_id);
+      var blockedUnit = guardOfferedProperty(propUnit);
+      if (blockedUnit) return blockedUnit;
       return formatUnitDetail(input.imovel_id, input.codigo_unidade, {
         includeEngineering: !!context.isBroker,
       });
@@ -443,7 +461,8 @@ async function executeTool(toolName, input, context) {
 
     case 'endereco_imovel': {
       const propAddr = getPropertyById(input.imovel_id);
-      if (!propAddr) return 'Imóvel não encontrado.';
+      var blockedAddr = guardOfferedProperty(propAddr);
+      if (blockedAddr) return blockedAddr;
       var addrParts = [];
       addrParts.push('📍 ' + propAddr.title);
       if (propAddr.address) addrParts.push(propAddr.address);
@@ -480,7 +499,8 @@ async function executeTool(toolName, input, context) {
 
     case 'enviar_midias_imovel': {
       const property = getPropertyById(input.imovel_id);
-      if (!property) return 'Imóvel não encontrado.';
+      var blockedMedia = guardOfferedProperty(property);
+      if (blockedMedia) return blockedMedia;
       const mediaOut = await sendPropertyMedias(property, context, {
         fullGallery: !input.enviar_mais,
         enviar_mais: !!input.enviar_mais,

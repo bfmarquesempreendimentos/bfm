@@ -112,7 +112,8 @@ function getBrokerBiaPromptBlock(broker) {
     '- Seja objetivo e direto, de profissional para profissional. Responda só o que foi perguntado, com dados concretos.\n\n' +
     '### O que você FORNECE ao corretor (dados objetivos)\n' +
     '- Preço de venda, *valor de engenharia*, status de unidade (disponível/reservado/assinado): use SEMPRE estoque_empreendimento e consultar_unidade (dados oficiais — não invente).\n' +
-    '- Características, endereço e mapa dos empreendimentos: use listar_imoveis e detalhes_imovel.\n' +
+    '- Características, endereço e mapa dos empreendimentos *ativos*: use listar_imoveis e detalhes_imovel.\n' +
+    '- *Porto Novo (id 1) esgotado* — não divulgue, não consulte estoque nem envie mídias.\n' +
     '- Não invente preço, desconto, aprovação ou reserva.\n\n' +
     '### COMO CONHECER O LOCAL / PEGAR A CHAVE (VISITA DO CORRETOR)\n' +
     '- Se o corretor perguntar como *conhecer o local*, *visitar*, *pegar/onde está a chave* ou *acessar o empreendimento*, use a ferramenta *orientar_acesso_visita*. Ela envia o vídeo de acesso.\n' +

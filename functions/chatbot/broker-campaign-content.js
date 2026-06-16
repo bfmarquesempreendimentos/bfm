@@ -5,6 +5,7 @@
 const {
   properties,
   getPropertyById,
+  isPropertyOffered,
   getPropertyMediaLists,
   getPropertyPageUrl,
   getPropertySlug,
@@ -53,6 +54,10 @@ const MARKET_SNIPPETS = [
     text: 'Novas unidades entram no site em tempo real. Confira o portfólio antes de falar com o lead.',
   },
   {
+    title: 'Portfólio atualizado',
+    text: 'Porto Novo esgotado. Divulgue Itaúna, Bandeirantes, Laranjal, Apolo, Coelho, Nova Cidade e Maricá.',
+  },
+  {
     title: 'Comissão e parceria',
     text: 'Mantenha cadastro atualizado no painel. Material da semana é para repasse imediato ao cliente.',
   },
@@ -62,7 +67,7 @@ function getCampaignPropertyPool() {
   var out = [];
   var i;
   for (i = 0; i < properties.length; i++) {
-    if (properties[i].status === 'disponivel') out.push(properties[i]);
+    if (isPropertyOffered(properties[i])) out.push(properties[i]);
   }
   return out;
 }
@@ -92,7 +97,7 @@ function getFeaturedPropertyForWeek(week, overrideId) {
   if (overrideId === '' || overrideId === 0 || overrideId === '0') overrideId = null;
   if (overrideId != null) {
     var forced = getPropertyById(Number(overrideId));
-    if (forced && forced.status === 'disponivel') return forced;
+    if (forced && isPropertyOffered(forced)) return forced;
   }
   var pool = getCampaignPropertyPool();
   if (!pool.length) return null;

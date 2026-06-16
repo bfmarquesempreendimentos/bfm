@@ -1,5 +1,6 @@
 const admin = require('firebase-admin');
 const propertyUnitsBase = require('./property-units-data');
+const { OFFERING_EXCLUDED_PROPERTY_IDS } = require('./property-data');
 
 var overrideCache = { at: 0, data: null };
 var OVERRIDE_CACHE_MS = 60000;
@@ -58,6 +59,7 @@ async function loadUnitStatusOverrides() {
 
 function getRawPropertyUnits(propertyId) {
   var pid = Number(propertyId);
+  if (OFFERING_EXCLUDED_PROPERTY_IDS[pid]) return null;
   return propertyUnitsBase[pid] || propertyUnitsBase[String(propertyId)] || null;
 }
 
