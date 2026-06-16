@@ -5,6 +5,22 @@ var DEMO_PASSWORD = (typeof CONFIG !== 'undefined' && CONFIG.auth && CONFIG.auth
 
 var brokers = [];
 
+/** Corretores legados sem isActive explícito permanecem ativos (exceto pending/rejected). */
+function brokerIsActiveLocal(broker) {
+    var b = broker || {};
+    if (b.isActive === true) return true;
+    if (b.isActive === false) return false;
+    var st = String(b.registrationStatus || '').toLowerCase();
+    if (st === 'pending' || st === 'rejected') return false;
+    return true;
+}
+
+function normalizeBrokerRecord(broker) {
+    var b = broker || {};
+    b.isActive = brokerIsActiveLocal(b);
+    return b;
+}
+
 var ADMIN_BROKER = {
     email: (typeof CONFIG !== 'undefined' && CONFIG.auth && CONFIG.auth.adminEmail) ? CONFIG.auth.adminEmail : 'brunoferreiramarques@gmail.com',
     password: DEMO_PASSWORD,
@@ -23,10 +39,11 @@ function loadBrokersFromStorage() {
     try {
         const parsed = JSON.parse(savedBrokers);
         if (Array.isArray(parsed) && parsed.length > 0) {
-            brokers = parsed.map(broker => ({
-                ...broker,
-                createdAt: broker.createdAt ? new Date(broker.createdAt) : new Date()
-            }));
+            brokers = parsed.map(function(broker) {
+                var b = normalizeBrokerRecord(broker);
+                b.createdAt = broker.createdAt ? new Date(broker.createdAt) : new Date();
+                return b;
+            });
         }
     } catch (error) {
         console.warn('Erro ao carregar corretores salvos:', error);
@@ -57,9 +74,12 @@ async function loadBrokersFromFirestore(opts) {
         }));
         const byEmail = {};
         local.forEach(b => { byEmail[(b.email || '').toLowerCase()] = b; });
-        fromDb.forEach(b => { byEmail[(b.email || '').toLowerCase()] = b; });
-        brokers = Object.values(byEmail).sort((a, b) =>
-            new Date(b.createdAt) - new Date(a.createdAt));
+        fromDb.forEach(function(b) {
+            byEmail[(b.email || '').toLowerCase()] = normalizeBrokerRecord(b);
+        });
+        brokers = Object.values(byEmail).sort(function(a, b) {
+            return new Date(b.createdAt) - new Date(a.createdAt);
+        });
         ensureAdminBroker();
         saveBrokersToStorage();
         return true;
@@ -213,6 +233,7 @@ function handleLogin(e) {
     }
 
     function formatBrokerAuthError(err) {
+        if (err && err.inactive) return err.message || 'Seu cadastro está aguardando aprovação do administrador.';
         if (!err) return 'Email ou senha incorretos.';
         if (err.code === 'auth/too-many-requests') return 'Muitas tentativas. Aguarde alguns minutos.';
         if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
@@ -233,7 +254,10 @@ function handleLogin(e) {
                 cache: 'no-store'
             }).then(function(r) {
                 return r.json().then(function(j) {
-                    if (!r.ok) throw new Error(j.error || 'Email ou senha incorretos.');
+                    if (!r.ok) {
+                        if (j.inactive) throw { inactive: true, message: 'Seu cadastro está aguardando aprovação do administrador.' };
+                        throw new Error(j.error || 'Email ou senha incorretos.');
+                    }
                     return auth.signInWithEmailAndPassword(email, password);
                 });
             }).then(function(cred2) { return finishBrokerSession(cred2.user); });
@@ -282,8 +306,20 @@ async function handleRegister(e) {
     }
     
     // Check if email already exists (case-insensitive)
-    if (brokers.find(b => (b.email || '').toLowerCase() === email)) {
-        showRegisterFeedback(false, 'Este email já está cadastrado.');
+    var existingBroker = null;
+    var ei;
+    for (ei = 0; ei < brokers.length; ei++) {
+        if ((brokers[ei].email || '').toLowerCase() === email) {
+            existingBroker = brokers[ei];
+            break;
+        }
+    }
+    if (existingBroker) {
+        showRegisterFeedback(false, 'Você já possui cadastro. Use Entrar com seu email e senha — não é necessário recadastrar.');
+        showLoginForm();
+        var loginEmailInput = document.getElementById('email');
+        if (loginEmailInput) loginEmailInput.value = email;
+        showAuthMessage('Use seu email e senha para entrar. Se esqueceu a senha, clique em "Esqueci minha senha".', 'info');
         return;
     }
     
@@ -777,7 +813,7 @@ async function handleBrokerForgotPasswordSubmit() {
         else alert('Email não encontrado em nossa base de dados.');
         return;
     }
-    if (!broker.isActive) {
+    if (!brokerIsActiveLocal(broker)) {
         const tel = (typeof CONFIG !== 'undefined' && CONFIG?.company?.phone) ? CONFIG.company.phone : '(21) 99759-0814';
         const msg = `Seu cadastro ainda está aguardando aprovação. Não é possível solicitar redefinição de senha neste momento. Aguarde a aprovação do administrador ou entre em contato pelo telefone ${tel}.`;
         if (typeof showMessage === 'function') showMessage(msg, 'error');
@@ -907,11 +943,11 @@ function getAllBrokers() {
 }
 
 function getActiveBrokers() {
-    return brokers.filter(b => b.isActive);
+    return brokers.filter(function(b) { return brokerIsActiveLocal(b); });
 }
 
 function getPendingBrokers() {
-    return brokers.filter(b => !b.isActive);
+    return brokers.filter(function(b) { return !brokerIsActiveLocal(b); });
 }
 
 function getBrokerFunctionsBase() {

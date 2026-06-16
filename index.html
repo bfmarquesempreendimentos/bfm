@@ -22,13 +22,14 @@
       function toggleMobileMenu(){document.body.classList.toggle('mobile-menu-open');var i=document.querySelector('.nav-hamburger i');if(i){i.classList.toggle('fa-bars');i.classList.toggle('fa-times');}}
       function closeMobileMenu(){document.body.classList.remove('mobile-menu-open');var i=document.querySelector('.nav-hamburger i');if(i){i.classList.remove('fa-times');i.classList.add('fa-bars');}}
     </script>
-    <link rel="stylesheet" href="styles/main.css?v=10">
+    <link rel="stylesheet" href="styles/main.css?v=11">
+    <link rel="sitemap" type="application/xml" href="sitemap.xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
+<body data-seo-page="home">
     <!-- Overlay para fechar menu (mobile) -->
     <div class="nav-overlay" id="navOverlay" onclick="closeMobileMenu()" aria-hidden="true"></div>
     <!-- Menu lateral mobile (fora do header para evitar overflow) -->
@@ -174,9 +175,11 @@
     <section id="properties" class="properties">
         <div class="container">
             <div class="section-header">
-                <h2>Nossos <span id="propertiesEnterpriseCount">7</span> Empreendimentos</h2>
+                <div class="section-header-top">
+                    <h2>Nossos <span id="propertiesEnterpriseCount">7</span> empreendimentos</h2>
+                    <img class="properties-logo-mcmv" src="assets/images/logo-mcmv-caixa.png" alt="Minha Casa Minha Vida">
+                </div>
                 <p class="properties-section-lead">Cada card é uma obra completa. Dentro de &ldquo;Ver detalhes&rdquo; você vê a <strong>tabela de unidades</strong> (disponível, reservado ou assinado), com os mesmos totais que você acompanha internamente.</p>
-                <img class="properties-logo-mcmv" src="assets/images/logo-mcmv-caixa.png" alt="Minha Casa Minha Vida">
                 <div class="filters">
                     <select id="typeFilter">
                         <option value="">Todos os Tipos</option>
@@ -708,6 +711,8 @@
     <script src="js/client-manual.js"></script>
     <script src="js/contact-forms.js"></script>
     <script src="js/newsletter.js"></script>
+    <script src="js/utm-tracker.js"></script>
+    <script src="js/seo-structured-data.js"></script>
     <script src="js/visitor-tracker.js"></script>
 </body>
 </html>

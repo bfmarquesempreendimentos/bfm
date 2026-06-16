@@ -98,6 +98,15 @@
             clientTimestamp: new Date().toISOString()
         };
 
+        if (typeof getMarketingUtm === 'function') {
+            var utm = getMarketingUtm();
+            if (utm && typeof utm === 'object') {
+                data.utmSource = utm.utm_source || '';
+                data.utmMedium = utm.utm_medium || '';
+                data.utmCampaign = utm.utm_campaign || '';
+            }
+        }
+
         const db = firebase.firestore();
         db.collection(COLLECTION).add(data).catch(function() {});
     }

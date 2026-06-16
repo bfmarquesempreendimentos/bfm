@@ -40,6 +40,8 @@ const {
 } = require('./chatbot/whatsapp-api');
 const propertySalesHandlers = require('./property-sales-handlers');
 const reservationsHandlers = require('./reservations-handlers');
+const financeHandlers = require('./finance-handlers');
+const { roleHasPermission } = require('./admin-accounts');
 const fcmPush = require('./fcm-push');
 const brokerCampaignContent = require('./chatbot/broker-campaign-content');
 const { verifyAdminFromBody, verifyAdminFromReq } = require('./admin-accounts');
@@ -79,12 +81,15 @@ function normalizePhoneDigits(phone) {
 }
 
 function isBrokerActiveFlag(value) {
+  if (value === false || value === 0) return false;
   if (value === true || value === 1) return true;
+  if (value === undefined || value === null) return true;
   if (typeof value === 'string') {
-    const s = value.trim().toLowerCase();
+    var s = value.trim().toLowerCase();
+    if (s === 'false' || s === '0' || s === 'nao' || s === 'não' || s === 'inativo') return false;
     return s === 'true' || s === '1' || s === 'sim' || s === 'ativo';
   }
-  return false;
+  return true;
 }
 
 function normalizeBrazilWhatsApp(phone) {
@@ -2253,7 +2258,7 @@ exports.getBrokers = functions.https.onRequest(async (req, res) => {
         email: d.email || '',
         phone: d.phone || '',
         creci: d.creci || '',
-        isActive: d.isActive !== undefined ? d.isActive : false,
+        isActive: brokerAuth.brokerIsActive(d),
         whatsappCampaignOptOut: !!d.whatsappCampaignOptOut,
         isAdmin: d.isAdmin || false,
         createdAt: d.createdAt ? d.createdAt : new Date().toISOString()
@@ -2325,7 +2330,10 @@ exports.brokerProvisionAuth = functions.https.onRequest(async (req, res) => {
     if (!email || !password) return res.status(400).json({ error: 'Email e senha obrigatórios' });
     var db = admin.firestore();
     var authResult = await brokerAuth.verifyBrokerCredentials(db, email, password);
-    if (!authResult.ok) return res.status(403).json({ error: 'Credenciais inválidas' });
+    if (!authResult.ok) {
+      if (authResult.inactive) return res.status(403).json({ error: 'Cadastro aguardando aprovação.', inactive: true });
+      return res.status(403).json({ error: 'Email ou senha incorretos.' });
+    }
     await brokerAuth.upgradeBrokerPasswordHash(authResult.ref, authResult.data, password);
     await brokerAuth.ensureBrokerFirebaseUser(email, password);
     return res.json({ ok: true, email: email });
@@ -2351,6 +2359,29 @@ exports.adminBrokerMutate = functions.https.onRequest(async (req, res) => {
       if (!brokerId) return res.status(400).json({ error: 'brokerId obrigatório' });
       await db.collection('brokers').doc(brokerId).delete();
       return res.json({ ok: true, deleted: brokerId });
+    }
+
+    if (action === 'restore_legacy') {
+      var snapLegacy = await db.collection('brokers').get();
+      var restored = 0;
+      var batchLegacy = db.batch();
+      var batchCount = 0;
+      snapLegacy.forEach(function(doc) {
+        var d = doc.data() || {};
+        if (d.isActive === true) return;
+        if (d.isActive === false) return;
+        var st = String(d.registrationStatus || '').toLowerCase();
+        if (st === 'pending' || st === 'rejected') return;
+        batchLegacy.set(doc.ref, {
+          isActive: true,
+          registrationStatus: d.registrationStatus || 'legacy_restored',
+          legacyRestoredAt: new Date().toISOString(),
+        }, { merge: true });
+        restored += 1;
+        batchCount += 1;
+      });
+      if (batchCount > 0) await batchLegacy.commit();
+      return res.json({ ok: true, restored: restored, total: snapLegacy.size });
     }
 
     if (action === 'create') {
@@ -2470,7 +2501,7 @@ exports.brokerUpdateMe = functions.https.onRequest(async (req, res) => {
     var email = String(decoded.email || '').trim().toLowerCase();
     var db = admin.firestore();
     var row = await brokerAuth.findBrokerByEmail(db, email);
-    if (!row || !row.data.isActive) return res.status(403).json({ error: 'Corretor não encontrado ou inativo' });
+    if (!row || !brokerAuth.brokerIsActive(row.data)) return res.status(403).json({ error: 'Corretor não encontrado ou inativo' });
     var body = req.body || {};
     var updates = { updatedAt: new Date().toISOString() };
     if (body.name != null) updates.name = String(body.name || '').trim();
@@ -3017,6 +3048,16 @@ exports.adminDashboardBundle = functions.https.onRequest(async (req, res) => {
         }
       }
     });
+    var financeSummary = await financeHandlers.getFinanceSummaryForDashboard(db);
+    var leadFunnel = {
+      leadsTotal: wa.total || 0,
+      leadsNovos: wa.novo || 0,
+      leadsQualificados: wa.qualificado || 0,
+      leadsConvertidos: wa.convertido || 0,
+      visitas: visitas,
+      reservas: reservas,
+      vendas: salesSnap.size,
+    };
     return res.json({
       wa: wa,
       repairsOpen: repairsOpen,
@@ -3030,6 +3071,8 @@ exports.adminDashboardBundle = functions.https.onRequest(async (req, res) => {
       unitsAssinado: unitsAssinado,
       funnelVisitas: visitas,
       funnelReservas: reservas,
+      leadFunnel: leadFunnel,
+      financeSummary: financeSummary,
       reservationsPending: reservationsPending,
       reservationsActive: reservationsActive,
       recentReservations: recentReservations,
@@ -4651,4 +4694,27 @@ exports.brokerCampaignOptOut = functions.https.onRequest(async (req, res) => {
     console.error('brokerCampaignOptOut:', err);
     return res.status(500).json({ error: err.message });
   }
-  });
+});
+
+/** Admin: financeiro estilo Procfy — transações e conciliação (sem faturas). */
+exports.adminFinanceMutate = functions.https.onRequest(async (req, res) => {
+  financeHandlers.allowCors(res);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  var auth = await verifyAdminAuth(req);
+  if (!auth.ok) return res.status(403).json({ error: 'Acesso negado' });
+  var action = String((req.body && req.body.action) || 'summary').toLowerCase();
+  var writeActions = ['create', 'update', 'delete', 'reconcile', 'unreconcile', 'reconcile_batch'];
+  if (writeActions.indexOf(action) >= 0 && !financeHandlers.canWriteFinance(auth.role)) {
+    return res.status(403).json({ error: 'Sem permissão financeira de escrita' });
+  }
+  if (!financeHandlers.canReadFinance(auth.role)) {
+    return res.status(403).json({ error: 'Sem permissão financeira' });
+  }
+  try {
+    return await financeHandlers.handleFinanceMutate(req, res, auth);
+  } catch (err) {
+    console.error('adminFinanceMutate:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});

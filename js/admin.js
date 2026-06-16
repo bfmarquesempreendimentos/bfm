@@ -132,9 +132,9 @@ function getAdminUserRole() {
 function adminCan(permission) {
     var roles = (typeof CONFIG !== 'undefined' && CONFIG.adminRoles) ? CONFIG.adminRoles : {
         super: ['*'],
-        comercial: ['sales', 'leads', 'campaign', 'units', 'brokers', 'repairs_read', 'reservations'],
+        comercial: ['sales', 'leads', 'campaign', 'units', 'brokers', 'repairs_read', 'reservations', 'finance_read'],
         posvenda: ['repairs', 'clients', 'leads_read', 'units_read', 'reservations_read'],
-        financeiro: ['sales_read', 'repairs_read', 'dashboard', 'reservations_read']
+        financeiro: ['sales_read', 'repairs_read', 'dashboard', 'reservations_read', 'finance_read']
     };
     var role = getAdminUserRole();
     var list = roles[role] || [];
@@ -251,6 +251,20 @@ function runMigrateLegacySaleSlots() {
         })
         .catch(function(err) {
             showMessage(err.message || 'Erro na migração.', 'error');
+        });
+}
+
+function runRestoreLegacyBrokers() {
+    if (!confirm('Marcar corretores legados (sem isActive explícito) como ativos no Firestore? Use após a migração de segurança se algum corretor não conseguir entrar.')) return;
+    adminPostJson('/adminBrokerMutate', { action: 'restore_legacy' })
+        .then(function(r) {
+            var restored = r.restored || 0;
+            var total = r.total || 0;
+            showMessage('Corretores legados restaurados: ' + restored + ' de ' + total + '.', restored > 0 ? 'success' : 'info');
+            if (typeof loadBrokersData === 'function') loadBrokersData();
+        })
+        .catch(function(err) {
+            showMessage(err.message || 'Erro ao restaurar corretores legados.', 'error');
         });
 }
 
@@ -964,6 +978,11 @@ function showSection(sectionId) {
         case 'bia-learning':
             if (typeof loadBiaLearning === 'function') loadBiaLearning();
             break;
+        case 'finance':
+            if (typeof loadFinanceModule === 'function') loadFinanceModule();
+            break;
+        case 'legal':
+            break;
     }
 }
 
@@ -1346,6 +1365,22 @@ function applyRemoteDashboardWidgets(waStats, repairsOpen, salesCount, brokersAc
     if (salEl) salEl.textContent = salesCount != null ? String(salesCount) : '0';
     if (elBrok && brokersActive != null) elBrok.textContent = String(brokersActive);
     else if (elBrok) elBrok.textContent = String(localBrokersFallback);
+
+    if (bundleExtras && bundleExtras.leadFunnel) {
+        var lf = bundleExtras.leadFunnel;
+        var fLeads = document.getElementById('funnelLeads');
+        var fVis = document.getElementById('funnelVisitas');
+        var fRes = document.getElementById('funnelReservas');
+        var fVen = document.getElementById('funnelVendas');
+        if (fLeads) fLeads.textContent = String(lf.leadsTotal || 0);
+        if (fVis) fVis.textContent = String(lf.visitas || 0);
+        if (fRes) fRes.textContent = String(lf.reservas || 0);
+        if (fVen) fVen.textContent = String(lf.vendas || 0);
+    }
+
+    if (bundleExtras && bundleExtras.financeSummary && typeof renderDashboardFinanceWidgets === 'function') {
+        renderDashboardFinanceWidgets(bundleExtras.financeSummary);
+    }
 }
 
 function fetchDashboardSalesListForActivity() {

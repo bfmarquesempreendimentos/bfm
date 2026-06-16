@@ -26,6 +26,9 @@ async function handleGeneralContact(event) {
         message: document.getElementById('contactMessage').value,
         type: 'contato_geral'
     };
+    if (typeof getMarketingUtm === 'function') {
+        contactData.utm = getMarketingUtm();
+    }
     
     // Enviar email
     if (typeof sendContactEmail !== 'undefined') {

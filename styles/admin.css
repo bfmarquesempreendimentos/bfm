@@ -41,6 +41,17 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     color: var(--admin-text);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-stroke: 0;
+}
+
+.admin-body .section-header h2,
+.admin-body .section-header h3,
+.admin-body h2,
+.admin-body h3 {
+    text-transform: none;
+    -webkit-text-stroke: 0;
+    letter-spacing: -0.02em;
 }
 
 /* Cabeçalho — azul do site público */
@@ -319,12 +330,24 @@
     -ms-flex-wrap: wrap;
     flex-wrap: wrap;
     margin-bottom: 24px;
-    padding: 20px 22px;
+    padding: 22px 24px;
     background: var(--admin-surface);
     border: 1px solid var(--admin-border);
     border-radius: var(--admin-radius);
     -webkit-box-shadow: var(--admin-shadow);
     box-shadow: var(--admin-shadow);
+    border-left: 4px solid var(--admin-accent-bright);
+}
+
+.section-header h2 {
+    color: var(--admin-text);
+    font-size: 1.375rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    margin: 0 0 6px;
+    line-height: 1.25;
+    text-transform: none;
+    -webkit-text-stroke: 0;
 }
 
 .section-header-main {
@@ -334,15 +357,6 @@
     flex: 1 1 240px;
     margin-right: 16px;
     margin-bottom: 8px;
-}
-
-.section-header h2 {
-    color: var(--admin-text);
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    margin: 0 0 6px;
-    line-height: 1.2;
 }
 
 .section-subtitle {

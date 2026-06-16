@@ -91,6 +91,27 @@
             }
 
             window._lastReportsBundle = bundle;
+
+            if (typeof Chart !== 'undefined') {
+                adminPostJson('/adminFinanceMutate', { action: 'summary' }).then(function(fin) {
+                    if (!fin || !fin.summary || !fin.summary.cashFlowByMonth) return;
+                    var fc = document.getElementById('financeReportChart');
+                    if (!fc) return;
+                    destroyReportChart('finance');
+                    var keys = Object.keys(fin.summary.cashFlowByMonth).sort();
+                    reportCharts.finance = new Chart(fc, {
+                        type: 'bar',
+                        data: {
+                            labels: keys.map(monthLabel),
+                            datasets: [
+                                { label: 'Entradas', data: keys.map(function(k) { return fin.summary.cashFlowByMonth[k].entrada; }), backgroundColor: '#22c55e' },
+                                { label: 'Saídas', data: keys.map(function(k) { return fin.summary.cashFlowByMonth[k].saida; }), backgroundColor: '#ef4444' }
+                            ]
+                        },
+                        options: { responsive: true, plugins: { title: { display: true, text: 'Fluxo de caixa' } } }
+                    });
+                }).catch(function() {});
+            }
         });
     }
 

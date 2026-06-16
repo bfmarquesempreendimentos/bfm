@@ -155,14 +155,14 @@ var CONFIG = {
     },
 
     /** Versão de cache para CSS/JS (incrementar a cada deploy público) */
-    assetVersion: '27',
+    assetVersion: '29',
 
     /** Permissões por perfil do painel admin (espelha functions/admin-accounts.js) */
     adminRoles: {
         super: ['*'],
-        comercial: ['sales', 'leads', 'campaign', 'units', 'brokers', 'repairs_read', 'reservations'],
+        comercial: ['sales', 'leads', 'campaign', 'units', 'brokers', 'repairs_read', 'reservations', 'finance_read'],
         posvenda: ['repairs', 'clients', 'leads_read', 'units_read', 'reservations_read'],
-        financeiro: ['sales_read', 'repairs_read', 'dashboard', 'reservations_read']
+        financeiro: ['sales_read', 'repairs_read', 'dashboard', 'reservations_read', 'finance_read']
     }
 };
 

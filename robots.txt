@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://bfmarquesempreendimentos.github.io/bfm/sitemap.xml
+
+Disallow: /admin.html
+Disallow: /admin-login.html
+Disallow: /functions/

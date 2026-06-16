@@ -92,6 +92,29 @@
                 }
             });
         }
+
+        var funnelCanvas = document.getElementById('chartSalesFunnel');
+        if (funnelCanvas && bundle.leadFunnel) {
+            destroyChart('funnel');
+            var lf = bundle.leadFunnel;
+            chartInstances.funnel = new Chart(funnelCanvas, {
+                type: 'bar',
+                data: {
+                    labels: ['Leads', 'Visitas', 'Reservas', 'Vendas'],
+                    datasets: [{
+                        label: 'Funil',
+                        data: [lf.leadsTotal || 0, lf.visitas || 0, lf.reservas || 0, lf.vendas || 0],
+                        backgroundColor: ['#25d366', '#3b82f6', '#eab308', '#6366f1']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
     }
 
     if (typeof window !== 'undefined') {

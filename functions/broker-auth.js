@@ -3,6 +3,16 @@
 var admin = require('firebase-admin');
 var { verifyPassword, isPasswordHashed, passwordFieldsForStorage } = require('./broker-password');
 
+/** Corretores antigos sem isActive explícito permanecem ativos (exceto pending/rejected). */
+function brokerIsActive(data) {
+  var d = data || {};
+  if (d.isActive === true) return true;
+  if (d.isActive === false) return false;
+  var st = String(d.registrationStatus || '').toLowerCase();
+  if (st === 'pending' || st === 'rejected') return false;
+  return true;
+}
+
 function brokerPublicProfile(docId, data) {
   var d = data || {};
   return {
@@ -12,7 +22,7 @@ function brokerPublicProfile(docId, data) {
     email: d.email || '',
     phone: d.phone || '',
     creci: d.creci || '',
-    isActive: d.isActive !== undefined ? !!d.isActive : false,
+    isActive: brokerIsActive(d),
     isAdmin: !!d.isAdmin,
     whatsappCampaignOptOut: !!d.whatsappCampaignOptOut,
     registrationStatus: d.registrationStatus || '',
@@ -34,7 +44,7 @@ async function verifyBrokerCredentials(db, email, password) {
   if (!row) return { ok: false };
   var stored = row.data.passwordHash || row.data.password || '';
   if (!verifyPassword(password, stored)) return { ok: false };
-  if (!row.data.isActive) return { ok: false, inactive: true };
+  if (!brokerIsActive(row.data)) return { ok: false, inactive: true };
   return { ok: true, broker: brokerPublicProfile(row.id, row.data), ref: row.ref, data: row.data };
 }
 
@@ -70,11 +80,12 @@ async function getBrokerFromIdToken(idToken) {
   if (!email) return null;
   var db = admin.firestore();
   var row = await findBrokerByEmail(db, email);
-  if (!row || !row.data.isActive) return null;
+  if (!row || !brokerIsActive(row.data)) return null;
   return brokerPublicProfile(row.id, row.data);
 }
 
 module.exports = {
+  brokerIsActive,
   brokerPublicProfile,
   findBrokerByEmail,
   verifyBrokerCredentials,

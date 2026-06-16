@@ -6,8 +6,9 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
-    <link rel="stylesheet" href="styles/main.css?v=9">
-    <link rel="stylesheet" href="styles/admin.css?v=10">
+    <link rel="stylesheet" href="styles/main.css?v=11">
+    <link rel="stylesheet" href="styles/admin.css?v=12">
+    <link rel="stylesheet" href="styles/admin-finance.css?v=1">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -95,6 +96,18 @@
                         <a href="#repairs" onclick="showSection('repairs'); closeAdminSidebar();">
                             <i class="fas fa-tools" aria-hidden="true"></i>
                             <span>Reparos</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#finance" onclick="showSection('finance'); closeAdminSidebar();">
+                            <i class="fas fa-wallet" aria-hidden="true"></i>
+                            <span>Financeiro</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#legal" onclick="showSection('legal'); closeAdminSidebar();">
+                            <i class="fas fa-gavel" aria-hidden="true"></i>
+                            <span>Jurídico</span>
                         </a>
                     </li>
                 </ul>
@@ -250,6 +263,35 @@
                         <small class="stat-card-hint">Contratos no Firestore (área cliente)</small>
                     </div>
                 </div>
+            </div>
+
+            <div id="dashboardFinanceRow" class="dashboard-finance-row" style="display:none;">
+                <button type="button" class="dashboard-finance-card" onclick="showSection('finance')">
+                    <span class="dashboard-finance-card__label">Saldo financeiro</span>
+                    <span class="dashboard-finance-card__value" id="dashFinanceBalance">—</span>
+                </button>
+                <button type="button" class="dashboard-finance-card" onclick="showSection('finance')">
+                    <span class="dashboard-finance-card__label">Resultado do mês</span>
+                    <span class="dashboard-finance-card__value" id="dashFinanceResult">—</span>
+                </button>
+                <button type="button" class="dashboard-finance-card" onclick="showSection('finance'); setFinanceTab('reconcile');">
+                    <span class="dashboard-finance-card__label">A conciliar</span>
+                    <span class="dashboard-finance-card__value" id="dashFinanceUnreconciled">—</span>
+                </button>
+            </div>
+
+            <div class="dashboard-card dashboard-card--stretch" style="margin-bottom:20px;">
+                <div class="dashboard-card-head">
+                    <h3>Funil comercial</h3>
+                    <span class="dashboard-card-hint">Leads → visitas → reservas → vendas</span>
+                </div>
+                <div id="dashboardFunnelSteps" class="funnel-steps">
+                    <div class="funnel-step"><strong id="funnelLeads">—</strong><span>Leads WA</span></div>
+                    <div class="funnel-step"><strong id="funnelVisitas">—</strong><span>Visitas</span></div>
+                    <div class="funnel-step"><strong id="funnelReservas">—</strong><span>Reservas</span></div>
+                    <div class="funnel-step"><strong id="funnelVendas">—</strong><span>Vendas</span></div>
+                </div>
+                <canvas id="chartSalesFunnel" height="120" style="margin-top:16px;max-height:160px;"></canvas>
             </div>
 
             <div class="dashboard-charts-row admin-kpi-row">
@@ -682,6 +724,9 @@
                     <p class="section-subtitle">Cadastro no Firestore, campanha WhatsApp e reservas.</p>
                 </div>
                 <div class="header-actions">
+                    <button type="button" class="btn btn-secondary" onclick="runRestoreLegacyBrokers()" title="Marca corretores antigos como ativos no Firestore (após migração de segurança)">
+                        <i class="fas fa-user-check" aria-hidden="true"></i> Restaurar legados
+                    </button>
                     <button type="button" class="btn btn-secondary" onclick="runMigrateBrokerPasswords()" title="Uma vez: converte senhas plaintext dos corretores para hash">
                         <i class="fas fa-lock" aria-hidden="true"></i> Migrar senhas
                     </button>
@@ -911,12 +956,99 @@
             </div>
         </section>
 
+        <!-- Finance Section (Procfy-style) -->
+        <section id="finance" class="admin-section">
+            <div class="section-header">
+                <div class="section-header-main">
+                    <h2>Financeiro</h2>
+                    <p class="section-subtitle">Transações e conciliação — espelho operacional do Procfy (sem módulo de faturas).</p>
+                </div>
+                <div class="header-actions">
+                    <button type="button" class="btn btn-primary" onclick="openFinanceModal()">
+                        <i class="fas fa-plus" aria-hidden="true"></i> Nova transação
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="loadFinanceModule()">
+                        <i class="fas fa-sync-alt" aria-hidden="true"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+
+            <div class="finance-tabs" role="tablist">
+                <button type="button" class="finance-tab finance-tab--active" data-tab="overview" onclick="setFinanceTab('overview')">Visão geral</button>
+                <button type="button" class="finance-tab" data-tab="transactions" onclick="setFinanceTab('transactions')">Transações</button>
+                <button type="button" class="finance-tab" data-tab="reconcile" onclick="setFinanceTab('reconcile')">Conciliação</button>
+            </div>
+
+            <div class="finance-panel finance-panel--active" data-panel="overview">
+                <div class="finance-kpi-grid">
+                    <div class="finance-kpi"><span class="finance-kpi__label">Saldo</span><span class="finance-kpi__value" id="financeBalance">—</span></div>
+                    <div class="finance-kpi"><span class="finance-kpi__label">Receitas (mês)</span><span class="finance-kpi__value finance-kpi__value--pos" id="financeIncomeMonth">—</span></div>
+                    <div class="finance-kpi"><span class="finance-kpi__label">Despesas (mês)</span><span class="finance-kpi__value finance-kpi__value--neg" id="financeExpenseMonth">—</span></div>
+                    <div class="finance-kpi"><span class="finance-kpi__label">Resultado (mês)</span><span class="finance-kpi__value" id="financeResultMonth">—</span></div>
+                    <div class="finance-kpi"><span class="finance-kpi__label">Pendentes conciliação</span><span class="finance-kpi__value" id="financeUnreconciled">—</span></div>
+                </div>
+                <div class="dashboard-card dashboard-card--chart">
+                    <canvas id="financeCashFlowChart" height="220"></canvas>
+                </div>
+            </div>
+
+            <div class="finance-panel" data-panel="transactions">
+                <div class="finance-toolbar">
+                    <p class="section-subtitle" style="margin:0;">Lançamentos de entrada e saída por conta e categoria.</p>
+                </div>
+                <div class="finance-table-wrap">
+                    <table class="finance-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Descrição</th>
+                                <th>Categoria</th>
+                                <th>Conta</th>
+                                <th>Tipo</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="financeTransactionsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="finance-panel" data-panel="reconcile">
+                <div class="finance-toolbar">
+                    <p class="section-subtitle" style="margin:0;">Marque transações conferidas com o extrato bancário.</p>
+                    <button type="button" class="btn btn-primary" onclick="financeReconcileSelected()">Conciliar selecionadas</button>
+                </div>
+                <div id="financeReconcileList" class="finance-reconcile-list"></div>
+            </div>
+        </section>
+
+        <!-- Legal Section (Wave C stub) -->
+        <section id="legal" class="admin-section">
+            <div class="section-header">
+                <div class="section-header-main">
+                    <h2>Jurídico</h2>
+                    <p class="section-subtitle">Processos, prazos e modelos — base para evolução do módulo jurídico.</p>
+                </div>
+            </div>
+            <div class="content-card">
+                <h3 style="margin-top:0;">Em desenvolvimento</h3>
+                <p>Próximas entregas: cadastro de processos, alertas de prazos, templates de contratos e distratos vinculados às vendas.</p>
+                <ul>
+                    <li>Processos por empreendimento/unidade</li>
+                    <li>Prazos com alerta no dashboard</li>
+                    <li>Modelos de documentos com placeholders</li>
+                </ul>
+            </div>
+        </section>
+
         <!-- Reports Section -->
         <section id="reports" class="admin-section">
             <div class="section-header">
                 <div class="section-header-main">
                     <h2>Relatórios</h2>
-                    <p class="section-subtitle">Gráficos e indicadores a partir do Firestore (vendas, reservas, reparos).</p>
+                    <p class="section-subtitle">Gráficos e indicadores: vendas, reservas, reparos e fluxo de caixa financeiro.</p>
                 </div>
                 <div class="header-actions">
                     <button type="button" class="btn btn-secondary" onclick="exportReportsPdf()">
@@ -946,6 +1078,12 @@
                     <div id="brokerPerformance" class="performance-list">
                         <!-- Broker performance will be loaded here -->
                     </div>
+                </div>
+
+                <div class="report-card">
+                    <h3>Financeiro — fluxo de caixa</h3>
+                    <p class="section-subtitle">Receitas x despesas (6 meses), integrado ao módulo Financeiro.</p>
+                    <canvas id="financeReportChart"></canvas>
                 </div>
             </div>
         </section>
@@ -1517,6 +1655,56 @@
         </div>
     </div>
 
+    <!-- Finance transaction modal -->
+    <div id="financeTransactionModal" class="modal">
+        <div class="modal-content" style="max-width:520px;">
+            <span class="close" onclick="closeFinanceModal()">&times;</span>
+            <h2>Nova transação</h2>
+            <form id="financeTransactionForm" onsubmit="saveFinanceTransaction(event)">
+                <input type="hidden" id="financeFormId" value="">
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select id="financeFormType" required>
+                        <option value="entrada">Entrada</option>
+                        <option value="saida">Saída</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Valor (R$)</label>
+                    <input type="number" id="financeFormAmount" min="0.01" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Data</label>
+                    <input type="date" id="financeFormDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <input type="text" id="financeFormDescription" required maxlength="200">
+                </div>
+                <div class="form-group">
+                    <label>Conta</label>
+                    <select id="financeFormAccount"></select>
+                </div>
+                <div class="form-group">
+                    <label>Categoria</label>
+                    <select id="financeFormCategory"></select>
+                </div>
+                <div class="form-group">
+                    <label>Centro de custo</label>
+                    <input type="text" id="financeFormCenterCost" placeholder="Opcional">
+                </div>
+                <div class="form-group">
+                    <label>Observações</label>
+                    <textarea id="financeFormNotes" rows="2"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeFinanceModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Notification Action Modal -->
     <div id="notificationActionModal" class="modal">
         <div class="modal-content">
@@ -1570,9 +1758,10 @@
     <script src="js/admin-repairs.js?v=7"></script>
     <script src="js/admin-boletos.js?v=1"></script>
     <script src="js/fcm-push.js?v=1"></script>
-    <script src="js/admin-dashboard-charts.js?v=1"></script>
-    <script src="js/admin-reports.js?v=1"></script>
-    <script src="js/admin.js?v=39"></script>
+    <script src="js/admin-dashboard-charts.js?v=2"></script>
+    <script src="js/admin-finance.js?v=1"></script>
+    <script src="js/admin-reports.js?v=2"></script>
+    <script src="js/admin.js?v=40"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>

@@ -13,7 +13,11 @@ const ADMIN_ACCOUNTS = [
  * super: tudo
  * comercial: vendas/leads/campanha/unidades/corretores/reservas
  * posvenda: reparos/clientes + leitura de reservas
- * financeiro: leitura vendas/reservas/dashboard
+ * financeiro: leitura vendas/reservas/dashboard + financeiro (leitura)
+ *
+ * Permissões financeiras:
+ *   finance       — lançamentos, conciliação, contas
+ *   finance_read  — apenas visualizar resumo e transações
  *
  * Permissões de reservas:
  *   reservations       — criar, aprovar, rejeitar, prorrogar, liberar, importar
@@ -21,9 +25,9 @@ const ADMIN_ACCOUNTS = [
  */
 const ROLE_PERMISSIONS = {
   super: ['*'],
-  comercial: ['sales', 'leads', 'campaign', 'units', 'brokers', 'repairs_read', 'reservations'],
+  comercial: ['sales', 'leads', 'campaign', 'units', 'brokers', 'repairs_read', 'reservations', 'finance_read'],
   posvenda: ['repairs', 'clients', 'leads_read', 'units_read', 'reservations_read'],
-  financeiro: ['sales_read', 'repairs_read', 'dashboard', 'reservations_read'],
+  financeiro: ['sales_read', 'repairs_read', 'dashboard', 'reservations_read', 'finance_read'],
 };
 
 function roleHasPermission(role, permission) {

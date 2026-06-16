@@ -15,4 +15,10 @@
     --bf-radius: 12px;
     --bf-radius-sm: 8px;
     --bf-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    --bf-heading: #0b1f3a;
+    --bf-gold: #f5c84b;
+    --bf-gold-dark: #d4a017;
+    --bf-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+    --bf-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+    --bf-shadow-lg: 0 16px 40px rgba(15, 23, 42, 0.1);
 }
