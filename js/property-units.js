@@ -150,7 +150,7 @@ const propertyUnits = {
             { code: "APTO 208", price: 160000, bedrooms: 1, status: "disponivel" },
             { code: "APTO 109", price: 165000, bedrooms: 1, status: "disponivel" },
             { code: "APTO 209", price: 160000, bedrooms: 1, status: "disponivel" },
-            { code: "APTO 110", price: 170000, bedrooms: 1, status: "disponivel" },
+            { code: "APTO 110", price: 170000, bedrooms: 1, status: "reservado" },
             { code: "APTO 210", price: 165000, bedrooms: 1, status: "disponivel" }
         ],
         engineeringValues: {
@@ -167,7 +167,7 @@ const propertyUnits = {
             { code: "CS 05", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "CS 10", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "CS 01", price: 145000, bedrooms: 1, status: "disponivel" },
-            { code: "CS 06", price: 145000, bedrooms: 1, status: "disponivel" },
+            { code: "CS 06", price: 145000, bedrooms: 1, status: "reservado" },
             { code: "CS 11", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "CS 02", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "CS 07", price: 145000, bedrooms: 1, status: "disponivel" },
@@ -177,7 +177,7 @@ const propertyUnits = {
             { code: "CS 13", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "CS 04", price: 150000, bedrooms: 1, status: "reservado" },
             { code: "CS 09", price: 150000, bedrooms: 1, status: "disponivel" },
-            { code: "CS 14", price: 150000, bedrooms: 1, status: "disponivel" }
+            { code: "CS 14", price: 150000, bedrooms: 1, status: "reservado" }
         ],
         engineeringValues: {
             "Cs 6": "R$ 167.000,00",
@@ -191,9 +191,9 @@ const propertyUnits = {
         units: [
             { code: "casa base", price: 135000, bedrooms: 1, status: "assinado" },
             { code: "casa 05", price: 130000, bedrooms: 1, status: "reservado" },
-            { code: "casa 01", price: 135000, bedrooms: 1, status: "disponivel" },
+            { code: "casa 01", price: 135000, bedrooms: 1, status: "reservado" },
             { code: "casa 06", price: 145000, bedrooms: 1, status: "reservado" },
-            { code: "casa 02", price: 145000, bedrooms: 1, status: "disponivel" },
+            { code: "casa 02", price: 145000, bedrooms: 1, status: "reservado" },
             { code: "casa 07", price: 145000, bedrooms: 1, status: "disponivel" },
             { code: "casa 03", price: 145000, bedrooms: 1, status: "reservado" },
             { code: "cassa 08", price: 145000, bedrooms: 1, status: "disponivel" },
@@ -240,10 +240,10 @@ const propertyUnits = {
         }
     },
     
-    7: { // Edifício Nova Cidade - APTO 102 e APTO 205 assinados; APTO 110 reservado
+    7: { // Edifício Nova Cidade - APTO 102 e APTO 205 assinados; APTO 110 e APTO 101 reservados
         name: "EDIFÍCIO NOVA CIDADE - RUA ALCIO SOUTO, 576",
         units: [
-            { code: "APTO 101", price: 160000, bedrooms: 1, status: "disponivel" },
+            { code: "APTO 101", price: 160000, bedrooms: 1, status: "reservado" },
             { code: "APTO 201", price: 165000, bedrooms: 1, status: "disponivel" },
             { code: "APTO 102", price: 165000, bedrooms: 1, status: "assinado" },
             { code: "APTO 202", price: 160000, bedrooms: 1, status: "disponivel" },
