@@ -24,6 +24,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verificações (inventário, URLs, sintaxe)
+        run: node scripts/run-ci-checks.js
+
       - name: Montar pasta do site (sem functions/backend)
         run: |
           mkdir -p public
