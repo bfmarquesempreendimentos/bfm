@@ -80,18 +80,6 @@ function normalizePhoneDigits(phone) {
   return String(phone || '').replace(/\D/g, '');
 }
 
-function isBrokerActiveFlag(value) {
-  if (value === false || value === 0) return false;
-  if (value === true || value === 1) return true;
-  if (value === undefined || value === null) return true;
-  if (typeof value === 'string') {
-    var s = value.trim().toLowerCase();
-    if (s === 'false' || s === '0' || s === 'nao' || s === 'não' || s === 'inativo') return false;
-    return s === 'true' || s === '1' || s === 'sim' || s === 'ativo';
-  }
-  return true;
-}
-
 function normalizeBrazilWhatsApp(phone) {
   let digits = normalizePhoneDigits(phone);
   if (!digits) return null;
@@ -115,8 +103,8 @@ function normalizeBrazilWhatsApp(phone) {
 }
 
 function pickBetterBrokerRow(a, b) {
-  const activeA = isBrokerActiveFlag(a.isActive) ? 1 : 0;
-  const activeB = isBrokerActiveFlag(b.isActive) ? 1 : 0;
+  const activeA = brokerAuth.brokerIsActive(a) ? 1 : 0;
+  const activeB = brokerAuth.brokerIsActive(b) ? 1 : 0;
   if (activeB !== activeA) return activeB > activeA ? b : a;
   const phoneA = normalizeBrazilWhatsApp(a.phone) ? 1 : 0;
   const phoneB = normalizeBrazilWhatsApp(b.phone) ? 1 : 0;
@@ -130,7 +118,7 @@ function pickBetterBrokerRow(a, b) {
 }
 
 function countActiveBrokerDuplicates(brokers) {
-  const active = brokers.filter(function(b) { return isBrokerActiveFlag(b.isActive); });
+  const active = brokers.filter(function(b) { return brokerAuth.brokerIsActive(b); });
   const byEmail = {};
   let dupes = 0;
   active.forEach(function(b) {
@@ -161,7 +149,7 @@ async function listBrokerCampaignTargets(db, payload) {
     return { id: doc.id, ...doc.data() };
   });
   let targetList = dedupeBrokersByEmail(brokers).filter(function(b) {
-    return isBrokerActiveFlag(b.isActive) && !b.whatsappCampaignOptOut;
+    return brokerAuth.brokerIsActive(b) && !b.whatsappCampaignOptOut;
   });
   if (payload && payload.brokerId) {
     targetList = targetList.filter(function(b) {
@@ -243,7 +231,7 @@ async function cleanupBrokerDuplicatesInternal(db, options) {
     const d = doc.data() || {};
     const email = String(d.email || '').trim().toLowerCase();
     if (!email || keeperIds[email] !== doc.id) return;
-    if (!isBrokerActiveFlag(d.isActive)) return;
+    if (!brokerAuth.brokerIsActive(d)) return;
     if (normalizeBrazilWhatsApp(d.phone)) return;
     pendingUpdates.push({
       ref: doc.ref,
@@ -306,7 +294,7 @@ async function buildBrokerPhoneIndex(db) {
   const index = {};
   snapshot.docs.forEach(function(doc) {
     const data = doc.data() || {};
-    const entry = { id: doc.id, name: data.name || '', isActive: isBrokerActiveFlag(data.isActive) };
+    const entry = { id: doc.id, name: data.name || '', isActive: brokerAuth.brokerIsActive(data) };
     const keys = brokerPhoneMatchKeys(data.phone);
     if (!keys.length) {
       const fallback = normalizeBrazilWhatsApp(data.phone);
@@ -733,11 +721,11 @@ async function getBrokerCampaignPreview(db) {
     return { id: doc.id, ...doc.data() };
   });
   dedupeBrokersByEmail(allBrokers).forEach(function(b) {
-    if (b.whatsappCampaignOptOut && isBrokerActiveFlag(b.isActive)) optOutCount += 1;
+    if (b.whatsappCampaignOptOut && brokerAuth.brokerIsActive(b)) optOutCount += 1;
   });
   const activeDuplicateRecords = countActiveBrokerDuplicates(allBrokers);
   const archivedInactiveRecords = allBrokers.filter(function(b) {
-    return !isBrokerActiveFlag(b.isActive);
+    return !brokerAuth.brokerIsActive(b);
   }).length;
   const readyToSend = eligible;
   const hasTpl = !!(templateStatus.templateName);
@@ -2268,7 +2256,7 @@ exports.getBrokers = functions.https.onRequest(async (req, res) => {
     const deduped = dedupeBrokersByEmail(brokers);
     const activeOnly = req.query.activeOnly === '1' || req.query.activeOnly === 'true';
     if (activeOnly) {
-      return res.json(deduped.filter(function(b) { return isBrokerActiveFlag(b.isActive); }));
+      return res.json(deduped.filter(function(b) { return b.isActive; }));
     }
     return res.json(deduped);
   } catch (err) {
@@ -3936,7 +3924,7 @@ exports.brokerCampaignMetrics = functions.https.onRequest(async (req, res) => {
     const brokerSnap = await db.collection('brokers').get();
     brokerSnap.forEach(function(d) {
       var data = d.data() || {};
-      if (!isBrokerActiveFlag(data.isActive)) return;
+      if (!brokerAuth.brokerIsActive(data)) return;
       if (brokerPhoneMatchKeys(data.phone).length) brokersAtivos += 1;
     });
 

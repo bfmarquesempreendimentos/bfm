@@ -7,6 +7,7 @@ const brokerAuth = require('./broker-auth');
 const propertyUnitsCatalog = require('./chatbot/property-units-data');
 const { resolveSaleSlot, getPropertyUnitsRaw } = require('./sale-unit-validation');
 const { allowCors, parseJsonBody, applyUnitStatusOverride } = require('./property-sales-handlers');
+const { resolveUnitStatus } = require('./unit-status');
 const fcmPush = require('./fcm-push');
 
 var RESERVATION_BUSINESS_DAYS = 3;
@@ -80,19 +81,24 @@ function reservationPublicRow(docId, data) {
 
 async function getEffectiveUnitStatus(db, propertyId, unitCode) {
   if (!unitCode) return 'disponivel';
-  var ref = db.collection('unit_status_overrides').doc(String(propertyId));
-  var snap = await ref.get();
-  if (snap.exists && snap.data().map && snap.data().map[unitCode]) {
-    return snap.data().map[unitCode];
-  }
+  var catalogStatus = 'disponivel';
   var raw = getPropertyUnitsRaw(propertyId);
   if (raw && raw.units) {
-    var i;
-    for (i = 0; i < raw.units.length; i++) {
-      if (raw.units[i].code === unitCode) return raw.units[i].status || 'disponivel';
+    var ci;
+    for (ci = 0; ci < raw.units.length; ci++) {
+      if (raw.units[ci].code === unitCode) {
+        catalogStatus = raw.units[ci].status || 'disponivel';
+        break;
+      }
     }
   }
-  return 'disponivel';
+  var ref = db.collection('unit_status_overrides').doc(String(propertyId));
+  var snap = await ref.get();
+  var overrideStatus = null;
+  if (snap.exists && snap.data().map && snap.data().map[unitCode]) {
+    overrideStatus = snap.data().map[unitCode];
+  }
+  return resolveUnitStatus(catalogStatus, overrideStatus);
 }
 
 async function findConflictingReservation(db, slotKey, excludeDocId) {
@@ -509,7 +515,7 @@ async function adminReservationsMutate(req, res) {
         var ui;
         for (ui = 0; ui < rawInv.units.length; ui++) {
           var unitRow = rawInv.units[ui];
-          var effectiveStatus = ovMap[unitRow.code] || unitRow.status || 'disponivel';
+          var effectiveStatus = resolveUnitStatus(unitRow.status, ovMap[unitRow.code]);
           if (effectiveStatus !== 'reservado') continue;
           var slotResolvedSync = resolveSaleSlot(propertyId, unitRow.code);
           if (slotResolvedSync.error) {

@@ -1,6 +1,7 @@
 const admin = require('firebase-admin');
 const propertyUnitsBase = require('./property-units-data');
 const { OFFERING_EXCLUDED_PROPERTY_IDS } = require('./property-data');
+const { resolveUnitStatus } = require('../unit-status');
 
 var overrideCache = { at: 0, data: null };
 var OVERRIDE_CACHE_MS = 60000;
@@ -75,7 +76,7 @@ function mergeUnitsWithOverrides(raw, overrides) {
         code: u.code,
         price: u.price,
         bedrooms: u.bedrooms,
-        status: ov[u.code] || u.status,
+        status: resolveUnitStatus(u.status, ov[u.code]),
       };
     }),
   };

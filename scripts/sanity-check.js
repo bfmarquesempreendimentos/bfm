@@ -72,4 +72,11 @@ if (errors.length) {
     process.exit(1);
 }
 
+try {
+    childProcess.execFileSync('node', [path.join(__dirname, 'inventory-parity-check.js')], { stdio: 'pipe' });
+} catch (e) {
+    console.error('Falha na paridade do inventário.');
+    process.exit(1);
+}
+
 console.log('OK: ' + scripts.length + ' scripts verificados, sem conflitos globais detectados.');

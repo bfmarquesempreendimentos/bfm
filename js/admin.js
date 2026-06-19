@@ -1971,11 +1971,17 @@ function loadReservationsData() {
 
     var syncPromise = Promise.resolve();
     if (adminCan('reservations')) {
-        syncPromise = adminReservationMutate({ action: 'sync_from_inventory' }).then(function(syncData) {
-            if (syncData && syncData.imported > 0) {
-                showMessage('Sincronizadas ' + syncData.imported + ' reserva(s) do inventário (amarelo).', 'success');
-            }
-        }).catch(function() {});
+        var invVersion = (typeof UNIT_INVENTORY_VERSION !== 'undefined') ? UNIT_INVENTORY_VERSION : 'default';
+        var syncKey = 'adminResInvSync';
+        var needsSync = sessionStorage.getItem(syncKey) !== invVersion;
+        if (needsSync) {
+            syncPromise = adminReservationMutate({ action: 'sync_from_inventory' }).then(function(syncData) {
+                sessionStorage.setItem(syncKey, invVersion);
+                if (syncData && syncData.imported > 0) {
+                    showMessage('Sincronizadas ' + syncData.imported + ' reserva(s) do inventário (amarelo).', 'success');
+                }
+            }).catch(function() {});
+        }
     }
     syncPromise.then(fetchReservationsList).catch(function(err) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:#b91c1c;">' + (err.message || 'Erro ao carregar reservas.') + '</td></tr>';

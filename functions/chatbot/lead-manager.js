@@ -1,4 +1,5 @@
 const admin = require('firebase-admin');
+const brokerAuth = require('../broker-auth');
 
 function getDb() {
   return admin.firestore();
@@ -37,12 +38,8 @@ const BRUNO_CORRETOR_PHONE_DISPLAY = '(21) 99555-7010';
 var brokerPhoneCache = { at: 0, map: null };
 var BROKER_CACHE_MS = 3 * 60 * 1000;
 
-function isBrokerActiveFlag(value) {
-  if (value === undefined || value === null) return true;
-  if (value === false || value === 0) return false;
-  if (value === true || value === 1) return true;
-  var s = String(value).trim().toLowerCase();
-  return s === 'true' || s === '1' || s === 'sim' || s === 'ativo';
+function brokerEntryIsActive(docData) {
+  return brokerAuth.brokerIsActive(docData || {});
 }
 
 /**
@@ -79,7 +76,7 @@ async function findRegisteredBrokerByPhone(phone) {
         id: doc.id,
         name: d.name || '',
         email: d.email || '',
-        isActive: isBrokerActiveFlag(d.isActive),
+        isActive: brokerEntryIsActive(d),
       };
       var brokerKeys = brokerPhoneMatchKeys(d.phone);
       brokerKeys.forEach(function(k) {
