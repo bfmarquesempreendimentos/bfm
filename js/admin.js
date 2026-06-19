@@ -1891,14 +1891,8 @@ function loadReservationsData() {
     var propEl = document.getElementById('resFilterProperty');
     var expEl = document.getElementById('resFilterExpiring');
     var renewalEl = document.getElementById('resFilterRenewalDue');
-    var payload = {
-        action: 'list',
-        status: statusEl ? statusEl.value : '',
-        propertyId: propEl ? propEl.value : '',
-        expiringSoon: expEl ? !!expEl.checked : false,
-        renewalDue: renewalEl ? !!renewalEl.checked : false
-    };
-    adminReservationMutate(payload).then(function(data) {
+
+    function renderReservationsList(data) {
         var rows = (data && data.reservations) ? data.reservations : [];
         if (typeof window !== 'undefined') {
             window._adminReservationsCache = rows.map(function(r) {
@@ -1916,15 +1910,6 @@ function loadReservationsData() {
         if (elR) elR.textContent = stats.renewalDue != null ? stats.renewalDue : '0';
         if (!rows.length) {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Nenhuma reserva encontrada.</td></tr>';
-            if (adminCan('reservations') && !sessionStorage.getItem('inventoryResSyncDone')) {
-                sessionStorage.setItem('inventoryResSyncDone', '1');
-                adminReservationMutate({ action: 'sync_from_inventory' }).then(function(syncData) {
-                    if (syncData && syncData.imported > 0) {
-                        showMessage('Importadas ' + syncData.imported + ' reservas do inventário (amarelo).', 'success');
-                        loadReservationsData();
-                    }
-                }).catch(function() {});
-            }
             return;
         }
         tbody.innerHTML = rows.map(function(reservation) {
@@ -1971,7 +1956,28 @@ function loadReservationsData() {
                 '<td><div class="action-buttons">' + actions + '</div></td>' +
                 '</tr>';
         }).join('');
-    }).catch(function(err) {
+    }
+
+    function fetchReservationsList() {
+        var payload = {
+            action: 'list',
+            status: statusEl ? statusEl.value : '',
+            propertyId: propEl ? propEl.value : '',
+            expiringSoon: expEl ? !!expEl.checked : false,
+            renewalDue: renewalEl ? !!renewalEl.checked : false
+        };
+        return adminReservationMutate(payload).then(renderReservationsList);
+    }
+
+    var syncPromise = Promise.resolve();
+    if (adminCan('reservations')) {
+        syncPromise = adminReservationMutate({ action: 'sync_from_inventory' }).then(function(syncData) {
+            if (syncData && syncData.imported > 0) {
+                showMessage('Sincronizadas ' + syncData.imported + ' reserva(s) do inventário (amarelo).', 'success');
+            }
+        }).catch(function() {});
+    }
+    syncPromise.then(fetchReservationsList).catch(function(err) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:#b91c1c;">' + (err.message || 'Erro ao carregar reservas.') + '</td></tr>';
     });
 }

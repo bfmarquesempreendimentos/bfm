@@ -2,44 +2,40 @@
 // Espelho para a Bia (WhatsApp): functions/chatbot/property-units-data.js — mantenha os dois sincronizados.
 
 /** Ao mudar o inventário no código, incremente esta versão para limpar overrides antigos no navegador. */
-var UNIT_INVENTORY_VERSION = '2026-06-02-laranjal-cs04-cs14-fix';
+var UNIT_INVENTORY_VERSION = '2026-06-19-messalina-reservas';
 
-/** Unidades cujo status no código-base prevalece sobre overrides antigos do servidor. */
-var INVENTORY_STATUS_RECONCILE = [
-    { propertyId: 2, unitCode: 'casa 03' },
-    { propertyId: 2, unitCode: 'casa 07' },
-    { propertyId: 4, unitCode: 'CS 04' },
-    { propertyId: 4, unitCode: 'CS 14' },
-    { propertyId: 7, unitCode: 'APTO 205' },
-    { propertyId: 7, unitCode: 'APTO 110' }
-];
-
-function isAuthoritativeInventoryUnit(propertyId, unitCode) {
-    var i, item;
-    var pid = String(propertyId);
-    for (i = 0; i < INVENTORY_STATUS_RECONCILE.length; i++) {
-        item = INVENTORY_STATUS_RECONCILE[i];
-        if (String(item.propertyId) === pid && item.unitCode === unitCode) return true;
+function getCodeBaseUnitStatus(propertyId, unitCode) {
+    var raw = propertyUnits[propertyId] || propertyUnits[String(propertyId)];
+    if (!raw || !raw.units) return null;
+    var j, u;
+    for (j = 0; j < raw.units.length; j++) {
+        u = raw.units[j];
+        if (u.code === unitCode) return u.status || 'disponivel';
     }
-    return false;
+    return null;
+}
+
+/** Status do código-base prevalece sobre overrides remotos (reservado/assinado). */
+function isAuthoritativeInventoryUnit(propertyId, unitCode) {
+    var st = getCodeBaseUnitStatus(propertyId, unitCode);
+    return st != null && st !== 'disponivel';
 }
 
 function reconcileAuthoritativeUnitStatuses() {
     try {
         var ov = getUnitStatusOverrides();
-        var i, item, raw, units, j, u, pidKey;
-        for (i = 0; i < INVENTORY_STATUS_RECONCILE.length; i++) {
-            item = INVENTORY_STATUS_RECONCILE[i];
-            raw = propertyUnits[item.propertyId];
+        var pid, raw, units, j, u, pidKey;
+        for (pid in propertyUnits) {
+            if (!Object.prototype.hasOwnProperty.call(propertyUnits, pid)) continue;
+            raw = propertyUnits[pid];
             if (!raw || !raw.units) continue;
-            pidKey = String(item.propertyId);
+            pidKey = String(pid);
             if (!ov[pidKey]) ov[pidKey] = {};
             units = raw.units;
             for (j = 0; j < units.length; j++) {
                 u = units[j];
-                if (u.code === item.unitCode) {
-                    ov[pidKey][item.unitCode] = u.status;
-                    break;
+                if (u.status && u.status !== 'disponivel') {
+                    ov[pidKey][u.code] = u.status;
                 }
             }
         }
@@ -327,17 +323,16 @@ function pushReconcileStatusesToServerIfAdmin() {
     } catch (e) {}
     if (!creds || !creds.email || !creds.password || typeof fetch === 'undefined') return;
     var items = [];
-    var i, item, raw, units, j, u;
-    for (i = 0; i < INVENTORY_STATUS_RECONCILE.length; i++) {
-        item = INVENTORY_STATUS_RECONCILE[i];
-        raw = propertyUnits[item.propertyId];
+    var pid, raw, units, j, u;
+    for (pid in propertyUnits) {
+        if (!Object.prototype.hasOwnProperty.call(propertyUnits, pid)) continue;
+        raw = propertyUnits[pid];
         if (!raw || !raw.units) continue;
         units = raw.units;
         for (j = 0; j < units.length; j++) {
             u = units[j];
-            if (u.code === item.unitCode) {
-                items.push({ propertyId: item.propertyId, unitCode: item.unitCode, status: u.status });
-                break;
+            if (u.status && u.status !== 'disponivel') {
+                items.push({ propertyId: Number(pid) || pid, unitCode: u.code, status: u.status });
             }
         }
     }

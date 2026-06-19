@@ -199,6 +199,23 @@ function propertyTitleFromCatalog(propertyId, raw) {
   return 'Empreendimento ' + propertyId;
 }
 
+/** Grava no Firestore status reservado/assinado do catálogo (corrige overrides antigos). */
+async function syncCatalogReservedStatusesToFirestore(db) {
+  var pid, prop, i, u;
+  for (pid in propertyUnitsCatalog) {
+    if (!Object.prototype.hasOwnProperty.call(propertyUnitsCatalog, pid)) continue;
+    prop = propertyUnitsCatalog[pid];
+    if (!prop || !prop.units || !prop.units.length) continue;
+    for (i = 0; i < prop.units.length; i++) {
+      u = prop.units[i];
+      if (!u || !u.code) continue;
+      if (u.status === 'reservado' || u.status === 'assinado') {
+        await applyUnitStatusOverride(db, pid, u.code, u.status);
+      }
+    }
+  }
+}
+
 async function brokerCreateReservation(req, res) {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
@@ -472,6 +489,7 @@ async function adminReservationsMutate(req, res) {
     }
 
     if (action === 'sync_from_inventory') {
+      await syncCatalogReservedStatusesToFirestore(db);
       var importedInv = 0;
       var skippedInv = 0;
       var alreadyInv = 0;
