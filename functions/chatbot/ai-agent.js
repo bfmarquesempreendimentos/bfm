@@ -781,7 +781,7 @@ async function handleIncomingMessage(messageData) {
         cleanNameRule + trainingExtra;
     }
     let response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: registeredBroker ? brokerMaxTokens : 1024,
       system: leadContext,
       tools: TOOLS,
@@ -819,7 +819,7 @@ async function handleIncomingMessage(messageData) {
       dedupedMessages.push({ role: 'user', content: toolResults });
 
       response = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: registeredBroker ? brokerMaxTokens : 1024,
         system: leadContext,
         tools: TOOLS,
