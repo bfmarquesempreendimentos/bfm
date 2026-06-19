@@ -379,10 +379,11 @@ function showDashboardTab(tab) {
 }
 
 function getClientCloudBaseUrl() {
+    if (typeof getCloudFunctionsBaseUrl === 'function') return getCloudFunctionsBaseUrl();
     if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
         return CONFIG.cloudFunctions.baseURL;
     }
-    return 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+    return '';
 }
 
 /** Token Firebase do cliente logado (ou null se for login legado sem Firebase Auth). */

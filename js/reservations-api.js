@@ -1,13 +1,17 @@
 /**
  * API de reservas (Firestore via Cloud Functions).
  */
-var RESERVATION_BUSINESS_DAYS = 3;
+var RESERVATION_BUSINESS_DAYS = (typeof CONFIG !== 'undefined' && CONFIG.reservations && CONFIG.reservations.businessDays)
+    ? CONFIG.reservations.businessDays
+    : 3;
 
 function getReservationFunctionsBase() {
+    if (typeof getCloudFunctionsBaseUrl === 'function') return getCloudFunctionsBaseUrl();
+    if (typeof ApiClient !== 'undefined' && ApiClient.getBaseUrl) return ApiClient.getBaseUrl();
     if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
         return CONFIG.cloudFunctions.baseURL;
     }
-    return 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+    return '';
 }
 
 function getBrokerIdToken() {

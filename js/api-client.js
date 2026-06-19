@@ -2,13 +2,14 @@
  * Cliente HTTP único para Cloud Functions (IE11-safe)
  */
 (function(global) {
-    var DEFAULT_BASE = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
-
     function getBaseUrl() {
-        if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
-            return CONFIG.cloudFunctions.baseURL;
+        if (typeof getCloudFunctionsBaseUrl === 'function') {
+            return getCloudFunctionsBaseUrl();
         }
-        return DEFAULT_BASE;
+        if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
+            return String(CONFIG.cloudFunctions.baseURL).replace(/\/$/, '');
+        }
+        return 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
     }
 
     function parseJsonSafe(txt) {

@@ -11,7 +11,14 @@ function normalizeWaPhone(raw) {
   return s;
 }
 
-var waInboxBaseUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+function getWaInboxBaseUrl() {
+    if (typeof getCloudFunctionsBaseUrl === 'function') return getCloudFunctionsBaseUrl();
+    if (typeof ApiClient !== 'undefined' && ApiClient.getBaseUrl) return ApiClient.getBaseUrl();
+    if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
+        return CONFIG.cloudFunctions.baseURL;
+    }
+    return '';
+}
 var waLeadsData = [];
 /** Atalho ativo nos cartões de estatística: '' | 'total' | 'pendentes' | 'humano' | 'vendas' | 'duvidas' | 'sugestoes' */
 var waInboxQuickFilter = '';
@@ -69,7 +76,7 @@ function waInboxApi(path, options) {
   return waInboxGetToken().then(function(token) {
     var headers = { 'Content-Type': 'application/json' };
     var creds = waInboxGetCreds();
-    var url = waInboxBaseUrl + path;
+    var url = getWaInboxBaseUrl() + path;
 
     if (token) {
       headers.Authorization = 'Bearer ' + token;
@@ -455,7 +462,7 @@ function waInboxLoadChat(phone, opts) {
       var attName = m.fileName;
       var waMediaId = m.whatsappMediaId;
       var mediaProxy = waMediaId
-        ? (waInboxBaseUrl + '/chatbotInboxWhatsAppMedia?mediaId=' + encodeURIComponent(String(waMediaId)))
+        ? (getWaInboxBaseUrl() + '/chatbotInboxWhatsAppMedia?mediaId=' + encodeURIComponent(String(waMediaId)))
         : '';
       var attHtml = '';
       if (att === 'audio' && waMediaId) {

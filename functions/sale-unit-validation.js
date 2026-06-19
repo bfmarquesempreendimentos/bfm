@@ -1,10 +1,8 @@
 'use strict';
 
-/** Espelha js/property-units.js — validação de unidade no servidor. */
+/** Validação de unidade no servidor — catálogo: data/property-units.json */
 const propertyUnits = require('./chatbot/property-units-data');
-
-/** Empreendimentos fora do cadastro de vendas (ex.: Porto Novo oculto). */
-const SALES_EXCLUDED_PROPERTY_IDS = { 1: true };
+const { salesExcludedPropertyIds: SALES_EXCLUDED_PROPERTY_IDS } = require('./shared/property-catalog');
 
 function normalizeUnitSlotToken(raw) {
   if (raw == null || raw === '') return '';

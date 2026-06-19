@@ -377,9 +377,7 @@ function finalizarSimulacao() {
     document.getElementById('gameResult').style.display = 'block';
     showResultOverlay();
     try {
-        var base = (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL)
-            ? CONFIG.cloudFunctions.baseURL
-            : 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+        var base = (typeof getCloudFunctionsBaseUrl === 'function') ? getCloudFunctionsBaseUrl() : '';
         fetch(base + '/saveSimulatorLead', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

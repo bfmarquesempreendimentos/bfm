@@ -48,6 +48,7 @@ const { verifyAdminFromBody, verifyAdminFromReq } = require('./admin-accounts');
 const { verifyAdminAuth, extractIdToken } = require('./admin-auth');
 const { hashPassword, isPasswordHashed, passwordFieldsForStorage } = require('./broker-password');
 const brokerAuth = require('./broker-auth');
+const { CLOUD_FUNCTIONS_BASE } = require('./shared/constants');
 
 admin.initializeApp();
 
@@ -2535,7 +2536,7 @@ exports.adminProvisionAuth = functions.https.onRequest(async (req, res) => {
 });
 
 // ─── Cadastro de corretor: e-mail com aprovar/rejeitar ───────────────
-const FUNCTIONS_PUBLIC_BASE = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+const FUNCTIONS_PUBLIC_BASE = CLOUD_FUNCTIONS_BASE;
 const BROKER_ACTION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const BROKER_ALERT_EMAIL = 'bfmarquesempreendimentos@gmail.com';
 const BROKER_SITE_URL = 'https://bfmarquesempreendimentos.github.io/bfm/';

@@ -111,7 +111,7 @@ var CONFIG = {
         enableCache: true
     },
 
-    // Cloud Functions (HTTPS) — vendas, unidades, etc.
+    // Cloud Functions (HTTPS) — sincronizado com data/site-config.json
     cloudFunctions: {
         baseURL: 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net'
     },
@@ -155,7 +155,7 @@ var CONFIG = {
     },
 
     /** Versão de cache para CSS/JS (incrementar a cada deploy público) */
-    assetVersion: '32',
+    assetVersion: '33',
 
     /** Permissões por perfil do painel admin (espelha functions/admin-accounts.js) */
     adminRoles: {
@@ -165,6 +165,14 @@ var CONFIG = {
         financeiro: ['sales_read', 'repairs_read', 'dashboard', 'reservations_read', 'finance_read']
     }
 };
+
+/** URL base das Cloud Functions (fonte: CONFIG.cloudFunctions ou data/site-config.json via build). */
+function getCloudFunctionsBaseUrl() {
+    if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
+        return String(CONFIG.cloudFunctions.baseURL).replace(/\/$/, '');
+    }
+    return 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+}
 
 // Função para obter configuração
 function getConfig(key) {
@@ -231,4 +239,5 @@ if (typeof window !== 'undefined') {
     window.CONFIG = CONFIG;
     window.getConfig = getConfig;
     window.setConfig = setConfig;
+    window.getCloudFunctionsBaseUrl = getCloudFunctionsBaseUrl;
 }

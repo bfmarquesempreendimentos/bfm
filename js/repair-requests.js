@@ -333,7 +333,7 @@ async function submitRepairRequest(event) {
         localStorage.setItem('repairRequests', JSON.stringify(repairRequests));
 
         // PRIMÁRIO: Cloud Function createRepair - garante sync Mac/Windows (não depende do Firestore client)
-        var createRepairUrl = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/createRepair';
+        var createRepairUrl = getRepairsApiBase() + '/createRepair';
         var savedToServer = false;
         if (typeof fetch === 'function') {
             try {
@@ -403,10 +403,11 @@ async function submitRepairRequest(event) {
 }
 
 function getRepairsApiBase() {
+    if (typeof getCloudFunctionsBaseUrl === 'function') return getCloudFunctionsBaseUrl();
     if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
         return CONFIG.cloudFunctions.baseURL;
     }
-    return 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+    return '';
 }
 
 // Carregar solicitações de reparo do cliente

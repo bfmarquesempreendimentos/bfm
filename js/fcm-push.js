@@ -19,10 +19,11 @@
     }
 
     function getFunctionsBase() {
+        if (typeof getCloudFunctionsBaseUrl === 'function') return getCloudFunctionsBaseUrl();
         if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
             return CONFIG.cloudFunctions.baseURL;
         }
-        return 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+        return '';
     }
 
     function getAuthTokenForFcm(roleHint) {

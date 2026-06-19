@@ -33,7 +33,7 @@ async function pushLocalRepairsToServer() {
     if (typeof showMessage === 'function') showMessage('Enviando ' + toPush.length + ' reparo(s) para o servidor...', 'info');
     var base = (typeof ADMIN_FUNCTIONS_BASE !== 'undefined' && ADMIN_FUNCTIONS_BASE)
         ? ADMIN_FUNCTIONS_BASE
-        : 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+        : ((typeof getCloudFunctionsBaseUrl === 'function') ? getCloudFunctionsBaseUrl() : '');
     var ok = 0;
     for (var k = 0; k < toPush.length; k++) {
         try {
@@ -63,7 +63,7 @@ async function fetchRepairsFromCloudFunction() {
         } catch (eAuth) {}
     }
     var fetchOpts = { cache: 'no-store', credentials: 'omit', mode: 'cors' };
-    var url = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net/getRepairs';
+    var url = ((typeof getCloudFunctionsBaseUrl === 'function') ? getCloudFunctionsBaseUrl() : '') + '/getRepairs';
     for (var attempt = 0; attempt < 3; attempt++) {
         try {
             var ts = Date.now();

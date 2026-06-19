@@ -1141,9 +1141,9 @@ function deleteBiaSnippet(at) {
     }).catch(function(err) { alert(err.message || 'Erro.'); });
 }
 
-var ADMIN_FUNCTIONS_BASE = (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL)
-    ? CONFIG.cloudFunctions.baseURL
-    : 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+var ADMIN_FUNCTIONS_BASE = (typeof getCloudFunctionsBaseUrl === 'function')
+    ? getCloudFunctionsBaseUrl()
+    : ((typeof ApiClient !== 'undefined' && ApiClient.getBaseUrl) ? ApiClient.getBaseUrl() : '');
 
 function hasLikelyPhone(phone) {
     var digits = String(phone || '').replace(/\D/g, '');

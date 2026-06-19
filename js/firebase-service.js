@@ -19,6 +19,14 @@ function getFirebaseStorage() {
   return firebase.storage();
 }
 
+function getFirebaseServiceFunctionsBase() {
+  if (typeof getCloudFunctionsBaseUrl === 'function') return getCloudFunctionsBaseUrl();
+  if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
+    return CONFIG.cloudFunctions.baseURL;
+  }
+  return '';
+}
+
 async function uploadRepairAttachmentsToFirebase(files, folder = 'repair-attachments') {
   const storage = getFirebaseStorage();
   if (!storage) throw new Error('Storage indisponível');
@@ -62,7 +70,7 @@ async function callPatchRepairAPI(repairId, updates) {
     token = await getClientIdToken();
   }
   if (token) headers.Authorization = 'Bearer ' + token;
-  var res = await fetch(FUNCTIONS_BASE + '/patchRepair', {
+  var res = await fetch(getFirebaseServiceFunctionsBase() + '/patchRepair', {
     method: 'POST',
     headers: headers,
     body: JSON.stringify(payload),
@@ -81,7 +89,7 @@ async function saveRepairRequestToFirestore(repairRequest) {
   if (token) headers.Authorization = 'Bearer ' + token;
   var body = repairRequest || {};
   if (token) body.idToken = token;
-  var res = await fetch(FUNCTIONS_BASE + '/createRepair', {
+  var res = await fetch(getFirebaseServiceFunctionsBase() + '/createRepair', {
     method: 'POST',
     headers: headers,
     body: JSON.stringify(body),
@@ -284,13 +292,9 @@ async function saveBrokerToFirestore(broker) {
   return null;
 }
 
-const FUNCTIONS_BASE = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
-const GET_BROKERS_API = FUNCTIONS_BASE + '/getBrokers';
-const REGISTER_BROKER_API = FUNCTIONS_BASE + '/registerBroker';
-
 async function registerBrokerAPI(broker) {
   try {
-    const res = await fetch(REGISTER_BROKER_API, {
+    const res = await fetch(getFirebaseServiceFunctionsBase() + '/registerBroker', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -315,7 +319,7 @@ async function registerBrokerAPI(broker) {
 
 async function getBrokersFromAPI(activeOnly) {
   try {
-    var url = GET_BROKERS_API + '?_=' + Date.now();
+    var url = getFirebaseServiceFunctionsBase() + '/getBrokers?_=' + Date.now();
     if (activeOnly) url += '&activeOnly=1';
     const res = await fetch(url);
     if (!res.ok) throw new Error('API erro ' + res.status);
@@ -347,7 +351,7 @@ async function updateBrokerInFirestore(brokerId, updates) {
     var auth = getFirebaseAuth();
     if (auth.currentUser) {
       var token = await auth.currentUser.getIdToken();
-      var res = await fetch(FUNCTIONS_BASE + '/brokerUpdateMe', {
+      var res = await fetch(getFirebaseServiceFunctionsBase() + '/brokerUpdateMe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
         body: JSON.stringify(updates || {}),
@@ -378,7 +382,7 @@ async function savePasswordResetToken(brokerId, email, token, type = 'broker') {
     };
     if (type === 'client') payload.clientId = brokerId || '';
     else payload.brokerId = brokerId || '';
-    var res = await fetch(FUNCTIONS_BASE + '/savePasswordResetToken', {
+    var res = await fetch(getFirebaseServiceFunctionsBase() + '/savePasswordResetToken', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -395,7 +399,7 @@ async function savePasswordResetToken(brokerId, email, token, type = 'broker') {
 
 async function getPasswordResetToken(token) {
   try {
-    var res = await fetch(FUNCTIONS_BASE + '/verifyPasswordResetToken?token=' + encodeURIComponent(token), { cache: 'no-store' });
+    var res = await fetch(getFirebaseServiceFunctionsBase() + '/verifyPasswordResetToken?token=' + encodeURIComponent(token), { cache: 'no-store' });
     if (!res.ok) return null;
     var j = await res.json();
     if (!j || !j.ok) return null;
@@ -414,7 +418,7 @@ async function getPasswordResetToken(token) {
 
 async function completePasswordResetAPI(token, newPassword) {
   try {
-    var res = await fetch(FUNCTIONS_BASE + '/completePasswordReset', {
+    var res = await fetch(getFirebaseServiceFunctionsBase() + '/completePasswordReset', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: token, newPassword: newPassword }),
@@ -434,10 +438,11 @@ async function markPasswordResetTokenUsed(tokenDocId) {
 }
 
 function getCloudFunctionsBaseForSales() {
+  if (typeof getCloudFunctionsBaseUrl === 'function') return getCloudFunctionsBaseUrl();
   if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions && CONFIG.cloudFunctions.baseURL) {
     return CONFIG.cloudFunctions.baseURL;
   }
-  return 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+  return '';
 }
 
 async function fetchClientPropertySalesMe(idToken) {
