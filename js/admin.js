@@ -254,40 +254,6 @@ function runMigrateLegacySaleSlots() {
         });
 }
 
-function runRestoreLegacyBrokers() {
-    if (!confirm('Marcar corretores legados (sem isActive explícito) como ativos no Firestore? Use após a migração de segurança se algum corretor não conseguir entrar.')) return;
-    adminPostJson('/adminBrokerMutate', { action: 'restore_legacy' })
-        .then(function(r) {
-            var restored = r.restored || 0;
-            var total = r.total || 0;
-            showMessage('Corretores legados restaurados: ' + restored + ' de ' + total + '.', restored > 0 ? 'success' : 'info');
-            if (typeof loadBrokersData === 'function') loadBrokersData();
-        })
-        .catch(function(err) {
-            showMessage(err.message || 'Erro ao restaurar corretores legados.', 'error');
-        });
-}
-
-/** Uma vez após Onda 6: hasheia senhas plaintext dos corretores no Firestore. */
-function runMigrateBrokerPasswords() {
-    if (!confirm('Converter senhas em texto puro dos corretores para hash seguro? Execute só uma vez após a Onda 6.')) return;
-    adminPostJson('/adminMigrateBrokerPasswords', {})
-        .then(function(r) {
-            var migrated = r.migrated || 0;
-            var skipped = r.skipped || 0;
-            var total = r.total || 0;
-            var msg;
-            if (migrated === 0 && skipped === total && total > 0) {
-                msg = 'Todas as ' + total + ' senhas já estão protegidas com hash. Nada a migrar.';
-            } else {
-                msg = 'Senhas: ' + migrated + ' migradas, ' + skipped + ' ignoradas (de ' + total + ' corretores).';
-            }
-            showMessage(msg, migrated > 0 ? 'success' : 'info');
-        })
-        .catch(function(err) {
-            showMessage(err.message || 'Erro na migração de senhas.', 'error');
-        });
-}
 
 // Setup admin event listeners
 function setupAdminEventListeners() {
@@ -2532,6 +2498,11 @@ function renderBrokerCampaignKpis(preview) {
             if (preview.campaignWeek && preview.campaignWeek.featuredPropertyTitle) {
                 hint.textContent += preview.campaignWeek.featuredPropertyTitle;
                 if (preview.campaignWeek.featuredPrice) hint.textContent += ' (' + preview.campaignWeek.featuredPrice + ')';
+                if (preview.campaignWeek.featuredManual) {
+                    hint.textContent += ' · escolhido';
+                } else if (preview.campaignWeek.featuredAutoReason) {
+                    hint.textContent += ' · auto (' + preview.campaignWeek.featuredAutoReason + ')';
+                }
             } else {
                 hint.textContent += 'automático';
             }
@@ -2595,12 +2566,14 @@ function fillBrokerCampaignPropertySelect(propertyList, selectedId) {
     var sel = document.getElementById('brokerCampaignFeaturedProperty');
     if (!sel) return;
     var current = selectedId != null && selectedId !== '' ? String(selectedId) : sel.value;
-    var html = '<option value="">Automático (rotação por semana)</option>';
+    var html = '<option value="">Automático (engenharia e estoque)</option>';
     var i;
     var list = propertyList || [];
     for (i = 0; i < list.length; i++) {
+        var hint = list[i].priorityHint ? (' · ' + list[i].priorityHint) : '';
         html += '<option value="' + list[i].id + '">' +
             escapeHtml(String(list[i].title)) + ' — ' + escapeHtml(String(list[i].price || '')) +
+            escapeHtml(hint) +
             '</option>';
     }
     sel.innerHTML = html;
@@ -2615,14 +2588,45 @@ function updateBrokerCampaignWeekPreviewLine(preview) {
         el.textContent = '';
         return;
     }
-    var txt = 'Prévia desta configuração: ';
-    if (cw.featuredManual) txt += 'destaque manual — ';
+    var txt = 'Prévia: ';
+    if (cw.featuredManual) {
+        txt += 'destaque escolhido — ';
+    } else {
+        txt += 'automático — ';
+        if (cw.featuredAutoReason) txt += cw.featuredAutoReason + ' — ';
+    }
     txt += (cw.featuredPropertyTitle || '—');
     if (cw.featuredPrice) txt += ' (' + cw.featuredPrice + ')';
     if (cw.featuredPropertyUrl) txt += '. Link: ' + cw.featuredPropertyUrl;
-    txt += '. Notícia: ' + (cw.marketCustom ? 'personalizada' : 'automática') +
-        ' — ' + (cw.marketSnippetTitle || '');
+    if (!cw.featuredManual && cw.autoSuggestedPropertyTitle &&
+        cw.autoSuggestedPropertyId !== cw.featuredPropertyId) {
+        txt += '. Sugestão automática desta semana: ' + cw.autoSuggestedPropertyTitle + '.';
+    }
     el.textContent = txt;
+}
+
+function onBrokerCampaignFeaturedChange() {
+    loadBrokerCampaignPreview();
+}
+
+function saveBrokerCampaignFeatured() {
+    var feat = document.getElementById('brokerCampaignFeaturedProperty');
+    var featVal = feat ? String(feat.value || '').trim() : '';
+    adminPostJson('/brokerCampaignConfig', {
+        featuredPropertyId: featVal === '' ? '' : Number(featVal)
+    }).then(function(res) {
+        if (res && res.config) applyBrokerCampaignConfigFields(res.config);
+        loadBrokerCampaignPreview();
+        if (typeof showMessage === 'function') {
+            showMessage(featVal === ''
+                ? 'Destaque automático ativado (prioridade por engenharia e estoque).'
+                : 'Destaque da semana salvo.', 'success');
+        }
+    }).catch(function(err) {
+        if (typeof showMessage === 'function') {
+            showMessage('Erro ao salvar destaque: ' + (err.message || ''), 'error');
+        }
+    });
 }
 
 function applyBrokerCampaignConfigFields(cfg) {
@@ -2663,13 +2667,19 @@ function applyBrokerCampaignConfigFields(cfg) {
 }
 
 function loadBrokerCampaignPreview() {
-    return adminFetchJson('/brokerCampaignPreview').then(function(preview) {
+    var featSel = document.getElementById('brokerCampaignFeaturedProperty');
+    var path = '/brokerCampaignPreview';
+    if (featSel) {
+        path += '?featuredPropertyId=' + encodeURIComponent(featSel.value || '');
+    }
+    return adminFetchJson(path).then(function(preview) {
         renderBrokerCampaignKpis(preview);
         if (preview && preview.campaignProperties) {
-            fillBrokerCampaignPropertySelect(
-                preview.campaignProperties,
-                preview.featuredPropertyId != null ? preview.featuredPropertyId : ''
-            );
+            var selectedFeatured = featSel ? featSel.value : '';
+            if (selectedFeatured === '' && preview.featuredPropertyId != null && preview.featuredPropertyId !== '') {
+                selectedFeatured = String(preview.featuredPropertyId);
+            }
+            fillBrokerCampaignPropertySelect(preview.campaignProperties, selectedFeatured);
         }
         updateBrokerCampaignWeekPreviewLine(preview);
         var wabaEl = document.getElementById('brokerCampaignWabaId');

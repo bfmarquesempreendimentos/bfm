@@ -93,17 +93,87 @@ function getMarketSnippetForDate(now) {
   return MARKET_SNIPPETS[idx];
 }
 
+function getCampaignPropertyPriorityScore(propertyId) {
+  var snap = getCampaignPriceSnapshot(propertyId);
+  if (!snap.disponivelCount) return -1;
+  var score = snap.disponivelCount * 50000;
+  var i;
+  for (i = 0; i < snap.examples.length; i++) {
+    score += snap.examples[i].gap;
+  }
+  if (snap.minSale != null && snap.maxEng != null && snap.maxEng > snap.minSale) {
+    score += (snap.maxEng - snap.minSale) * 0.25;
+  }
+  return score;
+}
+
+function buildCampaignPropertyPriorityList() {
+  var pool = getCampaignPropertyPool();
+  var scored = [];
+  var i;
+  for (i = 0; i < pool.length; i++) {
+    var snap = getCampaignPriceSnapshot(pool[i].id);
+    var score = getCampaignPropertyPriorityScore(pool[i].id);
+    scored.push({
+      property: pool[i],
+      score: score,
+      snap: snap,
+    });
+  }
+  scored.sort(function(a, b) {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.property.id - b.property.id;
+  });
+  return scored;
+}
+
+function getAutoFeaturedPropertyForWeek(week) {
+  var scored = buildCampaignPropertyPriorityList();
+  var eligible = [];
+  var i;
+  for (i = 0; i < scored.length; i++) {
+    if (scored[i].score >= 0) eligible.push(scored[i]);
+  }
+  if (!eligible.length) {
+    var pool = getCampaignPropertyPool();
+    return pool.length ? pool[(week - 1) % pool.length] : null;
+  }
+  var idx = (week - 1) % eligible.length;
+  if (idx < 0) idx = 0;
+  return eligible[idx].property;
+}
+
+function describeAutoFeaturedReason(week, featured) {
+  if (!featured) return '';
+  var scored = buildCampaignPropertyPriorityList();
+  var eligible = [];
+  var i;
+  for (i = 0; i < scored.length; i++) {
+    if (scored[i].score >= 0) eligible.push(scored[i]);
+  }
+  if (!eligible.length) return 'rotacao do portfolio ativo';
+  var rank = -1;
+  for (i = 0; i < eligible.length; i++) {
+    if (eligible[i].property.id === featured.id) {
+      rank = i + 1;
+      break;
+    }
+  }
+  var snap = getCampaignPriceSnapshot(featured.id);
+  var parts = [];
+  if (rank > 0) parts.push('prioridade #' + rank + ' de ' + eligible.length);
+  if (snap.disponivelCount) parts.push(snap.disponivelCount + ' un. disponiveis');
+  if (snap.examples.length) parts.push('engenharia acima da venda em ' + snap.examples.length + ' un.');
+  return parts.join(' · ');
+}
+
 function getFeaturedPropertyForWeek(week, overrideId) {
   if (overrideId === '' || overrideId === 0 || overrideId === '0') overrideId = null;
   if (overrideId != null) {
     var forced = getPropertyById(Number(overrideId));
     if (forced && isPropertyOffered(forced)) return forced;
   }
-  var pool = getCampaignPropertyPool();
-  if (!pool.length) return null;
-  var idx = (week - 1) % pool.length;
-  if (idx < 0) idx = 0;
-  return pool[idx];
+  return getAutoFeaturedPropertyForWeek(week);
 }
 
 function formatPriceBr(price) {
@@ -1276,14 +1346,32 @@ async function sendBrokerCampaignTemplateMedia(
 }
 
 function getCampaignPropertiesForAdmin() {
-  var pool = getCampaignPropertyPool();
+  var scored = buildCampaignPropertyPriorityList();
   var out = [];
+  var rank = 0;
   var i;
-  for (i = 0; i < pool.length; i++) {
+  for (i = 0; i < scored.length; i++) {
+    if (scored[i].score < 0) continue;
+    rank += 1;
+    var hint = 'auto #' + rank;
+    if (scored[i].snap.disponivelCount) hint += ' · ' + scored[i].snap.disponivelCount + ' disp.';
+    if (scored[i].snap.examples.length) hint += ' · eng. ' + scored[i].snap.examples.length + ' un.';
     out.push({
-      id: pool[i].id,
-      title: pool[i].title,
-      price: formatPriceBr(pool[i].price),
+      id: scored[i].property.id,
+      title: scored[i].property.title,
+      price: formatPriceBr(scored[i].property.price),
+      priorityRank: rank,
+      priorityHint: hint,
+    });
+  }
+  for (i = 0; i < scored.length; i++) {
+    if (scored[i].score >= 0) continue;
+    out.push({
+      id: scored[i].property.id,
+      title: scored[i].property.title,
+      price: formatPriceBr(scored[i].property.price),
+      priorityRank: 0,
+      priorityHint: 'sem unidade disponivel',
     });
   }
   return out;
@@ -1298,6 +1386,7 @@ function getCampaignWeekPreview(now, config) {
   var siteUrl = (config && config.siteUrl) || SITE_BASE_URL + '/';
   var customMarket = !!(config && String(config.marketNewsTitle || '').trim() &&
     String(config.marketNewsText || '').trim());
+  var autoSuggested = getAutoFeaturedPropertyForWeek(week);
   return {
     week: week,
     featuredPropertyId: featured ? featured.id : null,
@@ -1305,6 +1394,11 @@ function getCampaignWeekPreview(now, config) {
     featuredPrice: featured ? formatPriceBr(getFeaturedMinSalePrice(featured) || featured.price) : '',
     featuredPropertyUrl: featured ? getPropertyPageUrl(featured, siteUrl) : '',
     featuredManual: overrideId != null && overrideId !== '' && !isNaN(Number(overrideId)),
+    featuredAutoReason: (overrideId != null && overrideId !== '' && !isNaN(Number(overrideId)))
+      ? ''
+      : describeAutoFeaturedReason(week, featured),
+    autoSuggestedPropertyId: autoSuggested ? autoSuggested.id : null,
+    autoSuggestedPropertyTitle: autoSuggested ? autoSuggested.title : '',
     marketSnippetTitle: market.title,
     marketSnippetText: market.text,
     marketCustom: customMarket,

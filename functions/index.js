@@ -707,8 +707,15 @@ async function getBrokerCampaignTemplateStatus(config, db) {
   };
 }
 
-async function getBrokerCampaignPreview(db) {
-  const config = await getBrokerCampaignConfig(db);
+async function getBrokerCampaignPreview(db, opts) {
+  opts = opts || {};
+  var config = await getBrokerCampaignConfig(db);
+  if (opts.featuredPropertyId !== undefined) {
+    var fp = opts.featuredPropertyId;
+    config = Object.assign({}, config, {
+      featuredPropertyId: (fp === '' || fp === null || fp === undefined) ? null : Number(fp),
+    });
+  }
   const templateStatus = await getBrokerCampaignTemplateStatus(config, db);
   const targetList = await listBrokerCampaignTargets(db, {});
   let eligible = 0;
@@ -921,7 +928,7 @@ function getDefaultBrokerCampaignConfig() {
     skipMetaTemplate: false,
     campaignMaxImages: 2,
     campaignMaxVideos: 1,
-    featuredPropertyId: 7,
+    featuredPropertyId: null,
     marketNewsTitle: '',
     marketNewsText: '',
     templateName: 'campanha_corretor_msg',
@@ -1006,8 +1013,7 @@ async function getBrokerCampaignConfig(db) {
     persist[k] = mediaTplUpdates[k];
   });
   if (current.featuredPropertyId === undefined) {
-    merged.featuredPropertyId = 7;
-    persist.featuredPropertyId = 7;
+    merged.featuredPropertyId = null;
   }
   if (current.templateNameMulti === undefined && !merged.templateNameMulti) {
     merged.templateNameMulti = 'campanha_corretor_msg4';
@@ -3755,7 +3761,10 @@ exports.brokerCampaignPreview = functions
     if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
     if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
     try {
-      const preview = await getBrokerCampaignPreview(admin.firestore());
+      var fp = req.query.featuredPropertyId;
+      var previewOpts = {};
+      if (fp !== undefined) previewOpts.featuredPropertyId = fp;
+      const preview = await getBrokerCampaignPreview(admin.firestore(), previewOpts);
       return res.json(preview);
     } catch (err) {
       console.error('brokerCampaignPreview:', err);

@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
     <link rel="stylesheet" href="styles/main.css?v=11">
-    <link rel="stylesheet" href="styles/admin.css?v=12">
+    <link rel="stylesheet" href="styles/admin.css?v=13">
     <link rel="stylesheet" href="styles/admin-finance.css?v=1">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -724,12 +724,6 @@
                     <p class="section-subtitle">Cadastro no Firestore, campanha WhatsApp e reservas.</p>
                 </div>
                 <div class="header-actions">
-                    <button type="button" class="btn btn-secondary" onclick="runRestoreLegacyBrokers()" title="Marca corretores antigos como ativos no Firestore (após migração de segurança)">
-                        <i class="fas fa-user-check" aria-hidden="true"></i> Restaurar legados
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="runMigrateBrokerPasswords()" title="Uma vez: converte senhas plaintext dos corretores para hash">
-                        <i class="fas fa-lock" aria-hidden="true"></i> Migrar senhas
-                    </button>
                     <button type="button" class="btn btn-secondary" onclick="loadBrokersData()" title="Atualizar lista e preparar campanha">
                         <i class="fas fa-sync-alt" aria-hidden="true"></i> Atualizar
                     </button>
@@ -778,6 +772,19 @@
                     <p id="brokerCampaignPreviewStats" class="broker-campaign-hint">Carregando resumo...</p>
                     <p id="brokerCampaignPrepareStatus" class="broker-campaign-prepare-status" aria-live="polite"></p>
 
+                    <div class="broker-campaign-featured-row">
+                        <label class="broker-campaign-featured-field">
+                            <span class="broker-campaign-featured-label">Destaque da semana</span>
+                            <select id="brokerCampaignFeaturedProperty" aria-label="Empreendimento em destaque na campanha" onchange="onBrokerCampaignFeaturedChange()">
+                                <option value="">Automático (engenharia e estoque)</option>
+                            </select>
+                        </label>
+                        <button type="button" class="btn btn-secondary broker-campaign-featured-save" onclick="saveBrokerCampaignFeatured()" title="Grava o empreendimento escolhido para a campanha">
+                            <i class="fas fa-save" aria-hidden="true"></i> Salvar destaque
+                        </button>
+                    </div>
+                    <p id="brokerCampaignWeekPreview" class="broker-campaign-hint broker-campaign-week-preview"></p>
+
                     <div class="broker-campaign-primary">
                         <button type="button" id="brokerCampaignBtnSendNow" class="btn btn-success btn-lg broker-btn-send-now" onclick="sendBrokerCampaignNow()" disabled>
                             <i class="fas fa-paper-plane" aria-hidden="true"></i> Disparar agora
@@ -795,13 +802,6 @@
                     <details class="broker-campaign-details">
                         <summary>Personalizar mensagem</summary>
                         <div class="broker-campaign-details__body broker-campaign-config-slim">
-                            <label class="campaign-field-full">
-                                <span>Destaque da semana</span>
-                                <select id="brokerCampaignFeaturedProperty">
-                                    <option value="">Automático (rotação por semana)</option>
-                                </select>
-                            </label>
-                            <p id="brokerCampaignWeekPreview" class="broker-campaign-hint broker-campaign-week-preview"></p>
                             <label class="campaign-field-full">
                                 <span>Chamada comercial (CTA)</span>
                                 <input type="text" id="brokerCampaignCta" placeholder="Divulgue as ofertas da semana...">
@@ -1762,7 +1762,7 @@
     <script src="js/admin-dashboard-charts.js?v=2"></script>
     <script src="js/admin-finance.js?v=1"></script>
     <script src="js/admin-reports.js?v=2"></script>
-    <script src="js/admin.js?v=40"></script>
+    <script src="js/admin.js?v=41"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
