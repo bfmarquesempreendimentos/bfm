@@ -128,13 +128,13 @@ var propertyUnits = {
         "units": [
             {
                 "code": "casa base",
-                "price": 155000,
+                "price": 150000,
                 "bedrooms": 1,
                 "status": "disponivel"
             },
             {
                 "code": "casa 05",
-                "price": 155000,
+                "price": 150000,
                 "bedrooms": 1,
                 "status": "disponivel"
             },
@@ -146,7 +146,7 @@ var propertyUnits = {
             },
             {
                 "code": "casa 06",
-                "price": 155000,
+                "price": 150000,
                 "bedrooms": 1,
                 "status": "disponivel"
             },
