@@ -447,7 +447,7 @@ var propertyUnits = {
             },
             {
                 "code": "casa 01",
-                "price": 135000,
+                "price": 145000,
                 "bedrooms": 1,
                 "status": "reservado"
             },
