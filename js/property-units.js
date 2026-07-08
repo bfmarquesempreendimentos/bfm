@@ -116,9 +116,8 @@ function pushUnitStatusToServer(propertyId, unitCode, status) {
         }
     } catch (e) {}
     if (typeof fetch === 'undefined') return;
-    var baseUrl = (typeof getCloudFunctionsBaseUrl === 'function')
-        ? getCloudFunctionsBaseUrl()
-        : 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+    var baseUrl = (typeof getCloudFunctionsBaseUrl === 'function') ? getCloudFunctionsBaseUrl() : '';
+    if (!baseUrl) return;
     var url = baseUrl + '/adminSetUnitStatusOverrides';
     var postPayload = { items: [{ propertyId: propertyId, unitCode: unitCode, status: status }] };
     var doPost = function(headers, payload) {

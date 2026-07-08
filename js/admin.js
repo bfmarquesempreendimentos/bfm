@@ -149,9 +149,11 @@ function applyAdminReservationPermissions() {
     var canRead = adminCan('reservations_read') || canWrite;
     var btnNew = document.getElementById('btnNewReservation');
     var btnSync = document.getElementById('btnSyncInventoryReservations');
+    var btnColors = document.getElementById('btnSyncUnitColors');
     var btnPdf = document.querySelector('[onclick="importReservasFromPdf()"]');
     if (btnNew) btnNew.style.display = canWrite ? '' : 'none';
     if (btnSync) btnSync.style.display = canWrite ? '' : 'none';
+    if (btnColors) btnColors.style.display = canWrite ? '' : 'none';
     if (btnPdf) btnPdf.style.display = canWrite ? '' : 'none';
     var navRes = document.querySelector('[onclick*="showSection(\'reservations\'"]');
     if (navRes && !canRead) navRes.style.display = 'none';
