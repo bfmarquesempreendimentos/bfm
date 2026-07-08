@@ -244,7 +244,7 @@ function loadProperties() {
             location: 'Nova Cidade, São Gonçalo - RJ',
             address: 'Rua Alcio Souto, 348, Nova Cidade, São Gonçalo - RJ',
             mapsUrl: 'https://maps.app.goo.gl/gyF6ERJs1rrKHkbZ9',
-            price: 155000,
+            price: 150000,
             bedrooms: 1,
             bathrooms: 1,
             area: null,

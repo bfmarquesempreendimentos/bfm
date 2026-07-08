@@ -34,7 +34,7 @@ const properties = [
     type: 'casa',
     location: 'Nova Cidade, São Gonçalo - RJ',
     address: 'Rua Alcio Souto, 348',
-    price: 155000,
+    price: 150000,
     bedrooms: '1 quarto',
     bathrooms: 1,
     area: null,
