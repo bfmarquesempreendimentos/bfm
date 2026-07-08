@@ -2862,12 +2862,12 @@ body {
 
 /* Unit Status Colors */
 .unit-available {
-    background: #1a5278;
+    background: #198754;
     color: #ffffff;
 }
 
 .unit-available:hover {
-    background: #134063;
+    background: #157347;
 }
 
 .unit-reserved {
@@ -2883,7 +2883,7 @@ body {
 }
 
 .legend-color.unit-available {
-    background: #1a5278;
+    background: #198754;
 }
 
 .legend-color.unit-reserved {
