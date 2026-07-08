@@ -177,6 +177,59 @@ async function syncUnitForReservation(db, reservation, status) {
   await applyUnitStatusOverride(db, reservation.propertyId, reservation.unitCode, status);
 }
 
+async function applyUnitStatusForReservationState(db, propertyId, unitCode, reservationStatus) {
+  if (!unitCode) return;
+  var unitSt = 'disponivel';
+  if (reservationStatus === 'active') unitSt = 'reservado';
+  else if (reservationStatus === 'signed') unitSt = 'assinado';
+  await applyUnitStatusOverride(db, propertyId, unitCode, unitSt);
+}
+
+/** Alinha cores do inventário com reservas ativas/assinadas/liberadas no Firestore. */
+async function syncUnitStatusesFromReservations(db) {
+  var snap = await db.collection('reservations').get();
+  var slotBest = {};
+  var slotSeen = {};
+  var PRIO = { signed: 3, active: 2 };
+  snap.forEach(function(doc) {
+    var d = doc.data() || {};
+    if (!d.unitCode) return;
+    var key = d.reservationSlotKey || reservationSlotKey(d.propertyId, d.unitCode);
+    slotSeen[key] = { propertyId: d.propertyId, unitCode: d.unitCode };
+    var st = d.status;
+    var unitSt = null;
+    var prio = 0;
+    if (st === 'signed') {
+      unitSt = 'assinado';
+      prio = PRIO.signed;
+    } else if (st === 'active') {
+      unitSt = 'reservado';
+      prio = PRIO.active;
+    }
+    if (!unitSt) return;
+    if (!slotBest[key] || prio > slotBest[key].prio) {
+      slotBest[key] = { unitSt: unitSt, prio: prio, propertyId: d.propertyId, unitCode: d.unitCode };
+    }
+  });
+  var applied = 0;
+  var released = 0;
+  var key;
+  for (key in slotBest) {
+    if (!Object.prototype.hasOwnProperty.call(slotBest, key)) continue;
+    var entry = slotBest[key];
+    await applyUnitStatusOverride(db, entry.propertyId, entry.unitCode, entry.unitSt);
+    applied++;
+  }
+  for (key in slotSeen) {
+    if (!Object.prototype.hasOwnProperty.call(slotSeen, key)) continue;
+    if (slotBest[key]) continue;
+    var seen = slotSeen[key];
+    await applyUnitStatusOverride(db, seen.propertyId, seen.unitCode, 'disponivel');
+    released++;
+  }
+  return { applied: applied, released: released, total: applied + released };
+}
+
 function reservationActionPermission(action) {
   var readActions = { list: true };
   if (readActions[action]) return 'reservations_read';
@@ -494,8 +547,12 @@ async function adminReservationsMutate(req, res) {
       return res.json({ ok: true, imported: imported, skipped: skipped });
     }
 
+    if (action === 'sync_unit_statuses') {
+      var syncResult = await syncUnitStatusesFromReservations(db);
+      return res.json({ ok: true, applied: syncResult.applied, released: syncResult.released, total: syncResult.total });
+    }
+
     if (action === 'sync_from_inventory') {
-      await syncCatalogReservedStatusesToFirestore(db);
       var importedInv = 0;
       var skippedInv = 0;
       var alreadyInv = 0;
@@ -682,6 +739,132 @@ async function adminReservationsMutate(req, res) {
       await assignRef.set(assignPatch, { merge: true });
       var assignMerged = Object.assign({}, assignSnap.data() || {}, assignPatch);
       return res.json({ ok: true, reservation: reservationPublicRow(assignDocId, assignMerged) });
+    }
+
+    if (action === 'update') {
+      var updDocId = String(body.reservationId || body.id || '').trim();
+      if (!updDocId) return res.status(400).json({ error: 'reservationId obrigatório' });
+      var updRef = col.doc(updDocId);
+      var updSnap = await updRef.get();
+      if (!updSnap.exists) return res.status(404).json({ error: 'Reserva não encontrada' });
+      var updExisting = updSnap.data() || {};
+      var editableStatuses = { pending: true, active: true, signed: true };
+      if (!editableStatuses[updExisting.status]) {
+        return res.status(400).json({ error: 'Esta reserva não pode ser editada.' });
+      }
+      var updPid = body.propertyId != null && body.propertyId !== '' ? body.propertyId : updExisting.propertyId;
+      var updUnitInput = body.unitCode != null && body.unitCode !== '' ? body.unitCode : updExisting.unitCode;
+      var slotResolvedUpd = resolveSaleSlot(updPid, updUnitInput);
+      if (slotResolvedUpd.error) return res.status(400).json({ error: slotResolvedUpd.error });
+      var uCodeUpd = slotResolvedUpd.unitCode;
+      var sKeyUpd = reservationSlotKey(updPid, uCodeUpd);
+      var newStatusUpd = body.status != null && body.status !== ''
+        ? String(body.status).trim().toLowerCase()
+        : updExisting.status;
+      if (newStatusUpd !== 'pending' && newStatusUpd !== 'active' && newStatusUpd !== 'signed') {
+        return res.status(400).json({ error: 'status deve ser pending, active ou signed' });
+      }
+      var slotChanged = String(updExisting.reservationSlotKey || '') !== String(sKeyUpd)
+        || String(updExisting.propertyId) !== String(updPid)
+        || String(updExisting.unitCode || '') !== String(uCodeUpd || '');
+      if (slotChanged || newStatusUpd === 'active' || newStatusUpd === 'pending') {
+        var conflictUpd = await findConflictingReservation(db, sKeyUpd, updDocId);
+        if (conflictUpd && (newStatusUpd === 'active' || newStatusUpd === 'pending')) {
+          return res.status(409).json({ error: 'Outra reserva pendente ou ativa conflita com esta unidade.' });
+        }
+      }
+      if ((newStatusUpd === 'active' || newStatusUpd === 'signed') && uCodeUpd) {
+        var stUpdUnit = await getEffectiveUnitStatus(db, updPid, uCodeUpd);
+        var sameSlot = !slotChanged;
+        if (!sameSlot && stUpdUnit !== 'disponivel') {
+          return res.status(409).json({ error: 'Unidade não está disponível (' + stUpdUnit + ').' });
+        }
+      }
+      var brokerIdUpd = body.brokerId != null ? String(body.brokerId).trim() : null;
+      var brokerEmailUpd = body.brokerEmail != null ? String(body.brokerEmail).trim().toLowerCase() : null;
+      var brokerRowUpd = null;
+      if (brokerIdUpd) {
+        var bSnapUpd = await db.collection('brokers').doc(brokerIdUpd).get();
+        if (bSnapUpd.exists) brokerRowUpd = { id: bSnapUpd.id, data: bSnapUpd.data() || {} };
+      } else if (brokerEmailUpd) {
+        brokerRowUpd = await brokerAuth.findBrokerByEmail(db, brokerEmailUpd);
+      } else if (body.brokerId === '' || body.brokerEmail === '') {
+        brokerRowUpd = null;
+      }
+      var clientUpd = body.client || body.clientInfo || {};
+      var rawUpd = getPropertyUnitsRaw(updPid);
+      var unitPriceUpd = body.unitPrice != null ? Number(body.unitPrice) : updExisting.unitPrice;
+      var unitBedroomsUpd = body.unitBedrooms != null ? Number(body.unitBedrooms) : updExisting.unitBedrooms;
+      if (rawUpd && rawUpd.units && uCodeUpd) {
+        var uxi;
+        for (uxi = 0; uxi < rawUpd.units.length; uxi++) {
+          if (rawUpd.units[uxi].code === uCodeUpd) {
+            if (body.unitPrice == null && unitPriceUpd == null) unitPriceUpd = rawUpd.units[uxi].price;
+            if (body.unitBedrooms == null && unitBedroomsUpd == null) unitBedroomsUpd = rawUpd.units[uxi].bedrooms;
+            break;
+          }
+        }
+      }
+      var updAt = isoNow();
+      var updPatch = {
+        propertyId: typeof updPid === 'number' ? updPid : Number(updPid) || updPid,
+        propertyTitle: String(body.propertyTitle || updExisting.propertyTitle || propertyTitleFromCatalog(updPid, rawUpd)).trim(),
+        unitCode: uCodeUpd || '',
+        unitPrice: unitPriceUpd,
+        unitBedrooms: unitBedroomsUpd,
+        reservationSlotKey: sKeyUpd,
+        status: newStatusUpd,
+        notes: body.notes != null ? String(body.notes).trim() : (updExisting.notes || ''),
+        updatedAt: updAt,
+      };
+      if (brokerRowUpd) {
+        updPatch.brokerId = brokerRowUpd.id;
+        updPatch.brokerName = brokerRowUpd.data.name || '';
+        updPatch.brokerEmail = brokerRowUpd.data.email || brokerEmailUpd || '';
+        updPatch.brokerPhone = brokerRowUpd.data.phone || '';
+      } else if (body.brokerId === '' || body.brokerEmail === '' || body.clearBroker) {
+        updPatch.brokerId = '';
+        updPatch.brokerName = String(body.brokerName || 'A definir').trim();
+        updPatch.brokerEmail = '';
+        updPatch.brokerPhone = '';
+      } else if (body.brokerName != null) {
+        updPatch.brokerName = String(body.brokerName).trim();
+      }
+      var existingClient = updExisting.client || updExisting.clientInfo || {};
+      updPatch.client = {
+        name: clientUpd.name != null ? String(clientUpd.name).trim() : (existingClient.name || ''),
+        email: clientUpd.email != null ? String(clientUpd.email).trim() : (existingClient.email || ''),
+        phone: clientUpd.phone != null ? String(clientUpd.phone).trim() : (existingClient.phone || ''),
+        cpf: clientUpd.cpf != null ? String(clientUpd.cpf).replace(/\D/g, '') : (existingClient.cpf || ''),
+        notes: clientUpd.notes != null ? String(clientUpd.notes).trim() : (existingClient.notes || ''),
+      };
+      if (newStatusUpd === 'active' && updExisting.status !== 'active') {
+        updPatch.approvedAt = updAt;
+        updPatch.approvedBy = authResult.email || 'admin';
+        updPatch.expiresAt = endOfBusinessDaysFrom(new Date(), RESERVATION_BUSINESS_DAYS).toISOString();
+        updPatch.renewalDue = false;
+        updPatch.renewalDueAt = '';
+      }
+      if (newStatusUpd === 'signed' && updExisting.status !== 'signed') {
+        updPatch.signedAt = updAt;
+        updPatch.signedBy = authResult.email || 'admin';
+        updPatch.renewalDue = false;
+        updPatch.renewalDueAt = '';
+      }
+      if (newStatusUpd === 'pending' && updExisting.status === 'active') {
+        updPatch.expiresAt = '';
+        updPatch.renewalDue = false;
+        updPatch.renewalDueAt = '';
+      }
+      await updRef.set(updPatch, { merge: true });
+      if (slotChanged && updExisting.unitCode && (updExisting.status === 'active' || updExisting.status === 'signed')) {
+        await applyUnitStatusOverride(db, updExisting.propertyId, updExisting.unitCode, 'disponivel');
+      }
+      if (uCodeUpd) {
+        await applyUnitStatusForReservationState(db, updPatch.propertyId, uCodeUpd, newStatusUpd);
+      }
+      var updMerged = Object.assign({}, updExisting, updPatch);
+      return res.json({ ok: true, reservation: reservationPublicRow(updDocId, updMerged) });
     }
 
     var docId = String(body.reservationId || body.id || '').trim();

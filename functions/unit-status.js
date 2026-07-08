@@ -2,8 +2,8 @@
 
 /**
  * Regra única de status de unidade (site, admin, Bia, reservas).
- * Status reservado/assinado no catálogo prevalece sobre override remoto antigo.
- * Overrides só aplicam quando o catálogo diz disponível (ex.: liberação operacional).
+ * Override operacional (Firestore / reservas) prevalece sobre o catálogo estático.
+ * Sem override, usa o status do catálogo (ex.: importação inicial amarelo/vermelho).
  */
 function isCatalogStatusLocked(catalogStatus) {
   var st = String(catalogStatus || '').toLowerCase();
@@ -11,10 +11,10 @@ function isCatalogStatusLocked(catalogStatus) {
 }
 
 function resolveUnitStatus(catalogStatus, overrideStatus) {
-  var catalog = String(catalogStatus || 'disponivel').toLowerCase();
-  if (overrideStatus == null || overrideStatus === '') return catalog;
-  if (isCatalogStatusLocked(catalog)) return catalog;
-  return String(overrideStatus).toLowerCase();
+  if (overrideStatus != null && overrideStatus !== '') {
+    return String(overrideStatus).toLowerCase();
+  }
+  return String(catalogStatus || 'disponivel').toLowerCase();
 }
 
 module.exports = {

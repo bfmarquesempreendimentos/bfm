@@ -12,10 +12,12 @@ function getCodeBaseUnitStatus(propertyId, unitCode) {
     return null;
 }
 
-/** Status do código-base prevalece sobre overrides remotos (reservado/assinado). */
-function isAuthoritativeInventoryUnit(propertyId, unitCode) {
-    var st = getCodeBaseUnitStatus(propertyId, unitCode);
-    return st != null && st !== 'disponivel';
+/** Resolve status efetivo: override operacional prevalece sobre catálogo. */
+function resolveUnitStatusClient(catalogStatus, overrideStatus) {
+    if (overrideStatus != null && overrideStatus !== '') {
+        return String(overrideStatus).toLowerCase();
+    }
+    return String(catalogStatus || 'disponivel').toLowerCase();
 }
 
 function reconcileAuthoritativeUnitStatuses() {
@@ -62,9 +64,11 @@ function setUnitStatusOverride(propertyId, unitCode, status) {
         if (localStorage.getItem(key) !== UNIT_INVENTORY_VERSION) {
             localStorage.removeItem('unitStatusOverrides');
             localStorage.setItem(key, UNIT_INVENTORY_VERSION);
+            reconcileAuthoritativeUnitStatuses();
+            if (typeof fetchUnitStatusOverridesFromServer === 'function') {
+                fetchUnitStatusOverridesFromServer();
+            }
         }
-        reconcileAuthoritativeUnitStatuses();
-        pushReconcileStatusesToServerIfAdmin();
     } catch (e) {}
 })();
 
@@ -96,32 +100,7 @@ function pushReconcileStatusesToServerIfAdmin() {
         }
     }
     if (!items.length) return;
-    var url = getCloudFunctionsBaseUrlUnits() + '/adminSetUnitStatusOverrides';
-    var postPayload = { items: items };
-    var doPost = function(headers, payload) {
-        fetch(url, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(payload),
-        }).catch(function() {});
-    };
-    if (typeof getAdminIdToken === 'function') {
-        getAdminIdToken().then(function(token) {
-            var headers = { 'Content-Type': 'application/json' };
-            if (token) {
-                headers.Authorization = 'Bearer ' + token;
-                doPost(headers, postPayload);
-            } else if (creds && creds.email && creds.password) {
-                postPayload.adminEmail = creds.email;
-                postPayload.adminPassword = creds.password;
-                doPost(headers, postPayload);
-            }
-        });
-        return;
-    }
-    postPayload.adminEmail = creds.email;
-    postPayload.adminPassword = creds.password;
-    doPost({ 'Content-Type': 'application/json' }, postPayload);
+    /* pushReconcileStatusesToServerIfAdmin desativado: não sobrescrever overrides operacionais no Firestore */
 }
 
 function pushUnitStatusToServer(propertyId, unitCode, status) {
@@ -137,7 +116,10 @@ function pushUnitStatusToServer(propertyId, unitCode, status) {
         }
     } catch (e) {}
     if (typeof fetch === 'undefined') return;
-    var url = getCloudFunctionsBaseUrlUnits() + '/adminSetUnitStatusOverrides';
+    var baseUrl = (typeof getCloudFunctionsBaseUrl === 'function')
+        ? getCloudFunctionsBaseUrl()
+        : 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net';
+    var url = baseUrl + '/adminSetUnitStatusOverrides';
     var postPayload = { items: [{ propertyId: propertyId, unitCode: unitCode, status: status }] };
     var doPost = function(headers, payload) {
         fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(payload) }).catch(function() {});
@@ -323,7 +305,6 @@ function mergeRemoteUnitOverridesPayload(payload) {
         }
     }
     localStorage.setItem('unitStatusOverrides', JSON.stringify(ov));
-    reconcileAuthoritativeUnitStatuses();
 }
 
 function fetchUnitStatusOverridesFromServer(done) {
@@ -352,14 +333,10 @@ function getPropertyUnits(propertyId) {
     if (!data) return null;
     var ovAll = getUnitStatusOverrides();
     var overrides = ovAll[propertyId] || ovAll[String(propertyId)] || {};
-    if (Object.keys(overrides).length === 0) return data;
     return {
         name: data.name,
         units: data.units.map(function(u) {
-            if (isAuthoritativeInventoryUnit(propertyId, u.code)) {
-                return { code: u.code, price: u.price, bedrooms: u.bedrooms, status: u.status };
-            }
-            var st = overrides[u.code] || u.status;
+            var st = resolveUnitStatusClient(u.status, overrides[u.code]);
             return { code: u.code, price: u.price, bedrooms: u.bedrooms, status: st };
         }),
         engineeringValues: data.engineeringValues,

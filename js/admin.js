@@ -1834,6 +1834,35 @@ function adminReservationActor() {
     return 'admin';
 }
 
+function unitStatusForReservationState(reservationStatus) {
+    if (reservationStatus === 'active') return 'reservado';
+    if (reservationStatus === 'signed') return 'assinado';
+    return 'disponivel';
+}
+
+function refreshUnitStatusAfterReservation(propertyId, unitCode, status) {
+    if (!propertyId || !unitCode) return;
+    if (typeof setUnitStatusOverride === 'function') {
+        setUnitStatusOverride(propertyId, unitCode, status);
+    }
+    if (typeof fetchUnitStatusOverridesFromServer === 'function') {
+        fetchUnitStatusOverridesFromServer(function() {
+            if (typeof displayProperties === 'function' && typeof properties !== 'undefined') {
+                displayProperties(properties);
+            }
+        });
+    }
+}
+
+function refreshUnitStatusFromReservationRow(reservation) {
+    if (!reservation || !reservation.unitCode) return;
+    refreshUnitStatusAfterReservation(
+        reservation.propertyId,
+        reservation.unitCode,
+        unitStatusForReservationState(reservation.status)
+    );
+}
+
 function adminReservationMutate(payload) {
     if (!ensureAdminApiReady()) return Promise.reject(new Error('Faça login no painel.'));
     return adminPostJson('/adminReservationsMutate', payload);
@@ -1893,6 +1922,9 @@ function loadReservationsData() {
             var rowClass = reservation.renewalDue ? ' class="row-renewal-due"' : '';
             var actions = '<button class="btn-action btn-view" onclick="viewReservation(\'' + rid + '\')" title="Detalhes"><i class="fas fa-eye"></i></button>';
             if (adminCan('reservations')) {
+                if (reservation.status === 'pending' || reservation.status === 'active' || reservation.status === 'signed') {
+                    actions += '<button class="btn-action btn-edit" onclick="openAdminEditReservationModal(\'' + rid + '\')" title="Editar reserva"><i class="fas fa-pen"></i></button>';
+                }
                 if (!reservation.brokerEmail || reservation.brokerName === 'A definir') {
                     actions += '<button class="btn-action btn-edit" onclick="assignBrokerToReservation(\'' + rid + '\')" title="Definir corretor"><i class="fas fa-user-tag"></i></button>';
                 }
@@ -1978,8 +2010,11 @@ function viewReservation(reservationId) {
 function approveReservationAdmin(reservationId) {
     if (!confirm('Aprovar esta reserva? A unidade ficará reservada por 3 dias úteis.')) return;
     adminReservationMutate({ action: 'approve', reservationId: reservationId, approvedBy: adminReservationActor() })
-        .then(function() {
+        .then(function(data) {
             showMessage('Reserva aprovada com sucesso!', 'success');
+            if (data && data.reservation) {
+                refreshUnitStatusFromReservationRow(data.reservation);
+            }
             loadReservationsData();
             loadExpiringReservations();
         })
@@ -2009,9 +2044,14 @@ function extendReservationAdmin(reservationId) {
 
 function releaseReservationAdmin(reservationId) {
     if (!confirm('Liberar esta unidade? Ela voltará a ficar disponível (verde) no site.')) return;
+    var list = (typeof window !== 'undefined' && window._adminReservationsCache) ? window._adminReservationsCache : [];
+    var row = list.filter(function(r) { return String(r.id) === String(reservationId); })[0];
     adminReservationMutate({ action: 'release', reservationId: reservationId, cancelledBy: adminReservationActor() })
         .then(function() {
             showMessage('Unidade liberada.', 'success');
+            if (row && row.unitCode) {
+                refreshUnitStatusAfterReservation(row.propertyId, row.unitCode, 'disponivel');
+            }
             loadReservationsData();
             loadExpiringReservations();
         })
@@ -2020,6 +2060,31 @@ function releaseReservationAdmin(reservationId) {
 
 function cancelReservationAdmin(reservationId) {
     releaseReservationAdmin(reservationId);
+}
+
+function syncUnitStatusesFromReservations() {
+    if (!adminCan('reservations')) {
+        showMessage('Sem permissão.', 'error');
+        return;
+    }
+    if (!confirm('Sincronizar as cores do inventário com as reservas?\n\nAtivas = amarelo · Assinadas = vermelho · Liberadas = verde.')) return;
+    adminReservationMutate({ action: 'sync_unit_statuses' }).then(function(data) {
+        var msg = 'Cores sincronizadas: ' + (data.total || 0) + ' unidade(s)';
+        if (data.applied) msg += ' (' + data.applied + ' reservadas/assinadas';
+        if (data.released) msg += ', ' + data.released + ' liberadas';
+        if (data.applied || data.released) msg += ')';
+        showMessage(msg, 'success');
+        if (typeof fetchUnitStatusOverridesFromServer === 'function') {
+            fetchUnitStatusOverridesFromServer(function() {
+                if (typeof displayProperties === 'function' && typeof properties !== 'undefined') {
+                    displayProperties(properties);
+                }
+            });
+        }
+        loadReservationsData();
+    }).catch(function(err) {
+        showMessage(err.message || 'Erro ao sincronizar cores.', 'error');
+    });
 }
 
 function syncReservationsFromInventory() {
@@ -2065,7 +2130,7 @@ function openAdminCreateReservationModal() {
     modal.style.display = 'block';
 }
 
-function populateAdminReservationBrokers(selectEl) {
+function populateAdminReservationBrokers(selectEl, selectedId) {
     if (!selectEl) return;
     function renderBrokers(list) {
         var brokerOpts = ['<option value="">A definir depois</option>'];
@@ -2077,6 +2142,7 @@ function populateAdminReservationBrokers(selectEl) {
             brokerOpts.push('<option value="' + sorted[i].id + '">' + (sorted[i].name || sorted[i].email) + '</option>');
         }
         selectEl.innerHTML = brokerOpts.join('');
+        if (selectedId) selectEl.value = String(selectedId);
     }
     if (typeof loadBrokersFromFirestore === 'function') {
         loadBrokersFromFirestore().then(function() {
@@ -2140,8 +2206,11 @@ function submitAdminCreateReservation(e) {
         notes: notes ? notes.value.trim() : ''
     };
     if (brokerSel && brokerSel.value) payload.brokerId = brokerSel.value;
-    adminReservationMutate(payload).then(function() {
+    adminReservationMutate(payload).then(function(data) {
         showMessage('Reserva criada com sucesso!', 'success');
+        if (payload.status === 'active' && payload.unitCode) {
+            refreshUnitStatusAfterReservation(payload.propertyId, payload.unitCode, 'reservado');
+        }
         closeAdminCreateReservationModal();
         loadReservationsData();
         loadExpiringReservations();
@@ -2254,6 +2323,9 @@ function markReservationSignedAdmin(reservationId) {
         signedBy: adminReservationActor()
     }).then(function(data) {
         showMessage('Reserva marcada como assinada.', 'success');
+        if (data && data.reservation) {
+            refreshUnitStatusFromReservationRow(data.reservation);
+        }
         loadReservationsData();
         loadExpiringReservations();
         if (confirm('Abrir o formulário de Vendas com os dados desta reserva?')) {
@@ -2262,6 +2334,144 @@ function markReservationSignedAdmin(reservationId) {
         }
     }).catch(function(err) {
         showMessage(err.message || 'Erro ao marcar como assinado.', 'error');
+    });
+}
+
+var _adminEditReservationId = null;
+
+function openAdminEditReservationModal(reservationId) {
+    if (!adminCan('reservations')) {
+        showMessage('Sem permissão.', 'error');
+        return;
+    }
+    var list = (typeof window !== 'undefined' && window._adminReservationsCache) ? window._adminReservationsCache : [];
+    var reservation = list.filter(function(r) { return String(r.id) === String(reservationId); })[0];
+    if (!reservation) {
+        showMessage('Reserva não encontrada. Recarregue a lista.', 'error');
+        return;
+    }
+    _adminEditReservationId = reservationId;
+    var modal = document.getElementById('adminReservationEditModal');
+    var propSel = document.getElementById('adminEditResProperty');
+    var unitSel = document.getElementById('adminEditResUnit');
+    var statusSel = document.getElementById('adminEditResStatus');
+    var brokerSel = document.getElementById('adminEditResBroker');
+    var clientName = document.getElementById('adminEditResClientName');
+    var clientCpf = document.getElementById('adminEditResClientCpf');
+    var clientPhone = document.getElementById('adminEditResClientPhone');
+    var clientEmail = document.getElementById('adminEditResClientEmail');
+    var clientNotes = document.getElementById('adminEditResClientNotes');
+    var notes = document.getElementById('adminEditResNotes');
+    if (!modal || !propSel) return;
+    var propOpts = ['<option value="">Selecione...</option>'];
+    if (typeof properties !== 'undefined' && properties.length) {
+        properties.forEach(function(p) {
+            if (p.hideFromSite && typeof getPropertyUnitsRaw === 'function' && !getPropertyUnitsRaw(p.id)) return;
+            propOpts.push('<option value="' + p.id + '">' + (p.title || ('Empreendimento ' + p.id)) + '</option>');
+        });
+    }
+    propSel.innerHTML = propOpts.join('');
+    propSel.value = String(reservation.propertyId);
+    if (brokerSel) {
+        brokerSel.innerHTML = '<option value="">Carregando corretores...</option>';
+        populateAdminReservationBrokers(brokerSel, reservation.brokerId || '');
+    }
+    populateAdminEditReservationUnits(reservation.unitCode);
+    if (statusSel) statusSel.value = reservation.status || 'active';
+    var client = reservation.clientInfo || reservation.client || {};
+    if (clientName) clientName.value = client.name || '';
+    if (clientCpf) clientCpf.value = client.cpf || '';
+    if (clientPhone) clientPhone.value = client.phone || '';
+    if (clientEmail) clientEmail.value = client.email || '';
+    if (clientNotes) clientNotes.value = client.notes || '';
+    if (notes) notes.value = reservation.notes || '';
+    modal.style.display = 'block';
+}
+
+function populateAdminEditReservationUnits(selectedUnitCode) {
+    var propSel = document.getElementById('adminEditResProperty');
+    var unitSel = document.getElementById('adminEditResUnit');
+    if (!propSel || !unitSel) return;
+    var pid = propSel.value;
+    if (!pid) {
+        unitSel.innerHTML = '<option value="">Selecione o empreendimento</option>';
+        return;
+    }
+    var data = typeof getPropertyUnits === 'function' ? getPropertyUnits(Number(pid) || pid) : null;
+    if (!data || !data.units || !data.units.length) {
+        unitSel.innerHTML = '<option value="">Sem unidades cadastradas</option>';
+        return;
+    }
+    var opts = [];
+    var sel = selectedUnitCode || unitSel.value;
+    for (var i = 0; i < data.units.length; i++) {
+        var u = data.units[i];
+        var label = u.code + ' — ' + (typeof getUnitStatusText === 'function' ? getUnitStatusText(u.status) : u.status);
+        var selected = (sel && u.code === sel) ? ' selected' : '';
+        opts.push('<option value="' + u.code.replace(/"/g, '&quot;') + '"' + selected + '>' + label + '</option>');
+    }
+    unitSel.innerHTML = opts.join('');
+}
+
+function closeAdminEditReservationModal() {
+    var modal = document.getElementById('adminReservationEditModal');
+    if (modal) modal.style.display = 'none';
+    _adminEditReservationId = null;
+}
+
+function submitAdminUpdateReservation(e) {
+    e.preventDefault();
+    if (!adminCan('reservations') || !_adminEditReservationId) {
+        showMessage('Sem permissão.', 'error');
+        return;
+    }
+    var propSel = document.getElementById('adminEditResProperty');
+    var unitSel = document.getElementById('adminEditResUnit');
+    var statusSel = document.getElementById('adminEditResStatus');
+    var brokerSel = document.getElementById('adminEditResBroker');
+    var clientName = document.getElementById('adminEditResClientName');
+    var clientCpf = document.getElementById('adminEditResClientCpf');
+    var clientPhone = document.getElementById('adminEditResClientPhone');
+    var clientEmail = document.getElementById('adminEditResClientEmail');
+    var clientNotes = document.getElementById('adminEditResClientNotes');
+    var notes = document.getElementById('adminEditResNotes');
+    var property = typeof getPropertyById === 'function' ? getPropertyById(Number(propSel.value)) : null;
+    var list = (typeof window !== 'undefined' && window._adminReservationsCache) ? window._adminReservationsCache : [];
+    var oldRow = list.filter(function(r) { return String(r.id) === String(_adminEditReservationId); })[0];
+    var payload = {
+        action: 'update',
+        reservationId: _adminEditReservationId,
+        propertyId: Number(propSel.value),
+        propertyTitle: property ? property.title : '',
+        unitCode: unitSel.value,
+        status: statusSel ? statusSel.value : 'active',
+        client: {
+            name: clientName ? clientName.value.trim() : '',
+            cpf: clientCpf ? clientCpf.value.trim() : '',
+            phone: clientPhone ? clientPhone.value.trim() : '',
+            email: clientEmail ? clientEmail.value.trim() : '',
+            notes: clientNotes ? clientNotes.value.trim() : ''
+        },
+        notes: notes ? notes.value.trim() : ''
+    };
+    if (brokerSel && brokerSel.value) {
+        payload.brokerId = brokerSel.value;
+    } else {
+        payload.clearBroker = true;
+    }
+    adminReservationMutate(payload).then(function(data) {
+        showMessage('Reserva atualizada.', 'success');
+        if (oldRow && oldRow.unitCode && oldRow.unitCode !== payload.unitCode) {
+            refreshUnitStatusAfterReservation(oldRow.propertyId, oldRow.unitCode, 'disponivel');
+        }
+        if (data && data.reservation) {
+            refreshUnitStatusFromReservationRow(data.reservation);
+        }
+        closeAdminEditReservationModal();
+        loadReservationsData();
+        loadExpiringReservations();
+    }).catch(function(err) {
+        showMessage(err.message || 'Erro ao atualizar reserva.', 'error');
     });
 }
 

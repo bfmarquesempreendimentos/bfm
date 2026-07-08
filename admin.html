@@ -406,6 +406,9 @@
                     <button type="button" class="btn btn-primary" id="btnNewReservation" onclick="openAdminCreateReservationModal()" title="Criar reserva manualmente">
                         <i class="fas fa-plus" aria-hidden="true"></i> Nova reserva
                     </button>
+                    <button type="button" class="btn btn-secondary" id="btnSyncUnitColors" onclick="syncUnitStatusesFromReservations()" title="Corrigir cores do inventário conforme reservas ativas, assinadas ou liberadas">
+                        <i class="fas fa-palette" aria-hidden="true"></i> Sincronizar cores
+                    </button>
                     <button type="button" class="btn btn-secondary" id="btnSyncInventoryReservations" onclick="syncReservationsFromInventory()" title="Importar unidades marcadas como reservadas (amarelo) no inventário">
                         <i class="fas fa-sync" aria-hidden="true"></i> Importar inventário
                     </button>
@@ -1572,6 +1575,66 @@
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeAdminCreateReservationModal()">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Criar reserva</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Edit Reservation Modal -->
+    <div id="adminReservationEditModal" class="modal">
+        <div class="modal-content property-form-modal">
+            <span class="close" onclick="closeAdminEditReservationModal()">&times;</span>
+            <h2>Editar reserva</h2>
+            <form id="adminReservationEditForm" onsubmit="submitAdminUpdateReservation(event); return false;">
+                <div class="form-group">
+                    <label for="adminEditResProperty">Empreendimento</label>
+                    <select id="adminEditResProperty" required onchange="populateAdminEditReservationUnits()"></select>
+                </div>
+                <div class="form-group">
+                    <label for="adminEditResUnit">Unidade</label>
+                    <select id="adminEditResUnit" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="adminEditResStatus">Status</label>
+                    <select id="adminEditResStatus">
+                        <option value="pending">Pendente</option>
+                        <option value="active">Ativa</option>
+                        <option value="signed">Assinada</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="adminEditResBroker">Corretor</label>
+                    <select id="adminEditResBroker">
+                        <option value="">A definir depois</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="adminEditResClientName">Nome do cliente</label>
+                    <input type="text" id="adminEditResClientName">
+                </div>
+                <div class="form-group">
+                    <label for="adminEditResClientCpf">CPF do cliente</label>
+                    <input type="text" id="adminEditResClientCpf" placeholder="000.000.000-00">
+                </div>
+                <div class="form-group">
+                    <label for="adminEditResClientPhone">Telefone</label>
+                    <input type="text" id="adminEditResClientPhone">
+                </div>
+                <div class="form-group">
+                    <label for="adminEditResClientEmail">E-mail</label>
+                    <input type="email" id="adminEditResClientEmail">
+                </div>
+                <div class="form-group">
+                    <label for="adminEditResClientNotes">Observações do cliente</label>
+                    <textarea id="adminEditResClientNotes" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="adminEditResNotes">Observações internas</label>
+                    <textarea id="adminEditResNotes" rows="2"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeAdminEditReservationModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar alterações</button>
                 </div>
             </form>
         </div>
