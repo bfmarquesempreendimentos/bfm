@@ -2232,7 +2232,7 @@ exports.chatbotWebhook = functions
 exports.getBrokers = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });

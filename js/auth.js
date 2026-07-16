@@ -89,7 +89,11 @@ async function loadBrokersFromFirestore(opts) {
 
 loadBrokersFromStorage();
 ensureAdminBroker();
-setTimeout(function() { loadBrokersFromFirestore(); }, 800);
+setTimeout(function() {
+    // Público: só ativos. Painel admin carrega a lista completa autenticada em loadBrokersData.
+    var onAdmin = typeof window !== 'undefined' && /admin\.html/i.test(String(window.location.pathname || ''));
+    loadBrokersFromFirestore(onAdmin ? {} : { activeOnly: true });
+}, 800);
 
 function ensureAdminBroker() {
     var adminEmail = (ADMIN_BROKER.email || '').toLowerCase();
@@ -360,65 +364,47 @@ async function handleRegister(e) {
         createdAt: createdAt
     };
     newBroker.createdBy = { type: 'Corretor', email: email, name: name, at: new Date().toISOString() };
-    brokers.push(newBroker);
-    saveBrokersToStorage();
 
     let saved = false;
+    let registerError = null;
     if (typeof registerBrokerAPI === 'function') {
         try {
             const id = await registerBrokerAPI(newBroker);
             if (id) { newBroker.id = id; saved = true; }
-        } catch (err) { console.warn('API falhou, tentando Firestore:', err); }
+        } catch (err) {
+            registerError = err;
+            console.warn('API falhou, tentando Firestore:', err);
+        }
     }
     if (!saved && typeof saveBrokerToFirestore === 'function') {
         try {
             const docId = await saveBrokerToFirestore(newBroker);
             if (docId) { newBroker.id = docId; saved = true; }
-        } catch (err) { console.error('Firestore falhou:', err); }
-    }
-    
-    if (!saved) {
-        try {
-            const siteUrl = (typeof CONFIG !== 'undefined' && CONFIG?.company?.siteUrl) || 'https://bfmarquesempreendimentos.github.io/bfm/';
-            const notifTitle = hasAllRegisterFields
-                ? '🏠 Novo Corretor Cadastrado (Aprovação Automática)'
-                : '🏠 Novo Corretor Solicitou Acesso';
-            const notifStatus = hasAllRegisterFields
-                ? '<p>✅ Este corretor foi <strong>aprovado automaticamente</strong> porque preencheu todos os campos do cadastro.</p>'
-                : '<p>⚠️ Este corretor está <strong>aguardando aprovação manual</strong> porque faltam campos no cadastro.</p>';
-            const adminLink = siteUrl + 'admin.html';
-            const actionButtons = hasAllRegisterFields
-                ? '<p><a href="' + adminLink + '" style="display:inline-block;background:#e74c3c;color:white;padding:12px 22px;text-decoration:none;border-radius:8px;">Rejeitar no painel admin</a></p>'
-                : '<p><a href="' + adminLink + '" style="display:inline-block;background:#27ae60;color:white;padding:12px 22px;text-decoration:none;border-radius:8px;margin-right:8px;">Aprovar no painel</a>' +
-                  '<a href="' + adminLink + '" style="display:inline-block;background:#e74c3c;color:white;padding:12px 22px;text-decoration:none;border-radius:8px;">Rejeitar no painel</a></p>';
-            const notifBody = `
-            <h2>${notifTitle}</h2>
-            <p><strong>Nome:</strong> ${name}</p>
-            <p><strong>CPF:</strong> ${cpf}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Telefone:</strong> ${phone}</p>
-            <p><strong>CRECI:</strong> ${creci || 'Não informado'}</p>
-            <p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p>
-            <hr>
-            ${notifStatus}
-            ${actionButtons}
-        `;
-            if (typeof sendEmail === 'function') {
-                const notifSubject = hasAllRegisterFields
-                    ? 'Novo Corretor Aprovado Automaticamente - ' + name
-                    : 'Novo Corretor Solicita Acesso - ' + name;
-                sendEmail('bfmarquesempreendimentos@gmail.com', notifSubject, notifBody);
-            }
-        } catch (e) { console.error('Erro ao enviar notificação:', e); }
+        } catch (err) {
+            if (!registerError) registerError = err;
+            console.error('Firestore falhou:', err);
+        }
     }
 
-    if (hasAllRegisterFields) {
+    if (!saved) {
+        var failMsg = (registerError && registerError.message) ? String(registerError.message) : '';
+        if (/já cadastrado|already|409/i.test(failMsg)) {
+            showRegisterFeedback(false, 'Este e-mail já está cadastrado. Faça login ou use a recuperação de senha.');
+        } else {
+            showRegisterFeedback(false, 'Não foi possível gravar o cadastro no servidor. Tente novamente em alguns minutos ou fale com o suporte.');
+        }
+        return;
+    }
+
+    brokers.push(newBroker);
+    saveBrokersToStorage();
+
+    if (hasAllRegisterFields || newBroker.isActive === true) {
         showRegisterFeedback(true, 'Seu cadastro foi aprovado automaticamente! Você já pode fazer login e acessar o sistema.');
     } else {
-        showRegisterFeedback(true, 'Seu cadastro foi enviado com sucesso! Como faltam campos obrigatórios, ele ficará pendente para aprovação manual do administrador.');
+        showRegisterFeedback(true, 'Seu cadastro foi enviado com sucesso! Aguarde a aprovação do administrador para fazer login.');
     }
-    
-    // Clear form
+
     e.target.reset();
 }
 

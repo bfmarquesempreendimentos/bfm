@@ -2548,7 +2548,18 @@ async function loadBrokersData() {
     await prepareBrokersPanelIfNeeded(false);
     
     if (typeof loadBrokersFromFirestore === 'function') {
-        await loadBrokersFromFirestore();
+        await loadBrokersFromFirestore({});
+    } else if (typeof adminFetchJson === 'function') {
+        try {
+            var remoteBrokers = await adminFetchJson('/getBrokers');
+            if (Array.isArray(remoteBrokers) && typeof brokers !== 'undefined') {
+                brokers = remoteBrokers.map(function(b) {
+                    return typeof normalizeBrokerRecord === 'function' ? normalizeBrokerRecord(b) : b;
+                });
+                if (typeof ensureAdminBroker === 'function') ensureAdminBroker();
+                if (typeof saveBrokersToStorage === 'function') saveBrokersToStorage();
+            }
+        } catch (e) {}
     }
     
     renderPendingBrokersSection();

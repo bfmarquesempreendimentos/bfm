@@ -307,28 +307,68 @@ async function registerBrokerAPI(broker) {
         isActive: broker.isActive === true
       })
     });
-    if (!res.ok) throw new Error('API ' + res.status);
-    const data = await res.json();
-    if (data.id && data.isActive === true) broker.isActive = true;
-    return data.id || null;
+    var data = null;
+    try { data = await res.json(); } catch (e) { data = null; }
+    if (!res.ok) {
+      var msg = (data && data.error) ? data.error : ('API ' + res.status);
+      var err = new Error(msg);
+      err.status = res.status;
+      throw err;
+    }
+    if (data && data.id && data.isActive === true) broker.isActive = true;
+    if (data && data.isActive === false) broker.isActive = false;
+    return (data && data.id) || null;
   } catch (err) {
     console.warn('registerBrokerAPI:', err);
-    return null;
+    throw err;
   }
+}
+
+function mapBrokerApiRow(b) {
+  return {
+    ...b,
+    email: (b.email || '').trim().toLowerCase(),
+    createdAt: b.createdAt ? new Date(b.createdAt) : new Date()
+  };
 }
 
 async function getBrokersFromAPI(activeOnly) {
   try {
-    var url = getFirebaseServiceFunctionsBase() + '/getBrokers?_=' + Date.now();
-    if (activeOnly) url += '&activeOnly=1';
-    const res = await fetch(url);
+    var base = getFirebaseServiceFunctionsBase() + '/getBrokers?_=' + Date.now();
+    if (activeOnly) {
+      var pubRes = await fetch(base + '&activeOnly=1', { cache: 'no-store', credentials: 'omit' });
+      if (!pubRes.ok) throw new Error('API erro ' + pubRes.status);
+      var pubList = await pubRes.json();
+      return (pubList || []).map(mapBrokerApiRow);
+    }
+
+    // Lista completa (pendentes + ativos) exige auth de admin
+    if (typeof adminFetchJson === 'function') {
+      var viaAdmin = await adminFetchJson('/getBrokers');
+      if (Array.isArray(viaAdmin)) return viaAdmin.map(mapBrokerApiRow);
+      return null;
+    }
+
+    var headers = { 'Content-Type': 'application/json' };
+    var url = base;
+    if (typeof getAdminIdToken === 'function') {
+      var token = await getAdminIdToken();
+      if (token) headers.Authorization = 'Bearer ' + token;
+    }
+    if (!headers.Authorization && typeof getAdminApiCredentials === 'function') {
+      var creds = getAdminApiCredentials();
+      if (creds && creds.email && creds.password) {
+        url += '&adminEmail=' + encodeURIComponent(creds.email) +
+          '&adminPassword=' + encodeURIComponent(creds.password);
+      }
+    }
+    if (!headers.Authorization && url.indexOf('adminEmail=') < 0) {
+      return null;
+    }
+    var res = await fetch(url, { cache: 'no-store', credentials: 'omit', headers: headers });
     if (!res.ok) throw new Error('API erro ' + res.status);
-    const list = await res.json();
-    return (list || []).map(b => ({
-      ...b,
-      email: (b.email || '').trim().toLowerCase(),
-      createdAt: b.createdAt ? new Date(b.createdAt) : new Date()
-    }));
+    var list = await res.json();
+    return (list || []).map(mapBrokerApiRow);
   } catch (err) {
     console.warn('getBrokersFromAPI falhou:', err);
     return null;
