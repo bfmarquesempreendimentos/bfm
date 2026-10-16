@@ -11,21 +11,23 @@ firebase.initializeApp({
   appId: '1:949242900598:web:9a88e1efa6033e37606f57',
 });
 
+var SITE = 'https://bfmarquesempreendimentos.github.io/bfm';
 var messaging = firebase.messaging();
 
 messaging.onBackgroundMessage(function(payload) {
   var title = (payload.notification && payload.notification.title) || 'B F Marques';
+  var data = payload.data || {};
   var options = {
     body: (payload.notification && payload.notification.body) || '',
-    icon: '/bfm/assets/images/logo-bf-marques.png',
-    data: payload.data || {},
+    icon: SITE + '/assets/images/placeholder.jpg',
+    data: data,
   };
   self.registration.showNotification(title, options);
 });
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  var link = 'https://bfmarquesempreendimentos.github.io/bfm/admin.html';
+  var link = SITE + '/index.html';
   if (event.notification.data && event.notification.data.link) {
     link = event.notification.data.link;
   }

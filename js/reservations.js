@@ -162,6 +162,9 @@ function formatTimeRemaining(expiresAt) {
 }
 
 function showBrokerDashboard() {
+    if (typeof initFcmPush === 'function') {
+        setTimeout(function() { initFcmPush('broker'); }, 1200);
+    }
     refreshBrokerReservations().then(function() {
         var brokerReservations = getBrokerReservations();
         var activeReservations = brokerReservations.filter(function(r) { return r.status === 'active'; });

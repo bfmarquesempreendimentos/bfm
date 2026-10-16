@@ -4236,15 +4236,26 @@ exports.patchRepair = functions.https.onRequest(async (req, res) => {
       patch.comentarios = list;
     }
     await ref.set(patch, { merge: true });
-    if (isAdmin && body.status && existing.clientEmail) {
-      var stLabel = String(body.status);
+    if (isAdmin && existing.clientEmail && (body.status || Array.isArray(body.responses))) {
+      var stLabel = String(body.status || existing.status || '');
       fcmPush.notifyUserEmail(
         db,
         existing.clientEmail,
         'Atualização do seu reparo',
-        'Status: ' + stLabel + (existing.propertyTitle ? ' — ' + existing.propertyTitle : ''),
+        (body.status ? 'Status: ' + stLabel : 'Nova mensagem da equipe') +
+          (existing.propertyTitle ? ' — ' + existing.propertyTitle : ''),
         { type: 'repair_status', firestoreId: firestoreId || ref.id, status: stLabel },
         'https://bfmarquesempreendimentos.github.io/bfm/client-area.html'
+      ).catch(function() {});
+    }
+    if (!isAdmin && body.clientResponse && body.clientResponse.message) {
+      fcmPush.notifyAdmins(
+        db,
+        'Cliente respondeu no reparo',
+        (existing.clientName || existing.clientEmail || 'Cliente') +
+          (existing.propertyTitle ? ' — ' + existing.propertyTitle : ''),
+        { type: 'repair_client_reply', firestoreId: firestoreId || ref.id },
+        'https://bfmarquesempreendimentos.github.io/bfm/admin.html#repairs'
       ).catch(function() {});
     }
     return res.json({ success: true });
@@ -4345,6 +4356,14 @@ exports.adminBoletosMutate = functions.https.onRequest(async (req, res) => {
           date: paidAt,
           createdAt: new Date().toISOString(),
         });
+        fcmPush.notifyUserEmail(
+          db,
+          paidData.clientEmail,
+          'Pagamento confirmado',
+          (paidData.parcela ? 'Parcela ' + paidData.parcela : 'Boleto') + ' marcada como paga.',
+          { type: 'boleto_pago', boletoId: paidId },
+          'https://bfmarquesempreendimentos.github.io/bfm/client-area.html'
+        ).catch(function() {});
       }
       return res.json({ ok: true, id: paidId, status: 'pago' });
     }
@@ -4378,6 +4397,16 @@ exports.adminBoletosMutate = functions.https.onRequest(async (req, res) => {
         date: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       });
+      fcmPush.notifyUserEmail(
+        db,
+        emailC,
+        'Nova parcela disponível',
+        (body.parcela ? 'Parcela ' + body.parcela : 'Boleto') +
+          ' · R$ ' + valorC.toFixed(2) +
+          (body.vencimento ? ' · vence em ' + body.vencimento : ''),
+        { type: 'boleto_novo', boletoId: createRef.id },
+        'https://bfmarquesempreendimentos.github.io/bfm/client-area.html'
+      ).catch(function() {});
       return res.json({ ok: true, id: createRef.id });
     }
 
@@ -4413,15 +4442,25 @@ exports.adminTimelineEvent = functions.https.onRequest(async (req, res) => {
     var body = req.body || {};
     var email = String(body.clientEmail || '').trim().toLowerCase();
     if (!email) return res.status(400).json({ error: 'clientEmail obrigatório' });
+    var tlTitle = String(body.title || 'Atualização').trim();
+    var tlProp = String(body.propertyTitle || '').trim();
     var docRef = await admin.firestore().collection('client_timeline').add({
       clientEmail: email,
       type: String(body.type || 'evento').trim(),
-      title: String(body.title || 'Atualização').trim(),
+      title: tlTitle,
       description: String(body.description || '').trim(),
-      propertyTitle: String(body.propertyTitle || '').trim(),
+      propertyTitle: tlProp,
       date: body.date || new Date().toISOString(),
       createdAt: new Date().toISOString(),
     });
+    fcmPush.notifyUserEmail(
+      admin.firestore(),
+      email,
+      'Atualização no seu imóvel',
+      tlTitle + (tlProp ? ' — ' + tlProp : ''),
+      { type: 'timeline' },
+      'https://bfmarquesempreendimentos.github.io/bfm/client-area.html'
+    ).catch(function() {});
     return res.json({ ok: true, id: docRef.id });
   } catch (err) {
     console.error('adminTimelineEvent:', err);

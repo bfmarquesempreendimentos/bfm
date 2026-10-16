@@ -16,9 +16,20 @@ function parseJsonBody(req) {
   return {};
 }
 
+var SITE_BASE = 'https://bfmarquesempreendimentos.github.io/bfm';
+
 function tokenDocId(token) {
   var crypto = require('crypto');
   return crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 40);
+}
+
+function isInvalidFcmTokenError(err) {
+  var code = String((err && err.code) || '');
+  var msg = String((err && err.message) || '');
+  return code.indexOf('registration-token-not-registered') !== -1 ||
+    code.indexOf('invalid-registration-token') !== -1 ||
+    /registration-token-not-registered/i.test(msg) ||
+    /invalid-registration-token/i.test(msg);
 }
 
 async function saveFcmToken(db, opts) {
@@ -40,27 +51,42 @@ async function saveFcmToken(db, opts) {
 }
 
 async function collectTokensForEmails(db, emails) {
-  var wanted = {};
+  var tokens = [];
+  var seen = {};
   var i;
   for (i = 0; i < emails.length; i++) {
-    wanted[String(emails[i] || '').trim().toLowerCase()] = true;
+    var em = String(emails[i] || '').trim().toLowerCase();
+    if (!em) continue;
+    var snap = await db.collection('fcm_tokens').where('email', '==', em).get();
+    snap.forEach(function(doc) {
+      var t = String((doc.data() || {}).token || '').trim();
+      if (t && !seen[t]) {
+        seen[t] = true;
+        tokens.push(t);
+      }
+    });
   }
-  var snap = await db.collection('fcm_tokens').get();
-  var tokens = [];
-  snap.forEach(function(doc) {
-    var d = doc.data() || {};
-    if (!d.token) return;
-    if (wanted[d.email]) tokens.push(d.token);
-  });
   return tokens;
 }
 
 async function getAdminFcmTokens(db) {
   var emails = ADMIN_ACCOUNTS.map(function(a) { return a.email; });
-  return collectTokensForEmails(db, emails);
+  var tokens = await collectTokensForEmails(db, emails);
+  var seen = {};
+  var i;
+  for (i = 0; i < tokens.length; i++) seen[tokens[i]] = true;
+  var roleSnap = await db.collection('fcm_tokens').where('role', '==', 'admin').get();
+  roleSnap.forEach(function(doc) {
+    var t = String((doc.data() || {}).token || '').trim();
+    if (t && !seen[t]) {
+      seen[t] = true;
+      tokens.push(t);
+    }
+  });
+  return tokens;
 }
 
-async function sendPushToTokens(tokens, payload) {
+async function sendPushToTokens(tokens, payload, db) {
   if (!tokens || !tokens.length) return { sent: 0, failed: 0 };
   var unique = [];
   var i;
@@ -69,8 +95,9 @@ async function sendPushToTokens(tokens, payload) {
   }
   var title = String((payload && payload.title) || 'B F Marques').slice(0, 120);
   var body = String((payload && payload.body) || '').slice(0, 240);
+  var link = String((payload && payload.link) || (SITE_BASE + '/admin.html'));
   var data = (payload && payload.data) || {};
-  var dataOut = {};
+  var dataOut = { link: link };
   var k;
   for (k in data) {
     if (Object.prototype.hasOwnProperty.call(data, k)) dataOut[k] = String(data[k]);
@@ -84,13 +111,21 @@ async function sendPushToTokens(tokens, payload) {
         notification: { title: title, body: body },
         data: dataOut,
         webpush: {
-          fcmOptions: { link: payload.link || 'https://bfmarquesempreendimentos.github.io/bfm/admin.html' },
+          fcmOptions: { link: link },
+          notification: {
+            icon: SITE_BASE + '/assets/images/placeholder.jpg',
+          },
         },
       });
       sent++;
     } catch (err) {
       failed++;
       console.warn('FCM send:', err.message || err);
+      if (db && isInvalidFcmTokenError(err)) {
+        try {
+          await db.collection('fcm_tokens').doc(tokenDocId(unique[i])).delete();
+        } catch (eDel) { /* ignore */ }
+      }
     }
   }
   return { sent: sent, failed: failed };
@@ -98,12 +133,17 @@ async function sendPushToTokens(tokens, payload) {
 
 async function notifyAdmins(db, title, body, data, link) {
   var tokens = await getAdminFcmTokens(db);
-  return sendPushToTokens(tokens, { title: title, body: body, data: data, link: link });
+  return sendPushToTokens(tokens, { title: title, body: body, data: data, link: link || (SITE_BASE + '/admin.html') }, db);
 }
 
 async function notifyUserEmail(db, email, title, body, data, link) {
   var tokens = await collectTokensForEmails(db, [email]);
-  return sendPushToTokens(tokens, { title: title, body: body, data: data, link: link });
+  return sendPushToTokens(tokens, {
+    title: title,
+    body: body,
+    data: data,
+    link: link || (SITE_BASE + '/client-area.html'),
+  }, db);
 }
 
 async function registerFcmToken(req, res) {
