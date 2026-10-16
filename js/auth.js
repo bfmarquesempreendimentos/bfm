@@ -1,7 +1,7 @@
 // Authentication system for brokers
 
 // Credenciais centralizadas - em produção, sobrescreva via config ou variáveis de ambiente
-var DEMO_PASSWORD = (typeof CONFIG !== 'undefined' && CONFIG.auth && CONFIG.auth.demoPassword) ? CONFIG.auth.demoPassword : '123456';
+var DEMO_PASSWORD = (typeof CONFIG !== 'undefined' && CONFIG.auth && CONFIG.auth.demoPassword) ? CONFIG.auth.demoPassword : '';
 
 var brokers = [];
 

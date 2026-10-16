@@ -32,16 +32,15 @@ async function verifyAdminAuth(req) {
         return { ok: false, error: 'invalid_token' };
       }
     }
-    if (verifyAdminFromReq(req)) {
-      var body = req.body || {};
-      var q = req.query || {};
-      var legacyEmail = String(body.adminEmail || q.adminEmail || '').trim().toLowerCase();
+    if (req.method === 'POST' && verifyAdminFromReq(req)) {
+      var bodyLegacy = req.body || {};
+      var legacyEmail = String(bodyLegacy.adminEmail || '').trim().toLowerCase();
       var accLegacy = getAdminAccount(legacyEmail);
       return {
         ok: true,
         email: legacyEmail,
         role: accLegacy ? (accLegacy.role || 'comercial') : null,
-        via: 'legacy',
+        via: 'legacy_post',
       };
     }
     return { ok: false, error: 'unauthorized' };

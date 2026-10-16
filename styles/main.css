@@ -5420,3 +5420,57 @@ html {
         flex-direction: column;
     }
 }
+
+.client-boletos-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 16px;
+}
+.client-boletos-filters button.active {
+    background: #1f4e79;
+    color: #fff;
+    border-color: #1f4e79;
+}
+.client-boletos-summary {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+.client-boleto-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.client-boleto-head h5 {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.client-boleto-head small {
+    color: #666;
+}
+.client-boleto-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+.client-boleto-card em {
+    font-style: normal;
+    color: #c0392b;
+    font-weight: 600;
+}
+@media (max-width: 640px) {
+    .client-boleto-actions .btn {
+        width: 100%;
+        text-align: center;
+        justify-content: center;
+    }
+}

@@ -9,12 +9,14 @@ function adminBoletosEscape(s) {
 function adminBoletosStatusLabel(st) {
   if (st === 'pago') return 'Pago';
   if (st === 'vencido') return 'Vencido';
+  if (st === 'aguardando_conferencia') return 'Aguardando conferência';
   return 'Pendente';
 }
 
 function adminBoletosStatusClass(st) {
   if (st === 'pago') return 'status-completed';
   if (st === 'vencido') return 'status-cancelled';
+  if (st === 'aguardando_conferencia') return 'status-analyzing';
   return 'status-pending';
 }
 
@@ -39,6 +41,9 @@ async function loadAdminBoletos() {
       if (st !== 'pago') {
         actions += '<button type="button" class="btn-action btn-edit" onclick="markAdminBoletoPaid(\'' + adminBoletosEscape(b.id).replace(/'/g, "\\'") + '\')" title="Marcar pago"><i class="fas fa-check"></i></button> ';
       }
+      if (b.comprovanteUrl) {
+        actions += '<a class="btn-action btn-view" href="' + adminBoletosEscape(b.comprovanteUrl) + '" target="_blank" rel="noopener" title="Ver comprovante"><i class="fas fa-file-invoice"></i></a> ';
+      }
       actions += '<button type="button" class="btn-action btn-delete" onclick="deleteAdminBoleto(\'' + adminBoletosEscape(b.id).replace(/'/g, "\\'") + '\')" title="Excluir"><i class="fas fa-trash"></i></button>';
       return '<tr>' +
         '<td>' + adminBoletosEscape(b.clientEmail) + '</td>' +
@@ -46,7 +51,8 @@ async function loadAdminBoletos() {
         '<td>' + adminBoletosEscape(b.propertyTitle || '—') + '</td>' +
         '<td>R$ ' + Number(b.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '</td>' +
         '<td>' + adminBoletosEscape(typeof formatDate === 'function' ? formatDate(b.vencimento) : b.vencimento) + '</td>' +
-        '<td><span class="status-badge ' + adminBoletosStatusClass(st) + '">' + adminBoletosStatusLabel(st) + '</span></td>' +
+        '<td><span class="status-badge ' + adminBoletosStatusClass(st) + '">' + adminBoletosEscape(adminBoletosStatusLabel(st)) + '</span>' +
+        (b.comprovanteUrl && st !== 'pago' ? ' <small>comprovante</small>' : '') + '</td>' +
         '<td>' + actions + '</td></tr>';
     }).join('');
   } catch (err) {

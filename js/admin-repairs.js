@@ -183,10 +183,14 @@ async function loadAdminRepairs() {
     };
 
     var canDelete = typeof isSuperAdmin === 'function' && isSuperAdmin();
+    var esc = typeof escapeHtml === 'function' ? escapeHtml : function(t) {
+        return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
     tbody.innerHTML = repairs.map(function(r) {
         var idVal = typeof r.id === 'string' ? "'" + String(r.id).replace(/'/g, "\\'") + "'" : r.id;
         var deleteBtn = canDelete ? ' <button class="btn-action btn-delete" onclick="deleteRepairAdmin(' + idVal + ')" title="Excluir (apenas Super Admin)"><i class="fas fa-trash"></i></button>' : '';
-        return '<tr><td>#' + r.id + '</td><td>' + (r.clientName || '-') + '</td><td>' + (r.clientEmail || '-') + '</td><td>' + (r.propertyTitle || r.propertyId || '-') + '</td><td>' + (r.location || '-') + '</td><td><span class="status-badge status-' + r.status + '">' + (statusLabels[r.status] || r.status) + '</span></td><td>' + (typeof formatDate === 'function' ? formatDate(r.createdAt) : r.createdAt) + '</td><td><button class="btn-action btn-edit" onclick="openRepairEditModal(' + idVal + ')" title="Editar status"><i class="fas fa-edit"></i></button> <button class="btn-action btn-view" onclick="viewAdminRepairDetails(' + idVal + ')" title="Ver detalhes"><i class="fas fa-eye"></i></button>' + deleteBtn + '</td></tr>';
+        var statusKey = esc(r.status || '');
+        return '<tr><td>#' + esc(r.id) + '</td><td>' + esc(r.clientName || '-') + '</td><td>' + esc(r.clientEmail || '-') + '</td><td>' + esc(r.propertyTitle || r.propertyId || '-') + '</td><td>' + esc(r.location || '-') + '</td><td><span class="status-badge status-' + statusKey + '">' + esc(statusLabels[r.status] || r.status) + '</span></td><td>' + esc(typeof formatDate === 'function' ? formatDate(r.createdAt) : r.createdAt) + '</td><td><button class="btn-action btn-edit" onclick="openRepairEditModal(' + idVal + ')" title="Editar status"><i class="fas fa-edit"></i></button> <button class="btn-action btn-view" onclick="viewAdminRepairDetails(' + idVal + ')" title="Ver detalhes"><i class="fas fa-eye"></i></button>' + deleteBtn + '</td></tr>';
     }).join('');
 }
 
@@ -343,31 +347,42 @@ function viewAdminRepairDetails(repairId) {
     }
     const statusLabels = { pendente: 'Pendente', em_analise: 'Em Análise', em_andamento: 'Em Andamento', concluido: 'Concluído', cancelado: 'Cancelado' };
     const tipoLabels = { manutencao: 'Manutenção', reclamacao: 'Reclamação', sugestao: 'Sugestão', geral: 'Geral' };
-    const respList = (repair.responses || []).map(r => `<li><strong>${r.type === 'automatic' ? 'Automático' : r.type === 'client' ? 'Cliente' : 'Equipe'}</strong>: ${r.message} <small>(${typeof formatDate === 'function' ? formatDate(r.date) : r.date})</small></li>`).join('');
-    const comList = (repair.comentarios || []).map(function(c) {
-        return '<li><strong>' + (c.autorNome || 'Equipe') + '</strong>: ' + (c.texto || '') +
-            ' <small>(' + (typeof formatDate === 'function' ? formatDate(c.dataCriacao) : c.dataCriacao) + ')</small></li>';
+    const escList = typeof escapeHtml === 'function' ? escapeHtml : function(t) {
+        return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+    const respList = (repair.responses || []).map(function(r) {
+        var who = r.type === 'automatic' ? 'Automático' : r.type === 'client' ? 'Cliente' : 'Equipe';
+        var when = typeof formatDate === 'function' ? formatDate(r.date) : r.date;
+        return '<li><strong>' + escList(who) + '</strong>: ' + escList(r.message) + ' <small>(' + escList(when) + ')</small></li>';
     }).join('');
+    const comList = (repair.comentarios || []).map(function(c) {
+        var whenC = typeof formatDate === 'function' ? formatDate(c.dataCriacao) : c.dataCriacao;
+        return '<li><strong>' + escList(c.autorNome || 'Equipe') + '</strong>: ' + escList(c.texto || '') +
+            ' <small>(' + escList(whenC) + ')</small></li>';
+    }).join('');
+    const esc = typeof escapeHtml === 'function' ? escapeHtml : function(t) {
+        return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'block';
     modal.innerHTML = `
         <div class="modal-content" style="max-width:600px;">
             <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
-            <h2>Detalhes Reparo #${repair.id}</h2>
+            <h2>Detalhes Reparo #${esc(repair.id)}</h2>
             <div style="margin:15px 0;">
-                <p><strong>Cliente:</strong> ${repair.clientName || '-'} (${repair.clientEmail || '-'})</p>
-                <p><strong>Imóvel:</strong> ${repair.propertyTitle || repair.propertyId || '-'}</p>
-                <p><strong>Localização:</strong> ${repair.location || '-'}</p>
-                <p><strong>Descrição:</strong> ${repair.description || '-'}</p>
-                <p><strong>Status:</strong> ${statusLabels[repair.status] || repair.status}</p>
-                <p><strong>Tipo:</strong> ${tipoLabels[repair.tipo] || repair.tipo || 'Geral'}</p>
-                <p><strong>Responsável:</strong> ${repair.responsavelNome || '—'}</p>
+                <p><strong>Cliente:</strong> ${esc(repair.clientName || '-')} (${esc(repair.clientEmail || '-')})</p>
+                <p><strong>Imóvel:</strong> ${esc(repair.propertyTitle || repair.propertyId || '-')}</p>
+                <p><strong>Localização:</strong> ${esc(repair.location || '-')}</p>
+                <p><strong>Descrição:</strong> ${esc(repair.description || '-')}</p>
+                <p><strong>Status:</strong> ${esc(statusLabels[repair.status] || repair.status)}</p>
+                <p><strong>Tipo:</strong> ${esc(tipoLabels[repair.tipo] || repair.tipo || 'Geral')}</p>
+                <p><strong>Responsável:</strong> ${esc(repair.responsavelNome || '—')}</p>
                 ${repair.custoEstimado != null ? `<p><strong>Custo estimado:</strong> R$ ${Number(repair.custoEstimado).toFixed(2)}</p>` : ''}
                 ${repair.custoTotal != null ? `<p><strong>Custo total:</strong> R$ ${Number(repair.custoTotal).toFixed(2)}</p>` : ''}
-                <p><strong>Prioridade:</strong> ${repair.priority || 'Normal'}</p>
-                <p><strong>Data abertura:</strong> ${typeof formatDate === 'function' ? formatDate(repair.createdAt) : repair.createdAt}</p>
-                ${repair.visitDate ? `<p><strong>Data visita:</strong> ${typeof formatDate === 'function' ? formatDate(repair.visitDate) : repair.visitDate}</p>` : ''}
+                <p><strong>Prioridade:</strong> ${esc(repair.priority || 'Normal')}</p>
+                <p><strong>Data abertura:</strong> ${esc(typeof formatDate === 'function' ? formatDate(repair.createdAt) : repair.createdAt)}</p>
+                ${repair.visitDate ? `<p><strong>Data visita:</strong> ${esc(typeof formatDate === 'function' ? formatDate(repair.visitDate) : repair.visitDate)}</p>` : ''}
                 ${(repair.attachments && repair.attachments.length) ? `<p><strong>Anexos:</strong> ${repair.attachments.length} arquivo(s)</p>` : ''}
                 ${respList ? `<h4>Histórico de Respostas</h4><ul style="margin:10px 0;">${respList}</ul>` : ''}
                 ${comList ? `<h4>Comentários internos</h4><ul style="margin:10px 0;">${comList}</ul>` : ''}

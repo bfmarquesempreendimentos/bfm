@@ -104,43 +104,20 @@ function pushReconcileStatusesToServerIfAdmin() {
 }
 
 function pushUnitStatusToServer(propertyId, unitCode, status) {
-    var creds = null;
-    try {
-        if (typeof getAdminApiCredentials === 'function') creds = getAdminApiCredentials();
-        else {
-            var raw = localStorage.getItem('adminUser');
-            if (raw) {
-                var u = JSON.parse(raw);
-                creds = { email: u.email, password: u.password || '' };
-            }
-        }
-    } catch (e) {}
     if (typeof fetch === 'undefined') return;
     var baseUrl = (typeof getCloudFunctionsBaseUrl === 'function') ? getCloudFunctionsBaseUrl() : '';
     if (!baseUrl) return;
     var url = baseUrl + '/adminSetUnitStatusOverrides';
     var postPayload = { items: [{ propertyId: propertyId, unitCode: unitCode, status: status }] };
-    var doPost = function(headers, payload) {
-        fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(payload) }).catch(function() {});
-    };
-    if (typeof getAdminIdToken === 'function') {
-        getAdminIdToken().then(function(token) {
-            var headers = { 'Content-Type': 'application/json' };
-            if (token) {
-                headers.Authorization = 'Bearer ' + token;
-                doPost(headers, postPayload);
-            } else if (creds && creds.email && creds.password) {
-                postPayload.adminEmail = creds.email;
-                postPayload.adminPassword = creds.password;
-                doPost(headers, postPayload);
-            }
-        });
-        return;
-    }
-    if (!creds || !creds.email || !creds.password) return;
-    postPayload.adminEmail = creds.email;
-    postPayload.adminPassword = creds.password;
-    doPost({ 'Content-Type': 'application/json' }, postPayload);
+    if (typeof getAdminIdToken !== 'function') return;
+    getAdminIdToken().then(function(token) {
+        if (!token) return;
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body: JSON.stringify(postPayload)
+        }).catch(function() {});
+    });
 }
 
 function normalizeUnitSlotToken(raw) {

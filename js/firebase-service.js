@@ -27,22 +27,85 @@ function getFirebaseServiceFunctionsBase() {
   return '';
 }
 
-async function uploadRepairAttachmentsToFirebase(files, folder = 'repair-attachments') {
+async function getAnyIdToken() {
+  try {
+    if (typeof getAdminIdToken === 'function') {
+      var adminTok = await getAdminIdToken();
+      if (adminTok) return adminTok;
+    }
+  } catch (e1) {}
+  try {
+    if (typeof getClientIdToken === 'function') {
+      var clientTok = await getClientIdToken();
+      if (clientTok) return clientTok;
+    }
+  } catch (e2) {}
+  try {
+    var auth = getFirebaseAuth();
+    if (auth && auth.currentUser) return await auth.currentUser.getIdToken();
+  } catch (e3) {}
+  return null;
+}
+
+async function uploadViaSignedUrl(file, folder, token) {
+  var headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = 'Bearer ' + token;
+  var prepRes = await fetch(getFirebaseServiceFunctionsBase() + '/prepareStorageUpload', {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify({
+      folder: folder,
+      fileName: file.name,
+      contentType: file.type || 'application/octet-stream',
+      size: file.size
+    }),
+    cache: 'no-store',
+    credentials: 'omit'
+  });
+  if (!prepRes.ok) throw new Error('Falha ao preparar upload');
+  var prep = await prepRes.json();
+  var putRes = await fetch(prep.uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file
+  });
+  if (!putRes.ok) throw new Error('Falha no envio do arquivo');
+  return {
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    url: prep.url,
+    path: prep.path
+  };
+}
+
+async function uploadRepairAttachmentsToFirebase(files, folder) {
+  folder = folder || 'repair-attachments';
   const storage = getFirebaseStorage();
-  if (!storage) throw new Error('Storage indisponível');
+  const token = await getAnyIdToken();
   const uploaded = [];
+  const contractsOnly = String(folder).indexOf('sale-contracts') === 0;
   for (const file of files) {
-    const filePath = `${folder}/${Date.now()}-${file.name}`;
-    const ref = storage.ref().child(filePath);
-    await ref.put(file);
-    const url = await ref.getDownloadURL();
-    uploaded.push({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      url,
-      path: filePath
-    });
+    var usedSigned = contractsOnly || !storage || !token;
+    if (!usedSigned) {
+      try {
+        const filePath = folder + '/' + Date.now() + '-' + file.name;
+        const ref = storage.ref().child(filePath);
+        await ref.put(file);
+        const url = await ref.getDownloadURL();
+        uploaded.push({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          url: url,
+          path: filePath
+        });
+        continue;
+      } catch (sdkErr) {
+        usedSigned = true;
+      }
+    }
+    uploaded.push(await uploadViaSignedUrl(file, folder, token));
   }
   return uploaded;
 }
@@ -123,22 +186,24 @@ async function getAllRepairRequestsFromFirestore() {
 }
 
 async function deleteRepairRequestFromFirestore(repairId) {
-  const db = getFirebaseDb();
-  if (!db) return null;
-  const snapshot = await db.collection('repairRequests').where('id', '==', Number(repairId)).limit(1).get();
-  if (snapshot.empty) return null;
-  await snapshot.docs[0].ref.delete();
-  return true;
+  if (typeof adminPostJson === 'function') {
+    var r = await adminPostJson('/patchRepair', { id: Number(repairId), action: 'delete' });
+    return !!(r && r.success);
+  }
+  return null;
 }
 
 async function saveEmailAuditToFirestore(email) {
-  const db = getFirebaseDb();
-  if (!db) return null;
-  await db.collection('emailAuditLog').add({
-    ...email,
-    loggedAt: new Date().toISOString()
+  var token = await getAnyIdToken();
+  if (!token) return null;
+  var res = await fetch(getFirebaseServiceFunctionsBase() + '/logEmailAudit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify(email || {}),
+    cache: 'no-store',
+    credentials: 'omit'
   });
-  return true;
+  return res.ok ? true : null;
 }
 
 async function savePropertySaleToFirestore(sale) {
@@ -261,14 +326,29 @@ function generateRandomPassword(length = 10) {
 }
 
 async function queueEmailInFirestore(payload) {
-  const db = getFirebaseDb();
-  if (!db) return null;
-  const docRef = await db.collection('emailQueue').add({
-    ...payload,
-    createdAt: new Date().toISOString(),
-    status: 'queued'
+  payload = payload || {};
+  var token = await getAnyIdToken();
+  var headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = 'Bearer ' + token;
+  var body = {
+    type: payload.type || 'generic',
+    to: payload.to,
+    subject: payload.subject,
+    body: payload.body,
+    queueType: payload.queueType || payload.type || 'client',
+    whatsappPhone: payload.whatsappPhone || null,
+    whatsappMessage: payload.whatsappMessage || null
+  };
+  var res = await fetch(getFirebaseServiceFunctionsBase() + '/queueEmail', {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(body),
+    cache: 'no-store',
+    credentials: 'omit'
   });
-  return docRef.id;
+  if (!res.ok) return null;
+  var j = await res.json().catch(function() { return null; });
+  return (j && j.ok) ? true : null;
 }
 
 const BROKERS_COLLECTION = 'brokers';
@@ -355,16 +435,7 @@ async function getBrokersFromAPI(activeOnly) {
       var token = await getAdminIdToken();
       if (token) headers.Authorization = 'Bearer ' + token;
     }
-    if (!headers.Authorization && typeof getAdminApiCredentials === 'function') {
-      var creds = getAdminApiCredentials();
-      if (creds && creds.email && creds.password) {
-        url += '&adminEmail=' + encodeURIComponent(creds.email) +
-          '&adminPassword=' + encodeURIComponent(creds.password);
-      }
-    }
-    if (!headers.Authorization && url.indexOf('adminEmail=') < 0) {
-      return null;
-    }
+    if (!headers.Authorization) return null;
     var res = await fetch(url, { cache: 'no-store', credentials: 'omit', headers: headers });
     if (!res.ok) throw new Error('API erro ' + res.status);
     var list = await res.json();

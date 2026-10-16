@@ -113,7 +113,7 @@ B F Marques Sistema/
 
 ### **3. Painel Admin:**
 - **Acesso**: `admin-login.html`
-- **Login**: admin@construtorapremium.com / admin123
+- **Login**: `admin-login.html` (Firebase Authentication)
 - **Gerenciar**: Aprovar reservas e documentos
 - **Notificações**: Sino no header
 

@@ -73,8 +73,8 @@ Um sistema completo para gestão e vendas de imóveis desenvolvido especificamen
 ### 2. Acesso Administrativo
 
 - **URL**: `admin-login.html`
-- **Email**: `admin@construtorapremium.com`
-- **Senha**: `admin123`
+- Login via **Firebase Authentication** (contas autorizadas no código, senhas **não** ficam no repositório).
+- Troque as senhas no Firebase Console se o repositório for público.
 
 ### 3. Cadastro de Corretores
 

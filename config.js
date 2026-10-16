@@ -39,7 +39,7 @@ var CONFIG = {
         maxLoginAttempts: 5,
         superAdminEmails: ['brunoferreiramarques@gmail.com'],
         adminEmail: 'brunoferreiramarques@gmail.com',
-        demoPassword: '123456' // Em produção, altere e considere migrar para Firebase Auth
+        demoPassword: '' // Nunca commitar senha. Use Firebase Auth.
     },
     
     // Configurações de Interface
@@ -155,7 +155,7 @@ var CONFIG = {
     },
 
     /** Versão de cache para CSS/JS (incrementar a cada deploy público) */
-    assetVersion: '33',
+    assetVersion: '35',
 
     /** Permissões por perfil do painel admin (espelha functions/admin-accounts.js) */
     adminRoles: {
@@ -229,6 +229,23 @@ if (typeof localStorage !== 'undefined') {
         } catch (error) {
             if (typeof console !== 'undefined' && console.warn) {
                 console.warn('Erro ao carregar configurações salvas:', error);
+            }
+        }
+    }
+}
+
+if (typeof CONFIG_OVERRIDES === 'object' && CONFIG_OVERRIDES) {
+    var SAFE_LOCAL_KEYS = ['ui', 'cache', 'development', 'company'];
+    var oi;
+    for (oi = 0; oi < SAFE_LOCAL_KEYS.length; oi++) {
+        var ok = SAFE_LOCAL_KEYS[oi];
+        if (CONFIG_OVERRIDES[ok] && typeof CONFIG_OVERRIDES[ok] === 'object') {
+            var sk;
+            for (sk in CONFIG_OVERRIDES[ok]) {
+                if (Object.prototype.hasOwnProperty.call(CONFIG_OVERRIDES[ok], sk)) {
+                    if (!CONFIG[ok]) CONFIG[ok] = {};
+                    CONFIG[ok][sk] = CONFIG_OVERRIDES[ok][sk];
+                }
             }
         }
     }

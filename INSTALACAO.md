@@ -64,8 +64,8 @@ company: {
 
 #### Painel Administrativo
 - Acesse `admin-login.html`
-- **Email**: `admin@construtorapremium.com`
-- **Senha**: `admin123`
+- Use o e-mail autorizado e a senha cadastrada no **Firebase Authentication**.
+- Nunca grave senhas reais neste repositório.
 
 ## 🔧 Configurações Avançadas
 

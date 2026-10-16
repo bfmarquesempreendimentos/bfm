@@ -4,7 +4,7 @@ let currentClient = null;
 
 var ADMIN_CLIENT = {
     email: (typeof CONFIG !== 'undefined' && CONFIG.auth && CONFIG.auth.adminEmail) ? CONFIG.auth.adminEmail : 'brunoferreiramarques@gmail.com',
-    password: (typeof CONFIG !== 'undefined' && CONFIG.auth && CONFIG.auth.demoPassword) ? CONFIG.auth.demoPassword : '123456',
+    password: (typeof CONFIG !== 'undefined' && CONFIG.auth && CONFIG.auth.demoPassword) ? CONFIG.auth.demoPassword : '',
     name: 'Admin B F Marques'
 };
 
@@ -399,6 +399,143 @@ function getClientIdToken() {
     return Promise.resolve(null);
 }
 
+var _clientBoletosCache = [];
+var _clientBoletosFilter = 'todos';
+
+function getClientWhatsAppUrl(text) {
+    var phone = '5521997590814';
+    if (typeof CONFIG !== 'undefined' && CONFIG.company && CONFIG.company.whatsappSales) {
+        phone = String(CONFIG.company.whatsappSales).replace(/\D/g, '');
+    }
+    return 'https://wa.me/' + phone + '?text=' + encodeURIComponent(text || 'Olá, sou cliente e preciso de ajuda.');
+}
+
+function boletoDaysHint(vencimento, status) {
+    if (status === 'pago') return '';
+    var d = vencimento ? new Date(vencimento) : null;
+    if (!d || isNaN(d.getTime())) return '';
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
+    var diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+    if (diff < 0) return 'Venceu há ' + Math.abs(diff) + ' dia(s)';
+    if (diff === 0) return 'Vence hoje';
+    if (diff === 1) return 'Vence amanhã';
+    return 'Faltam ' + diff + ' dia(s)';
+}
+
+function boletoStatusMeta(st) {
+    if (st === 'pago') return { label: 'Pago', cls: 'status-completed' };
+    if (st === 'vencido') return { label: 'Vencido', cls: 'status-cancelled' };
+    if (st === 'aguardando_conferencia') return { label: 'Aguardando conferência', cls: 'status-analyzing' };
+    return { label: 'Pendente', cls: 'status-pending' };
+}
+
+function renderClientBoletos() {
+    var listEl = document.getElementById('clientBoletosList');
+    if (!listEl) return;
+    var rows = _clientBoletosCache || [];
+    var filter = _clientBoletosFilter || 'todos';
+    var waHelp = getClientWhatsAppUrl('Olá, sou cliente e tenho dúvida sobre minhas parcelas.');
+    if (!rows.length) {
+        listEl.innerHTML = '<p>Nenhum boleto cadastrado pela construtora ainda.</p>' +
+            '<a class="btn btn-secondary btn-sm" href="' + waHelp + '" target="_blank" rel="noopener">Falar no WhatsApp</a>';
+        return;
+    }
+    var pendentes = 0, vencidos = 0, pagos = 0, aguardando = 0;
+    var html = '';
+    var i;
+    for (i = 0; i < rows.length; i++) {
+        var stCount = String(rows[i].status || 'pendente');
+        if (stCount === 'pago') pagos += 1;
+        else if (stCount === 'vencido') vencidos += 1;
+        else if (stCount === 'aguardando_conferencia') aguardando += 1;
+        else pendentes += 1;
+    }
+    for (i = 0; i < rows.length; i++) {
+        var b = rows[i];
+        var st = String(b.status || 'pendente');
+        if (filter === 'pendentes' && st !== 'pendente' && st !== 'aguardando_conferencia') continue;
+        if (filter === 'pagos' && st !== 'pago') continue;
+        if (filter === 'vencidos' && st !== 'vencido') continue;
+        var meta = boletoStatusMeta(st);
+        var hint = boletoDaysHint(b.vencimento, st);
+        var bid = String(b.id || '').replace(/'/g, '');
+        var waItem = getClientWhatsAppUrl(
+            'Olá, sou cliente. Dúvida sobre a parcela ' + (b.parcela || '') +
+            (b.propertyTitle ? ' (' + b.propertyTitle + ')' : '') +
+            ' no valor de R$ ' + Number(b.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '.'
+        );
+        html += '<article class="client-document-card client-boleto-card">' +
+            '<div class="client-boleto-head">' +
+            '<h5>' + escapeHtml(b.parcela ? ('Parcela ' + b.parcela) : 'Parcela') +
+            ' <span class="status-badge ' + meta.cls + '">' + escapeHtml(meta.label) + '</span></h5>' +
+            (b.propertyTitle ? '<small>' + escapeHtml(b.propertyTitle) + '</small>' : '') +
+            '</div>' +
+            '<p><strong>Vencimento:</strong> ' + escapeHtml(formatDate(b.vencimento)) +
+            (hint ? ' · <em>' + escapeHtml(hint) + '</em>' : '') + '</p>' +
+            '<p><strong>Valor:</strong> R$ ' + Number(b.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '</p>' +
+            (b.pagamentoEm && st === 'pago' ? '<p><strong>Pago em:</strong> ' + escapeHtml(formatDate(b.pagamentoEm)) + '</p>' : '') +
+            '<div class="client-boleto-actions">' +
+            (b.comprovanteUrl ? '<a href="' + escapeHtml(b.comprovanteUrl) + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Ver comprovante</a>' : '') +
+            (st !== 'pago' ? '<label class="btn btn-primary btn-sm" style="cursor:pointer;margin:0;">Enviar comprovante' +
+            '<input type="file" accept="image/*,application/pdf" style="display:none;" onchange="sendClientBoletoReceipt(\'' + bid + '\', this)"></label>' : '') +
+            '<a class="btn btn-secondary btn-sm" href="' + waItem + '" target="_blank" rel="noopener">Dúvida no WhatsApp</a>' +
+            '</div></article>';
+    }
+    if (!html) html = '<p>Nenhum boleto neste filtro.</p>';
+    var summary = '<div class="client-boletos-summary">' +
+        '<strong>Resumo:</strong> ' + pagos + ' pago(s), ' + pendentes + ' pendente(s)' +
+        (aguardando ? ', ' + aguardando + ' aguardando conferência' : '') +
+        (vencidos ? ', <span style="color:#c0392b;">' + vencidos + ' vencido(s)</span>' : '') +
+        '</div>';
+    listEl.innerHTML = summary + html;
+}
+
+function setClientBoletosFilter(filter) {
+    _clientBoletosFilter = filter || 'todos';
+    var btns = document.querySelectorAll('.client-boletos-filters button');
+    for (var i = 0; i < btns.length; i++) {
+        btns[i].classList.toggle('active', btns[i].getAttribute('data-filter') === _clientBoletosFilter);
+    }
+    renderClientBoletos();
+}
+
+function sendClientBoletoReceipt(boletoId, input) {
+    var file = input && input.files && input.files[0];
+    if (!file || !boletoId) return;
+    if (file.size > 10 * 1024 * 1024) {
+        if (typeof showMessage === 'function') showMessage('Arquivo acima de 10MB.', 'error');
+        input.value = '';
+        return;
+    }
+    var listEl = document.getElementById('clientBoletosList');
+    getClientIdToken().then(function(token) {
+        if (!token) throw new Error('Faça login novamente.');
+        if (typeof uploadRepairAttachmentsToFirebase !== 'function') throw new Error('Upload indisponível.');
+        return uploadRepairAttachmentsToFirebase([file], 'boleto-receipts').then(function(uploaded) {
+            var item = uploaded && uploaded[0];
+            if (!item || !item.url) throw new Error('Falha no envio do arquivo.');
+            return fetch(getClientCloudBaseUrl() + '/clientBoletoReceipt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                body: JSON.stringify({ boletoId: boletoId, comprovanteUrl: item.url, path: item.path || '' }),
+                cache: 'no-store',
+                credentials: 'omit'
+            });
+        }).then(function(res) {
+            if (!res.ok) return res.json().then(function(j) { throw new Error((j && j.error) || 'Erro ao registrar comprovante'); });
+            if (typeof showMessage === 'function') showMessage('Comprovante enviado. Aguarde a conferência da construtora.', 'success');
+            loadClientBoletos();
+        });
+    }).catch(function(err) {
+        if (typeof showMessage === 'function') showMessage(err.message || 'Não foi possível enviar o comprovante.', 'error');
+        if (listEl && !listEl.innerHTML) listEl.innerHTML = '<p>Erro ao enviar comprovante.</p>';
+    }).finally(function() {
+        if (input) input.value = '';
+    });
+}
+
 function loadClientBoletos() {
     var listEl = document.getElementById('clientBoletosList');
     if (!listEl || !currentClient) return;
@@ -407,52 +544,23 @@ function loadClientBoletos() {
         listEl.innerHTML = '<p>Nenhum boleto disponível.</p>';
         return;
     }
+    listEl.innerHTML = '<p>Carregando boletos...</p>';
     getClientIdToken().then(function(idToken) {
-    if (!idToken) {
-        listEl.innerHTML = '<p>Faça login novamente para ver seus boletos.</p>';
-        return;
-    }
-    var boletosUrl = getClientCloudBaseUrl() + '/clientBoletosMe?idToken=' + encodeURIComponent(idToken);
-    fetch(boletosUrl, { cache: 'no-store' })
-        .then(function(r) { return r.ok ? r.json() : []; })
+        if (!idToken) {
+            listEl.innerHTML = '<p>Faça login novamente para ver seus boletos.</p>';
+            return;
+        }
+        return fetch(getClientCloudBaseUrl() + '/clientBoletosMe', {
+            cache: 'no-store',
+            credentials: 'omit',
+            headers: { Authorization: 'Bearer ' + idToken }
+        }).then(function(r) { return r.ok ? r.json() : []; })
         .then(function(rows) {
-            if (!rows || !rows.length) {
-                listEl.innerHTML = '<p>Nenhum boleto cadastrado pela construtora ainda. Em caso de dúvida, fale conosco pelo WhatsApp.</p>';
-                return;
-            }
-            var pendentes = 0;
-            var vencidos = 0;
-            var pagos = 0;
-            var html = '';
-            for (var i = 0; i < rows.length; i++) {
-                var b = rows[i];
-                var st = String(b.status || 'pendente');
-                if (st === 'pago') pagos += 1;
-                else if (st === 'vencido') vencidos += 1;
-                else pendentes += 1;
-                var stLabel = st === 'pago' ? 'Pago' : (st === 'vencido' ? 'Vencido' : 'Pendente');
-                var stClass = st === 'pago' ? 'status-completed' : (st === 'vencido' ? 'status-cancelled' : 'status-pending');
-                html += '<div class="client-document-card">' +
-                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
-                    '<h5>' + escapeHtml(b.parcela ? ('Parcela ' + b.parcela) : 'Parcela') +
-                    ' — <span class="status-badge ' + stClass + '">' + escapeHtml(stLabel) + '</span></h5>' +
-                    (b.propertyTitle ? '<small style="color:#666;">' + escapeHtml(b.propertyTitle) + '</small>' : '') +
-                    '</div>' +
-                    '<p><strong>Vencimento:</strong> ' + escapeHtml(formatDate(b.vencimento)) + '</p>' +
-                    '<p><strong>Valor:</strong> R$ ' + Number(b.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '</p>' +
-                    (b.pagamentoEm && st === 'pago' ? '<p><strong>Pago em:</strong> ' + escapeHtml(formatDate(b.pagamentoEm)) + '</p>' : '') +
-                    (b.comprovanteUrl ? '<a href="' + escapeHtml(b.comprovanteUrl) + '" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Ver comprovante</a>' : '') +
-                    '</div>';
-            }
-            var summary = '<div class="client-boletos-summary" style="margin-bottom:16px;padding:12px;background:#f8f9fa;border-radius:8px;">' +
-                '<strong>Resumo:</strong> ' + pagos + ' pago(s), ' + pendentes + ' pendente(s)' +
-                (vencidos ? (', <span style="color:#c0392b;">' + vencidos + ' vencido(s)</span>') : '') +
-                '</div>';
-            listEl.innerHTML = summary + html;
-        })
-        .catch(function() {
-            listEl.innerHTML = '<p>Não foi possível carregar boletos agora.</p>';
+            _clientBoletosCache = Array.isArray(rows) ? rows : [];
+            renderClientBoletos();
         });
+    }).catch(function() {
+        listEl.innerHTML = '<p>Não foi possível carregar boletos agora.</p>';
     });
 }
 
@@ -562,8 +670,11 @@ function loadClientHistory() {
         renderItems(local.slice().reverse());
         return;
     }
-    var timelineUrl = getClientCloudBaseUrl() + '/clientTimelineMe?idToken=' + encodeURIComponent(idToken);
-    fetch(timelineUrl, { cache: 'no-store' })
+    fetch(getClientCloudBaseUrl() + '/clientTimelineMe', {
+        cache: 'no-store',
+        credentials: 'omit',
+        headers: { Authorization: 'Bearer ' + idToken }
+    })
         .then(function(r) { return r.ok ? r.json() : []; })
         .then(function(remote) {
             var merged = [];

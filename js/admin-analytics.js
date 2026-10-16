@@ -2,16 +2,10 @@
 (function() {
     'use strict';
 
-    const COLLECTION = 'site_visits';
     let allVisits = [];
     let visitsChart = null;
     let devicesChart = null;
     let browsersChart = null;
-
-    function getDb() {
-        if (typeof firebase === 'undefined' || !firebase.firestore) return null;
-        return firebase.firestore();
-    }
 
     function startOfDay(date) {
         const d = new Date(date);
@@ -31,33 +25,25 @@
     }
 
     window.loadAnalytics = async function() {
-        const db = getDb();
-        if (!db) {
+        if (typeof adminFetchJson !== 'function') {
             document.getElementById('analyticsContent').innerHTML =
-                '<p style="text-align:center;color:#999;padding:40px;">Firebase não disponível.</p>';
+                '<p style="text-align:center;color:#999;padding:40px;">Sessão admin indisponível.</p>';
             return;
         }
 
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
         try {
-            const snapshot = await db.collection(COLLECTION)
-                .where('clientTimestamp', '>=', thirtyDaysAgo.toISOString())
-                .orderBy('clientTimestamp', 'desc')
-                .limit(5000)
-                .get();
+            const payload = await adminFetchJson('/adminSiteVisits?days=30');
+            const list = (payload && payload.visits) ? payload.visits : [];
 
             allVisits = [];
-            snapshot.forEach(function(doc) {
-                const data = doc.data();
+            list.forEach(function(data) {
                 let ts = null;
                 if (data.timestamp && data.timestamp.toDate) {
                     ts = data.timestamp.toDate();
                 } else if (data.clientTimestamp) {
                     ts = new Date(data.clientTimestamp);
                 }
-                if (ts) {
+                if (ts && !isNaN(ts.getTime())) {
                     allVisits.push(Object.assign({}, data, { _date: ts }));
                 }
             });

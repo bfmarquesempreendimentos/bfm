@@ -5,6 +5,12 @@ function getRepairTipoLabel(tipo) {
     return map[tipo] || 'Geral';
 }
 
+function escRepair(text) {
+    if (typeof escapeHtml === 'function') return escapeHtml(text);
+    return String(text == null ? '' : text)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 let selectedFiles = [];
 
 // Mostrar formulário de solicitação de reparo
@@ -426,7 +432,11 @@ async function loadClientRepairs() {
         }
         if (clientToken) {
             try {
-                var respMe = await fetch(getRepairsApiBase() + '/clientRepairsMe?idToken=' + encodeURIComponent(clientToken), { cache: 'no-store', credentials: 'omit' });
+                var respMe = await fetch(getRepairsApiBase() + '/clientRepairsMe', {
+                    cache: 'no-store',
+                    credentials: 'omit',
+                    headers: { Authorization: 'Bearer ' + clientToken }
+                });
                 if (respMe.ok) {
                     var dataMe = await respMe.json();
                     if (dataMe && Array.isArray(dataMe)) fromServer = dataMe;
@@ -510,20 +520,20 @@ async function loadClientRepairs() {
             <div class="repair-request-card">
                 <div class="repair-header">
                     <div>
-                        <h5>Solicitação #${repair.id}</h5>
-                        <p class="repair-property">${propertyName}</p>
-                        <p class="repair-meta" style="font-size:0.85rem;color:#666;margin:4px 0 0;">${getRepairTipoLabel(repair.tipo)}${repair.responsavelNome ? ' · Resp.: ' + repair.responsavelNome : ''}</p>
+                        <h5>Solicitação #${escRepair(repair.id)}</h5>
+                        <p class="repair-property">${escRepair(propertyName)}</p>
+                        <p class="repair-meta" style="font-size:0.85rem;color:#666;margin:4px 0 0;">${escRepair(getRepairTipoLabel(repair.tipo))}${repair.responsavelNome ? ' · Resp.: ' + escRepair(repair.responsavelNome) : ''}</p>
                     </div>
                     <div class="repair-status">
-                        <span class="status-badge ${statusClass}">${statusText}</span>
-                        <span class="priority-badge ${priorityClass}">${priorityText}</span>
+                        <span class="status-badge ${statusClass}">${escRepair(statusText)}</span>
+                        <span class="priority-badge ${priorityClass}">${escRepair(priorityText)}</span>
                     </div>
                 </div>
                 <div class="repair-body">
                     <div class="repair-info">
-                        <p><strong>Localização:</strong> ${repair.location}</p>
-                        <p><strong>Descrição:</strong> ${repair.description}</p>
-                        <p><strong>Data:</strong> ${formatDate(repair.createdAt)}</p>
+                        <p><strong>Localização:</strong> ${escRepair(repair.location)}</p>
+                        <p><strong>Descrição:</strong> ${escRepair(repair.description)}</p>
+                        <p><strong>Data:</strong> ${escRepair(formatDate(repair.createdAt))}</p>
                     </div>
                     ${firstAttachment ? `
                         <div class="repair-file">
@@ -534,7 +544,7 @@ async function loadClientRepairs() {
                                      data-attachment-url="${firstAttachment.url || ''}"
                                      data-attachment-type="${firstAttachment.type || ''}">
                                 </div>
-                                <span>${firstAttachment.name}</span>
+                                <span>${escRepair(firstAttachment.name)}</span>
                             </div>
                         </div>
                     ` : ''}
@@ -542,8 +552,8 @@ async function loadClientRepairs() {
                         <div class="repair-response">
                             <strong>Última Resposta:</strong>
                             <div class="response-message ${lastResponse.type === 'automatic' ? 'response-automatic' : 'response-manual'}">
-                                <p>${lastResponse.message}</p>
-                                <small>${formatDate(lastResponse.date)} ${lastResponse.type === 'automatic' ? '(Resposta Automática)' : ''}</small>
+                                <p>${escRepair(lastResponse.message)}</p>
+                                <small>${escRepair(formatDate(lastResponse.date))} ${lastResponse.type === 'automatic' ? '(Resposta Automática)' : lastResponse.type === 'client' ? '(Você)' : '(Equipe)'}</small>
                             </div>
                         </div>
                     ` : ''}
@@ -626,9 +636,8 @@ async function submitClientRepairResponse(event, repairId) {
 
     if (typeof updateRepairRequestInFirestore === 'function') {
         updateRepairRequestInFirestore(repairId, {
-            responses: repair.responses,
-            updatedAt: repair.updatedAt,
-            attachments: repair.attachments
+            firestoreId: repair.firestoreId || '',
+            clientResponse: { message: message, attachments: attachments }
         }).catch(function(e) { console.error('Erro ao atualizar Firestore:', e); });
     }
 
@@ -652,7 +661,9 @@ async function submitClientRepairResponse(event, repairId) {
 // Ver detalhes da solicitação
 function viewRepairDetails(repairId) {
     const repairRequests = JSON.parse(localStorage.getItem('repairRequests') || '[]');
-    const repair = repairRequests.find(r => r.id === repairId);
+    const repair = repairRequests.find(function(r) {
+        return r.id === repairId || String(r.id) === String(repairId) || r.firestoreId === repairId;
+    });
     
     if (!repair) {
         showMessage('Solicitação não encontrada.', 'error');
@@ -665,32 +676,32 @@ function viewRepairDetails(repairId) {
     modal.innerHTML = `
         <div class="modal-content repair-details-modal">
             <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
-            <h2>Detalhes da Solicitação #${repair.id}</h2>
+            <h2>Detalhes da Solicitação #${escRepair(repair.id)}</h2>
             <div class="repair-details">
                 <div class="detail-item">
                     <strong>Tipo:</strong>
-                    <span>${getRepairTipoLabel(repair.tipo)}</span>
+                    <span>${escRepair(getRepairTipoLabel(repair.tipo))}</span>
                 </div>
-                ${repair.responsavelNome ? `<div class="detail-item"><strong>Responsável:</strong><span>${repair.responsavelNome}</span></div>` : ''}
+                ${repair.responsavelNome ? `<div class="detail-item"><strong>Responsável:</strong><span>${escRepair(repair.responsavelNome)}</span></div>` : ''}
                 <div class="detail-item">
                     <strong>Status:</strong>
-                    <span class="status-badge status-${repair.status}">${getStatusText(repair.status)}</span>
+                    <span class="status-badge status-${escRepair(repair.status)}">${escRepair(getStatusText(repair.status))}</span>
                 </div>
                 <div class="detail-item">
                     <strong>Prioridade:</strong>
-                    <span class="priority-badge priority-${repair.priority}">${getPriorityText(repair.priority)}</span>
+                    <span class="priority-badge priority-${escRepair(repair.priority)}">${escRepair(getPriorityText(repair.priority))}</span>
                 </div>
                 <div class="detail-item">
                     <strong>Localização:</strong>
-                    <span>${repair.location}</span>
+                    <span>${escRepair(repair.location)}</span>
                 </div>
                 <div class="detail-item">
                     <strong>Descrição:</strong>
-                    <p>${repair.description}</p>
+                    <p>${escRepair(repair.description)}</p>
                 </div>
                 <div class="detail-item">
                     <strong>Data de Criação:</strong>
-                    <span>${formatDate(repair.createdAt)}</span>
+                    <span>${escRepair(formatDate(repair.createdAt))}</span>
                 </div>
                 ${repair.attachments && repair.attachments.length > 0 ? `
                     <div class="detail-item">
@@ -707,7 +718,7 @@ function viewRepairDetails(repairId) {
                     </div>
                 ` : ''}
                 <div class="detail-item">
-                    <strong>Histórico de Respostas:</strong>
+                    <strong>Conversa com a construtora:</strong>
                     <div class="responses-timeline">
                         ${repair.responses && repair.responses.length > 0 
                             ? repair.responses.map(function(response) {
@@ -715,27 +726,27 @@ function viewRepairDetails(repairId) {
                                 if (response.attachments && response.attachments.length > 0) {
                                     attHtml = '<div class="response-attachments" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">' +
                                         response.attachments.map(function(att) {
-                                            var url = att.url || '';
+                                            var url = escRepair(att.url || '');
                                             var isImg = att.type && att.type.indexOf('image/') === 0;
                                             if (isImg && url) {
-                                                return '<a href="' + url + '" target="_blank" class="repair-attachment-preview" data-attachment-url="' + url + '" data-attachment-type="' + (att.type || '') + '">' + (att.name || 'Anexo') + '</a>';
+                                                return '<a href="' + url + '" target="_blank" rel="noopener" class="repair-attachment-preview" data-attachment-url="' + url + '" data-attachment-type="' + escRepair(att.type || '') + '">' + escRepair(att.name || 'Anexo') + '</a>';
                                             }
-                                            return '<a href="' + url + '" target="_blank" style="padding:4px 8px;background:#f0f0f0;border-radius:4px;font-size:0.85rem;">' + (att.name || 'Anexo') + '</a>';
+                                            return '<a href="' + url + '" target="_blank" rel="noopener" style="padding:4px 8px;background:#f0f0f0;border-radius:4px;font-size:0.85rem;">' + escRepair(att.name || 'Anexo') + '</a>';
                                         }).join('') + '</div>';
                                 }
                                 return '<div class="timeline-item ' + (response.type === 'automatic' ? 'timeline-automatic' : response.type === 'client' ? 'timeline-client' : 'timeline-manual') + '">' +
                                     '<div class="timeline-marker"></div>' +
                                     '<div class="timeline-content">' +
-                                    '<p>' + response.message + '</p>' + attHtml +
-                                    '<small>' + formatDate(response.date) + ' ' + (response.type === 'automatic' ? '(Automático)' : response.type === 'client' ? '(Você)' : '(Equipe)') + '</small>' +
+                                    '<p>' + escRepair(response.message) + '</p>' + attHtml +
+                                    '<small>' + escRepair(formatDate(response.date)) + ' ' + (response.type === 'automatic' ? '(Automático)' : response.type === 'client' ? '(Você)' : '(Equipe)') + '</small>' +
                                     '</div></div>';
                             }).join('')
-                            : '<p>Nenhuma resposta ainda.</p>'
+                            : '<p>Nenhuma mensagem ainda. Escreva abaixo para falar com a equipe.</p>'
                         }
                     </div>
                 </div>
                 <div class="detail-item repair-respond-area">
-                    <strong>Responder ou enviar dúvida:</strong>
+                    <strong>Enviar mensagem:</strong>
                     <form class="repair-response-form" onsubmit="submitClientRepairResponse(event, ${repair.id})">
                         <textarea id="repairClientResponseMsg" rows="3" placeholder="Digite sua mensagem, dúvida ou resposta..." required></textarea>
                         <div class="repair-response-attachments">

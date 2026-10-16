@@ -29,13 +29,11 @@ service cloud.firestore {
     }
 
     match /emailAuditLog/{docId} {
-      allow create: if true;
-      allow read, update, delete: if false;
+      allow read, write: if false;
     }
 
     match /emailQueue/{docId} {
-      allow create: if true;
-      allow read, update, delete: if false;
+      allow read, write: if false;
     }
 
     match /chatbot_leads/{docId} {
@@ -51,8 +49,7 @@ service cloud.firestore {
     }
 
     match /site_visits/{docId} {
-      allow create, read: if true;
-      allow update, delete: if false;
+      allow read, write: if false;
     }
 
     match /brokers/{docId} {
@@ -88,6 +85,10 @@ service cloud.firestore {
     }
 
     match /bia_training/{docId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
       allow read, write: if false;
     }
   }

@@ -34,18 +34,22 @@ function initializeAdminPanel() {
         redirectToLogin();
         return;
     }
-    var legacyCreds = getAdminApiCredentials();
+    getAdminIdToken().then(function(token) {
+        if (!token) {
+            redirectToLogin();
+            return;
+        }
+        bootAdminPanelAfterAuth();
+    });
+}
+
+function bootAdminPanelAfterAuth() {
     if (typeof firebase !== 'undefined' && firebase.auth) {
         firebase.auth().onAuthStateChanged(function(user) {
-            if (user) return;
-            if (legacyCreds.email && legacyCreds.password) return;
-            if (localStorage.getItem('adminUser')) {
+            if (!user && localStorage.getItem('adminUser')) {
                 redirectToLogin();
             }
         });
-    } else if (!legacyCreds.email || !legacyCreds.password) {
-        redirectToLogin();
-        return;
     }
     var adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}');
     var nameEl = document.getElementById('adminUserName');
@@ -109,7 +113,9 @@ function initializeAdminPanel() {
 
 // Check admin authentication
 function isAdminAuthenticated() {
-    // In a real application, check for proper admin token/session
+    try {
+        if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) return true;
+    } catch (e) {}
     const adminUser = localStorage.getItem('adminUser');
     return adminUser !== null;
 }
@@ -223,19 +229,10 @@ function hasAdminFirebaseAuth() {
 }
 
 function ensureAdminApiReady() {
-    if (hasAdminFirebaseAuth()) return true;
-    var creds = getAdminApiCredentials();
-    return !!(creds.email && creds.password);
+    return hasAdminFirebaseAuth();
 }
 
 function getAdminApiCredentials() {
-    try {
-        var s = sessionStorage.getItem('adminSession');
-        if (s) {
-            var o = JSON.parse(s);
-            if (o && o.email && o.password) return { email: o.email, password: o.password };
-        }
-    } catch (e) {}
     return { email: '', password: '' };
 }
 
@@ -276,8 +273,7 @@ async function loadSalesData() {
     const photosGroup = document.getElementById('saleContractPhotosGroup');
     if (photosGroup) photosGroup.style.display = (typeof isSuperAdmin === 'function' && isSuperAdmin()) ? 'none' : 'block';
     var token = await getAdminIdToken();
-    var creds = getAdminApiCredentials();
-    if (!token && !(creds.email && creds.password)) {
+    if (!token) {
         showMessage('Sessão expirada. Saia e entre novamente no painel administrativo.', 'warning');
         renderSalesTable();
         updateSaleFormModeUi();
@@ -1133,23 +1129,11 @@ function syncAdminDashboardLocalData() {
     }
 }
 
-function adminAppendCreds(path) {
-    var creds = getAdminApiCredentials();
-    if (!creds.email || !creds.password) return path;
-    var sep = path.indexOf('?') >= 0 ? '&' : '?';
-    return path + sep + 'adminEmail=' + encodeURIComponent(creds.email) +
-        '&adminPassword=' + encodeURIComponent(creds.password);
-}
-
 function adminFetchJson(path) {
     return getAdminIdToken().then(function(token) {
-        var headers = { 'Content-Type': 'application/json' };
+        if (!token) return null;
+        var headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
         var urlPath = path;
-        if (token) {
-            headers.Authorization = 'Bearer ' + token;
-        } else {
-            urlPath = adminAppendCreds(path);
-        }
         if (typeof ApiClient !== 'undefined' && ApiClient.request) {
             return ApiClient.request(urlPath, { method: 'GET', headers: headers }).catch(function() { return null; });
         }
@@ -1171,17 +1155,13 @@ function adminFetchJson(path) {
 function adminPostJson(path, payload, extra) {
     payload = payload || {};
     return getAdminIdToken().then(function(token) {
-        var headers = { 'Content-Type': 'application/json' };
-        if (token) {
-            headers.Authorization = 'Bearer ' + token;
-            if (payload.idToken) delete payload.idToken;
-        } else if (!payload.adminEmail || !payload.adminPassword) {
-            var creds = getAdminApiCredentials();
-            if (creds.email && creds.password) {
-                if (!payload.adminEmail) payload.adminEmail = creds.email;
-                if (!payload.adminPassword) payload.adminPassword = creds.password;
-            }
+        if (!token) {
+            return Promise.reject(new Error('Sessão expirada. Faça login novamente.'));
         }
+        var headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
+        if (payload.idToken) delete payload.idToken;
+        if (payload.adminEmail) delete payload.adminEmail;
+        if (payload.adminPassword) delete payload.adminPassword;
         if (typeof ApiClient !== 'undefined' && ApiClient.request) {
             return ApiClient.request(path, {
                 method: 'POST',
@@ -3121,13 +3101,7 @@ function loadBrokerCampaignConfig() {
 }
 
 function brokerCampaignRequestPayload(extra) {
-    var p = extra || {};
-    var creds = typeof getAdminApiCredentials === 'function' ? getAdminApiCredentials() : null;
-    if (creds && creds.email) {
-        p.adminEmail = creds.email;
-        p.adminPassword = creds.password || '';
-    }
-    return p;
+    return extra || {};
 }
 
 function collectBrokerCampaignConfigPayload() {

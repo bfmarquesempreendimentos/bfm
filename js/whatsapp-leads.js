@@ -57,40 +57,18 @@ function waInboxGetToken() {
   return Promise.resolve(null);
 }
 
-function waInboxGetCreds() {
-  if (typeof getAdminApiCredentials === 'function') return getAdminApiCredentials();
-  try {
-    var s = sessionStorage.getItem('adminSession');
-    if (s) {
-      var o = JSON.parse(s);
-      if (o && o.email && o.password) return { email: o.email, password: o.password };
-    }
-  } catch (e) {}
-  return { email: '', password: '' };
-}
-
 function waInboxApi(path, options) {
   options = options || {};
   var method = (options.method || 'GET').toUpperCase();
   var body = options.body;
   return waInboxGetToken().then(function(token) {
     var headers = { 'Content-Type': 'application/json' };
-    var creds = waInboxGetCreds();
     var url = getWaInboxBaseUrl() + path;
 
-    if (token) {
-      headers.Authorization = 'Bearer ' + token;
-    } else if (method === 'POST') {
-      body = body || {};
-      if (!body.adminEmail && creds.email) body.adminEmail = creds.email;
-      if (!body.adminPassword && creds.password) body.adminPassword = creds.password;
-    } else if (creds.email && creds.password) {
-      var sep = url.indexOf('?') >= 0 ? '&' : '?';
-      url += sep + 'adminEmail=' + encodeURIComponent(creds.email) +
-        '&adminPassword=' + encodeURIComponent(creds.password);
-    } else {
+    if (!token) {
       return Promise.reject(new Error('Sessão expirada. Saia e entre novamente no painel.'));
     }
+    headers.Authorization = 'Bearer ' + token;
 
     return fetch(url, {
       method: method,

@@ -9,12 +9,12 @@ Use este checklist para testes manuais no navegador.
 ## 🔐 Credenciais de Teste
 
 ### Corretor/Admin
-- **Email:** `admin@bfmarques.com`
-- **Senha:** `123456`
+- **Email:** conta autorizada no Firebase Auth
+- **Senha:** a cadastrada no Firebase (não commitar senha neste repositório)
 
 ### Cliente (Área do Cliente)
-- **Email:** `admin@bfmarques.com`
-- **Senha:** `123456`
+- **Email:** conta de teste no Firebase Auth
+- **Senha:** a cadastrada no Firebase (não commitar senha neste repositório)
 
 ---
 

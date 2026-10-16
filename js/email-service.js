@@ -181,35 +181,32 @@ async function sendRepairClientResponseEmailToCompany(repair, clientMessage, att
 
 // Enviar email de contato
 async function sendContactEmail(contactData) {
-    const subject = `Nova Mensagem do Site - ${contactData.subject || 'Contato'}`;
-    
-    const body = `
-        <h2>Nova Mensagem do Site</h2>
-        <p><strong>Nome:</strong> ${contactData.name}</p>
-        <p><strong>Email:</strong> ${contactData.email}</p>
-        <p><strong>Telefone:</strong> ${contactData.phone || 'Não informado'}</p>
-        <p><strong>Assunto:</strong> ${contactData.subject || 'Contato Geral'}</p>
-        <p><strong>Tipo:</strong> ${contactData.type || 'Contato'}</p>
-        ${contactData.propertyAddress ? `<p><strong>Endereço do Terreno:</strong> ${contactData.propertyAddress}</p>` : ''}
-        ${contactData.propertySize ? `<p><strong>Tamanho do Terreno:</strong> ${contactData.propertySize}</p>` : ''}
-        <p><strong>Mensagem:</strong></p>
-        <p>${contactData.message}</p>
-        <hr>
-        <p><strong>Data:</strong> ${formatDate(new Date())}</p>
-    `;
-    
-    await sendEmail(COMPANY_EMAIL, subject, body);
-    
-    // Email de confirmação para o cliente
-    const confirmationBody = `
-        <h2>Mensagem Recebida</h2>
-        <p>Olá ${contactData.name},</p>
-        <p>Recebemos sua mensagem e entraremos em contato em breve!</p>
-        <p><strong>Assunto:</strong> ${contactData.subject || 'Contato Geral'}</p>
-        <p>Atenciosamente,<br>B F Marques Empreendimentos</p>
-    `;
-    
-    await sendEmail(contactData.email, 'Mensagem Recebida - B F Marques', confirmationBody);
+    var extra = [];
+    if (contactData.type) extra.push('Tipo: ' + contactData.type);
+    if (contactData.propertyAddress) extra.push('Endereço do terreno: ' + contactData.propertyAddress);
+    if (contactData.propertySize) extra.push('Tamanho: ' + contactData.propertySize);
+    if (contactData.propertyValue) extra.push('Valor: ' + contactData.propertyValue);
+    if (contactData.features && contactData.features.length) extra.push('Características: ' + contactData.features.join(', '));
+    var message = String(contactData.message || '');
+    if (extra.length) message += '\n\n' + extra.join('\n');
+
+    var base = (typeof getCloudFunctionsBaseUrl === 'function') ? getCloudFunctionsBaseUrl() : '';
+    if (!base) throw new Error('API indisponível');
+    var res = await fetch(base + '/queueEmail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            type: 'contact',
+            name: contactData.name,
+            email: contactData.email,
+            phone: contactData.phone || '',
+            subject: contactData.subject || 'Contato',
+            message: message
+        }),
+        cache: 'no-store',
+        credentials: 'omit'
+    });
+    if (!res.ok) throw new Error('Erro ao enviar mensagem');
 }
 
 // Enviar email de confirmação ao concluir cadastro (primeiro acesso)

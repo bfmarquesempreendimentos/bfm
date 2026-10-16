@@ -14,7 +14,7 @@
       function toggleMobileMenu(){document.body.classList.toggle('mobile-menu-open');var i=document.querySelector('.nav-hamburger i');if(i){i.classList.toggle('fa-bars');i.classList.toggle('fa-times');}}
       function closeMobileMenu(){document.body.classList.remove('mobile-menu-open');var i=document.querySelector('.nav-hamburger i');if(i){i.classList.remove('fa-times');i.classList.add('fa-bars');}}
     </script>
-    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/main.css?v=35">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
@@ -167,7 +167,13 @@
                 </div>
                 <div id="clientBoletosTab" class="dashboard-tab-content">
                     <h4>Boletos e parcelas</h4>
-                    <p class="form-hint">Parcelas do financiamento cadastradas pela construtora.</p>
+                    <p class="form-hint">Parcelas cadastradas pela construtora. Envie o comprovante aqui; a equipe confirma o pagamento.</p>
+                    <div class="client-boletos-filters" role="group" aria-label="Filtrar boletos">
+                        <button type="button" class="btn btn-secondary btn-sm active" data-filter="todos" onclick="setClientBoletosFilter('todos')">Todos</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-filter="pendentes" onclick="setClientBoletosFilter('pendentes')">Pendentes</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-filter="vencidos" onclick="setClientBoletosFilter('vencidos')">Vencidos</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-filter="pagos" onclick="setClientBoletosFilter('pagos')">Pagos</button>
+                    </div>
                     <div id="clientBoletosList">
                         <p>Nenhum boleto disponível no momento.</p>
                     </div>
@@ -477,7 +483,7 @@
 
     <!-- Scripts -->
     <script src="js/compat-polyfills.js"></script>
-    <script src="config.js"></script>
+    <script src="config.js?v=34"></script>
     <script src="js/audit.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
@@ -485,7 +491,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
     <script src="js/firebase.js"></script>
-    <script src="js/firebase-service.js"></script>
+    <script src="js/firebase-service.js?v=34"></script>
     <script src="js/main.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/properties.js"></script>
@@ -498,15 +504,15 @@
     <script src="js/mcmv-calculadora.js"></script>
     <script src="js/simulador-interativo.js"></script>
     <script src="js/property-sales.js"></script>
-    <script src="js/email-service.js"></script>
+    <script src="js/email-service.js?v=34"></script>
     <script src="js/storage.js"></script>
     <script src="js/dom-utils.js"></script>
     <script src="js/fcm-push.js?v=1"></script>
-    <script src="js/client-area.js"></script>
-    <script src="js/repair-requests.js"></script>
+    <script src="js/client-area.js?v=35"></script>
+    <script src="js/repair-requests.js?v=35"></script>
     <script src="js/client-manual.js"></script>
     <script src="js/contact-forms.js"></script>
     <script src="js/newsletter.js"></script>
-    <script src="js/visitor-tracker.js"></script>
+    <script src="js/visitor-tracker.js?v=34"></script>
 </body>
 </html>

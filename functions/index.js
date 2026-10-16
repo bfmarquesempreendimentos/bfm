@@ -2851,6 +2851,14 @@ exports.registerFcmToken = functions.https.onRequest((req, res) =>
   fcmPush.registerFcmToken(req, res)
 );
 
+const secureHandlers = require('./secure-handlers');
+exports.queueEmail = functions.https.onRequest((req, res) => secureHandlers.queueEmailHttp(req, res));
+exports.trackSiteVisit = functions.https.onRequest((req, res) => secureHandlers.trackSiteVisitHttp(req, res));
+exports.adminSiteVisits = functions.https.onRequest((req, res) => secureHandlers.adminSiteVisitsHttp(req, res));
+exports.prepareStorageUpload = functions.https.onRequest((req, res) => secureHandlers.prepareStorageUploadHttp(req, res));
+exports.getStorageReadUrl = functions.https.onRequest((req, res) => secureHandlers.getStorageReadUrlHttp(req, res));
+exports.logEmailAudit = functions.https.onRequest((req, res) => secureHandlers.logEmailAuditHttp(req, res));
+
 // ─── API de Reparos: CRIAR (garante sync Mac/Windows - não depende do Firestore client) ──
 exports.createRepair = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
@@ -4137,6 +4145,10 @@ exports.patchRepair = functions.https.onRequest(async (req, res) => {
       ref = snap.docs[0].ref;
     }
     var existing = (await ref.get()).data() || {};
+    if (isAdmin && body.action === 'delete') {
+      await ref.delete();
+      return res.json({ success: true, deleted: true });
+    }
     if (!isAdmin) {
       var ownerEmail = String(existing.clientEmail || '').trim().toLowerCase();
       if (!ownerEmail || ownerEmail !== clientEmail) {
@@ -4152,9 +4164,30 @@ exports.patchRepair = functions.https.onRequest(async (req, res) => {
     if (isAdmin && body.custoTotal != null) patch.custoTotal = Number(body.custoTotal);
     if (isAdmin && body.slaDueAt != null) patch.slaDueAt = body.slaDueAt;
     if (isAdmin && body.visitDate != null) patch.visitDate = body.visitDate;
-    if (Array.isArray(body.responses)) patch.responses = body.responses;
-    if (Array.isArray(body.attachments)) patch.attachments = body.attachments;
-    if (body.comentario && body.comentario.texto) {
+    if (isAdmin && Array.isArray(body.responses)) patch.responses = body.responses;
+    if (isAdmin && Array.isArray(body.attachments)) patch.attachments = body.attachments;
+    if (!isAdmin && body.clientResponse && body.clientResponse.message) {
+      var clientMsg = String(body.clientResponse.message || '').trim().substring(0, 4000);
+      if (clientMsg) {
+        var respList = Array.isArray(existing.responses) ? existing.responses.slice() : [];
+        var clientAtts = Array.isArray(body.clientResponse.attachments)
+          ? body.clientResponse.attachments.slice(0, 5)
+          : [];
+        respList.push({
+          type: 'client',
+          message: clientMsg,
+          date: new Date().toISOString(),
+          updatedBy: 'client',
+          attachments: clientAtts.length ? clientAtts : undefined,
+        });
+        patch.responses = respList;
+        if (clientAtts.length) {
+          var prevAtts = Array.isArray(existing.attachments) ? existing.attachments.slice() : [];
+          patch.attachments = prevAtts.concat(clientAtts);
+        }
+      }
+    }
+    if (isAdmin && body.comentario && body.comentario.texto) {
       var doc = await ref.get();
       var data = doc.data() || {};
       var list = Array.isArray(data.comentarios) ? data.comentarios.slice() : [];
@@ -4189,10 +4222,16 @@ exports.patchRepair = functions.https.onRequest(async (req, res) => {
 /** Calcula status efetivo do boleto (vencido se passou do vencimento). */
 function effectiveBoletoStatus(data) {
   var d = data || {};
-  if (String(d.status || '').toLowerCase() === 'pago') return 'pago';
+  var raw = String(d.status || 'pendente').toLowerCase();
+  if (raw === 'pago') return 'pago';
   var venc = d.vencimento ? new Date(d.vencimento) : null;
-  if (venc && !isNaN(venc.getTime()) && venc.getTime() < Date.now()) return 'vencido';
-  return String(d.status || 'pendente').toLowerCase();
+  if (venc && !isNaN(venc.getTime())) {
+    var end = new Date(venc);
+    end.setHours(23, 59, 59, 999);
+    if (end.getTime() < Date.now()) return 'vencido';
+  }
+  if (raw === 'aguardando_conferencia') return 'aguardando_conferencia';
+  return raw || 'pendente';
 }
 
 /** Admin: CRUD de boletos de clientes. */
@@ -4229,6 +4268,7 @@ exports.adminBoletosMutate = functions.https.onRequest(async (req, res) => {
           status: effectiveBoletoStatus(d),
           statusRaw: d.status || 'pendente',
           comprovanteUrl: d.comprovanteUrl || '',
+          comprovanteEnviadoEm: d.comprovanteEnviadoEm || '',
           pagamentoEm: d.pagamentoEm || '',
           createdAt: d.createdAt || '',
         });
@@ -4293,6 +4333,15 @@ exports.adminBoletosMutate = functions.https.onRequest(async (req, res) => {
         pagamentoEm: body.pagamentoEm || '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+      });
+      await db.collection('client_timeline').add({
+        clientEmail: emailC,
+        type: 'payment',
+        title: 'Nova parcela cadastrada',
+        description: (body.parcela ? 'Parcela ' + body.parcela + ' — ' : '') +
+          (body.propertyTitle || 'Financiamento') + ' · R$ ' + valorC.toFixed(2),
+        date: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
       });
       return res.json({ ok: true, id: createRef.id });
     }
@@ -4369,33 +4418,102 @@ exports.clientBoletosMe = functions.https.onRequest(async (req, res) => {
     if (!email && !uid) return res.status(400).json({ error: 'email ou uid obrigatório' });
     var db = admin.firestore();
     var q = db.collection('boletos');
-    var snap;
-    if (uid) {
-      snap = await q.where('clientUid', '==', uid).get();
-    } else {
-      snap = await q.where('clientEmail', '==', email).get();
-    }
-    var list = [];
-    snap.forEach(function(doc) {
-      var d = doc.data() || {};
-      list.push({
-        id: doc.id,
-        clientEmail: d.clientEmail || '',
-        valor: d.valor != null ? Number(d.valor) : 0,
-        vencimento: d.vencimento || '',
-        parcela: d.parcela || '',
-        propertyTitle: d.propertyTitle || '',
-        status: effectiveBoletoStatus(d),
-        comprovanteUrl: d.comprovanteUrl || '',
-        pagamentoEm: d.pagamentoEm || '',
+    var byId = {};
+    function collectBoletoSnap(snap) {
+      snap.forEach(function(doc) {
+        var d = doc.data() || {};
+        byId[doc.id] = {
+          id: doc.id,
+          clientEmail: d.clientEmail || '',
+          valor: d.valor != null ? Number(d.valor) : 0,
+          vencimento: d.vencimento || '',
+          parcela: d.parcela || '',
+          propertyTitle: d.propertyTitle || '',
+          status: effectiveBoletoStatus(d),
+          comprovanteUrl: d.comprovanteUrl || '',
+          comprovanteEnviadoEm: d.comprovanteEnviadoEm || '',
+          pagamentoEm: d.pagamentoEm || '',
+        };
       });
-    });
+    }
+    if (email) collectBoletoSnap(await q.where('clientEmail', '==', email).get());
+    if (uid) collectBoletoSnap(await q.where('clientUid', '==', uid).get());
+    var list = Object.keys(byId).map(function(k) { return byId[k]; });
     list.sort(function(a, b) {
       return new Date(a.vencimento || 0) - new Date(b.vencimento || 0);
     });
     return res.json(list);
   } catch (err) {
     console.error('clientBoletosMe:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/** Cliente envia comprovante de pagamento (não marca como pago — admin confere). */
+exports.clientBoletoReceipt = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    var tokenR = null;
+    var authR = req.headers.authorization;
+    if (authR && authR.indexOf('Bearer ') === 0) tokenR = authR.split('Bearer ')[1];
+    var bodyR = req.body || {};
+    if (!tokenR && bodyR.idToken) tokenR = String(bodyR.idToken);
+    if (!tokenR) return res.status(401).json({ error: 'Token necessário' });
+    var decodedR;
+    try {
+      decodedR = await admin.auth().verifyIdToken(tokenR);
+    } catch (eR) {
+      return res.status(403).json({ error: 'Token inválido ou expirado' });
+    }
+    var emailR = String(decodedR.email || '').trim().toLowerCase();
+    var uidR = String(decodedR.uid || '').trim();
+    var boletoId = String(bodyR.boletoId || '').trim();
+    var url = String(bodyR.comprovanteUrl || '').trim();
+    if (!boletoId || !url) return res.status(400).json({ error: 'boletoId e comprovanteUrl obrigatórios' });
+    if (url.indexOf('https://') !== 0) return res.status(400).json({ error: 'URL inválida' });
+    var db = admin.firestore();
+    var ref = db.collection('boletos').doc(boletoId);
+    var snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Boleto não encontrado' });
+    var d = snap.data() || {};
+    var ownerEmail = String(d.clientEmail || '').trim().toLowerCase();
+    var ownerUid = String(d.clientUid || '').trim();
+    var owns = (emailR && ownerEmail && emailR === ownerEmail) || (uidR && ownerUid && uidR === ownerUid);
+    if (!owns) return res.status(403).json({ error: 'Este boleto não pertence à sua conta' });
+    if (String(d.status || '').toLowerCase() === 'pago') {
+      return res.status(400).json({ error: 'Boleto já está pago' });
+    }
+    var sentAt = new Date().toISOString();
+    await ref.set({
+      comprovanteUrl: url.substring(0, 1500),
+      comprovanteEnviadoEm: sentAt,
+      status: 'aguardando_conferencia',
+      updatedAt: sentAt,
+    }, { merge: true });
+    if (ownerEmail) {
+      await db.collection('client_timeline').add({
+        clientEmail: ownerEmail,
+        type: 'payment',
+        title: 'Comprovante enviado',
+        description: (d.parcela ? 'Parcela ' + d.parcela : 'Boleto') + ' aguardando conferência',
+        date: sentAt,
+        createdAt: sentAt,
+      });
+    }
+    fcmPush.notifyAdmins(
+      db,
+      'Comprovante de boleto',
+      (ownerEmail || 'Cliente') + ' enviou comprovante' + (d.parcela ? ' da parcela ' + d.parcela : ''),
+      { type: 'boleto', boletoId: boletoId },
+      'https://bfmarquesempreendimentos.github.io/bfm/admin.html#boletos'
+    ).catch(function() {});
+    return res.json({ ok: true, status: 'aguardando_conferencia' });
+  } catch (err) {
+    console.error('clientBoletoReceipt:', err);
     return res.status(500).json({ error: err.message });
   }
 });

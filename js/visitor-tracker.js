@@ -2,7 +2,6 @@
 (function() {
     'use strict';
 
-    const COLLECTION = 'site_visits';
     const VISITOR_KEY = 'bfm_visitor_id';
     const SESSION_KEY = 'bfm_session_id';
     const LAST_TRACK_KEY = 'bfm_last_track';
@@ -71,8 +70,6 @@
     }
 
     function trackVisit() {
-        if (typeof firebase === 'undefined' || !firebase.firestore) return;
-
         const now = Date.now();
         const last = parseInt(sessionStorage.getItem(LAST_TRACK_KEY) || '0', 10);
         if (now - last < MIN_INTERVAL_MS) return;
@@ -94,7 +91,6 @@
             screenWidth: screen.width,
             screenHeight: screen.height,
             language: navigator.language || '',
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             clientTimestamp: new Date().toISOString()
         };
 
@@ -107,8 +103,17 @@
             }
         }
 
-        const db = firebase.firestore();
-        db.collection(COLLECTION).add(data).catch(function() {});
+        var base = '';
+        if (typeof getCloudFunctionsBaseUrl === 'function') base = getCloudFunctionsBaseUrl();
+        else if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions) base = CONFIG.cloudFunctions.baseURL || '';
+        if (!base) return;
+        fetch(base + '/trackSiteVisit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+            cache: 'no-store',
+            credentials: 'omit'
+        }).catch(function() {});
     }
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
