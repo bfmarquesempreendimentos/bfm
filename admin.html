@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
     <link rel="stylesheet" href="styles/main.css?v=37">
-    <link rel="stylesheet" href="styles/admin.css?v=34">
+    <link rel="stylesheet" href="styles/admin.css?v=35">
     <link rel="stylesheet" href="styles/admin-finance.css?v=1">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -355,17 +355,22 @@
             <div class="section-header">
                 <div class="section-header-main">
                     <h2>Empreendimentos</h2>
-                    <p class="section-subtitle">Oito obras no portfólio; inventário por unidade em <code>js/property-units.js</code> e na vitrine.</p>
+                    <p class="section-subtitle">Portfólio do site e status das unidades na vitrine.</p>
                 </div>
                 <div class="header-actions">
                     <button type="button" class="btn btn-success" onclick="showAddPropertyModal()">
                         <i class="fas fa-plus" aria-hidden="true"></i> Adicionar
                     </button>
-                    <button type="button" class="btn btn-secondary" onclick="exportProperties()">
-                        <i class="fas fa-download" aria-hidden="true"></i> Exportar
-                    </button>
                 </div>
             </div>
+            <details class="admin-advanced-tools">
+                <summary>Ferramentas avançadas</summary>
+                <div class="admin-advanced-tools-actions">
+                    <button type="button" class="btn btn-secondary" onclick="exportProperties()">
+                        <i class="fas fa-download" aria-hidden="true"></i> Exportar lista
+                    </button>
+                </div>
+            </details>
 
             <!-- Properties Filters -->
             <div class="admin-filters" role="search" aria-label="Filtrar empreendimentos">
@@ -426,20 +431,25 @@
                     <button type="button" class="btn btn-primary" id="btnNewReservation" onclick="openAdminCreateReservationModal()" title="Criar reserva manualmente">
                         <i class="fas fa-plus" aria-hidden="true"></i> Nova reserva
                     </button>
+                </div>
+            </div>
+            <details class="admin-advanced-tools" id="reservationsAdvancedTools">
+                <summary>Ferramentas avançadas</summary>
+                <div class="admin-advanced-tools-actions">
                     <button type="button" class="btn btn-secondary" id="btnSyncUnitColors" onclick="syncUnitStatusesFromReservations()" title="Corrigir cores do inventário conforme reservas ativas, assinadas ou liberadas">
                         <i class="fas fa-palette" aria-hidden="true"></i> Sincronizar cores
                     </button>
                     <button type="button" class="btn btn-secondary" id="btnSyncInventoryReservations" onclick="syncReservationsFromInventory()" title="Importar unidades marcadas como reservadas (amarelo) no inventário">
                         <i class="fas fa-sync" aria-hidden="true"></i> Importar inventário
                     </button>
-                    <button type="button" class="btn btn-secondary" onclick="importReservasFromPdf()" title="Importar reservas do PDF para o Firestore">
+                    <button type="button" class="btn btn-secondary" id="btnImportReservasPdf" onclick="importReservasFromPdf()" title="Importar reservas do PDF para o Firestore">
                         <i class="fas fa-file-import" aria-hidden="true"></i> Importar PDF
                     </button>
-                    <button type="button" class="btn btn-secondary" onclick="exportReservations()">
-                        <i class="fas fa-download" aria-hidden="true"></i> Exportar
+                    <button type="button" class="btn btn-secondary" id="btnExportReservations" onclick="exportReservations()">
+                        <i class="fas fa-download" aria-hidden="true"></i> Exportar CSV
                     </button>
                 </div>
-            </div>
+            </details>
 
             <div class="admin-kpi-row" id="reservationsKpiRow">
                 <div class="admin-kpi-card"><span class="admin-kpi-value" id="resKpiPending">—</span><span class="admin-kpi-label">Pendentes</span></div>
@@ -711,12 +721,6 @@
                     <p class="section-subtitle">Protocolos dos clientes, status e comunicação por e-mail.</p>
                 </div>
                 <div class="header-actions">
-                    <button type="button" class="btn btn-secondary" onclick="forceRepairsSync()" title="Limpar cache e buscar do servidor">
-                        <i class="fas fa-sync-alt" aria-hidden="true"></i> Forçar sync
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="pushLocalRepairsToServer()" title="Enviar reparos que estão só neste navegador para o servidor">
-                        <i class="fas fa-cloud-upload-alt" aria-hidden="true"></i> Enviar locais
-                    </button>
                     <button type="button" class="btn btn-secondary" onclick="exportAdminRepairsCsv()">
                         <i class="fas fa-file-csv" aria-hidden="true"></i> Exportar CSV
                     </button>
@@ -725,6 +729,17 @@
                     </button>
                 </div>
             </div>
+            <details class="admin-advanced-tools">
+                <summary>Ferramentas avançadas</summary>
+                <div class="admin-advanced-tools-actions">
+                    <button type="button" class="btn btn-secondary" onclick="forceRepairsSync()" title="Limpar cache e buscar do servidor">
+                        <i class="fas fa-sync-alt" aria-hidden="true"></i> Forçar sync
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="pushLocalRepairsToServer()" title="Enviar reparos que estão só neste navegador para o servidor">
+                        <i class="fas fa-cloud-upload-alt" aria-hidden="true"></i> Enviar locais
+                    </button>
+                </div>
+            </details>
             <div id="repairSyncStatus" class="repair-sync-status" style="display:none;"></div>
             <div class="admin-table-container admin-table-container--elevated">
                 <table class="admin-table" id="adminRepairsTable">
@@ -1851,13 +1866,13 @@
     <script src="js/property-sales.js"></script>
     <script src="js/whatsapp-leads.js?v=34"></script>
     <script src="js/admin-analytics.js?v=34"></script>
-    <script src="js/admin-repairs.js?v=36"></script>
+    <script src="js/admin-repairs.js?v=37"></script>
     <script src="js/admin-boletos.js?v=36"></script>
     <script src="js/fcm-push.js?v=2"></script>
     <script src="js/admin-dashboard-charts.js?v=3"></script>
     <script src="js/admin-finance.js?v=1"></script>
     <script src="js/admin-reports.js?v=2"></script>
-    <script src="js/admin.js?v=45"></script>
+    <script src="js/admin.js?v=46"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>

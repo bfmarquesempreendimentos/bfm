@@ -407,6 +407,43 @@
     margin-bottom: 8px;
 }
 
+.admin-advanced-tools {
+    margin: -8px 0 20px;
+    padding: 0 4px;
+}
+.admin-advanced-tools > summary {
+    cursor: pointer;
+    color: var(--admin-text-muted);
+    font-size: 0.8rem;
+    font-weight: 500;
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+}
+.admin-advanced-tools > summary::-webkit-details-marker {
+    display: none;
+}
+.admin-advanced-tools > summary::before {
+    content: '▸';
+    font-size: 0.75rem;
+}
+.admin-advanced-tools[open] > summary::before {
+    content: '▾';
+}
+.admin-advanced-tools-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 12px;
+    background: var(--admin-surface);
+    border: 1px dashed var(--admin-border);
+    border-radius: var(--admin-radius-sm);
+}
+
 /* Painéis e tabelas (componentes) */
 .admin-panel {
     background: var(--admin-surface);

@@ -142,16 +142,8 @@ async function loadAdminRepairs() {
         for (var k in byId) { if (byId.hasOwnProperty(k)) local.push(byId[k]); }
         localStorage.setItem('repairRequests', JSON.stringify(local));
             if (statusEl) {
-                statusEl.style.display = 'block';
-                if (local.length === 0 && fromFirestore.length === 0) {
-                    statusEl.style.background = '#fff3e0';
-                    statusEl.style.color = '#e65100';
-                    statusEl.innerHTML = 'Conectado. Nenhum reparo no sistema.';
-                } else {
-                    statusEl.style.background = '#e8f5e9';
-                    statusEl.style.color = '#2e7d32';
-                    statusEl.textContent = local.length + ' reparo(s) carregado(s). Firestore: ' + countFirestore + ' | API: ' + countApi;
-                }
+                statusEl.style.display = 'none';
+                statusEl.textContent = '';
             }
     } catch (e) {
         console.warn('Erro ao sincronizar reparos:', e);
