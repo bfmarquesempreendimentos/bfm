@@ -113,6 +113,7 @@
                 }).catch(function() {});
             }
         });
+        if (typeof loadBrokerReservationsReport === 'function') loadBrokerReservationsReport();
     }
 
     function exportReportsPdf() {

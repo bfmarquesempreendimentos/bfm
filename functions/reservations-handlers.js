@@ -76,6 +76,7 @@ function reservationPublicRow(docId, data) {
     saleId: d.saleId || '',
     renewalDue: !!d.renewalDue,
     renewalDueAt: d.renewalDueAt || '',
+    brokerReport: d.brokerReport || null,
   };
 }
 
@@ -865,6 +866,44 @@ async function adminReservationsMutate(req, res) {
       }
       var updMerged = Object.assign({}, updExisting, updPatch);
       return res.json({ ok: true, reservation: reservationPublicRow(updDocId, updMerged) });
+    }
+
+    if (action === 'apply_broker_report') {
+      var items = Array.isArray(body.items) ? body.items : [];
+      if (!items.length) return res.status(400).json({ error: 'items obrigatório' });
+      var updated = 0;
+      var skippedApply = 0;
+      var ai;
+      for (ai = 0; ai < items.length; ai++) {
+        var it = items[ai] || {};
+        var rid = String(it.id || '').trim();
+        if (!rid) {
+          skippedApply++;
+          continue;
+        }
+        var applyRef = col.doc(rid);
+        var applySnap = await applyRef.get();
+        if (!applySnap.exists) {
+          skippedApply++;
+          continue;
+        }
+        var engVal = it.engineeringValue;
+        if (engVal != null && typeof engVal === 'object' && engVal.result != null) engVal = engVal.result;
+        await applyRef.set({
+          brokerReport: {
+            engineeringValid: String(it.engineeringValid || '').trim().slice(0, 80),
+            engineeringValue: engVal == null ? '' : String(engVal).slice(0, 40),
+            saleStatus: String(it.saleStatus || '').trim().slice(0, 200),
+            pendingNext: String(it.pendingNext || '').trim().slice(0, 500),
+            forecast: String(it.forecast || '').trim().slice(0, 80),
+            updatedAt: isoNow(),
+            source: 'xlsx_import',
+          },
+          updatedAt: isoNow(),
+        }, { merge: true });
+        updated++;
+      }
+      return res.json({ ok: true, updated: updated, skipped: skippedApply });
     }
 
     var docId = String(body.reservationId || body.id || '').trim();

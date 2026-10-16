@@ -1263,6 +1263,58 @@
     font-weight: 700;
 }
 
+.report-card--wide {
+    grid-column: 1 / -1;
+}
+.brr-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+}
+.brr-summary {
+    color: var(--admin-text-muted);
+    font-size: 0.9rem;
+    margin: 0 0 10px;
+}
+.brr-whatsapp-box,
+.brr-import-box {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--admin-border);
+}
+.brr-whatsapp-box h4,
+.brr-import-box h4 {
+    margin: 0 0 8px;
+    font-size: 1rem;
+}
+.brr-whatsapp-box textarea {
+    width: 100%;
+    max-width: 720px;
+    padding: 10px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    font-family: inherit;
+    resize: vertical;
+}
+.brr-import-box .admin-table-container {
+    overflow-x: auto;
+    margin: 12px 0;
+}
+@media (max-width: 640px) {
+    .brr-toolbar .btn {
+        width: 100%;
+    }
+}
+.brr-send-from {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin: 10px 0;
+    font-size: 0.9rem;
+}
+
 .report-controls {
     display: -webkit-box;
     display: -ms-flexbox;

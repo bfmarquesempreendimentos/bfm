@@ -139,7 +139,8 @@ function normalizeReservationRow(row) {
         source: row.source || '',
         rejectionReason: row.rejectionReason || '',
         renewalDue: !!row.renewalDue,
-        renewalDueAt: row.renewalDueAt || ''
+        renewalDueAt: row.renewalDueAt || '',
+        brokerReport: row.brokerReport || null
     };
 }
 

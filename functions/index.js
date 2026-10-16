@@ -2847,6 +2847,14 @@ exports.brokerMyReservations = functions.https.onRequest((req, res) =>
 exports.adminReservationsMutate = functions.https.onRequest((req, res) =>
   reservationsHandlers.adminReservationsMutate(req, res)
 );
+const brokerReservationReport = require('./broker-reservation-report');
+exports.adminBrokerReservationReportSend = functions
+  .runWith({
+    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
+    timeoutSeconds: 120,
+    memory: '256MB',
+  })
+  .https.onRequest((req, res) => brokerReservationReport.sendBrokerReservationReportsHttp(req, res));
 exports.registerFcmToken = functions.https.onRequest((req, res) =>
   fcmPush.registerFcmToken(req, res)
 );

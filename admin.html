@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
     <link rel="stylesheet" href="styles/main.css?v=37">
-    <link rel="stylesheet" href="styles/admin.css?v=35">
+    <link rel="stylesheet" href="styles/admin.css?v=36">
     <link rel="stylesheet" href="styles/admin-finance.css?v=1">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -430,6 +430,9 @@
                 <div class="header-actions">
                     <button type="button" class="btn btn-primary" id="btnNewReservation" onclick="openAdminCreateReservationModal()" title="Criar reserva manualmente">
                         <i class="fas fa-plus" aria-hidden="true"></i> Nova reserva
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="showSection('reports'); if (typeof loadBrokerReservationsReport === 'function') loadBrokerReservationsReport();" title="Planilha por corretor para atualizar vendas">
+                        <i class="fas fa-file-excel" aria-hidden="true"></i> Reservas por corretor
                     </button>
                 </div>
             </div>
@@ -1094,7 +1097,7 @@
             <div class="section-header">
                 <div class="section-header-main">
                     <h2>Relatórios</h2>
-                    <p class="section-subtitle">Gráficos e indicadores: vendas, reservas, reparos e fluxo de caixa financeiro.</p>
+                    <p class="section-subtitle">Gráficos, planilhas por corretor, reservas, reparos e fluxo de caixa.</p>
                 </div>
                 <div class="header-actions">
                     <button type="button" class="btn btn-secondary" onclick="exportReportsPdf()">
@@ -1104,6 +1107,71 @@
             </div>
 
             <div class="reports-grid">
+                <div class="report-card report-card--wide" id="brokerReservationsReportCard">
+                    <h3>Reservas por corretor</h3>
+                    <p class="section-subtitle">Gera uma planilha Excel por responsável (corretor ou imobiliária), agrupada por empreendimento, para atualizar a situação das vendas e devolver pelo WhatsApp.</p>
+                    <div class="brr-toolbar">
+                        <button type="button" class="btn btn-secondary" onclick="loadBrokerReservationsReport()">
+                            <i class="fas fa-sync-alt" aria-hidden="true"></i> Atualizar lista
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="exportBrokerReservationSheets('selected')">
+                            <i class="fas fa-file-excel" aria-hidden="true"></i> Gerar planilha do selecionado
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="exportBrokerReservationSheets('all')">
+                            <i class="fas fa-copy" aria-hidden="true"></i> Gerar todas
+                        </button>
+                    </div>
+                    <p id="brrSummary" class="brr-summary">Carregue a lista para ver os responsáveis.</p>
+                    <div class="admin-table-container">
+                        <table class="admin-table" id="brrTable">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Corretor / imobiliária</th>
+                                    <th>Reservas</th>
+                                    <th>WhatsApp</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="brrTableBody">
+                                <tr><td colspan="5">Clique em Atualizar lista.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="brr-whatsapp-box">
+                        <h4>Enviar pelo WhatsApp</h4>
+                        <p class="form-hint">O envio em massa usa a API. Se preferir, baixe o arquivo e mande você mesmo — a mensagem abaixo já vai copiada.</p>
+                        <textarea id="brrWaMessage" rows="3" readonly>Olá! Segue a relação das suas reservas. Por favor, atualize os campos amarelos com a situação de cada venda, pendências e previsão, e me devolva por aqui para atualizarmos o sistema.</textarea>
+                        <div class="brr-toolbar">
+                            <button type="button" class="btn btn-secondary" onclick="copyBrokerReservationWaMessage()">
+                                <i class="fas fa-clipboard" aria-hidden="true"></i> Copiar mensagem
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="openBrokerReservationWaManual()">
+                                <i class="fab fa-whatsapp" aria-hidden="true"></i> Abrir conversa (eu envio)
+                            </button>
+                        </div>
+                        <div class="brr-send-from">
+                            <label>Enviar em massa pelo número:</label>
+                            <label class="admin-filter-check"><input type="radio" name="brrWaFrom" value="campaign" checked> Campanha / atendimento (Bia)</label>
+                            <label class="admin-filter-check"><input type="radio" name="brrWaFrom" value="personal"> Meu número pessoal (campanhas exclusivas)</label>
+                        </div>
+                        <div class="brr-toolbar">
+                            <button type="button" class="btn btn-success" onclick="sendBrokerReservationSheetsWhatsApp('selected')">
+                                <i class="fab fa-whatsapp" aria-hidden="true"></i> Enviar planilha do selecionado
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="sendBrokerReservationSheetsWhatsApp('all')">
+                                <i class="fab fa-whatsapp" aria-hidden="true"></i> Enviar todas (em massa)
+                            </button>
+                        </div>
+                        <p id="brrSendStatus" class="form-hint"></p>
+                    </div>
+                    <div class="brr-import-box">
+                        <h4>Devolução do corretor</h4>
+                        <p class="form-hint">Importe a planilha preenchida. Nada entra no sistema até você conferir e aprovar.</p>
+                        <input type="file" id="brrImportFile" accept=".xlsx" onchange="previewBrokerReservationImport(event)">
+                        <div id="brrImportPreview"></div>
+                    </div>
+                </div>
                 <div class="report-card">
                     <h3>Vendas por Período</h3>
                     <div class="report-controls">
@@ -1854,7 +1922,7 @@
     <script src="js/main.js"></script>
     <script src="js/auth.js?v=34"></script>
     <script src="js/properties.js"></script>
-    <script src="js/reservations-api.js?v=3"></script>
+    <script src="js/reservations-api.js?v=4"></script>
     <script src="js/reservations.js"></script>
     <script src="js/property-units-catalog.js?v=36"></script>
     <script src="js/property-units.js?v=34"></script>
@@ -1871,7 +1939,8 @@
     <script src="js/fcm-push.js?v=2"></script>
     <script src="js/admin-dashboard-charts.js?v=3"></script>
     <script src="js/admin-finance.js?v=1"></script>
-    <script src="js/admin-reports.js?v=2"></script>
+    <script src="js/admin-reports.js?v=3"></script>
+    <script src="js/admin-broker-reservations-report.js?v=2"></script>
     <script src="js/admin.js?v=46"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
