@@ -73,16 +73,17 @@
             chartInstances.repairs = new Chart(repairsCanvas, {
                 type: 'bar',
                 data: {
-                    labels: ['Pendente', 'Em andamento', 'Concluído', 'Cancelado'],
+                    labels: ['Pendente', 'Em análise', 'Em andamento', 'Concluído', 'Cancelado'],
                     datasets: [{
                         label: 'Reparos',
                         data: [
                             rb.pendente || 0,
+                            rb.em_analise || 0,
                             rb.em_andamento || 0,
                             rb.concluido || 0,
                             rb.cancelado || 0
                         ],
-                        backgroundColor: ['#f97316', '#0ea5e9', '#22c55e', '#94a3b8']
+                        backgroundColor: ['#f97316', '#a855f7', '#0ea5e9', '#22c55e', '#94a3b8']
                     }]
                 },
                 options: {

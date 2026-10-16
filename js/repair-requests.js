@@ -11,6 +11,19 @@ function escRepair(text) {
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function formatRepairSlaLine(repair) {
+    if (!repair || !repair.slaDueAt) return '';
+    var st = String(repair.status || '').toLowerCase();
+    var label = typeof formatDate === 'function' ? formatDate(repair.slaDueAt) : repair.slaDueAt;
+    if (st === 'concluido' || st === 'cancelado') {
+        return '<p><strong>Prazo:</strong> ' + escRepair(label) + '</p>';
+    }
+    var due = new Date(repair.slaDueAt);
+    var overdue = !isNaN(due.getTime()) && due.getTime() < Date.now();
+    return '<p class="' + (overdue ? 'repair-sla-overdue' : '') + '"><strong>Prazo:</strong> ' +
+        escRepair(label) + (overdue ? ' (fora do prazo)' : '') + '</p>';
+}
+
 let selectedFiles = [];
 
 // Mostrar formulário de solicitação de reparo
@@ -322,6 +335,12 @@ async function submitRepairRequest(event) {
             attachmentsCount: attachments.length,
             attachmentsTotalSize: attachments.reduce((sum, a) => sum + a.size, 0),
             status: 'pendente',
+            slaDueAt: (function() {
+                var days = String(priority || '').toLowerCase() === 'urgente' ? 2 : String(priority || '').toLowerCase() === 'alta' ? 5 : 10;
+                var d = new Date();
+                d.setDate(d.getDate() + days);
+                return d.toISOString();
+            })(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             responses: [
@@ -534,6 +553,7 @@ async function loadClientRepairs() {
                         <p><strong>Localização:</strong> ${escRepair(repair.location)}</p>
                         <p><strong>Descrição:</strong> ${escRepair(repair.description)}</p>
                         <p><strong>Data:</strong> ${escRepair(formatDate(repair.createdAt))}</p>
+                        ${formatRepairSlaLine(repair)}
                     </div>
                     ${firstAttachment ? `
                         <div class="repair-file">
@@ -703,6 +723,7 @@ function viewRepairDetails(repairId) {
                     <strong>Data de Criação:</strong>
                     <span>${escRepair(formatDate(repair.createdAt))}</span>
                 </div>
+                ${repair.slaDueAt ? `<div class="detail-item ${String(repair.status||'').toLowerCase() !== 'concluido' && String(repair.status||'').toLowerCase() !== 'cancelado' && new Date(repair.slaDueAt).getTime() < Date.now() ? 'repair-sla-overdue' : ''}"><strong>Prazo:</strong><span>${escRepair(formatDate(repair.slaDueAt))}</span></div>` : ''}
                 ${repair.attachments && repair.attachments.length > 0 ? `
                     <div class="detail-item">
                         <strong>Anexos:</strong>

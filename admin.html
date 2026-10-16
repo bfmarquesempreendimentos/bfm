@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
-    <link rel="stylesheet" href="styles/main.css?v=35">
+    <link rel="stylesheet" href="styles/main.css?v=36">
     <link rel="stylesheet" href="styles/admin.css?v=34">
     <link rel="stylesheet" href="styles/admin-finance.css?v=1">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -261,6 +261,26 @@
                         <h3 id="dashboardSalesRegistered">…</h3>
                         <p>Vendas registradas</p>
                         <small class="stat-card-hint">Contratos no Firestore (área cliente)</small>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon reserved">
+                        <i class="fas fa-barcode"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="dashboardBoletosAlert">…</h3>
+                        <p>Boletos pendentes</p>
+                        <small id="dashboardBoletosSub" class="stat-card-hint">Aberto + vencido + conferência</small>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="dashboardRepairsSla">…</h3>
+                        <p>Reparos fora do prazo</p>
+                        <small class="stat-card-hint">SLA vencido (ainda abertos)</small>
                     </div>
                 </div>
             </div>
@@ -648,6 +668,10 @@
                             <label>Título *</label>
                             <input type="text" id="adminTimelineTitle" required>
                         </div>
+                        <div class="form-group" style="flex:1;min-width:180px;padding:0 8px;">
+                            <label>Imóvel (agrupa na linha do tempo)</label>
+                            <input type="text" id="adminTimelineProperty" placeholder="Residencial X">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Descrição</label>
@@ -693,6 +717,9 @@
                     <button type="button" class="btn btn-secondary" onclick="pushLocalRepairsToServer()" title="Enviar reparos que estão só neste navegador para o servidor">
                         <i class="fas fa-cloud-upload-alt" aria-hidden="true"></i> Enviar locais
                     </button>
+                    <button type="button" class="btn btn-secondary" onclick="exportAdminRepairsCsv()">
+                        <i class="fas fa-file-csv" aria-hidden="true"></i> Exportar CSV
+                    </button>
                     <button type="button" class="btn btn-primary" onclick="loadAdminRepairs()">
                         <i class="fas fa-refresh" aria-hidden="true"></i> Atualizar
                     </button>
@@ -709,6 +736,7 @@
                             <th>Imóvel</th>
                             <th>Localização</th>
                             <th>Status</th>
+                            <th>SLA</th>
                             <th>Data</th>
                             <th>Ações</th>
                         </tr>
@@ -1702,6 +1730,10 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label>Prazo (SLA)</label>
+                    <input type="datetime-local" id="repairEditSlaDueAt">
+                </div>
+                <div class="form-group">
                     <label>Data da Visita (quando status = Em Andamento)</label>
                     <input type="datetime-local" id="repairEditVisitDate" placeholder="Opcional">
                 </div>
@@ -1791,7 +1823,7 @@
 
     <!-- Scripts -->
     <script src="js/compat-polyfills.js"></script>
-    <script src="config.js?v=34"></script>
+    <script src="config.js?v=36"></script>
     <script src="js/dom-utils.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/audit.js"></script>
@@ -1819,13 +1851,13 @@
     <script src="js/property-sales.js"></script>
     <script src="js/whatsapp-leads.js?v=34"></script>
     <script src="js/admin-analytics.js?v=34"></script>
-    <script src="js/admin-repairs.js?v=34"></script>
-    <script src="js/admin-boletos.js?v=35"></script>
+    <script src="js/admin-repairs.js?v=36"></script>
+    <script src="js/admin-boletos.js?v=36"></script>
     <script src="js/fcm-push.js?v=1"></script>
-    <script src="js/admin-dashboard-charts.js?v=2"></script>
+    <script src="js/admin-dashboard-charts.js?v=3"></script>
     <script src="js/admin-finance.js?v=1"></script>
     <script src="js/admin-reports.js?v=2"></script>
-    <script src="js/admin.js?v=44"></script>
+    <script src="js/admin.js?v=45"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>

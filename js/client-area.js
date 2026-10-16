@@ -651,14 +651,34 @@ function loadClientHistory() {
             historyList.innerHTML = '<p>Nenhum evento na linha do tempo ainda.</p>';
             return;
         }
-        historyList.innerHTML = items.map(function(item) {
-            return '<div class="client-history-item">' +
-                '<div class="history-icon"><i class="fas ' + getHistoryIcon(item.type) + '"></i></div>' +
-                '<div class="history-content">' +
-                '<h5>' + escapeHtml(item.title || '') + '</h5>' +
-                '<p>' + escapeHtml(item.description || '') + '</p>' +
-                '<small>' + escapeHtml(formatDate(item.date)) + '</small>' +
-                '</div></div>';
+        var groups = {};
+        var order = [];
+        items.forEach(function(item) {
+            var g = String((item && item.propertyTitle) || '').trim() || 'Geral';
+            if (!groups[g]) {
+                groups[g] = [];
+                order.push(g);
+            }
+            groups[g].push(item);
+        });
+        order.sort(function(a, b) {
+            if (a === 'Geral') return 1;
+            if (b === 'Geral') return -1;
+            return a.localeCompare(b, 'pt-BR');
+        });
+        historyList.innerHTML = order.map(function(g) {
+            return '<div class="history-property-group">' +
+                '<h5 class="history-property-heading">' + escapeHtml(g) + '</h5>' +
+                groups[g].map(function(item) {
+                    return '<div class="client-history-item">' +
+                        '<div class="history-icon"><i class="fas ' + getHistoryIcon(item.type) + '"></i></div>' +
+                        '<div class="history-content">' +
+                        '<h5>' + escapeHtml(item.title || '') + '</h5>' +
+                        '<p>' + escapeHtml(item.description || '') + '</p>' +
+                        '<small>' + escapeHtml(formatDate(item.date)) + '</small>' +
+                        '</div></div>';
+                }).join('') +
+                '</div>';
         }).join('');
     }
     if (!email) {
@@ -686,7 +706,15 @@ function loadClientHistory() {
             merged.sort(function(a, b) {
                 return new Date(b.date || 0) - new Date(a.date || 0);
             });
-            renderItems(merged);
+            var seenTl = {};
+            var unique = [];
+            merged.forEach(function(it) {
+                var k = [it.type, it.title, String(it.date || '').slice(0, 16)].join('|');
+                if (seenTl[k]) return;
+                seenTl[k] = true;
+                unique.push(it);
+            });
+            renderItems(unique);
         })
         .catch(function() {
             renderItems(local.slice().reverse());

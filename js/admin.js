@@ -1311,6 +1311,23 @@ function applyRemoteDashboardWidgets(waStats, repairsOpen, salesCount, brokersAc
     }
     if (repEl) repEl.textContent = repairsOpen != null ? String(repairsOpen) : '0';
     if (salEl) salEl.textContent = salesCount != null ? String(salesCount) : '0';
+    var bolEl = document.getElementById('dashboardBoletosAlert');
+    var bolSub = document.getElementById('dashboardBoletosSub');
+    var slaEl = document.getElementById('dashboardRepairsSla');
+    if (bolEl) {
+        if (bundleExtras) {
+            var bolOpen = (bundleExtras.boletosPendentes || 0) + (bundleExtras.boletosVencidos || 0) + (bundleExtras.boletosAguardando || 0);
+            bolEl.textContent = String(bolOpen);
+            if (bolSub) {
+                bolSub.textContent = (bundleExtras.boletosPendentes || 0) + ' em aberto · ' +
+                    (bundleExtras.boletosVencidos || 0) + ' vencido(s) · ' +
+                    (bundleExtras.boletosAguardando || 0) + ' em conferência';
+            }
+        } else {
+            bolEl.textContent = '0';
+        }
+    }
+    if (slaEl) slaEl.textContent = String((bundleExtras && bundleExtras.repairsSlaOverdue) || 0);
     if (elBrok && brokersActive != null) elBrok.textContent = String(brokersActive);
     else if (elBrok) elBrok.textContent = String(localBrokersFallback);
 

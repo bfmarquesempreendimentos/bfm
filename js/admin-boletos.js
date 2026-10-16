@@ -134,6 +134,7 @@ async function submitAdminTimelineForm(e) {
       title: title,
       description: (document.getElementById('adminTimelineDesc') && document.getElementById('adminTimelineDesc').value) || '',
       type: (document.getElementById('adminTimelineType') && document.getElementById('adminTimelineType').value) || 'evento',
+      propertyTitle: (document.getElementById('adminTimelineProperty') && document.getElementById('adminTimelineProperty').value) || '',
     });
     if (typeof showMessage === 'function') showMessage('Evento adicionado à timeline do cliente.', 'success');
     var form = document.getElementById('adminTimelineForm');

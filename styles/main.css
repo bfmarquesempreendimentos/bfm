@@ -3997,6 +3997,18 @@ html {
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
+.history-property-group {
+    margin-bottom: 24px;
+}
+
+.history-property-heading {
+    margin: 0 0 10px;
+    font-size: 1rem;
+    color: #1a365d;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 6px;
+}
+
 .client-history-item {
     display: flex;
     gap: 15px;
@@ -4005,6 +4017,11 @@ html {
     border-radius: 10px;
     margin-bottom: 15px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.repair-sla-overdue {
+    color: #c0392b;
+    font-weight: 600;
 }
 
 .history-icon {

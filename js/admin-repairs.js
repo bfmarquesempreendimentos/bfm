@@ -168,7 +168,7 @@ async function loadAdminRepairs() {
 
     var repairs = getAdminRepairs();
     if (repairs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8">Nenhuma solicitação de reparo cadastrada.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9">Nenhuma solicitação de reparo cadastrada.</td></tr>';
         return;
     }
 
@@ -190,7 +190,11 @@ async function loadAdminRepairs() {
         var idVal = typeof r.id === 'string' ? "'" + String(r.id).replace(/'/g, "\\'") + "'" : r.id;
         var deleteBtn = canDelete ? ' <button class="btn-action btn-delete" onclick="deleteRepairAdmin(' + idVal + ')" title="Excluir (apenas Super Admin)"><i class="fas fa-trash"></i></button>' : '';
         var statusKey = esc(r.status || '');
-        return '<tr><td>#' + esc(r.id) + '</td><td>' + esc(r.clientName || '-') + '</td><td>' + esc(r.clientEmail || '-') + '</td><td>' + esc(r.propertyTitle || r.propertyId || '-') + '</td><td>' + esc(r.location || '-') + '</td><td><span class="status-badge status-' + statusKey + '">' + esc(statusLabels[r.status] || r.status) + '</span></td><td>' + esc(typeof formatDate === 'function' ? formatDate(r.createdAt) : r.createdAt) + '</td><td><button class="btn-action btn-edit" onclick="openRepairEditModal(' + idVal + ')" title="Editar status"><i class="fas fa-edit"></i></button> <button class="btn-action btn-view" onclick="viewAdminRepairDetails(' + idVal + ')" title="Ver detalhes"><i class="fas fa-eye"></i></button>' + deleteBtn + '</td></tr>';
+        var slaTxt = r.slaDueAt ? (typeof formatDate === 'function' ? formatDate(r.slaDueAt) : r.slaDueAt) : '—';
+        var stLower = String(r.status || '').toLowerCase();
+        var slaOver = r.slaDueAt && stLower !== 'concluido' && stLower !== 'cancelado' && new Date(r.slaDueAt).getTime() < Date.now();
+        var slaHtml = slaOver ? '<span style="color:#c0392b;font-weight:600;">' + esc(slaTxt) + '</span>' : esc(slaTxt);
+        return '<tr><td>#' + esc(r.id) + '</td><td>' + esc(r.clientName || '-') + '</td><td>' + esc(r.clientEmail || '-') + '</td><td>' + esc(r.propertyTitle || r.propertyId || '-') + '</td><td>' + esc(r.location || '-') + '</td><td><span class="status-badge status-' + statusKey + '">' + esc(statusLabels[r.status] || r.status) + '</span></td><td>' + slaHtml + '</td><td>' + esc(typeof formatDate === 'function' ? formatDate(r.createdAt) : r.createdAt) + '</td><td><button class="btn-action btn-edit" onclick="openRepairEditModal(' + idVal + ')" title="Editar status"><i class="fas fa-edit"></i></button> <button class="btn-action btn-view" onclick="viewAdminRepairDetails(' + idVal + ')" title="Ver detalhes"><i class="fas fa-eye"></i></button>' + deleteBtn + '</td></tr>';
     }).join('');
 }
 
@@ -230,6 +234,8 @@ function openRepairEditModal(repairId) {
     if (custoEst) custoEst.value = repair.custoEstimado != null && repair.custoEstimado !== '' ? repair.custoEstimado : '';
     if (custoTot) custoTot.value = repair.custoTotal != null && repair.custoTotal !== '' ? repair.custoTotal : '';
     document.getElementById('repairEditStatus').value = repair.status || 'pendente';
+    var slaEl = document.getElementById('repairEditSlaDueAt');
+    if (slaEl) slaEl.value = toDatetimeLocalValue(repair.slaDueAt);
     document.getElementById('repairEditVisitDate').value = repair.visitDate ? repair.visitDate.slice(0, 16) : '';
     document.getElementById('repairEditResponse').value = '';
     document.getElementById('repairEditModal').style.display = 'block';
@@ -250,6 +256,12 @@ async function saveRepairStatus() {
     var respEl = document.getElementById('repairEditResponsavel');
     var custoEstEl = document.getElementById('repairEditCustoEstimado');
     var custoTotEl = document.getElementById('repairEditCustoTotal');
+    var slaDueEl = document.getElementById('repairEditSlaDueAt');
+    var slaDueAt = null;
+    if (slaDueEl && slaDueEl.value) {
+        var slaParsed = new Date(slaDueEl.value);
+        if (!isNaN(slaParsed.getTime())) slaDueAt = slaParsed.toISOString();
+    }
     var newTipo = tipoEl ? tipoEl.value : 'geral';
     var respId = respEl ? respEl.value : '';
     var respNome = '';
@@ -280,6 +292,7 @@ async function saveRepairStatus() {
     repair.responsavelNome = respNome || '';
     if (custoEstimado != null && !isNaN(custoEstimado)) repair.custoEstimado = custoEstimado;
     if (custoTotal != null && !isNaN(custoTotal)) repair.custoTotal = custoTotal;
+    if (slaDueAt) repair.slaDueAt = slaDueAt;
     repair.updatedAt = new Date().toISOString();
     if (typeof addUpdatedBy === 'function') addUpdatedBy(repair);
     if (visitDate) repair.visitDate = visitDate;
@@ -297,6 +310,7 @@ async function saveRepairStatus() {
             responsavelNome: respNome || '',
             custoEstimado: custoEstimado,
             custoTotal: custoTotal,
+            slaDueAt: slaDueAt,
             updatedAt: repair.updatedAt,
             visitDate: visitDate || null,
             responses: repair.responses
@@ -381,6 +395,7 @@ function viewAdminRepairDetails(repairId) {
                 ${repair.custoEstimado != null ? `<p><strong>Custo estimado:</strong> R$ ${Number(repair.custoEstimado).toFixed(2)}</p>` : ''}
                 ${repair.custoTotal != null ? `<p><strong>Custo total:</strong> R$ ${Number(repair.custoTotal).toFixed(2)}</p>` : ''}
                 <p><strong>Prioridade:</strong> ${esc(repair.priority || 'Normal')}</p>
+                ${repair.slaDueAt ? `<p><strong>Prazo (SLA):</strong> ${esc(typeof formatDate === 'function' ? formatDate(repair.slaDueAt) : repair.slaDueAt)}</p>` : ''}
                 <p><strong>Data abertura:</strong> ${esc(typeof formatDate === 'function' ? formatDate(repair.createdAt) : repair.createdAt)}</p>
                 ${repair.visitDate ? `<p><strong>Data visita:</strong> ${esc(typeof formatDate === 'function' ? formatDate(repair.visitDate) : repair.visitDate)}</p>` : ''}
                 ${(repair.attachments && repair.attachments.length) ? `<p><strong>Anexos:</strong> ${repair.attachments.length} arquivo(s)</p>` : ''}
@@ -421,6 +436,58 @@ function deleteRepairAdmin(repairId) {
     }
     if (typeof showMessage === 'function') showMessage('Solicitação de reparo excluída.', 'success');
     loadAdminRepairs();
+}
+
+function toDatetimeLocalValue(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso).slice(0, 16);
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function csvCell(value) {
+    return '"' + String(value == null ? '' : value).replace(/"/g, '""') + '"';
+}
+
+function exportAdminRepairsCsv() {
+    var repairs = typeof getAdminRepairs === 'function' ? getAdminRepairs() : [];
+    if (!repairs.length) {
+        if (typeof showMessage === 'function') showMessage('Não há reparos para exportar.', 'warning');
+        return;
+    }
+    var statusLabels = { pendente: 'Pendente', em_analise: 'Em Análise', em_andamento: 'Em Andamento', concluido: 'Concluído', cancelado: 'Cancelado' };
+    var headers = ['Protocolo', 'Cliente', 'Email', 'Imóvel', 'Localização', 'Tipo', 'Status', 'Prioridade', 'Responsável', 'SLA', 'Custo estimado', 'Custo total', 'Abertura', 'Descrição'];
+    var lines = [headers.map(csvCell).join(',')];
+    repairs.forEach(function(r) {
+        var slaTxt = r.slaDueAt && typeof formatDate === 'function' ? formatDate(r.slaDueAt) : (r.slaDueAt || '');
+        var opened = r.createdAt && typeof formatDate === 'function' ? formatDate(r.createdAt) : (r.createdAt || '');
+        lines.push([
+            r.id,
+            r.clientName || '',
+            r.clientEmail || '',
+            r.propertyTitle || r.propertyId || '',
+            r.location || '',
+            typeof getRepairTipoLabel === 'function' ? getRepairTipoLabel(r.tipo) : (r.tipo || ''),
+            statusLabels[r.status] || r.status || '',
+            r.priority || '',
+            r.responsavelNome || '',
+            slaTxt,
+            r.custoEstimado != null ? r.custoEstimado : '',
+            r.custoTotal != null ? r.custoTotal : '',
+            opened,
+            r.description || ''
+        ].map(csvCell).join(','));
+    });
+    var blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'reparos_' + new Date().toISOString().split('T')[0] + '.csv';
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (typeof showMessage === 'function') showMessage('Arquivo CSV de reparos exportado.', 'success');
 }
 
 function showSectionRepairs(sectionId) {

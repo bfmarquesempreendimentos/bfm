@@ -2859,6 +2859,24 @@ exports.prepareStorageUpload = functions.https.onRequest((req, res) => secureHan
 exports.getStorageReadUrl = functions.https.onRequest((req, res) => secureHandlers.getStorageReadUrlHttp(req, res));
 exports.logEmailAudit = functions.https.onRequest((req, res) => secureHandlers.logEmailAuditHttp(req, res));
 
+function defaultRepairSlaDueAt(priority, createdAt) {
+  var p = String(priority || 'normal').toLowerCase();
+  var days = p === 'urgente' ? 2 : p === 'alta' ? 5 : 10;
+  var d = new Date(createdAt || Date.now());
+  if (isNaN(d.getTime())) d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
+function isRepairSlaOverdue(data) {
+  var d = data || {};
+  var st = String(d.status || '').toLowerCase();
+  if (st === 'concluido' || st === 'cancelado') return false;
+  if (!d.slaDueAt) return false;
+  var due = new Date(d.slaDueAt);
+  return !isNaN(due.getTime()) && due.getTime() < Date.now();
+}
+
 // ─── API de Reparos: CRIAR (garante sync Mac/Windows - não depende do Firestore client) ──
 exports.createRepair = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
@@ -2912,7 +2930,7 @@ exports.createRepair = functions.https.onRequest(async (req, res) => {
       responsavelNome: body.responsavelNome || '',
       custoEstimado: body.custoEstimado != null ? Number(body.custoEstimado) : null,
       custoTotal: body.custoTotal != null ? Number(body.custoTotal) : null,
-      slaDueAt: body.slaDueAt || null,
+      slaDueAt: body.slaDueAt || defaultRepairSlaDueAt(body.priority, body.createdAt),
       comentarios: Array.isArray(body.comentarios) ? body.comentarios : [],
       createdAt: body.createdAt || new Date().toISOString(),
       updatedAt: body.updatedAt || new Date().toISOString(),
@@ -2973,19 +2991,32 @@ exports.adminDashboardBundle = functions.https.onRequest(async (req, res) => {
   try {
     const wa = await getLeadStats();
     const db = admin.firestore();
-    const [repSnap, salesSnap, brokerSnap, resSnap] = await Promise.all([
+    const [repSnap, salesSnap, brokerSnap, resSnap, bolSnap] = await Promise.all([
       db.collection('repairRequests').get(),
       db.collection('propertySales').get(),
       db.collection('brokers').get(),
       db.collection('reservations').get(),
+      db.collection('boletos').limit(2000).get(),
     ]);
     let repairsOpen = 0;
-    var repairsByStatus = { pendente: 0, em_andamento: 0, concluido: 0, cancelado: 0, outro: 0 };
+    var repairsSlaOverdue = 0;
+    var repairsByStatus = { pendente: 0, em_analise: 0, em_andamento: 0, concluido: 0, cancelado: 0, outro: 0 };
     repSnap.forEach((doc) => {
-      const st = String(doc.data().status || '').toLowerCase();
+      const rd = doc.data() || {};
+      const st = String(rd.status || '').toLowerCase();
       if (st !== 'concluido' && st !== 'cancelado') repairsOpen++;
+      if (isRepairSlaOverdue(rd)) repairsSlaOverdue++;
       if (repairsByStatus[st] != null) repairsByStatus[st]++;
       else repairsByStatus.outro++;
+    });
+    var boletosPendentes = 0;
+    var boletosVencidos = 0;
+    var boletosAguardando = 0;
+    bolSnap.forEach(function(doc) {
+      var bst = effectiveBoletoStatus(doc.data() || {});
+      if (bst === 'vencido') boletosVencidos++;
+      else if (bst === 'aguardando_conferencia') boletosAguardando++;
+      else if (bst === 'pendente') boletosPendentes++;
     });
     var reservationsPending = 0;
     var reservationsActive = 0;
@@ -3064,7 +3095,11 @@ exports.adminDashboardBundle = functions.https.onRequest(async (req, res) => {
     return res.json({
       wa: wa,
       repairsOpen: repairsOpen,
+      repairsSlaOverdue: repairsSlaOverdue,
       repairsByStatus: repairsByStatus,
+      boletosPendentes: boletosPendentes,
+      boletosVencidos: boletosVencidos,
+      boletosAguardando: boletosAguardando,
       salesCount: salesSnap.size,
       salesByMonth: salesByMonth,
       brokersActive: brokersActive,
@@ -4383,6 +4418,7 @@ exports.adminTimelineEvent = functions.https.onRequest(async (req, res) => {
       type: String(body.type || 'evento').trim(),
       title: String(body.title || 'Atualização').trim(),
       description: String(body.description || '').trim(),
+      propertyTitle: String(body.propertyTitle || '').trim(),
       date: body.date || new Date().toISOString(),
       createdAt: new Date().toISOString(),
     });
@@ -4544,17 +4580,20 @@ exports.clientTimelineMe = functions.https.onRequest(async (req, res) => {
     var sales = await db.collection('propertySales').where('clientEmail', '==', email).get();
     sales.forEach(function(doc) {
       var d = doc.data() || {};
+      var propTitle = d.propertyTitle || 'Imóvel';
       events.push({
         type: 'venda',
         title: 'Compra registrada',
-        description: (d.propertyTitle || 'Imóvel') + (d.unitCode ? ' — ' + d.unitCode : ''),
+        description: propTitle + (d.unitCode ? ' — ' + d.unitCode : ''),
+        propertyTitle: propTitle,
         date: d.saleDate || d.createdAt || '',
       });
       if (d.reservationAt) {
         events.push({
           type: 'reserva',
           title: 'Reserva',
-          description: d.propertyTitle || '',
+          description: propTitle,
+          propertyTitle: propTitle,
           date: d.reservationAt,
         });
       }
@@ -4562,20 +4601,38 @@ exports.clientTimelineMe = functions.https.onRequest(async (req, res) => {
     var repairs = await db.collection('repairRequests').where('clientEmail', '==', email).get();
     repairs.forEach(function(doc) {
       var r = doc.data() || {};
+      var rProp = r.propertyTitle || '';
       events.push({
         type: 'reparo',
-        title: 'Reparo: ' + (r.status || 'aberto'),
-        description: (r.description || '').slice(0, 120),
+        title: 'Chamado de reparo',
+        description: (r.location ? r.location + ' — ' : '') + (r.description || '').slice(0, 120),
+        propertyTitle: rProp,
+        status: r.status || '',
         date: r.createdAt || '',
       });
       if (r.status === 'concluido' && r.updatedAt) {
         events.push({
           type: 'reparo_concluido',
           title: 'Reparo concluído',
-          description: r.propertyTitle || '',
+          description: rProp,
+          propertyTitle: rProp,
           date: r.updatedAt,
         });
       }
+    });
+    var boletosTl = await db.collection('boletos').where('clientEmail', '==', email).get();
+    boletosTl.forEach(function(doc) {
+      var b = doc.data() || {};
+      var bst = effectiveBoletoStatus(b);
+      var bLabel = bst === 'pago' ? 'Parcela paga' : (bst === 'vencido' ? 'Parcela vencida' : (bst === 'aguardando_conferencia' ? 'Comprovante em conferência' : 'Parcela em aberto'));
+      events.push({
+        type: 'payment',
+        title: bLabel,
+        description: (b.parcela ? 'Parcela ' + b.parcela : 'Boleto') +
+          (b.valor != null ? ' · R$ ' + Number(b.valor).toFixed(2) : ''),
+        propertyTitle: b.propertyTitle || '',
+        date: b.pagamentoEm || b.vencimento || b.createdAt || '',
+      });
     });
     var manual = await db.collection('client_timeline').where('clientEmail', '==', email).get();
     manual.forEach(function(doc) {
@@ -4584,6 +4641,7 @@ exports.clientTimelineMe = functions.https.onRequest(async (req, res) => {
         type: m.type || 'evento',
         title: m.title || 'Atualização',
         description: m.description || '',
+        propertyTitle: m.propertyTitle || '',
         date: m.date || m.createdAt || '',
       });
     });
