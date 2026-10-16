@@ -5,6 +5,24 @@ const admin = require('firebase-admin');
 const { verifyAdminAuth } = require('./admin-auth');
 
 const COMPANY_EMAIL = 'bfmarquesempreendimentos@gmail.com';
+var STORAGE_BUCKETS = [
+  'site-interativo-b-f-marques.firebasestorage.app',
+  'site-interativo-b-f-marques.appspot.com',
+];
+
+async function findStorageFile(path) {
+  var i;
+  var file;
+  var exists;
+  for (i = 0; i < STORAGE_BUCKETS.length; i++) {
+    file = admin.storage().bucket(STORAGE_BUCKETS[i]).file(path);
+    exists = await file.exists();
+    if (exists[0]) return file;
+  }
+  file = admin.storage().bucket().file(path);
+  exists = await file.exists();
+  return exists[0] ? file : null;
+}
 const MAX_EMAIL_BODY = 120000;
 const MAX_SUBJECT = 500;
 const TRACK_MAX_UA = 400;
@@ -298,9 +316,8 @@ async function getStorageReadUrlHttp(req, res) {
         hint: 'Use o arquivo do cadastro (property-dossiers/… ou engineering-reports/…).',
       });
     }
-    var file = admin.storage().bucket().file(path);
-    var exists = await file.exists();
-    if (!exists[0]) return res.status(404).json({ error: 'Arquivo não encontrado' });
+    var file = await findStorageFile(path);
+    if (!file) return res.status(404).json({ error: 'Arquivo não encontrado' });
     var readUrl = await file.getSignedUrl({
       version: 'v4',
       action: 'read',

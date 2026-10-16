@@ -284,7 +284,27 @@ function mergeListForProperty(propertyId, firestoreRows) {
     var exists = list.some(function(x) { return String(x.unitCode) === String(r.unitCode); });
     if (!exists) list.push(r);
   });
+  list.sort(function(a, b) {
+    var A = unitSortTuple(a && a.unitCode);
+    var B = unitSortTuple(b && b.unitCode);
+    for (var i = 0; i < 3; i++) if (A[i] !== B[i]) return A[i] - B[i];
+    return String((a && a.unitCode) || '').localeCompare(String((b && b.unitCode) || ''), 'pt');
+  });
   return { catalog: catalog, rows: list };
+}
+
+function unitSortTuple(code) {
+  var n = String(code || '').toLowerCase().replace(/\s+/g, ' ').replace(/\bcassa\b/, 'casa');
+  var apto = n.match(/\bapto\s*(\d+)/);
+  if (apto) return [2, Number(apto[1]), 0];
+  if (/(casa|cs)\s*base/.test(n)) return [1, 0, 0];
+  if (/^\d+\s*(\(|$)/.test(n) && !/\b(cs|casa)\b/.test(n)) return [1, 0, 0];
+  var casa = n.match(/(?:casa|cs)\s*(\d+)/);
+  if (casa) {
+    var extra = /\bsob/.test(n) ? 2 : (/\bap\b/.test(n) ? 1 : 0);
+    return [1, Number(casa[1]), extra];
+  }
+  return [3, 9999, 0];
 }
 
 async function loadPropertyDossier(db, propertyId) {

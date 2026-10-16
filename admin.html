@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
     <link rel="stylesheet" href="styles/main.css?v=37">
-    <link rel="stylesheet" href="styles/admin.css?v=42">
+    <link rel="stylesheet" href="styles/admin.css?v=44">
     <link rel="stylesheet" href="styles/admin-finance.css?v=1">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -501,18 +501,32 @@
 
                 <div class="content-card">
                     <h3 style="margin-top:0;">Ficha das unidades</h3>
-                    <p class="form-hint">Código interno do sistema. Matrícula, IPTU, preço e engenharia já vêm do cadastro atual e do arquivo antigo. Sem data no laudo, a vitrine continua “A confirmar”.</p>
+                    <p class="form-hint">O nome da unidade é o mesmo das reservas e da vitrine. Clique na coluna para ordenar (validade = o que vence primeiro). Clique na linha para abrir a ficha ao lado.</p>
+                    <div class="ue-units-toolbar">
+                        <label class="ue-units-search">Buscar
+                            <input type="search" id="ueUnitFilter" placeholder="Unidade, matrícula ou IPTU" autocomplete="off">
+                        </label>
+                        <label>Situação
+                            <select id="ueStatusFilter">
+                                <option value="">Todas</option>
+                                <option value="vencida">Vencidas</option>
+                                <option value="a_vencer">A vencer</option>
+                                <option value="vigente">Vigentes</option>
+                                <option value="sem_laudo">Sem data de laudo</option>
+                            </select>
+                        </label>
+                    </div>
                     <div class="admin-table-container">
                         <table class="admin-table pd-units-table">
                             <thead>
                                 <tr>
-                                    <th>Código</th>
-                                    <th>Matrícula</th>
-                                    <th>IPTU / inscrição</th>
-                                    <th>Preço</th>
-                                    <th>Engenharia</th>
-                                    <th>Data do laudo</th>
-                                    <th>Validade</th>
+                                    <th scope="col" data-ue-sort="unit" class="is-sortable is-sorted-asc">Unidade</th>
+                                    <th scope="col" data-ue-sort="matricula" class="is-sortable">Matrícula</th>
+                                    <th scope="col" data-ue-sort="iptu" class="is-sortable">IPTU / inscrição</th>
+                                    <th scope="col" data-ue-sort="salePrice" class="is-sortable">Preço</th>
+                                    <th scope="col" data-ue-sort="engineering" class="is-sortable">Engenharia</th>
+                                    <th scope="col" data-ue-sort="appraisalDate" class="is-sortable">Data do laudo</th>
+                                    <th scope="col" data-ue-sort="expiresAt" class="is-sortable">Validade</th>
                                     <th>Arquivos</th>
                                     <th></th>
                                 </tr>
@@ -522,49 +536,6 @@
                             </tbody>
                         </table>
                     </div>
-                    <form id="ueForm" class="ue-form" hidden onsubmit="saveUnitEngineering(event)">
-                        <h4>Ficha da unidade</h4>
-                        <div class="ue-form-grid">
-                            <label>Código interno
-                                <select id="ueUnitCode" required></select>
-                            </label>
-                            <label>Matrícula
-                                <input type="text" id="ueMatricula" placeholder="Ex: 51.894">
-                            </label>
-                            <label>Inscrição municipal / IPTU
-                                <input type="text" id="ueInscricao">
-                            </label>
-                            <label>Preço (vitrine)
-                                <input type="text" id="ueSalePrice" placeholder="R$ 160.000,00" inputmode="decimal" onblur="if (typeof formatUeMoneyField === 'function') formatUeMoneyField('ueSalePrice')">
-                            </label>
-                            <label>Responsável pelo laudo
-                                <input type="text" id="ueAppraiser" placeholder="Avaliador / engenharia">
-                            </label>
-                            <label>Valor da engenharia (R$)
-                                <input type="text" id="ueValue" placeholder="R$ 188.000,00" inputmode="decimal" onblur="if (typeof formatUeMoneyField === 'function') formatUeMoneyField('ueValue')">
-                            </label>
-                            <label>Valor do m² (R$)
-                                <input type="text" id="ueM2" placeholder="R$ 5.000,00" inputmode="decimal" onblur="if (typeof formatUeMoneyField === 'function') formatUeMoneyField('ueM2')">
-                            </label>
-                            <label>Data da engenharia
-                                <input type="date" id="ueDate" onchange="onEngineeringDateChange()">
-                            </label>
-                        </div>
-                        <p id="ueExpiresHint" class="form-hint">Sem data = engenharia não aparece na vitrine (fica “A confirmar”).</p>
-                        <label>Novo laudo (PDF, só admin)
-                            <input type="file" id="ueReportFile" accept=".pdf,application/pdf,image/*">
-                        </label>
-                        <label>Observações
-                            <input type="text" id="ueNotes" maxlength="500">
-                        </label>
-                        <h5>Arquivos antigos desta unidade</h5>
-                        <ul id="ueArchiveDocs" class="pd-doc-list"></ul>
-                        <div id="ueRelated" class="pd-related"></div>
-                        <div class="ue-toolbar">
-                            <button type="submit" class="btn btn-primary">Salvar ficha da unidade</button>
-                            <button type="button" class="btn btn-secondary" onclick="openEngineeringReport()">Abrir laudo anexado</button>
-                        </div>
-                    </form>
                 </div>
             </div>
         </section>
@@ -1789,6 +1760,68 @@
         </div><!-- /.admin-main-inner -->
     </main>
 
+    <div id="ueUnitDrawer" class="ue-drawer" hidden>
+        <div class="ue-drawer-backdrop" onclick="closeUnitDossierDrawer()"></div>
+        <aside class="ue-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="ueDrawerTitle">
+            <header class="ue-drawer-header">
+                <div>
+                    <h3 id="ueDrawerTitle">Ficha da unidade</h3>
+                    <p class="ue-drawer-unit" id="ueDrawerUnitLabel"></p>
+                </div>
+                <div class="ue-drawer-nav">
+                    <button type="button" class="btn btn-secondary btn-sm" id="uePrevUnit" title="Unidade anterior">Anterior</button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="ueNextUnit" title="Próxima unidade">Próxima</button>
+                    <button type="button" class="ue-drawer-close" onclick="closeUnitDossierDrawer()" aria-label="Fechar">&times;</button>
+                </div>
+            </header>
+            <div class="ue-drawer-body">
+                <form id="ueForm" class="ue-form" onsubmit="saveUnitEngineering(event)">
+                    <input type="hidden" id="ueUnitCode">
+                    <div class="ue-form-grid">
+                        <label>Matrícula
+                            <input type="text" id="ueMatricula" placeholder="Ex: 51.894">
+                        </label>
+                        <label>Inscrição municipal / IPTU
+                            <input type="text" id="ueInscricao">
+                        </label>
+                        <label>Preço (vitrine)
+                            <input type="text" id="ueSalePrice" placeholder="R$ 160.000,00" inputmode="decimal" onblur="if (typeof formatUeMoneyField === 'function') formatUeMoneyField('ueSalePrice')">
+                        </label>
+                        <label>Responsável pelo laudo
+                            <input type="text" id="ueAppraiser" placeholder="Avaliador / engenharia">
+                        </label>
+                        <label>Valor da engenharia (R$)
+                            <input type="text" id="ueValue" placeholder="R$ 188.000,00" inputmode="decimal" onblur="if (typeof formatUeMoneyField === 'function') formatUeMoneyField('ueValue')">
+                        </label>
+                        <label>Valor do m² (R$)
+                            <input type="text" id="ueM2" placeholder="Informe o R$/m² do laudo" inputmode="decimal" onblur="if (typeof formatUeMoneyField === 'function') formatUeMoneyField('ueM2')">
+                        </label>
+                        <label>Data da engenharia
+                            <input type="date" id="ueDate" onchange="onEngineeringDateChange()">
+                        </label>
+                        <label>Projeção do vencimento
+                            <input type="date" id="ueExpiresAt" readonly>
+                        </label>
+                    </div>
+                    <p id="ueExpiresHint" class="form-hint">Sem data = engenharia não aparece na vitrine (fica “A confirmar”).</p>
+                    <label>Novo laudo (PDF, só admin)
+                        <input type="file" id="ueReportFile" accept=".pdf,application/pdf,image/*">
+                    </label>
+                    <label>Observações
+                        <input type="text" id="ueNotes" maxlength="500">
+                    </label>
+                    <h5>Arquivos desta unidade</h5>
+                    <ul id="ueArchiveDocs" class="pd-doc-list"></ul>
+                    <div id="ueRelated" class="pd-related"></div>
+                    <div class="ue-toolbar">
+                        <button type="submit" class="btn btn-primary">Salvar ficha da unidade</button>
+                        <button type="button" class="btn btn-secondary" onclick="openEngineeringReport()">Abrir laudo anexado</button>
+                    </div>
+                </form>
+            </div>
+        </aside>
+    </div>
+
     <!-- Property Modal -->
     <div id="propertyModal" class="modal">
         <div class="modal-content property-form-modal">
@@ -2069,7 +2102,7 @@
 
     <!-- Scripts -->
     <script src="js/compat-polyfills.js"></script>
-    <script src="config.js?v=42"></script>
+    <script src="config.js?v=44"></script>
     <script src="js/dom-utils.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/audit.js"></script>
@@ -2105,7 +2138,7 @@
     <script src="js/admin-finance.js?v=1"></script>
     <script src="js/admin-reports.js?v=4"></script>
     <script src="js/admin-broker-reservations-report.js?v=4"></script>
-    <script src="js/admin-unit-engineering.js?v=6"></script>
+    <script src="js/admin-unit-engineering.js?v=8"></script>
     <script src="js/admin.js?v=50"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

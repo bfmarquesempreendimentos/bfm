@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-16-laudos-cep-fichas",
+  "version": "2026-10-16-laudos-completos",
   "source": "Arquivo antigo do Drive cruzado com o catálogo do site. CREA 2005111141 e engenheiro extraídos da guia ART. Cartórios e matrículas extraídos das certidões de ônus/RGI. Coelho 24u e planilha PRONTOS fora. Preços = vitrine atual.",
   "properties": {
     "1": {
@@ -192,7 +192,9 @@
           "areaM2": 61.71,
           "reportPath": "property-dossiers/1/unidades/LAUDO_VALIDO_N_31.pdf",
           "reportName": "LAUDO VALIDO N 31.pdf",
-          "valuePerM2": 3458.08
+          "valuePerM2": 3458.08,
+          "appraisalDate": "2025-03-14",
+          "appraiser": "JULLIA LUIZA PINTO SOARES FERNANDES"
         },
         {
           "code": "31 cs 5 sob (1qt)",
@@ -225,7 +227,8 @@
           "valuePerM2": 5222.22,
           "appraiser": "CAMILA OLIVEIRA NUNES",
           "reportPath": "property-dossiers/1/unidades/Laudo_cs_5_Sobrado.pdf",
-          "reportName": "Laudo cs 5 Sobrado.pdf"
+          "reportName": "Laudo cs 5 Sobrado.pdf",
+          "engineeringValue": 188000.0
         },
         {
           "code": "31 cs 6 (1qt)",
@@ -301,7 +304,8 @@
           "areaM2": 67.48,
           "reportPath": "property-dossiers/1/unidades/Laudo_cs_8.pdf",
           "reportName": "Laudo_cs 8.pdf",
-          "valuePerM2": 3334.32
+          "valuePerM2": 3334.32,
+          "appraiser": "JULIO CEZAR DE LEMOS"
         },
         {
           "code": "31 cs 7 sob (1qt)",
@@ -362,7 +366,8 @@
           "valuePerM2": 4525.17,
           "appraiser": "SERGIO MENEZES DA SILVA",
           "reportPath": "property-dossiers/1/unidades/LAUDO_VALIDO_CASA_04.pdf",
-          "reportName": "LAUDO VALIDO CASA 04.pdf"
+          "reportName": "LAUDO VALIDO CASA 04.pdf",
+          "engineeringValue": 162906.09
         },
         {
           "code": "31 cs 8 sob (1qt)",
@@ -395,7 +400,9 @@
           "areaM2": 79.65,
           "reportPath": "property-dossiers/1/unidades/Laudo_cs_8_Sobrado.pdf",
           "reportName": "Laudo cs 8 Sobrado.pdf",
-          "valuePerM2": 2741.96
+          "valuePerM2": 2741.96,
+          "appraisalDate": "2025-09-16",
+          "appraiser": "CHARLESTON DA SILVA ALBINO"
         },
         {
           "code": "31 cs 5 (1qt ind.)",
@@ -491,7 +498,8 @@
           "valuePerM2": 3295.89,
           "appraiser": "EDISON FORTUNATO DE SOUZA JUNIOR",
           "reportPath": "property-dossiers/1/unidades/Laudo_31_cs_2.pdf",
-          "reportName": "Laudo 31 cs 2.pdf"
+          "reportName": "Laudo 31 cs 2.pdf",
+          "engineeringValue": 162000.0
         },
         {
           "code": "31 cs 4 ap (2qts)",
@@ -531,7 +539,9 @@
           "areaM2": 71.0,
           "reportPath": "property-dossiers/1/unidades/LAUDO_VALIDO_CASA_04_APT_103.pdf",
           "reportName": "LAUDO VALIDO CASA 04 APT 103.pdf",
-          "valuePerM2": 2957.75
+          "valuePerM2": 2957.75,
+          "appraisalDate": "2025-03-13",
+          "appraiser": "LORENA COSTA PACHECO"
         },
         {
           "code": "31 cs 3 (2qts)",
@@ -660,7 +670,10 @@
           "inscricaoMunicipal": "154828001",
           "appraisalDate": "2026-01-21",
           "reportPath": "property-dossiers/2/unidades/Casa_base.pdf",
-          "reportName": "Casa base.pdf"
+          "reportName": "Casa base.pdf",
+          "engineeringValue": 195000.0,
+          "valuePerM2": 7044.8,
+          "appraiser": "LAIS MENEZES GOMES"
         },
         {
           "code": "casa 05",
@@ -693,7 +706,9 @@
           "valuePerM2": 5574.81,
           "appraiser": "LUIZ FERNANDO GOMES SOUTINHO",
           "reportPath": "property-dossiers/2/unidades/Laudo-348-Casa05.pdf",
-          "reportName": "Laudo-348-Casa05.pdf"
+          "reportName": "Laudo-348-Casa05.pdf",
+          "engineeringValue": 193000.0,
+          "areaM2": 34.62
         },
         {
           "code": "casa 01",
@@ -726,7 +741,9 @@
           "valuePerM2": 5574.81,
           "appraiser": "LUIZ FERNANDO GOMES SOUTINHO",
           "reportPath": "property-dossiers/2/unidades/Laudo-348-Casa01.pdf",
-          "reportName": "Laudo-348-Casa01.pdf"
+          "reportName": "Laudo-348-Casa01.pdf",
+          "engineeringValue": 193000.0,
+          "areaM2": 34.62
         },
         {
           "code": "casa 06",
@@ -759,7 +776,8 @@
           "valuePerM2": 5432.86,
           "appraiser": "CLAUDIA MARIA DANTAS",
           "reportPath": "property-dossiers/2/unidades/Laudo_cs_6.pdf",
-          "reportName": "Laudo cs 6.pdf"
+          "reportName": "Laudo cs 6.pdf",
+          "engineeringValue": 150000.0
         },
         {
           "code": "casa 02",
@@ -792,7 +810,8 @@
           "valuePerM2": 7225.43,
           "appraiser": "LUIZ HENRIQUE DA SILVA",
           "reportPath": "property-dossiers/2/unidades/Casa_2.pdf",
-          "reportName": "Casa 2.pdf"
+          "reportName": "Casa 2.pdf",
+          "engineeringValue": 200000.0
         },
         {
           "code": "casa 07",
@@ -825,7 +844,9 @@
           "valuePerM2": 5574.81,
           "appraiser": "LUIZ FERNANDO GOMES SOUTINHO",
           "reportPath": "property-dossiers/2/unidades/Laudo-348-Casa07.pdf",
-          "reportName": "Laudo-348-Casa07.pdf"
+          "reportName": "Laudo-348-Casa07.pdf",
+          "engineeringValue": 193000.0,
+          "areaM2": 34.62
         },
         {
           "code": "casa 03",
@@ -858,7 +879,8 @@
           "valuePerM2": 5432.86,
           "appraiser": "CLAUDIA MARIA DANTAS",
           "reportPath": "property-dossiers/2/unidades/LAUDO-348-CASA_03.pdf",
-          "reportName": "LAUDO-348-CASA 03.pdf"
+          "reportName": "LAUDO-348-CASA 03.pdf",
+          "engineeringValue": 150000.0
         },
         {
           "code": "cassa 08",
@@ -889,7 +911,10 @@
           "inscricaoMunicipal": "154828009",
           "appraisalDate": "2026-01-21",
           "reportPath": "property-dossiers/2/unidades/Casa_8.pdf",
-          "reportName": "Casa 8.pdf"
+          "reportName": "Casa 8.pdf",
+          "engineeringValue": 195000.0,
+          "valuePerM2": 7044.8,
+          "appraiser": "LAIS MENEZES GOMES"
         },
         {
           "code": "casa 04",
@@ -920,7 +945,10 @@
           "inscricaoMunicipal": "154828005",
           "appraisalDate": "2026-01-21",
           "reportPath": "property-dossiers/2/unidades/Casa_4.pdf",
-          "reportName": "Casa 4.pdf"
+          "reportName": "Casa 4.pdf",
+          "engineeringValue": 205000.0,
+          "valuePerM2": 5377.75,
+          "appraiser": "LAIS MENEZES GOMES"
         },
         {
           "code": "casa 09",
@@ -953,7 +981,8 @@
           "valuePerM2": 5377.75,
           "appraiser": "LUIZ HENRIQUE DA SILVA",
           "reportPath": "property-dossiers/2/unidades/Casa_9.pdf",
-          "reportName": "Casa 9.pdf"
+          "reportName": "Casa 9.pdf",
+          "engineeringValue": 205000.0
         }
       ]
     },
@@ -1064,7 +1093,8 @@
           "areaM2": 31.98,
           "reportPath": "property-dossiers/3/unidades/Laudo_101.pdf",
           "reportName": "Laudo 101.pdf",
-          "valuePerM2": 5529.42
+          "valuePerM2": 5529.42,
+          "appraiser": "CYNTHIA VARGAS CUCHAVA ROCHA"
         },
         {
           "code": "APTO 201",
@@ -1123,7 +1153,10 @@
           "engineeringValue": 149000.0,
           "areaM2": 30.79,
           "reportPath": "property-dossiers/3/unidades/Apto_202.pdf",
-          "reportName": "Apto 202.pdf"
+          "reportName": "Apto 202.pdf",
+          "appraisalDate": "2026-01-16",
+          "valuePerM2": 4839.23,
+          "appraiser": "YARA PRADO STEWART DANTAS"
         },
         {
           "code": "APTO 103",
@@ -1209,7 +1242,8 @@
           "areaM2": 31.98,
           "reportPath": "property-dossiers/3/unidades/Laudo_105.pdf",
           "reportName": "Laudo 105.pdf",
-          "valuePerM2": 5529.42
+          "valuePerM2": 5529.42,
+          "appraiser": "CYNTHIA VARGAS CUCHAVA ROCHA"
         },
         {
           "code": "APTO 205",
@@ -1384,7 +1418,8 @@
           "areaM2": 38.28,
           "reportPath": "property-dossiers/3/unidades/Laudo_apto_110.pdf",
           "reportName": "Laudo apto 110.pdf",
-          "valuePerM2": 5083.7
+          "valuePerM2": 5083.7,
+          "appraiser": "CYNTHIA VARGAS CUCHAVA ROCHA"
         },
         {
           "code": "APTO 210",
@@ -1475,12 +1510,12 @@
           "salePrice": 145000,
           "bedrooms": 1,
           "catalogStatus": "disponivel",
-          "matricula": "",
+          "matricula": "84.675",
           "historicalEngineering": "",
           "valueHintFromFilename": null,
           "documents": [],
           "notes": "",
-          "matriculaSource": "catalogo",
+          "matriculaSource": "admin",
           "inscricaoMunicipal": "802598001"
         },
         {
@@ -1553,7 +1588,8 @@
           "valuePerM2": 6536.2,
           "appraiser": "LUCAS REBELLO CORDEIRO",
           "reportPath": "property-dossiers/4/unidades/Cs_6.pdf",
-          "reportName": "Cs 6.pdf"
+          "reportName": "Cs 6.pdf",
+          "engineeringValue": 167000.0
         },
         {
           "code": "CS 11",
@@ -1612,7 +1648,8 @@
           "valuePerM2": 5870.84,
           "appraiser": "FERNANDO SOARES NUNES",
           "reportPath": "property-dossiers/4/unidades/Cs_7.pdf",
-          "reportName": "Cs 7.pdf"
+          "reportName": "Cs 7.pdf",
+          "engineeringValue": 150000.0
         },
         {
           "code": "CS 12",
@@ -1697,7 +1734,8 @@
           "valuePerM2": 5292.48,
           "appraiser": "DANIELLE CHAGAS BERTHOLO FREDERICK",
           "reportPath": "property-dossiers/4/unidades/Cs_4.pdf",
-          "reportName": "Cs 4.pdf"
+          "reportName": "Cs 4.pdf",
+          "engineeringValue": 190000.0
         },
         {
           "code": "CS 09",
@@ -1730,7 +1768,8 @@
           "valuePerM2": 5454.56,
           "appraiser": "ANDRE ANDRADE DE LIMA",
           "reportPath": "property-dossiers/4/unidades/Cs_9.pdf",
-          "reportName": "Cs 9.pdf"
+          "reportName": "Cs 9.pdf",
+          "engineeringValue": 190000.0
         },
         {
           "code": "CS 14",
@@ -1763,7 +1802,8 @@
           "valuePerM2": 5454.56,
           "appraiser": "ANDRE ANDRADE DE LIMA",
           "reportPath": "property-dossiers/4/unidades/Cs_14.pdf",
-          "reportName": "Cs 14.pdf"
+          "reportName": "Cs 14.pdf",
+          "engineeringValue": 190000.0
         }
       ]
     },
@@ -1880,7 +1920,8 @@
           "valuePerM2": 5842.48,
           "appraiser": "DIEGO SOARES OLIVEIRA",
           "reportPath": "property-dossiers/5/unidades/Casa_base.pdf",
-          "reportName": "Casa base.pdf"
+          "reportName": "Casa base.pdf",
+          "engineeringValue": 181000.0
         },
         {
           "code": "casa 05",
@@ -1911,7 +1952,10 @@
           "inscricaoMunicipal": "206836-001",
           "appraisalDate": "2026-01-21",
           "reportPath": "property-dossiers/5/unidades/Laudo-APOLO-CASA05-130MIL.pdf",
-          "reportName": "Laudo-APOLO-CASA05-130MIL.pdf"
+          "reportName": "Laudo-APOLO-CASA05-130MIL.pdf",
+          "engineeringValue": 130000.0,
+          "valuePerM2": 4168.45,
+          "appraiser": "KARON MURY ARAUJO NOBRE"
         },
         {
           "code": "casa 01",
@@ -1944,7 +1988,8 @@
           "valuePerM2": 5732.73,
           "appraiser": "JEAN FERREIRA DE OLIVEIRA",
           "reportPath": "property-dossiers/5/unidades/Casa_1.pdf",
-          "reportName": "Casa 1.pdf"
+          "reportName": "Casa 1.pdf",
+          "engineeringValue": 177714.59
         },
         {
           "code": "casa 06",
@@ -1970,7 +2015,8 @@
           "valuePerM2": 4196.26,
           "appraiser": "LUCAS REBELLO CORDEIRO",
           "reportPath": "property-dossiers/5/unidades/Laudo_cs_6.pdf",
-          "reportName": "Laudo cs 6.pdf"
+          "reportName": "Laudo cs 6.pdf",
+          "engineeringValue": 130000.0
         },
         {
           "code": "casa 02",
@@ -2001,7 +2047,10 @@
           "inscricaoMunicipal": "206833-001",
           "appraisalDate": "2026-01-20",
           "reportPath": "property-dossiers/5/unidades/Laudo-APOLO-Casa02.pdf",
-          "reportName": "Laudo-APOLO-Casa02.pdf"
+          "reportName": "Laudo-APOLO-Casa02.pdf",
+          "engineeringValue": 140000.0,
+          "valuePerM2": 4519.04,
+          "appraiser": "MAYCON REI MONTEIRO"
         },
         {
           "code": "casa 07",
@@ -2034,7 +2083,8 @@
           "valuePerM2": 4519.04,
           "appraiser": "MAYCON REI MONTEIRO",
           "reportPath": "property-dossiers/5/unidades/Laudo-APOLO-Casa07.pdf",
-          "reportName": "Laudo-APOLO-Casa07.pdf"
+          "reportName": "Laudo-APOLO-Casa07.pdf",
+          "engineeringValue": 140000.0
         },
         {
           "code": "casa 03",
@@ -2067,7 +2117,8 @@
           "valuePerM2": 5132.34,
           "appraiser": "DAVY BARRETO MARINHO MENEZES",
           "reportPath": "property-dossiers/5/unidades/Laudo_cs_3.pdf",
-          "reportName": "Laudo cs 3.pdf"
+          "reportName": "Laudo cs 3.pdf",
+          "engineeringValue": 159000.0
         },
         {
           "code": "cassa 08",
@@ -2100,7 +2151,8 @@
           "valuePerM2": 5358.3,
           "appraiser": "CARLA REGINA GOMES BARRETO",
           "reportPath": "property-dossiers/5/unidades/Cs_08.pdf",
-          "reportName": "Cs 08.pdf"
+          "reportName": "Cs 08.pdf",
+          "engineeringValue": 166000.0
         },
         {
           "code": "casa 04",
@@ -2131,7 +2183,10 @@
           "inscricaoMunicipal": "206835-001",
           "appraisalDate": "2026-01-21",
           "reportPath": "property-dossiers/5/unidades/Laudo-APOLO-CASA04-134MIL.pdf",
-          "reportName": "Laudo-APOLO-CASA04-134MIL.pdf"
+          "reportName": "Laudo-APOLO-CASA04-134MIL.pdf",
+          "engineeringValue": 134000.0,
+          "valuePerM2": 4313.49,
+          "appraiser": "KARON MURY ARAUJO NOBRE"
         },
         {
           "code": "casa 09",
@@ -2164,7 +2219,8 @@
           "valuePerM2": 6488.06,
           "appraiser": "GUALTER VIEIRA FIGUEIREDO",
           "reportPath": "property-dossiers/5/unidades/Laudo_cs_9.pdf",
-          "reportName": "Laudo cs 9.pdf"
+          "reportName": "Laudo cs 9.pdf",
+          "engineeringValue": 201000.0
         }
       ]
     },
@@ -2220,12 +2276,12 @@
           "salePrice": 145000,
           "bedrooms": 1,
           "catalogStatus": "disponivel",
-          "matricula": "",
+          "matricula": "83.620",
           "historicalEngineering": "R$ 165.336,19",
           "valueHintFromFilename": null,
           "documents": [],
           "notes": "",
-          "matriculaSource": "catalogo",
+          "matriculaSource": "admin",
           "inscricaoMunicipal": "359067001"
         },
         {
@@ -2280,7 +2336,8 @@
           "valuePerM2": 5238.11,
           "appraiser": "DANILO DE ARAUJO CUNHA",
           "reportPath": "property-dossiers/6/unidades/Laudo_Cs_1.pdf",
-          "reportName": "Laudo Cs 1.pdf"
+          "reportName": "Laudo Cs 1.pdf",
+          "engineeringValue": 177152.79
         },
         {
           "code": "casa 06",
@@ -2306,7 +2363,8 @@
           "valuePerM2": 5740.09,
           "appraiser": "LUIS HENRIQUE DOS SANTOS SAMPAIO",
           "reportPath": "property-dossiers/6/unidades/Cs_6.pdf",
-          "reportName": "Cs 6.pdf"
+          "reportName": "Cs 6.pdf",
+          "engineeringValue": 197000.0
         },
         {
           "code": "casa 02",
@@ -2332,7 +2390,8 @@
           "valuePerM2": 6980.16,
           "appraiser": "CRISTINA FLORENCIO NASCIMENTO",
           "reportPath": "property-dossiers/6/unidades/Laudo_cs_2.pdf",
-          "reportName": "Laudo cs 2.pdf"
+          "reportName": "Laudo cs 2.pdf",
+          "engineeringValue": 190000.0
         },
         {
           "code": "casa 07",
@@ -2425,8 +2484,8 @@
           "valueHintFromFilename": null,
           "documents": [
             {
-              "kind": "laudo",
-              "label": "Laudo de engenharia",
+              "kind": "certidao",
+              "label": "Certidão / cartório",
               "name": "Cs 9.pdf",
               "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Laudos Caixa/Cs 9.pdf",
               "storagePath": "property-dossiers/6/unidades/Cs_9.pdf"
@@ -2441,9 +2500,7 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "359067010",
-          "reportPath": "property-dossiers/6/unidades/Cs_9.pdf",
-          "reportName": "Cs 9.pdf"
+          "inscricaoMunicipal": "359067010"
         }
       ]
     },
@@ -2540,7 +2597,8 @@
           "areaM2": 31.98,
           "reportPath": "property-dossiers/7/unidades/Laudo_101.pdf",
           "reportName": "Laudo 101.pdf",
-          "valuePerM2": 5000.73
+          "valuePerM2": 5000.73,
+          "appraiser": "CLAUDIA MARIA DANTAS"
         },
         {
           "code": "APTO 201",
@@ -2586,7 +2644,9 @@
           "areaM2": 31.98,
           "reportPath": "property-dossiers/7/unidades/Laudo_102_.pdf",
           "reportName": "Laudo 102 .pdf",
-          "valuePerM2": 6035.02
+          "valuePerM2": 6035.02,
+          "appraisalDate": "2026-01-29",
+          "appraiser": "TALITA DE SOUZA SANTOS ABREU"
         },
         {
           "code": "APTO 202",
@@ -2620,7 +2680,8 @@
           "areaM2": 30.79,
           "reportPath": "property-dossiers/7/unidades/Laudo-ALCIOSOUTO-576-APTO202_-_167MIL.pdf",
           "reportName": "Laudo-ALCIOSOUTO-576-APTO202 - 167MIL.pdf",
-          "valuePerM2": 5423.84
+          "valuePerM2": 5423.84,
+          "appraiser": "LUCAS REBELLO CORDEIRO"
         },
         {
           "code": "APTO 103",
@@ -2679,7 +2740,9 @@
           "areaM2": 31.98,
           "reportPath": "property-dossiers/7/unidades/Laudo_104_-venc_jul.pdf",
           "reportName": "Laudo 104 -venc jul.pdf",
-          "valuePerM2": 6035.02
+          "valuePerM2": 6035.02,
+          "appraisalDate": "2026-01-29",
+          "appraiser": "TALITA DE SOUZA SANTOS ABREU"
         },
         {
           "code": "APTO 204",
@@ -2746,7 +2809,9 @@
           "areaM2": 30.79,
           "reportPath": "property-dossiers/7/unidades/Laudo_205-venc_jul.pdf",
           "reportName": "Laudo 205-venc jul.pdf",
-          "valuePerM2": 5196.49
+          "valuePerM2": 5196.49,
+          "appraisalDate": "2026-01-29",
+          "appraiser": "ALAN PERRONE PEREIRA"
         },
         {
           "code": "APTO 106",
@@ -2826,7 +2891,9 @@
           "valuePerM2": 4936.67,
           "areaM2": 30.79,
           "reportPath": "property-dossiers/7/unidades/Apto_207.pdf",
-          "reportName": "Apto 207.pdf"
+          "reportName": "Apto 207.pdf",
+          "appraisalDate": "2026-01-30",
+          "appraiser": "MAYCON REI MONTEIRO"
         },
         {
           "code": "APTO 108",
@@ -2912,7 +2979,8 @@
           "areaM2": 35.15,
           "reportPath": "property-dossiers/7/unidades/Laudo_110.pdf",
           "reportName": "Laudo 110.pdf",
-          "valuePerM2": 4583.07
+          "valuePerM2": 4583.07,
+          "appraiser": "CLAUDIA MARIA DANTAS"
         },
         {
           "code": "APTO 210",
@@ -2946,7 +3014,8 @@
           "areaM2": 30.79,
           "reportPath": "property-dossiers/7/unidades/Laudo-ALCIOSOUTO-576-APTO210_-167MIL.pdf",
           "reportName": "Laudo-ALCIOSOUTO-576-APTO210 -167MIL.pdf",
-          "valuePerM2": 5423.84
+          "valuePerM2": 5423.84,
+          "appraiser": "LUCAS REBELLO CORDEIRO"
         }
       ]
     },
