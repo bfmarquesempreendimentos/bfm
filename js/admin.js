@@ -576,6 +576,9 @@ function renderSalesTable() {
             <td>${formatDate(sale.saleDate)}</td>
             <td style="font-size:0.85rem;max-width:140px;">${formatCreatedBySale(sale)}</td>
             <td>
+                <button type="button" class="btn-action" onclick="if (typeof openUnitDossier === 'function') openUnitDossier('${String(sale.propertyId || '').replace(/'/g, '')}', '${String(sale.unitCode || '').replace(/'/g, "\\'")}')" title="Ficha da unidade">
+                    <i class="fas fa-folder-open"></i>
+                </button>
                 <button type="button" class="btn-action btn-secondary" onclick="beginEditSale(${idAttr})" title="Editar">
                     <i class="fas fa-edit"></i>
                 </button>
@@ -1945,6 +1948,9 @@ function loadReservationsData() {
             var statusClass = reservation.renewalDue ? 'renewal-due' : reservation.status;
             var rowClass = reservation.renewalDue ? ' class="row-renewal-due"' : '';
             var actions = '<button class="btn-action btn-view" onclick="viewReservation(\'' + rid + '\')" title="Detalhes"><i class="fas fa-eye"></i></button>';
+            if (reservation.propertyId && typeof openUnitDossier === 'function') {
+                actions += '<button class="btn-action" onclick="openUnitDossier(\'' + String(reservation.propertyId).replace(/'/g, '') + '\', \'' + String(reservation.unitCode || '').replace(/'/g, "\\'") + '\')" title="Ficha da unidade"><i class="fas fa-folder-open"></i></button>';
+            }
             if (adminCan('reservations')) {
                 if (reservation.status === 'pending' || reservation.status === 'active' || reservation.status === 'signed') {
                     actions += '<button class="btn-action btn-edit" onclick="openAdminEditReservationModal(\'' + rid + '\')" title="Editar reserva"><i class="fas fa-pen"></i></button>';

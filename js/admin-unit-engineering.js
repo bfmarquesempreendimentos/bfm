@@ -21,14 +21,20 @@
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    function parseMoneyInput(s) {
+        if (s == null || s === '') return '';
+        if (typeof s === 'number' && isFinite(s)) return s;
+        var t = String(s).replace(/[R$\s]/gi, '').replace(/\./g, '').replace(',', '.');
+        var n = Number(t);
+        return isFinite(n) ? n : '';
+    }
+
     function formatMoney(v) {
         if (v == null || v === '') return '';
         if (typeof v === 'number') return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        var s = String(v);
-        if (/^\d+(\.\d+)?$/.test(s)) {
-            return Number(s).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-        }
-        return s;
+        var parsed = parseMoneyInput(v);
+        if (parsed !== '') return parsed.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        return String(v);
     }
 
     function formatDate(ymd) {
@@ -114,6 +120,9 @@
         if (_property && !_property.inscricaoTerreno && seed.inscricaoTerreno) {
             _property.inscricaoTerreno = seed.inscricaoTerreno;
         }
+        if (_property && !_property.cep && seed.cep) {
+            _property.cep = seed.cep;
+        }
         if (_rows.length) {
             _rows.forEach(function(r) {
                 var su = null;
@@ -124,6 +133,29 @@
                 if (!su) return;
                 if (!r.inscricaoMunicipal && su.inscricaoMunicipal) r.inscricaoMunicipal = su.inscricaoMunicipal;
                 if (!r.matricula && su.matricula) r.matricula = su.matricula;
+                if (!r.appraisalDate && su.appraisalDate) r.appraisalDate = su.appraisalDate;
+                if (!r.valuePerM2 && su.valuePerM2) r.valuePerM2 = su.valuePerM2;
+                if (!r.appraiser && su.appraiser) r.appraiser = su.appraiser;
+                if (!r.reportPath && su.reportPath) {
+                    r.reportPath = su.reportPath;
+                    r.reportName = su.reportName || r.reportName;
+                }
+                if (!r.engineeringValue && su.engineeringValue) r.engineeringValue = su.engineeringValue;
+                if (r.appraisalDate && !r.expiresAt) {
+                    var parts = String(r.appraisalDate).split('-');
+                    if (parts.length === 3) {
+                        var dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                        dt.setMonth(dt.getMonth() + 6);
+                        function pad(n) { return (n < 10 ? '0' : '') + n; }
+                        r.expiresAt = dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
+                        var today = new Date();
+                        var t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                        var days = Math.round((dt - t0) / 86400000);
+                        if (days < 0) { r.status = 'vencida'; r.statusLabel = 'Vencida'; }
+                        else if (days <= 45) { r.status = 'a_vencer'; r.statusLabel = 'A vencer'; }
+                        else { r.status = 'vigente'; r.statusLabel = 'Vigente'; }
+                    }
+                }
             });
             return;
         }
@@ -141,6 +173,11 @@
                 unitCode: code,
                 matricula: (su && su.matricula) || '',
                 inscricaoMunicipal: (su && su.inscricaoMunicipal) || '',
+                appraisalDate: (su && su.appraisalDate) || '',
+                valuePerM2: (su && su.valuePerM2) || '',
+                appraiser: (su && su.appraiser) || '',
+                reportPath: (su && su.reportPath) || '',
+                reportName: (su && su.reportName) || '',
                 salePrice: (su && su.salePrice) != null ? su.salePrice : u.price,
                 engineeringValue: (su && su.historicalEngineering) || '',
                 historicalEngineering: (su && su.historicalEngineering) || '',
@@ -260,10 +297,10 @@
         set('ueUnitCode', unitCode);
         set('ueMatricula', r ? r.matricula : '');
         set('ueInscricao', r ? r.inscricaoMunicipal : '');
-        set('ueSalePrice', r ? r.salePrice : '');
+        set('ueSalePrice', r ? formatMoney(r.salePrice) : '');
         set('ueAppraiser', r ? r.appraiser : '');
-        set('ueValue', r ? (r.engineeringValue || r.historicalEngineering) : '');
-        set('ueM2', r ? r.valuePerM2 : '');
+        set('ueValue', r ? formatMoney(r.engineeringValue || r.historicalEngineering) : '');
+        set('ueM2', r ? formatMoney(r.valuePerM2) : '');
         set('ueDate', r ? r.appraisalDate : '');
         set('ueNotes', r ? r.notes : '');
         var exp = document.getElementById('ueExpiresHint');
@@ -287,9 +324,72 @@
             bindDocLinks(archive);
         }
         var form = document.getElementById('ueForm');
+        renderRelated(selectedPropertyId(), unitCode);
         if (form) {
             form.hidden = false;
             form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    function renderRelated(pid, unitCode) {
+        var box = document.getElementById('ueRelated');
+        if (!box) return;
+        if (!pid || !unitCode) {
+            box.innerHTML = '';
+            return;
+        }
+        var reservations = (window._adminReservationsCache || []).filter(function(r) {
+            return String(r.propertyId) === String(pid) && String(r.unitCode || '') === String(unitCode);
+        });
+        var sales = [];
+        if (typeof getSalesData === 'function') {
+            sales = getSalesData().filter(function(s) {
+                return String(s.propertyId) === String(pid) && String(s.unitCode || '') === String(unitCode);
+            });
+        }
+        var html = '<p class="form-hint"><strong>Ligado a</strong></p><div class="ue-toolbar">';
+        html += '<button type="button" class="btn btn-secondary btn-sm" data-ue-go="reservations">Reservas (' + reservations.length + ')</button>';
+        html += '<button type="button" class="btn btn-secondary btn-sm" data-ue-go="sales">Vendas (' + sales.length + ')</button>';
+        html += '<button type="button" class="btn btn-secondary btn-sm" data-ue-go="boletos">Boletos</button>';
+        html += '</div>';
+        if (reservations[0]) {
+            var cli = (reservations[0].client && reservations[0].client.name) || (reservations[0].clientInfo && reservations[0].clientInfo.name) || '';
+            html += '<p class="form-hint">Reserva ' + esc(reservations[0].status || '') + (cli ? ' · ' + esc(cli) : '') + '</p>';
+        }
+        if (sales[0]) {
+            html += '<p class="form-hint">Venda ' + esc(formatMoney(sales[0].salePrice) || '') + (sales[0].clientName ? ' · ' + esc(sales[0].clientName) : '') + '</p>';
+        }
+        box.innerHTML = html;
+        box.querySelectorAll('[data-ue-go]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                goToLinkedSection(btn.getAttribute('data-ue-go'), pid, unitCode);
+            });
+        });
+    }
+
+    function goToLinkedSection(sectionId, pid, unitCode) {
+        if (sectionId === 'reservations') {
+            var el = document.getElementById('resFilterProperty');
+            if (el) el.value = String(pid);
+            if (typeof showSection === 'function') showSection('reservations');
+            if (typeof loadReservationsData === 'function') loadReservationsData();
+            return;
+        }
+        if (typeof showSection === 'function') showSection(sectionId);
+        if (sectionId === 'sales' && typeof renderSalesTable === 'function') renderSalesTable();
+        if (sectionId === 'boletos' && typeof loadAdminBoletos === 'function') loadAdminBoletos();
+    }
+
+    function openUnitDossier(propertyId, unitCode) {
+        if (typeof openPropertyDocumentation === 'function') {
+            openPropertyDocumentation(propertyId);
+        } else {
+            if (typeof showSection === 'function') showSection('properties');
+            if (typeof showPropertiesTab === 'function') showPropertiesTab('docs');
+            loadUnitEngineeringAdmin(propertyId);
+        }
+        if (unitCode) {
+            setTimeout(function() { fillForm(unitCode); }, 450);
         }
     }
 
@@ -312,7 +412,11 @@
             if (data && data.url) window.open(data.url, '_blank', 'noopener');
             else if (typeof showMessage === 'function') showMessage('Arquivo ainda não está no Storage.', 'warning');
         }).catch(function(err) {
-            if (typeof showMessage === 'function') showMessage(err.message || 'Erro ao abrir o arquivo.', 'error');
+            var msg = err.message || 'Erro ao abrir o arquivo.';
+            if (/não permitida|nao permitida|não encontrado|nao encontrado|404/i.test(msg)) {
+                msg = 'Este PDF ainda está só no arquivo antigo (zip). O envio ao Storage está pendente — por isso o download falha.';
+            }
+            if (typeof showMessage === 'function') showMessage(msg, 'error');
         });
     }
 
@@ -443,11 +547,11 @@
             unitCode: unit,
             matricula: document.getElementById('ueMatricula').value,
             inscricaoMunicipal: document.getElementById('ueInscricao').value,
-            salePrice: document.getElementById('ueSalePrice').value,
+            salePrice: parseMoneyInput(document.getElementById('ueSalePrice').value),
             appraiser: document.getElementById('ueAppraiser').value,
-            engineeringValue: document.getElementById('ueValue').value,
+            engineeringValue: parseMoneyInput(document.getElementById('ueValue').value),
             historicalEngineering: current.historicalEngineering || '',
-            valuePerM2: document.getElementById('ueM2').value,
+            valuePerM2: parseMoneyInput(document.getElementById('ueM2').value),
             appraisalDate: document.getElementById('ueDate').value,
             notes: document.getElementById('ueNotes').value,
             archiveDocuments: current.archiveDocuments || [],
@@ -468,11 +572,18 @@
     async function openEngineeringReport() {
         var unit = document.getElementById('ueUnitCode') && document.getElementById('ueUnitCode').value;
         var r = findRow(unit);
-        if (!r || !r.reportPath) {
-            if (typeof showMessage === 'function') showMessage('Nenhum laudo novo anexado nesta ficha. Os PDFs do arquivo antigo ainda não foram enviados ao Storage.', 'warning');
+        var path = r && r.reportPath;
+        if (!path && r && r.archiveDocuments) {
+            (r.archiveDocuments || []).some(function(d) {
+                if (d.kind === 'laudo' && d.storagePath) { path = d.storagePath; return true; }
+                return false;
+            });
+        }
+        if (!path) {
+            if (typeof showMessage === 'function') showMessage('Nenhum laudo vinculado a esta ficha.', 'warning');
             return;
         }
-        adminPostJson('/getStorageReadUrl', { path: r.reportPath }).then(function(data) {
+        adminPostJson('/getStorageReadUrl', { path: path }).then(function(data) {
             if (data && data.url) window.open(data.url, '_blank', 'noopener');
         }).catch(function(err) {
             if (typeof showMessage === 'function') showMessage(err.message || 'Erro ao abrir laudo.', 'error');
@@ -525,5 +636,13 @@
         window.loadEngineeringAlerts = loadEngineeringAlerts;
         window.openEngineeringReport = openEngineeringReport;
         window.onEngineeringDateChange = onDateChange;
+        window.openUnitDossier = openUnitDossier;
+        window.fillUnitEngineeringForm = fillForm;
+        window.formatUeMoneyField = function(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var n = parseMoneyInput(el.value);
+            if (n !== '') el.value = formatMoney(n);
+        };
     }
 })();

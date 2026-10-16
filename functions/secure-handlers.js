@@ -282,7 +282,8 @@ async function getStorageReadUrlHttp(req, res) {
   if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
   try {
     var body = req.body || {};
-    var path = String(body.path || '').replace(/^\/+/, '');
+    var path = String(body.path || body.storagePath || '').replace(/^\/+/, '');
+    path = path.replace(/^gs:\/\/[^/]+\//, '');
     if (!path || path.indexOf('..') >= 0) return res.status(400).json({ error: 'path inválido' });
     var allowed =
       path.indexOf('sale-contracts/') === 0 ||
@@ -291,7 +292,12 @@ async function getStorageReadUrlHttp(req, res) {
       path.indexOf('repair-attachments/') === 0 ||
       path.indexOf('repair-response-attachments/') === 0 ||
       path.indexOf('boleto-receipts/') === 0;
-    if (!allowed) return res.status(403).json({ error: 'Pasta não permitida' });
+    if (!allowed) {
+      return res.status(403).json({
+        error: 'Pasta não permitida',
+        hint: 'Use o arquivo do cadastro (property-dossiers/… ou engineering-reports/…).',
+      });
+    }
     var file = admin.storage().bucket().file(path);
     var exists = await file.exists();
     if (!exists[0]) return res.status(404).json({ error: 'Arquivo não encontrado' });

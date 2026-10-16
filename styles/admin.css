@@ -1354,6 +1354,14 @@
     color: var(--admin-text-muted, #64748b);
 }
 .pd-doc-more { margin-top: 10px; }
+.pd-related {
+    margin: 12px 0;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+.pd-related .ue-toolbar { margin: 6px 0; }
 .pd-doc-link {
     background: none;
     border: 0;

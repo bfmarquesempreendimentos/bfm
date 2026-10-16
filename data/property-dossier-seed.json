@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-16-cadastro-iptu-inscricoes",
+  "version": "2026-10-16-laudos-cep-fichas",
   "source": "Arquivo antigo do Drive cruzado com o catálogo do site. CREA 2005111141 e engenheiro extraídos da guia ART. Cartórios e matrículas extraídos das certidões de ônus/RGI. Coelho 24u e planilha PRONTOS fora. Preços = vitrine atual.",
   "properties": {
     "1": {
@@ -8,7 +8,7 @@
       "street": "Rua Lourival Martins, 31",
       "neighborhood": "Porto Novo",
       "city": "São Gonçalo - RJ",
-      "cep": "",
+      "cep": "24435-685",
       "mapsUrl": "https://maps.app.goo.gl/FmuFKNprhngr2hGG9",
       "engenheiro": "Carlos Domingos Azevedo da Silva",
       "crea": "2005111141",
@@ -187,7 +187,12 @@
           ],
           "notes": "",
           "matriculaSource": "catalogo+onus",
-          "inscricaoMunicipal": "25237000"
+          "inscricaoMunicipal": "25237000",
+          "engineeringValue": 213398.12,
+          "areaM2": 61.71,
+          "reportPath": "property-dossiers/1/unidades/LAUDO_VALIDO_N_31.pdf",
+          "reportName": "LAUDO VALIDO N 31.pdf",
+          "valuePerM2": 3458.08
         },
         {
           "code": "31 cs 5 sob (1qt)",
@@ -215,7 +220,12 @@
           ],
           "notes": "",
           "matriculaSource": "catalogo",
-          "inscricaoMunicipal": "505930000"
+          "inscricaoMunicipal": "505930000",
+          "appraisalDate": "2025-09-17",
+          "valuePerM2": 5222.22,
+          "appraiser": "CAMILA OLIVEIRA NUNES",
+          "reportPath": "property-dossiers/1/unidades/Laudo_cs_5_Sobrado.pdf",
+          "reportName": "Laudo cs 5 Sobrado.pdf"
         },
         {
           "code": "31 cs 6 (1qt)",
@@ -285,7 +295,13 @@
           ],
           "notes": "",
           "matriculaSource": "catalogo",
-          "inscricaoMunicipal": "505928000"
+          "inscricaoMunicipal": "505928000",
+          "appraisalDate": "2025-09-18",
+          "engineeringValue": 225000.0,
+          "areaM2": 67.48,
+          "reportPath": "property-dossiers/1/unidades/Laudo_cs_8.pdf",
+          "reportName": "Laudo_cs 8.pdf",
+          "valuePerM2": 3334.32
         },
         {
           "code": "31 cs 7 sob (1qt)",
@@ -341,7 +357,12 @@
           ],
           "notes": "",
           "matriculaSource": "catalogo+onus",
-          "inscricaoMunicipal": "505929000"
+          "inscricaoMunicipal": "505929000",
+          "appraisalDate": "2025-03-15",
+          "valuePerM2": 4525.17,
+          "appraiser": "SERGIO MENEZES DA SILVA",
+          "reportPath": "property-dossiers/1/unidades/LAUDO_VALIDO_CASA_04.pdf",
+          "reportName": "LAUDO VALIDO CASA 04.pdf"
         },
         {
           "code": "31 cs 8 sob (1qt)",
@@ -369,7 +390,12 @@
           ],
           "notes": "",
           "matriculaSource": "catalogo",
-          "inscricaoMunicipal": "505933000"
+          "inscricaoMunicipal": "505933000",
+          "engineeringValue": 218397.48,
+          "areaM2": 79.65,
+          "reportPath": "property-dossiers/1/unidades/Laudo_cs_8_Sobrado.pdf",
+          "reportName": "Laudo cs 8 Sobrado.pdf",
+          "valuePerM2": 2741.96
         },
         {
           "code": "31 cs 5 (1qt ind.)",
@@ -460,7 +486,12 @@
           ],
           "notes": "",
           "matriculaSource": "catalogo",
-          "inscricaoMunicipal": "74086000"
+          "inscricaoMunicipal": "74086000",
+          "appraisalDate": "2025-07-07",
+          "valuePerM2": 3295.89,
+          "appraiser": "EDISON FORTUNATO DE SOUZA JUNIOR",
+          "reportPath": "property-dossiers/1/unidades/Laudo_31_cs_2.pdf",
+          "reportName": "Laudo 31 cs 2.pdf"
         },
         {
           "code": "31 cs 4 ap (2qts)",
@@ -495,7 +526,12 @@
           ],
           "notes": "",
           "matriculaSource": "catalogo+onus",
-          "inscricaoMunicipal": "128856000"
+          "inscricaoMunicipal": "128856000",
+          "engineeringValue": 210000.0,
+          "areaM2": 71.0,
+          "reportPath": "property-dossiers/1/unidades/LAUDO_VALIDO_CASA_04_APT_103.pdf",
+          "reportName": "LAUDO VALIDO CASA 04 APT 103.pdf",
+          "valuePerM2": 2957.75
         },
         {
           "code": "31 cs 3 (2qts)",
@@ -526,7 +562,7 @@
       "street": "Rua Alcio Souto, 348",
       "neighborhood": "Nova Cidade",
       "city": "São Gonçalo - RJ",
-      "cep": "",
+      "cep": "24474-260",
       "mapsUrl": "https://maps.app.goo.gl/gyF6ERJs1rrKHkbZ9",
       "engenheiro": "Carlos Domingos Azevedo da Silva",
       "crea": "2005111141",
@@ -621,7 +657,10 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "154828001"
+          "inscricaoMunicipal": "154828001",
+          "appraisalDate": "2026-01-21",
+          "reportPath": "property-dossiers/2/unidades/Casa_base.pdf",
+          "reportName": "Casa base.pdf"
         },
         {
           "code": "casa 05",
@@ -649,7 +688,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "154828006"
+          "inscricaoMunicipal": "154828006",
+          "appraisalDate": "2026-01-21",
+          "valuePerM2": 5574.81,
+          "appraiser": "LUIZ FERNANDO GOMES SOUTINHO",
+          "reportPath": "property-dossiers/2/unidades/Laudo-348-Casa05.pdf",
+          "reportName": "Laudo-348-Casa05.pdf"
         },
         {
           "code": "casa 01",
@@ -677,7 +721,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "154828002"
+          "inscricaoMunicipal": "154828002",
+          "appraisalDate": "2026-01-21",
+          "valuePerM2": 5574.81,
+          "appraiser": "LUIZ FERNANDO GOMES SOUTINHO",
+          "reportPath": "property-dossiers/2/unidades/Laudo-348-Casa01.pdf",
+          "reportName": "Laudo-348-Casa01.pdf"
         },
         {
           "code": "casa 06",
@@ -705,7 +754,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "154828007"
+          "inscricaoMunicipal": "154828007",
+          "appraisalDate": "2026-01-21",
+          "valuePerM2": 5432.86,
+          "appraiser": "CLAUDIA MARIA DANTAS",
+          "reportPath": "property-dossiers/2/unidades/Laudo_cs_6.pdf",
+          "reportName": "Laudo cs 6.pdf"
         },
         {
           "code": "casa 02",
@@ -733,7 +787,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "154828003"
+          "inscricaoMunicipal": "154828003",
+          "appraisalDate": "2026-01-19",
+          "valuePerM2": 7225.43,
+          "appraiser": "LUIZ HENRIQUE DA SILVA",
+          "reportPath": "property-dossiers/2/unidades/Casa_2.pdf",
+          "reportName": "Casa 2.pdf"
         },
         {
           "code": "casa 07",
@@ -761,7 +820,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "154828008"
+          "inscricaoMunicipal": "154828008",
+          "appraisalDate": "2026-01-21",
+          "valuePerM2": 5574.81,
+          "appraiser": "LUIZ FERNANDO GOMES SOUTINHO",
+          "reportPath": "property-dossiers/2/unidades/Laudo-348-Casa07.pdf",
+          "reportName": "Laudo-348-Casa07.pdf"
         },
         {
           "code": "casa 03",
@@ -789,7 +853,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "154828004"
+          "inscricaoMunicipal": "154828004",
+          "appraisalDate": "2026-01-21",
+          "valuePerM2": 5432.86,
+          "appraiser": "CLAUDIA MARIA DANTAS",
+          "reportPath": "property-dossiers/2/unidades/LAUDO-348-CASA_03.pdf",
+          "reportName": "LAUDO-348-CASA 03.pdf"
         },
         {
           "code": "cassa 08",
@@ -817,7 +886,10 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "154828009"
+          "inscricaoMunicipal": "154828009",
+          "appraisalDate": "2026-01-21",
+          "reportPath": "property-dossiers/2/unidades/Casa_8.pdf",
+          "reportName": "Casa 8.pdf"
         },
         {
           "code": "casa 04",
@@ -845,7 +917,10 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "154828005"
+          "inscricaoMunicipal": "154828005",
+          "appraisalDate": "2026-01-21",
+          "reportPath": "property-dossiers/2/unidades/Casa_4.pdf",
+          "reportName": "Casa 4.pdf"
         },
         {
           "code": "casa 09",
@@ -873,7 +948,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "154828010"
+          "inscricaoMunicipal": "154828010",
+          "appraisalDate": "2026-01-19",
+          "valuePerM2": 5377.75,
+          "appraiser": "LUIZ HENRIQUE DA SILVA",
+          "reportPath": "property-dossiers/2/unidades/Casa_9.pdf",
+          "reportName": "Casa 9.pdf"
         }
       ]
     },
@@ -883,7 +963,7 @@
       "street": "Rua Lopes da Cruz, 136",
       "neighborhood": "Amendoeira",
       "city": "São Gonçalo - RJ",
-      "cep": "",
+      "cep": "24746-181",
       "mapsUrl": "https://maps.app.goo.gl/i3eExj2Wk3vD2xQNA",
       "engenheiro": "Carlos Domingos Azevedo da Silva",
       "crea": "2005111141",
@@ -978,7 +1058,13 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "359068001"
+          "inscricaoMunicipal": "359068001",
+          "appraisalDate": "2026-01-15",
+          "engineeringValue": 176830.79,
+          "areaM2": 31.98,
+          "reportPath": "property-dossiers/3/unidades/Laudo_101.pdf",
+          "reportName": "Laudo 101.pdf",
+          "valuePerM2": 5529.42
         },
         {
           "code": "APTO 201",
@@ -1020,7 +1106,7 @@
           "bedrooms": 1,
           "catalogStatus": "reservado",
           "matricula": "84.393",
-          "historicalEngineering": "",
+          "historicalEngineering": "R$ 149.000,00",
           "valueHintFromFilename": null,
           "documents": [
             {
@@ -1033,7 +1119,11 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "359068012"
+          "inscricaoMunicipal": "359068012",
+          "engineeringValue": 149000.0,
+          "areaM2": 30.79,
+          "reportPath": "property-dossiers/3/unidades/Apto_202.pdf",
+          "reportName": "Apto 202.pdf"
         },
         {
           "code": "APTO 103",
@@ -1113,7 +1203,13 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "359068005"
+          "inscricaoMunicipal": "359068005",
+          "appraisalDate": "2026-01-15",
+          "engineeringValue": 176830.79,
+          "areaM2": 31.98,
+          "reportPath": "property-dossiers/3/unidades/Laudo_105.pdf",
+          "reportName": "Laudo 105.pdf",
+          "valuePerM2": 5529.42
         },
         {
           "code": "APTO 205",
@@ -1282,7 +1378,13 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "359068010"
+          "inscricaoMunicipal": "359068010",
+          "appraisalDate": "2026-01-15",
+          "engineeringValue": 194603.92,
+          "areaM2": 38.28,
+          "reportPath": "property-dossiers/3/unidades/Laudo_apto_110.pdf",
+          "reportName": "Laudo apto 110.pdf",
+          "valuePerM2": 5083.7
         },
         {
           "code": "APTO 210",
@@ -1313,7 +1415,7 @@
       "street": "Rua Jussara, 178",
       "neighborhood": "Laranjal",
       "city": "São Gonçalo - RJ",
-      "cep": "",
+      "cep": "24720-580",
       "mapsUrl": "https://maps.app.goo.gl/sjoAjX93gB5aN8EV6",
       "engenheiro": "Carlos Domingos Azevedo da Silva",
       "crea": "2005111141",
@@ -1446,7 +1548,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "802598007"
+          "inscricaoMunicipal": "802598007",
+          "appraisalDate": "2026-05-21",
+          "valuePerM2": 6536.2,
+          "appraiser": "LUCAS REBELLO CORDEIRO",
+          "reportPath": "property-dossiers/4/unidades/Cs_6.pdf",
+          "reportName": "Cs 6.pdf"
         },
         {
           "code": "CS 11",
@@ -1500,7 +1607,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "802598008"
+          "inscricaoMunicipal": "802598008",
+          "appraisalDate": "2026-05-15",
+          "valuePerM2": 5870.84,
+          "appraiser": "FERNANDO SOARES NUNES",
+          "reportPath": "property-dossiers/4/unidades/Cs_7.pdf",
+          "reportName": "Cs 7.pdf"
         },
         {
           "code": "CS 12",
@@ -1580,7 +1692,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "802598005"
+          "inscricaoMunicipal": "802598005",
+          "appraisalDate": "2026-05-19",
+          "valuePerM2": 5292.48,
+          "appraiser": "DANIELLE CHAGAS BERTHOLO FREDERICK",
+          "reportPath": "property-dossiers/4/unidades/Cs_4.pdf",
+          "reportName": "Cs 4.pdf"
         },
         {
           "code": "CS 09",
@@ -1608,7 +1725,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "802598010"
+          "inscricaoMunicipal": "802598010",
+          "appraisalDate": "2026-05-21",
+          "valuePerM2": 5454.56,
+          "appraiser": "ANDRE ANDRADE DE LIMA",
+          "reportPath": "property-dossiers/4/unidades/Cs_9.pdf",
+          "reportName": "Cs 9.pdf"
         },
         {
           "code": "CS 14",
@@ -1636,7 +1758,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "802598015"
+          "inscricaoMunicipal": "802598015",
+          "appraisalDate": "2026-05-21",
+          "valuePerM2": 5454.56,
+          "appraiser": "ANDRE ANDRADE DE LIMA",
+          "reportPath": "property-dossiers/4/unidades/Cs_14.pdf",
+          "reportName": "Cs 14.pdf"
         }
       ]
     },
@@ -1646,7 +1773,7 @@
       "street": "Rua Maria José Arruda Barbosa, LT 02 QD 18",
       "neighborhood": "Apolo",
       "city": "Itaboraí - RJ",
-      "cep": "",
+      "cep": "24858-540",
       "mapsUrl": "https://www.google.com/maps?q=Rua+Maria+Jos%C3%A9+Arruda+Barbosa+LT+02+QD+18+Apolo+Itabora%C3%AD",
       "engenheiro": "Carlos Domingos Azevedo da Silva",
       "crea": "2005111141",
@@ -1748,7 +1875,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "056094-001"
+          "inscricaoMunicipal": "056094-001",
+          "appraisalDate": "2026-02-02",
+          "valuePerM2": 5842.48,
+          "appraiser": "DIEGO SOARES OLIVEIRA",
+          "reportPath": "property-dossiers/5/unidades/Casa_base.pdf",
+          "reportName": "Casa base.pdf"
         },
         {
           "code": "casa 05",
@@ -1776,7 +1908,10 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "206836-001"
+          "inscricaoMunicipal": "206836-001",
+          "appraisalDate": "2026-01-21",
+          "reportPath": "property-dossiers/5/unidades/Laudo-APOLO-CASA05-130MIL.pdf",
+          "reportName": "Laudo-APOLO-CASA05-130MIL.pdf"
         },
         {
           "code": "casa 01",
@@ -1804,7 +1939,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "206832-001"
+          "inscricaoMunicipal": "206832-001",
+          "appraisalDate": "2026-01-30",
+          "valuePerM2": 5732.73,
+          "appraiser": "JEAN FERREIRA DE OLIVEIRA",
+          "reportPath": "property-dossiers/5/unidades/Casa_1.pdf",
+          "reportName": "Casa 1.pdf"
         },
         {
           "code": "casa 06",
@@ -1825,7 +1965,12 @@
           ],
           "notes": "Matrícula pela sequência do RGI do prédio.",
           "matriculaSource": "sequencia_matriculas",
-          "inscricaoMunicipal": "206837-001"
+          "inscricaoMunicipal": "206837-001",
+          "appraisalDate": "2026-04-01",
+          "valuePerM2": 4196.26,
+          "appraiser": "LUCAS REBELLO CORDEIRO",
+          "reportPath": "property-dossiers/5/unidades/Laudo_cs_6.pdf",
+          "reportName": "Laudo cs 6.pdf"
         },
         {
           "code": "casa 02",
@@ -1853,7 +1998,10 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "206833-001"
+          "inscricaoMunicipal": "206833-001",
+          "appraisalDate": "2026-01-20",
+          "reportPath": "property-dossiers/5/unidades/Laudo-APOLO-Casa02.pdf",
+          "reportName": "Laudo-APOLO-Casa02.pdf"
         },
         {
           "code": "casa 07",
@@ -1881,7 +2029,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "206838-001"
+          "inscricaoMunicipal": "206838-001",
+          "appraisalDate": "2026-01-20",
+          "valuePerM2": 4519.04,
+          "appraiser": "MAYCON REI MONTEIRO",
+          "reportPath": "property-dossiers/5/unidades/Laudo-APOLO-Casa07.pdf",
+          "reportName": "Laudo-APOLO-Casa07.pdf"
         },
         {
           "code": "casa 03",
@@ -1909,7 +2062,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "206834-001"
+          "inscricaoMunicipal": "206834-001",
+          "appraisalDate": "2026-03-24",
+          "valuePerM2": 5132.34,
+          "appraiser": "DAVY BARRETO MARINHO MENEZES",
+          "reportPath": "property-dossiers/5/unidades/Laudo_cs_3.pdf",
+          "reportName": "Laudo cs 3.pdf"
         },
         {
           "code": "cassa 08",
@@ -1937,7 +2095,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "206839-001"
+          "inscricaoMunicipal": "206839-001",
+          "appraisalDate": "2026-02-02",
+          "valuePerM2": 5358.3,
+          "appraiser": "CARLA REGINA GOMES BARRETO",
+          "reportPath": "property-dossiers/5/unidades/Cs_08.pdf",
+          "reportName": "Cs 08.pdf"
         },
         {
           "code": "casa 04",
@@ -1965,7 +2128,10 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "206835-001"
+          "inscricaoMunicipal": "206835-001",
+          "appraisalDate": "2026-01-21",
+          "reportPath": "property-dossiers/5/unidades/Laudo-APOLO-CASA04-134MIL.pdf",
+          "reportName": "Laudo-APOLO-CASA04-134MIL.pdf"
         },
         {
           "code": "casa 09",
@@ -1993,7 +2159,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "206840-001"
+          "inscricaoMunicipal": "206840-001",
+          "appraisalDate": "2026-01-21",
+          "valuePerM2": 6488.06,
+          "appraiser": "GUALTER VIEIRA FIGUEIREDO",
+          "reportPath": "property-dossiers/5/unidades/Laudo_cs_9.pdf",
+          "reportName": "Laudo cs 9.pdf"
         }
       ]
     },
@@ -2003,7 +2174,7 @@
       "street": "Rua Lopes da Cruz, 122",
       "neighborhood": "Coelho",
       "city": "São Gonçalo - RJ",
-      "cep": "",
+      "cep": "24746-181",
       "mapsUrl": "https://maps.app.goo.gl/XBHZuNsdxTTVmnw66",
       "engenheiro": "Carlos Domingos Azevedo da Silva",
       "crea": "2005111141",
@@ -2104,7 +2275,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "359067002"
+          "inscricaoMunicipal": "359067002",
+          "appraisalDate": "2025-07-03",
+          "valuePerM2": 5238.11,
+          "appraiser": "DANILO DE ARAUJO CUNHA",
+          "reportPath": "property-dossiers/6/unidades/Laudo_Cs_1.pdf",
+          "reportName": "Laudo Cs 1.pdf"
         },
         {
           "code": "casa 06",
@@ -2125,7 +2301,12 @@
           ],
           "notes": "Matrícula pela sequência do RGI do prédio.",
           "matriculaSource": "sequencia_matriculas",
-          "inscricaoMunicipal": "359067007"
+          "inscricaoMunicipal": "359067007",
+          "appraisalDate": "2025-08-13",
+          "valuePerM2": 5740.09,
+          "appraiser": "LUIS HENRIQUE DOS SANTOS SAMPAIO",
+          "reportPath": "property-dossiers/6/unidades/Cs_6.pdf",
+          "reportName": "Cs 6.pdf"
         },
         {
           "code": "casa 02",
@@ -2146,7 +2327,12 @@
           ],
           "notes": "Matrícula pela sequência do RGI do prédio.",
           "matriculaSource": "sequencia_matriculas",
-          "inscricaoMunicipal": "359067003"
+          "inscricaoMunicipal": "359067003",
+          "appraisalDate": "2025-08-11",
+          "valuePerM2": 6980.16,
+          "appraiser": "CRISTINA FLORENCIO NASCIMENTO",
+          "reportPath": "property-dossiers/6/unidades/Laudo_cs_2.pdf",
+          "reportName": "Laudo cs 2.pdf"
         },
         {
           "code": "casa 07",
@@ -2174,7 +2360,13 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "359067008"
+          "inscricaoMunicipal": "359067008",
+          "appraisalDate": "2025-07-03",
+          "engineeringValue": 199100.0,
+          "valuePerM2": 5801.28,
+          "appraiser": "JESSICA DE ABREU CARVALHAES",
+          "reportPath": "property-dossiers/6/unidades/Laudo_cs_7.pdf",
+          "reportName": "Laudo cs 7.pdf"
         },
         {
           "code": "casa 03",
@@ -2249,7 +2441,9 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "359067010"
+          "inscricaoMunicipal": "359067010",
+          "reportPath": "property-dossiers/6/unidades/Cs_9.pdf",
+          "reportName": "Cs 9.pdf"
         }
       ]
     },
@@ -2259,7 +2453,7 @@
       "street": "Rua Alcio Souto, 576",
       "neighborhood": "Luiz Caçador",
       "city": "São Gonçalo - RJ",
-      "cep": "",
+      "cep": "24474-260",
       "mapsUrl": "https://maps.app.goo.gl/N4CNvNQwx1KWBFCH6",
       "engenheiro": "Carlos Domingos Azevedo da Silva",
       "crea": "2005111141",
@@ -2340,7 +2534,13 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "366126001"
+          "inscricaoMunicipal": "366126001",
+          "appraisalDate": "2026-01-21",
+          "engineeringValue": 159923.35,
+          "areaM2": 31.98,
+          "reportPath": "property-dossiers/7/unidades/Laudo_101.pdf",
+          "reportName": "Laudo 101.pdf",
+          "valuePerM2": 5000.73
         },
         {
           "code": "APTO 201",
@@ -2381,7 +2581,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "366126002"
+          "inscricaoMunicipal": "366126002",
+          "engineeringValue": 193000.0,
+          "areaM2": 31.98,
+          "reportPath": "property-dossiers/7/unidades/Laudo_102_.pdf",
+          "reportName": "Laudo 102 .pdf",
+          "valuePerM2": 6035.02
         },
         {
           "code": "APTO 202",
@@ -2409,7 +2614,13 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "366126012"
+          "inscricaoMunicipal": "366126012",
+          "appraisalDate": "2026-01-19",
+          "engineeringValue": 167000.0,
+          "areaM2": 30.79,
+          "reportPath": "property-dossiers/7/unidades/Laudo-ALCIOSOUTO-576-APTO202_-_167MIL.pdf",
+          "reportName": "Laudo-ALCIOSOUTO-576-APTO202 - 167MIL.pdf",
+          "valuePerM2": 5423.84
         },
         {
           "code": "APTO 103",
@@ -2463,7 +2674,12 @@
           ],
           "notes": "Arquivo indica vencimento no nome.",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "366126004"
+          "inscricaoMunicipal": "366126004",
+          "engineeringValue": 193000.0,
+          "areaM2": 31.98,
+          "reportPath": "property-dossiers/7/unidades/Laudo_104_-venc_jul.pdf",
+          "reportName": "Laudo 104 -venc jul.pdf",
+          "valuePerM2": 6035.02
         },
         {
           "code": "APTO 204",
@@ -2525,7 +2741,12 @@
           ],
           "notes": "Arquivo indica vencimento no nome.",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "366126015"
+          "inscricaoMunicipal": "366126015",
+          "engineeringValue": 160000.0,
+          "areaM2": 30.79,
+          "reportPath": "property-dossiers/7/unidades/Laudo_205-venc_jul.pdf",
+          "reportName": "Laudo 205-venc jul.pdf",
+          "valuePerM2": 5196.49
         },
         {
           "code": "APTO 106",
@@ -2600,7 +2821,12 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "366126017"
+          "inscricaoMunicipal": "366126017",
+          "engineeringValue": 152000.0,
+          "valuePerM2": 4936.67,
+          "areaM2": 30.79,
+          "reportPath": "property-dossiers/7/unidades/Apto_207.pdf",
+          "reportName": "Apto 207.pdf"
         },
         {
           "code": "APTO 108",
@@ -2680,7 +2906,13 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "366126010"
+          "inscricaoMunicipal": "366126010",
+          "appraisalDate": "2026-01-21",
+          "engineeringValue": 161094.88,
+          "areaM2": 35.15,
+          "reportPath": "property-dossiers/7/unidades/Laudo_110.pdf",
+          "reportName": "Laudo 110.pdf",
+          "valuePerM2": 4583.07
         },
         {
           "code": "APTO 210",
@@ -2708,7 +2940,13 @@
           ],
           "notes": "",
           "matriculaSource": "certidao_onus",
-          "inscricaoMunicipal": "366126020"
+          "inscricaoMunicipal": "366126020",
+          "appraisalDate": "2026-01-19",
+          "engineeringValue": 167000.0,
+          "areaM2": 30.79,
+          "reportPath": "property-dossiers/7/unidades/Laudo-ALCIOSOUTO-576-APTO210_-167MIL.pdf",
+          "reportName": "Laudo-ALCIOSOUTO-576-APTO210 -167MIL.pdf",
+          "valuePerM2": 5423.84
         }
       ]
     },

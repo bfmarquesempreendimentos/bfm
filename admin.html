@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
     <link rel="stylesheet" href="styles/main.css?v=37">
-    <link rel="stylesheet" href="styles/admin.css?v=41">
+    <link rel="stylesheet" href="styles/admin.css?v=42">
     <link rel="stylesheet" href="styles/admin-finance.css?v=1">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -535,16 +535,16 @@
                                 <input type="text" id="ueInscricao">
                             </label>
                             <label>Preço (vitrine)
-                                <input type="text" id="ueSalePrice" placeholder="Ex: 160000">
+                                <input type="text" id="ueSalePrice" placeholder="R$ 160.000,00" inputmode="decimal" onblur="if (typeof formatUeMoneyField === 'function') formatUeMoneyField('ueSalePrice')">
                             </label>
                             <label>Responsável pelo laudo
                                 <input type="text" id="ueAppraiser" placeholder="Avaliador / engenharia">
                             </label>
                             <label>Valor da engenharia (R$)
-                                <input type="text" id="ueValue" placeholder="Ex: 188000">
+                                <input type="text" id="ueValue" placeholder="R$ 188.000,00" inputmode="decimal" onblur="if (typeof formatUeMoneyField === 'function') formatUeMoneyField('ueValue')">
                             </label>
                             <label>Valor do m² (R$)
-                                <input type="text" id="ueM2">
+                                <input type="text" id="ueM2" placeholder="R$ 5.000,00" inputmode="decimal" onblur="if (typeof formatUeMoneyField === 'function') formatUeMoneyField('ueM2')">
                             </label>
                             <label>Data da engenharia
                                 <input type="date" id="ueDate" onchange="onEngineeringDateChange()">
@@ -559,6 +559,7 @@
                         </label>
                         <h5>Arquivos antigos desta unidade</h5>
                         <ul id="ueArchiveDocs" class="pd-doc-list"></ul>
+                        <div id="ueRelated" class="pd-related"></div>
                         <div class="ue-toolbar">
                             <button type="submit" class="btn btn-primary">Salvar ficha da unidade</button>
                             <button type="button" class="btn btn-secondary" onclick="openEngineeringReport()">Abrir laudo anexado</button>
@@ -2068,7 +2069,7 @@
 
     <!-- Scripts -->
     <script src="js/compat-polyfills.js"></script>
-    <script src="config.js?v=41"></script>
+    <script src="config.js?v=42"></script>
     <script src="js/dom-utils.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/audit.js"></script>
@@ -2104,8 +2105,8 @@
     <script src="js/admin-finance.js?v=1"></script>
     <script src="js/admin-reports.js?v=4"></script>
     <script src="js/admin-broker-reservations-report.js?v=4"></script>
-    <script src="js/admin-unit-engineering.js?v=5"></script>
-    <script src="js/admin.js?v=49"></script>
+    <script src="js/admin-unit-engineering.js?v=6"></script>
+    <script src="js/admin.js?v=50"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>

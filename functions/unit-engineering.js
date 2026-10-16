@@ -241,8 +241,23 @@ function mergeUnitRow(propertyId, catalogUnit, catalog, firestoreRow) {
   if (!row.inscricaoMunicipal && seedU.inscricaoMunicipal) {
     row.inscricaoMunicipal = seedU.inscricaoMunicipal;
   }
+  if (!row.appraisalDate && seedU.appraisalDate) row.appraisalDate = seedU.appraisalDate;
+  if (!row.valuePerM2 && seedU.valuePerM2) row.valuePerM2 = seedU.valuePerM2;
+  if (!row.appraiser && seedU.appraiser) row.appraiser = seedU.appraiser;
+  if (!row.reportPath && seedU.reportPath) {
+    row.reportPath = seedU.reportPath;
+    row.reportName = seedU.reportName || row.reportName || '';
+  }
+  if (!row.expiresAt && row.appraisalDate) {
+    row.expiresAt = addMonthsYmd(row.appraisalDate, VALIDITY_MONTHS);
+    var c = classify(row.expiresAt);
+    row.status = c.status;
+    row.daysLeft = c.daysLeft;
+    row.statusLabel = c.label;
+  }
   if (!row.historicalEngineering) row.historicalEngineering = hist || '';
   if (row.salePrice === '' || row.salePrice == null) row.salePrice = salePrice;
+  if (!row.engineeringValue && seedU.engineeringValue) row.engineeringValue = seedU.engineeringValue;
   if (!row.engineeringValue && seedU.valueHintFromFilename) {
     row.valueHintFromFilename = seedU.valueHintFromFilename;
   }
