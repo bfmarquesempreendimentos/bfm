@@ -1,0 +1,2748 @@
+{
+  "version": "2026-10-16-cadastro-iptu-inscricoes",
+  "source": "Arquivo antigo do Drive cruzado com o catálogo do site. CREA 2005111141 e engenheiro extraídos da guia ART. Cartórios e matrículas extraídos das certidões de ônus/RGI. Coelho 24u e planilha PRONTOS fora. Preços = vitrine atual.",
+  "properties": {
+    "1": {
+      "propertyId": 1,
+      "officialName": "Condomínio Porto Novo",
+      "street": "Rua Lourival Martins, 31",
+      "neighborhood": "Porto Novo",
+      "city": "São Gonçalo - RJ",
+      "cep": "",
+      "mapsUrl": "https://maps.app.goo.gl/FmuFKNprhngr2hGG9",
+      "engenheiro": "Carlos Domingos Azevedo da Silva",
+      "crea": "2005111141",
+      "cartorio": "2º Ofício de Justiça de São Gonçalo — Registro de Imóveis (Tyrone Gomes). Rua Dr. Feliciano Sodré, 138, Centro, São Gonçalo/RJ. contato@2oficiosg.com.br · (21) 97188-1744",
+      "matriculaMae": "51.881",
+      "inscricaoTerreno": "25237000",
+      "artNumber": "2020250093564",
+      "inSales": false,
+      "notes": "Empreendimento esgotado — histórico interno.",
+      "documents": [
+        {
+          "kind": "memorial",
+          "label": "Memorial descritivo",
+          "name": "Memorial Porto Novo 14u - Page 1.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Memorial Porto Novo 14u - Page 1.pdf",
+          "storagePath": "property-dossiers/1/predio/Memorial_Porto_Novo_14u_-_Page_1.pdf"
+        },
+        {
+          "kind": "art",
+          "label": "ART",
+          "name": "Art Porto Novo - Page 1.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Art Porto Novo - Page 1.pdf",
+          "storagePath": "property-dossiers/1/predio/Art_Porto_Novo_-_Page_1.pdf"
+        },
+        {
+          "kind": "vendedores",
+          "label": "Documentos dos vendedores",
+          "name": "Conta caixa Porto Novo.jpg",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Documentos vendedores/Conta caixa Porto Novo.jpg",
+          "storagePath": "property-dossiers/1/predio/Conta_caixa_Porto_Novo.jpg"
+        },
+        {
+          "kind": "vendedores",
+          "label": "Documentos dos vendedores",
+          "name": "CPF Monica.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Documentos vendedores/CPF Monica.pdf",
+          "storagePath": "property-dossiers/1/predio/CPF_Monica.pdf"
+        },
+        {
+          "kind": "crea",
+          "label": "CREA",
+          "name": "Crea Carlos Domingos 11-17-2021 18-56-15.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Crea Carlos Domingos 11-17-2021 18-56-15.pdf",
+          "storagePath": "property-dossiers/1/predio/Crea_Carlos_Domingos_11-17-2021_18-56-15.pdf"
+        },
+        {
+          "kind": "vendedores",
+          "label": "Documentos dos vendedores",
+          "name": "Docs vendedores.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Documentos vendedores/Docs vendedores.pdf",
+          "storagePath": "property-dossiers/1/predio/Docs_vendedores.pdf"
+        },
+        {
+          "kind": "midia",
+          "label": "Mídia",
+          "name": "PHOTO-2025-04-04-15-31-19.jpg",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/PHOTO-2025-04-04-15-31-19.jpg",
+          "storagePath": "property-dossiers/1/predio/PHOTO-2025-04-04-15-31-19.jpg"
+        },
+        {
+          "kind": "midia",
+          "label": "Mídia",
+          "name": "Fachada Principal.jpg",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Fotos/Fachada Principal.jpg",
+          "storagePath": "property-dossiers/1/predio/Fachada_Principal.jpg"
+        },
+        {
+          "kind": "vendedores",
+          "label": "Documentos dos vendedores",
+          "name": "CNH-e.Bruno.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Documentos vendedores/CNH-e.Bruno.pdf",
+          "storagePath": "property-dossiers/1/predio/CNH-e.Bruno.pdf"
+        },
+        {
+          "kind": "midia",
+          "label": "Mídia",
+          "name": "Fachada Ld Esq.jpg",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Fotos/Fachada Ld Esq.jpg",
+          "storagePath": "property-dossiers/1/predio/Fachada_Ld_Esq.jpg"
+        },
+        {
+          "kind": "outro",
+          "label": "Documento",
+          "name": "Guia-ART-2005111141.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Guia-ART-2005111141.pdf",
+          "storagePath": "property-dossiers/1/predio/Guia-ART-2005111141.pdf"
+        },
+        {
+          "kind": "midia",
+          "label": "Mídia",
+          "name": "Corredor Terreo Ld Esq.jpg",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Fotos/Corredor Terreo Ld Esq.jpg",
+          "storagePath": "property-dossiers/1/predio/Corredor_Terreo_Ld_Esq.jpg"
+        },
+        {
+          "kind": "vendedores",
+          "label": "Documentos dos vendedores",
+          "name": "Procuração 2026.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Documentos vendedores/Procuração 2026.pdf",
+          "storagePath": "property-dossiers/1/predio/Procuracao_2026.pdf"
+        },
+        {
+          "kind": "vendedores",
+          "label": "Documentos dos vendedores",
+          "name": "Adita_ PROC-Guaraci _selo-VersaoImpressao.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Documentos vendedores/Adita_ PROC-Guaraci _selo-VersaoImpressao.pdf",
+          "storagePath": "property-dossiers/1/predio/Adita__PROC-Guaraci__selo-VersaoImpressao.pdf"
+        },
+        {
+          "kind": "outro",
+          "label": "Documento",
+          "name": "Bem-vindo-ao-Seu-Novo-Lar-em-Porto-Novo-2.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Bem-vindo-ao-Seu-Novo-Lar-em-Porto-Novo-2.pdf",
+          "storagePath": "property-dossiers/1/predio/Bem-vindo-ao-Seu-Novo-Lar-em-Porto-Novo-2.pdf"
+        },
+        {
+          "kind": "vendedores",
+          "label": "Documentos dos vendedores",
+          "name": "Procuração Porto Novo 10-31-2024 16-25-51.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Documentos vendedores/Procuração Porto Novo 10-31-2024 16-25-51.pdf",
+          "storagePath": "property-dossiers/1/predio/Procuracao_Porto_Novo_10-31-2024_16-25-51.pdf"
+        },
+        {
+          "kind": "vendedores",
+          "label": "Documentos dos vendedores",
+          "name": "Documentos restante vendedores Porto Novo 06-27-2025 09-30-55.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Documentos vendedores/Documentos restante vendedores Porto Novo 06-27-2025 09-30-55.pdf",
+          "storagePath": "property-dossiers/1/predio/Documentos_restante_vendedores_Porto_Novo_06-27-2025_09-30-55.pdf"
+        },
+        {
+          "kind": "habite_planta",
+          "label": "Habite-se / planta / aceite",
+          "name": "Aceites habit se Porto Novo 14u 08-28-2025 14-45-20.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Aceites habit se Porto Novo 14u 08-28-2025 14-45-20.pdf",
+          "storagePath": "property-dossiers/1/predio/Aceites_habit_se_Porto_Novo_14u_08-28-2025_14-45-20.pdf"
+        },
+        {
+          "kind": "averbacao",
+          "label": "Averbação",
+          "name": "Averbação Porto Novo 14u 04-03-2025 21-35-51.pdf",
+          "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Averbação Porto Novo 14u 04-03-2025 21-35-51.pdf",
+          "storagePath": "property-dossiers/1/predio/Averbacao_Porto_Novo_14u_04-03-2025_21-35-51.pdf"
+        }
+      ],
+      "units": [
+        {
+          "code": "31 (1qt)",
+          "salePrice": 140000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "51.881",
+          "historicalEngineering": "R$ 213.398,12",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "LAUDO VALIDO N 31.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Laudos/LAUDO VALIDO N 31.pdf",
+              "storagePath": "property-dossiers/1/unidades/LAUDO_VALIDO_N_31.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Ônus, 31 Porto Novo.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Ônus /Ônus, 31 Porto Novo.pdf",
+              "storagePath": "property-dossiers/1/unidades/Onus_31_Porto_Novo.pdf"
+            },
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo+onus",
+          "inscricaoMunicipal": "25237000"
+        },
+        {
+          "code": "31 cs 5 sob (1qt)",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "51.885",
+          "historicalEngineering": "R$ 188.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo cs 5 Sobrado.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Laudos/Laudo cs 5 Sobrado.pdf",
+              "storagePath": "property-dossiers/1/unidades/Laudo_cs_5_Sobrado.pdf"
+            },
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 05 SOBRADO.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 05 SOBRADO.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_05_SOBRADO.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "505930000"
+        },
+        {
+          "code": "31 cs 6 (1qt)",
+          "salePrice": 170000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "51.882",
+          "historicalEngineering": "R$ 226.100,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 06.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 06.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_06.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "505927000"
+        },
+        {
+          "code": "31 cs 6 sob (1 qt)",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "51.886",
+          "historicalEngineering": "R$ 170.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 06 SOBRADO.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 06 SOBRADO.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_06_SOBRADO.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "505931000"
+        },
+        {
+          "code": "31 cs 8 (1qt)",
+          "salePrice": 170000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "51.883",
+          "historicalEngineering": "R$ 225.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo_cs 8.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Laudos/Laudo_cs 8.pdf",
+              "storagePath": "property-dossiers/1/unidades/Laudo_cs_8.pdf"
+            },
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 08.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 08.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_08.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "505928000"
+        },
+        {
+          "code": "31 cs 7 sob (1qt)",
+          "salePrice": 170000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "51.887",
+          "historicalEngineering": "R$ 216.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 07 SOBRADO.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 07 SOBRADO.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_07_SOBRADO.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "505932000"
+        },
+        {
+          "code": "31 cs 4 (1qt)",
+          "salePrice": 140000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "51.884",
+          "historicalEngineering": "R$ 162.906,09",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "LAUDO VALIDO CASA 04.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Laudos/LAUDO VALIDO CASA 04.pdf",
+              "storagePath": "property-dossiers/1/unidades/LAUDO_VALIDO_CASA_04.pdf"
+            },
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 04.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 04.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_04.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Ônus 31, casa 4 Porto Novo.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Ônus /Ônus 31, casa 4 Porto Novo.pdf",
+              "storagePath": "property-dossiers/1/unidades/Onus_31_casa_4_Porto_Novo.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo+onus",
+          "inscricaoMunicipal": "505929000"
+        },
+        {
+          "code": "31 cs 8 sob (1qt)",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "51.888",
+          "historicalEngineering": "R$ 218.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo cs 8 Sobrado.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Laudos/Laudo cs 8 Sobrado.pdf",
+              "storagePath": "property-dossiers/1/unidades/Laudo_cs_8_Sobrado.pdf"
+            },
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 08 SOBRADO.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 08 SOBRADO.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_08_SOBRADO.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "505933000"
+        },
+        {
+          "code": "31 cs 5 (1qt ind.)",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "51.889",
+          "historicalEngineering": "R$ 217.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 05.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 05.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_05.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "128854000"
+        },
+        {
+          "code": "31 cs 1 (2qts)",
+          "salePrice": 170000,
+          "bedrooms": 2,
+          "catalogStatus": "assinado",
+          "matricula": "51.892",
+          "historicalEngineering": "R$ 204.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 01.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 01.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_01.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "74085000"
+        },
+        {
+          "code": "31 cs 7 (1qt)",
+          "salePrice": 170000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "51.890",
+          "historicalEngineering": "R$ 191.383,57",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 07.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 07.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_07.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "128855000"
+        },
+        {
+          "code": "31 cs 2 (2qts)",
+          "salePrice": 160000,
+          "bedrooms": 2,
+          "catalogStatus": "assinado",
+          "matricula": "51.893",
+          "historicalEngineering": "R$ 162.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo 31 cs 2.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Laudos/Laudo 31 cs 2.pdf",
+              "storagePath": "property-dossiers/1/unidades/Laudo_31_cs_2.pdf"
+            },
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 02.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 02.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_02.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "74086000"
+        },
+        {
+          "code": "31 cs 4 ap (2qts)",
+          "salePrice": 150000,
+          "bedrooms": 2,
+          "catalogStatus": "assinado",
+          "matricula": "51.891",
+          "historicalEngineering": "R$ 162.906,09",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "LAUDO VALIDO CASA 04 APT 103.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Laudos/LAUDO VALIDO CASA 04 APT 103.pdf",
+              "storagePath": "property-dossiers/1/unidades/LAUDO_VALIDO_CASA_04_APT_103.pdf"
+            },
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 04 APT 103.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 04 APT 103.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_04_APT_103.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Ônus 31, cs 4 apto 103.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/Ônus /Ônus 31, cs 4 apto 103.pdf",
+              "storagePath": "property-dossiers/1/unidades/Onus_31_cs_4_apto_103.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo+onus",
+          "inscricaoMunicipal": "128856000"
+        },
+        {
+          "code": "31 cs 3 (2qts)",
+          "salePrice": 180000,
+          "bedrooms": 2,
+          "catalogStatus": "assinado",
+          "matricula": "51.894",
+          "historicalEngineering": "R$ 227.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "iptu",
+              "label": "IPTU / inscrição",
+              "name": "PORTO NOVO 31 CASA 03.pdf",
+              "zipPath": "Imóveis à venda/Porto Novo 14u - Lourival Martins, 31/IPTU 2025/PORTO NOVO 31 CASA 03.pdf",
+              "storagePath": "property-dossiers/1/unidades/PORTO_NOVO_31_CASA_03.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "74087000"
+        }
+      ]
+    },
+    "2": {
+      "propertyId": 2,
+      "officialName": "Residencial Itaúna",
+      "street": "Rua Alcio Souto, 348",
+      "neighborhood": "Nova Cidade",
+      "city": "São Gonçalo - RJ",
+      "cep": "",
+      "mapsUrl": "https://maps.app.goo.gl/gyF6ERJs1rrKHkbZ9",
+      "engenheiro": "Carlos Domingos Azevedo da Silva",
+      "crea": "2005111141",
+      "cartorio": "4º Ofício de São Gonçalo — Registro de Imóveis (Gilberto Gonçalves Augusto). Praça Dr. Luiz Palmier, 30, loja, Centro, São Gonçalo/RJ. www.4oficiosg.com.br · (21) 2712-2446",
+      "matriculaMae": "",
+      "inscricaoTerreno": "154828001",
+      "artNumber": "",
+      "inSales": true,
+      "notes": "",
+      "documents": [
+        {
+          "kind": "habite_planta",
+          "label": "Habite-se / planta / aceite",
+          "name": "Planta baixa situação.jpg",
+          "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Planta baixa situação.jpg",
+          "storagePath": "property-dossiers/2/predio/Planta_baixa_situacao.jpg"
+        },
+        {
+          "kind": "recibo_obra",
+          "label": "Recibo / comunicação de obra",
+          "name": "ReciboComunicacaoObra (1)_ Alcio 10u.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/ReciboComunicacaoObra (1)_ Alcio 10u.pdf",
+          "storagePath": "property-dossiers/2/predio/ReciboComunicacaoObra_1___Alcio_10u.pdf"
+        },
+        {
+          "kind": "art",
+          "label": "ART",
+          "name": "ART ALCIO souto 348 10 casas 06-Jan-2026 16-53-10.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/ART ALCIO souto 348 10 casas 06-Jan-2026 16-53-10.pdf",
+          "storagePath": "property-dossiers/2/predio/ART_ALCIO_souto_348_10_casas_06-Jan-2026_16-53-10.pdf"
+        },
+        {
+          "kind": "crea",
+          "label": "CREA",
+          "name": "Crea Carlos Domingos 11-17-2021 18-56-15.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Crea Carlos Domingos 11-17-2021 18-56-15.pdf",
+          "storagePath": "property-dossiers/2/predio/Crea_Carlos_Domingos_11-17-2021_18-56-15.pdf"
+        },
+        {
+          "kind": "habite_planta",
+          "label": "Habite-se / planta / aceite",
+          "name": "CARTA DE ACEITE E PLANTA ALCIO SOUTO 348 10 CASAS 06-Jan-2026 17-02-17.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/CARTA DE ACEITE E PLANTA ALCIO SOUTO 348 10 CASAS 06-Jan-2026 17-02-17.pdf",
+          "storagePath": "property-dossiers/2/predio/CARTA_DE_ACEITE_E_PLANTA_ALCIO_SOUTO_348_10_CASAS_06-Jan-2026_17-02-17.pdf"
+        },
+        {
+          "kind": "memorial",
+          "label": "Memorial descritivo",
+          "name": "Memorial residencial Alcio Souto 01-12-2026 16-52-30.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Memorial residencial Alcio Souto 01-12-2026 16-52-30.pdf",
+          "storagePath": "property-dossiers/2/predio/Memorial_residencial_Alcio_Souto_01-12-2026_16-52-30.pdf"
+        },
+        {
+          "kind": "outro",
+          "label": "Documento",
+          "name": "LEGALIZAÇÃO ALCIO SOUTO 348 10 CASAS CARTÓRIO 29-Dec-2025 17-05-56.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/LEGALIZAÇÃO ALCIO SOUTO 348 10 CASAS CARTÓRIO 29-Dec-2025 17-05-56.pdf",
+          "storagePath": "property-dossiers/2/predio/LEGALIZACAO_ALCIO_SOUTO_348_10_CASAS_CARTORIO_29-Dec-2025_17-05-56.pdf"
+        },
+        {
+          "kind": "iptu",
+          "label": "IPTU / inscrição",
+          "name": "IPTU e Averbacao.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/IPTU e Averbacao.pdf",
+          "storagePath": "property-dossiers/2/predio/IPTU_e_Averbacao.pdf"
+        }
+      ],
+      "units": [
+        {
+          "code": "casa base",
+          "salePrice": 150000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "69.061",
+          "historicalEngineering": "R$ 195.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA BASE  ALCIO SOUTO 348.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/RGI Ônus /ONUS CASA BASE  ALCIO SOUTO 348.pdf",
+              "storagePath": "property-dossiers/2/unidades/ONUS_CASA_BASE_ALCIO_SOUTO_348.pdf"
+            },
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Casa base.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Laudos caixa/Casa base.pdf",
+              "storagePath": "property-dossiers/2/unidades/Casa_base.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "154828001"
+        },
+        {
+          "code": "casa 05",
+          "salePrice": 150000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "69.066",
+          "historicalEngineering": "R$ 193.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo-348-Casa05.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Laudos caixa/Laudo-348-Casa05.pdf",
+              "storagePath": "property-dossiers/2/unidades/Laudo-348-Casa05.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 05 ALCIO SOUTO 348.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/RGI Ônus /ONUS CASA 05 ALCIO SOUTO 348.pdf",
+              "storagePath": "property-dossiers/2/unidades/ONUS_CASA_05_ALCIO_SOUTO_348.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "154828006"
+        },
+        {
+          "code": "casa 01",
+          "salePrice": 155000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "69.062",
+          "historicalEngineering": "R$ 193.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo-348-Casa01.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Laudos caixa/Laudo-348-Casa01.pdf",
+              "storagePath": "property-dossiers/2/unidades/Laudo-348-Casa01.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 01 ALCIO SOUTO 348.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/RGI Ônus /ONUS CASA 01 ALCIO SOUTO 348.pdf",
+              "storagePath": "property-dossiers/2/unidades/ONUS_CASA_01_ALCIO_SOUTO_348.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "154828002"
+        },
+        {
+          "code": "casa 06",
+          "salePrice": 150000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "69.067",
+          "historicalEngineering": "R$ 150.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo cs 6.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Laudos caixa/Laudo cs 6.pdf",
+              "storagePath": "property-dossiers/2/unidades/Laudo_cs_6.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 06 ALCIO SOUTO 348.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/RGI Ônus /ONUS CASA 06 ALCIO SOUTO 348.pdf",
+              "storagePath": "property-dossiers/2/unidades/ONUS_CASA_06_ALCIO_SOUTO_348.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "154828007"
+        },
+        {
+          "code": "casa 02",
+          "salePrice": 155000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "69.063",
+          "historicalEngineering": "R$ 200.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Casa 2.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Laudos caixa/Casa 2.pdf",
+              "storagePath": "property-dossiers/2/unidades/Casa_2.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 02 ALCIO SOUTO 348.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/RGI Ônus /ONUS CASA 02 ALCIO SOUTO 348.pdf",
+              "storagePath": "property-dossiers/2/unidades/ONUS_CASA_02_ALCIO_SOUTO_348.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "154828003"
+        },
+        {
+          "code": "casa 07",
+          "salePrice": 155000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "69.068",
+          "historicalEngineering": "R$ 193.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo-348-Casa07.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Laudos caixa/Laudo-348-Casa07.pdf",
+              "storagePath": "property-dossiers/2/unidades/Laudo-348-Casa07.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 07 ALCIO SOUTO 348.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/RGI Ônus /ONUS CASA 07 ALCIO SOUTO 348.pdf",
+              "storagePath": "property-dossiers/2/unidades/ONUS_CASA_07_ALCIO_SOUTO_348.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "154828008"
+        },
+        {
+          "code": "casa 03",
+          "salePrice": 155000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "69.064",
+          "historicalEngineering": "R$ 150.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "LAUDO-348-CASA 03.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Laudos caixa/LAUDO-348-CASA 03.pdf",
+              "storagePath": "property-dossiers/2/unidades/LAUDO-348-CASA_03.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 03 ALCIO SOUTO 348.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/RGI Ônus /ONUS CASA 03 ALCIO SOUTO 348.pdf",
+              "storagePath": "property-dossiers/2/unidades/ONUS_CASA_03_ALCIO_SOUTO_348.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "154828004"
+        },
+        {
+          "code": "cassa 08",
+          "salePrice": 155000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "69.069",
+          "historicalEngineering": "R$ 195.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Casa 8.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Laudos caixa/Casa 8.pdf",
+              "storagePath": "property-dossiers/2/unidades/Casa_8.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 08 ALCIO SOUTO 348.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/RGI Ônus /ONUS CASA 08 ALCIO SOUTO 348.pdf",
+              "storagePath": "property-dossiers/2/unidades/ONUS_CASA_08_ALCIO_SOUTO_348.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "154828009"
+        },
+        {
+          "code": "casa 04",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "69.065",
+          "historicalEngineering": "R$ 205.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Casa 4.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Laudos caixa/Casa 4.pdf",
+              "storagePath": "property-dossiers/2/unidades/Casa_4.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 04 ALCIO SOUTO 348.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/RGI Ônus /ONUS CASA 04 ALCIO SOUTO 348.pdf",
+              "storagePath": "property-dossiers/2/unidades/ONUS_CASA_04_ALCIO_SOUTO_348.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "154828005"
+        },
+        {
+          "code": "casa 09",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "69.070",
+          "historicalEngineering": "R$ 205.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Casa 9.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/Laudos caixa/Casa 9.pdf",
+              "storagePath": "property-dossiers/2/unidades/Casa_9.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 09 ALCIO SOUTO 348.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Alcio Souto, 348. 10u/RGI Ônus /ONUS CASA 09 ALCIO SOUTO 348.pdf",
+              "storagePath": "property-dossiers/2/unidades/ONUS_CASA_09_ALCIO_SOUTO_348.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "154828010"
+        }
+      ]
+    },
+    "3": {
+      "propertyId": 3,
+      "officialName": "Edifício Bandeirantes",
+      "street": "Rua Lopes da Cruz, 136",
+      "neighborhood": "Amendoeira",
+      "city": "São Gonçalo - RJ",
+      "cep": "",
+      "mapsUrl": "https://maps.app.goo.gl/i3eExj2Wk3vD2xQNA",
+      "engenheiro": "Carlos Domingos Azevedo da Silva",
+      "crea": "2005111141",
+      "cartorio": "3º Ofício de São Gonçalo — Registro de Imóveis da 2ª Circunscrição (Ivy Helene Lima Pagliuso). Estrada Raul Veiga, 351, lojas 26/27, Raul Veiga/Alcântara, São Gonçalo/RJ. contato@saogoncalo3oficio.com.br · (21) 2036-0962",
+      "matriculaMae": "",
+      "inscricaoTerreno": "359068001",
+      "artNumber": "",
+      "inSales": true,
+      "notes": "Nome atual do antigo Amendoeira / Lopes 136.",
+      "documents": [
+        {
+          "kind": "habite_planta",
+          "label": "Habite-se / planta / aceite",
+          "name": "Planta baixa.png",
+          "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/Engenharia/Planta baixa.png",
+          "storagePath": "property-dossiers/3/predio/Planta_baixa.png"
+        },
+        {
+          "kind": "art",
+          "label": "ART",
+          "name": "ART LOPES DA CRUZ 136 20 CASAS 06-Jan-2026 16-44-19(1).pdf",
+          "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/Engenharia/ART LOPES DA CRUZ 136 20 CASAS 06-Jan-2026 16-44-19(1).pdf",
+          "storagePath": "property-dossiers/3/predio/ART_LOPES_DA_CRUZ_136_20_CASAS_06-Jan-2026_16-44-19_1_.pdf"
+        },
+        {
+          "kind": "midia",
+          "label": "Mídia",
+          "name": "PHOTO-2026-01-06-15-49-13.jpg",
+          "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/PHOTO-2026-01-06-15-49-13.jpg",
+          "storagePath": "property-dossiers/3/predio/PHOTO-2026-01-06-15-49-13.jpg"
+        },
+        {
+          "kind": "memorial",
+          "label": "Memorial descritivo",
+          "name": "Memorial Lopes da Cruz 01-06-2026 16-50-08.pdf",
+          "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/Engenharia/Memorial Lopes da Cruz 01-06-2026 16-50-08.pdf",
+          "storagePath": "property-dossiers/3/predio/Memorial_Lopes_da_Cruz_01-06-2026_16-50-08.pdf"
+        },
+        {
+          "kind": "recibo_obra",
+          "label": "Recibo / comunicação de obra",
+          "name": "ReciboComunicacaoObra.pdf",
+          "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/Engenharia/ReciboComunicacaoObra.pdf",
+          "storagePath": "property-dossiers/3/predio/ReciboComunicacaoObra.pdf"
+        },
+        {
+          "kind": "crea",
+          "label": "CREA",
+          "name": "Crea Carlos Domingos 11-17-2021 18-56-15.pdf",
+          "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/Engenharia/Crea Carlos Domingos 11-17-2021 18-56-15.pdf",
+          "storagePath": "property-dossiers/3/predio/Crea_Carlos_Domingos_11-17-2021_18-56-15.pdf"
+        },
+        {
+          "kind": "habite_planta",
+          "label": "Habite-se / planta / aceite",
+          "name": "PLANTA _ aceite _ outorga LOPES DA CRUZ LOTE 33 20 CASAS 20-Aug-2025 12-37-49.pdf",
+          "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/Engenharia/PLANTA _ aceite _ outorga LOPES DA CRUZ LOTE 33 20 CASAS 20-Aug-2025 12-37-49.pdf",
+          "storagePath": "property-dossiers/3/predio/PLANTA___aceite___outorga_LOPES_DA_CRUZ_LOTE_33_20_CASAS_20-Aug-2025_12-37-49.pdf"
+        },
+        {
+          "kind": "iptu",
+          "label": "IPTU / inscrição",
+          "name": "IPTU ESPELHOS E CERTIDÕES AVERBACAO LOPES DA CRUZ 20 CASAS 01-Oct-2025 17-16-48.pdf",
+          "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/Engenharia/IPTU ESPELHOS E CERTIDÕES AVERBACAO LOPES DA CRUZ 20 CASAS 01-Oct-2025 17-16-48.pdf",
+          "storagePath": "property-dossiers/3/predio/IPTU_ESPELHOS_E_CERTIDOES_AVERBACAO_LOPES_DA_CRUZ_20_CASAS_01-Oct-2025_17-16-48.pdf"
+        }
+      ],
+      "units": [
+        {
+          "code": "APTO 101",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.382",
+          "historicalEngineering": "R$ 177.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo 101.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/Laudos Caixa/Laudo 101.pdf",
+              "storagePath": "property-dossiers/3/unidades/Laudo_101.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Apto 101.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/RGI - Onus/Apto 101.pdf",
+              "storagePath": "property-dossiers/3/unidades/Apto_101.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359068001"
+        },
+        {
+          "code": "APTO 201",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.392",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359068011"
+        },
+        {
+          "code": "APTO 102",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.383",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Apto 102.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/RGI - Onus/Apto 102.pdf",
+              "storagePath": "property-dossiers/3/unidades/Apto_102.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359068002"
+        },
+        {
+          "code": "APTO 202",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "84.393",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Apto 202.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/Laudos Caixa/Apto 202.pdf",
+              "storagePath": "property-dossiers/3/unidades/Apto_202.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359068012"
+        },
+        {
+          "code": "APTO 103",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.384",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359068003"
+        },
+        {
+          "code": "APTO 203",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.394",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359068013"
+        },
+        {
+          "code": "APTO 104",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.385",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359068004"
+        },
+        {
+          "code": "APTO 204",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.395",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359068014"
+        },
+        {
+          "code": "APTO 105",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.386",
+          "historicalEngineering": "R$ 177.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo 105.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/Laudos Caixa/Laudo 105.pdf",
+              "storagePath": "property-dossiers/3/unidades/Laudo_105.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Apto 105.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/RGI - Onus/Apto 105.pdf",
+              "storagePath": "property-dossiers/3/unidades/Apto_105.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359068005"
+        },
+        {
+          "code": "APTO 205",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.396",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Apto 205.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/RGI - Onus/Apto 205.pdf",
+              "storagePath": "property-dossiers/3/unidades/Apto_205.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359068015"
+        },
+        {
+          "code": "APTO 106",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.387",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Apto 106.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/RGI - Onus/Apto 106.pdf",
+              "storagePath": "property-dossiers/3/unidades/Apto_106.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359068006"
+        },
+        {
+          "code": "APTO 206",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.397",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359068016"
+        },
+        {
+          "code": "APTO 107",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.388",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359068007"
+        },
+        {
+          "code": "APTO 207",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.398",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359068017"
+        },
+        {
+          "code": "APTO 108",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.389",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Apto 108.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/RGI - Onus/Apto 108.pdf",
+              "storagePath": "property-dossiers/3/unidades/Apto_108.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359068008"
+        },
+        {
+          "code": "APTO 208",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.399",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359068018"
+        },
+        {
+          "code": "APTO 109",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.390",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359068009"
+        },
+        {
+          "code": "APTO 209",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.400",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359068019"
+        },
+        {
+          "code": "APTO 110",
+          "salePrice": 170000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "84.391",
+          "historicalEngineering": "R$ 194.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo apto 110.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/Laudos Caixa/Laudo apto 110.pdf",
+              "storagePath": "property-dossiers/3/unidades/Laudo_apto_110.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Apto 110.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/RGI - Onus/Apto 110.pdf",
+              "storagePath": "property-dossiers/3/unidades/Apto_110.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359068010"
+        },
+        {
+          "code": "APTO 210",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.401",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Apto 210.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/RGI - Onus/Apto 210.pdf",
+              "storagePath": "property-dossiers/3/unidades/Apto_210.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359068020"
+        }
+      ]
+    },
+    "4": {
+      "propertyId": 4,
+      "officialName": "Condomínio Laranjal",
+      "street": "Rua Jussara, 178",
+      "neighborhood": "Laranjal",
+      "city": "São Gonçalo - RJ",
+      "cep": "",
+      "mapsUrl": "https://maps.app.goo.gl/sjoAjX93gB5aN8EV6",
+      "engenheiro": "Carlos Domingos Azevedo da Silva",
+      "crea": "2005111141",
+      "cartorio": "3º Ofício de São Gonçalo — Registro de Imóveis da 2ª Circunscrição (Ivy Helene Lima Pagliuso). Estrada Raul Veiga, 351, lojas 26/27, Raul Veiga/Alcântara, São Gonçalo/RJ. contato@saogoncalo3oficio.com.br · (21) 2036-0962",
+      "matriculaMae": "",
+      "inscricaoTerreno": "802598001",
+      "artNumber": "",
+      "inSales": true,
+      "notes": "",
+      "documents": [
+        {
+          "kind": "art",
+          "label": "ART",
+          "name": "ART rua jussara 06-Jan-2026 16-48-39.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/ART rua jussara 06-Jan-2026 16-48-39.pdf",
+          "storagePath": "property-dossiers/4/predio/ART_rua_jussara_06-Jan-2026_16-48-39.pdf"
+        },
+        {
+          "kind": "scpo",
+          "label": "SCPO",
+          "name": "SCPO Laranjal 01-12-2026 17-54-01.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/SCPO Laranjal 01-12-2026 17-54-01.pdf",
+          "storagePath": "property-dossiers/4/predio/SCPO_Laranjal_01-12-2026_17-54-01.pdf"
+        },
+        {
+          "kind": "crea",
+          "label": "CREA",
+          "name": "Crea Carlos Domingos 11-17-2021 18-56-15.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/Crea Carlos Domingos 11-17-2021 18-56-15.pdf",
+          "storagePath": "property-dossiers/4/predio/Crea_Carlos_Domingos_11-17-2021_18-56-15.pdf"
+        },
+        {
+          "kind": "memorial",
+          "label": "Memorial descritivo",
+          "name": "Memorial laranjal jussara 01-12-2026 17-27-05.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/Memorial laranjal jussara 01-12-2026 17-27-05.pdf",
+          "storagePath": "property-dossiers/4/predio/Memorial_laranjal_jussara_01-12-2026_17-27-05.pdf"
+        },
+        {
+          "kind": "habite_planta",
+          "label": "Habite-se / planta / aceite",
+          "name": "carta de aceite rua jussara 16-Dec-2025 17-43-13.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/carta de aceite rua jussara 16-Dec-2025 17-43-13.pdf",
+          "storagePath": "property-dossiers/4/predio/carta_de_aceite_rua_jussara_16-Dec-2025_17-43-13.pdf"
+        },
+        {
+          "kind": "iptu",
+          "label": "IPTU / inscrição",
+          "name": "ACEITE _ IPTU _ AVERBACAO .pdf",
+          "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/ACEITE _ IPTU _ AVERBACAO .pdf",
+          "storagePath": "property-dossiers/4/predio/ACEITE___IPTU___AVERBACAO_.pdf"
+        }
+      ],
+      "units": [
+        {
+          "code": "CS BASE",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "802598001"
+        },
+        {
+          "code": "CS 05",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.680",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "802598006"
+        },
+        {
+          "code": "CS 10",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.685",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "802598011"
+        },
+        {
+          "code": "CS 01",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.676",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "802598002"
+        },
+        {
+          "code": "CS 06",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "84.681",
+          "historicalEngineering": "R$ 167.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Cs 6.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/Laudos Engenharia /Cs 6.pdf",
+              "storagePath": "property-dossiers/4/unidades/Cs_6.pdf"
+            },
+            {
+              "kind": "certidao",
+              "label": "Certidão",
+              "name": "CERTIDÃO CASA 06 JUSSARA .pdf",
+              "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/CERTIDÃO CASA 06 JUSSARA .pdf",
+              "storagePath": "property-dossiers/4/unidades/CERTIDAO_CASA_06_JUSSARA_.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "802598007"
+        },
+        {
+          "code": "CS 11",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.686",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "802598012"
+        },
+        {
+          "code": "CS 02",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.677",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "802598003"
+        },
+        {
+          "code": "CS 07",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.682",
+          "historicalEngineering": "R$ 150.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "certidao",
+              "label": "Certidão",
+              "name": "CERTIDÃO CASA 07 JUSSARA.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/CERTIDÃO CASA 07 JUSSARA.pdf",
+              "storagePath": "property-dossiers/4/unidades/CERTIDAO_CASA_07_JUSSARA.pdf"
+            },
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Cs 7.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/Laudos Engenharia /Cs 7.pdf",
+              "storagePath": "property-dossiers/4/unidades/Cs_7.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "802598008"
+        },
+        {
+          "code": "CS 12",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.687",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "802598013"
+        },
+        {
+          "code": "CS 03",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.678",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "802598004"
+        },
+        {
+          "code": "CS 08",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.683",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "802598009"
+        },
+        {
+          "code": "CS 13",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.688",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "802598014"
+        },
+        {
+          "code": "CS 04",
+          "salePrice": 150000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "84.679",
+          "historicalEngineering": "R$ 190.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "certidao",
+              "label": "Certidão",
+              "name": "CERTIDÃO CASA 04 JUSSARA .pdf",
+              "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/CERTIDÃO CASA 04 JUSSARA .pdf",
+              "storagePath": "property-dossiers/4/unidades/CERTIDAO_CASA_04_JUSSARA_.pdf"
+            },
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Cs 4.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/Laudos Engenharia /Cs 4.pdf",
+              "storagePath": "property-dossiers/4/unidades/Cs_4.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "802598005"
+        },
+        {
+          "code": "CS 09",
+          "salePrice": 155000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "84.684",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "certidao",
+              "label": "Certidão",
+              "name": "CERTIDÃO CASA 09 JUSSARA.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/CERTIDÃO CASA 09 JUSSARA.pdf",
+              "storagePath": "property-dossiers/4/unidades/CERTIDAO_CASA_09_JUSSARA.pdf"
+            },
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Cs 9.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/Laudos Engenharia /Cs 9.pdf",
+              "storagePath": "property-dossiers/4/unidades/Cs_9.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "802598010"
+        },
+        {
+          "code": "CS 14",
+          "salePrice": 150000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "84.689",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 14 RUA JUSSARA.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/ONUS CASA 14 RUA JUSSARA.pdf",
+              "storagePath": "property-dossiers/4/unidades/ONUS_CASA_14_RUA_JUSSARA.pdf"
+            },
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Cs 14.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Jussara, 178. 15u/Laudos Engenharia /Cs 14.pdf",
+              "storagePath": "property-dossiers/4/unidades/Cs_14.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "802598015"
+        }
+      ]
+    },
+    "5": {
+      "propertyId": 5,
+      "officialName": "Residencial Apolo",
+      "street": "Rua Maria José Arruda Barbosa, LT 02 QD 18",
+      "neighborhood": "Apolo",
+      "city": "Itaboraí - RJ",
+      "cep": "",
+      "mapsUrl": "https://www.google.com/maps?q=Rua+Maria+Jos%C3%A9+Arruda+Barbosa+LT+02+QD+18+Apolo+Itabora%C3%AD",
+      "engenheiro": "Carlos Domingos Azevedo da Silva",
+      "crea": "2005111141",
+      "cartorio": "1º Ofício de Itaboraí — Serviço Notarial e Registral (Leonam Costa de Souza). Rua Dr. Pereira dos Santos, 57, Centro, Itaboraí/RJ, CEP 24800-041. cart1oficio.ita.rgi@gmail.com · (21) 2635-1312",
+      "matriculaMae": "3.936-A",
+      "inscricaoTerreno": "056094-001",
+      "artNumber": "2020240259997",
+      "inSales": true,
+      "notes": "",
+      "documents": [
+        {
+          "kind": "art",
+          "label": "ART",
+          "name": "ART APOLO 06-Jan-2026 16-51-02.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/ART APOLO 06-Jan-2026 16-51-02.pdf",
+          "storagePath": "property-dossiers/5/predio/ART_APOLO_06-Jan-2026_16-51-02.pdf"
+        },
+        {
+          "kind": "scpo",
+          "label": "SCPO",
+          "name": "SCPO Apolo 01-12-2026 19-36-52.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/SCPO Apolo 01-12-2026 19-36-52.pdf",
+          "storagePath": "property-dossiers/5/predio/SCPO_Apolo_01-12-2026_19-36-52.pdf"
+        },
+        {
+          "kind": "crea",
+          "label": "CREA",
+          "name": "Crea Carlos Domingos 11-17-2021 18-56-15.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Crea Carlos Domingos 11-17-2021 18-56-15.pdf",
+          "storagePath": "property-dossiers/5/predio/Crea_Carlos_Domingos_11-17-2021_18-56-15.pdf"
+        },
+        {
+          "kind": "memorial",
+          "label": "Memorial descritivo",
+          "name": "Memorial Apolo 01-12-2026 19-13-41.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Memorial Apolo 01-12-2026 19-13-41.pdf",
+          "storagePath": "property-dossiers/5/predio/Memorial_Apolo_01-12-2026_19-13-41.pdf"
+        },
+        {
+          "kind": "convencao",
+          "label": "Convenção / ata",
+          "name": "ATO PRATICADO REGISTRO CONVENÇÃO E ATA APOLO.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/ATO PRATICADO REGISTRO CONVENÇÃO E ATA APOLO.pdf",
+          "storagePath": "property-dossiers/5/predio/ATO_PRATICADO_REGISTRO_CONVENCAO_E_ATA_APOLO.pdf"
+        },
+        {
+          "kind": "certidao",
+          "label": "Certidão",
+          "name": "CERTIDÃO DE REGISTRO CONVENÇÃO APOLO.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/CERTIDÃO DE REGISTRO CONVENÇÃO APOLO.pdf",
+          "storagePath": "property-dossiers/5/predio/CERTIDAO_DE_REGISTRO_CONVENCAO_APOLO.pdf"
+        },
+        {
+          "kind": "iptu",
+          "label": "IPTU / inscrição",
+          "name": "ESPELHOS DE IPTU APOLO 08-Oct-2025 15-31-26.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/ESPELHOS DE IPTU APOLO 08-Oct-2025 15-31-26.pdf",
+          "storagePath": "property-dossiers/5/predio/ESPELHOS_DE_IPTU_APOLO_08-Oct-2025_15-31-26.pdf"
+        },
+        {
+          "kind": "habite_planta",
+          "label": "Habite-se / planta / aceite",
+          "name": "HABIT-SE _ AVERBACAO E PLANTA.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/HABIT-SE _ AVERBACAO E PLANTA.pdf",
+          "storagePath": "property-dossiers/5/predio/HABIT-SE___AVERBACAO_E_PLANTA.pdf"
+        },
+        {
+          "kind": "onus",
+          "label": "Ônus / RGI",
+          "name": "RGI matrícula mãe.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI matrícula mãe.pdf",
+          "storagePath": "property-dossiers/5/predio/RGI_matricula_mae.pdf"
+        }
+      ],
+      "units": [
+        {
+          "code": "casa base",
+          "salePrice": 135000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "54.764",
+          "historicalEngineering": "R$ 181.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Casa base.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos Caixa/Casa base.pdf",
+              "storagePath": "property-dossiers/5/unidades/Casa_base.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA BASE APOLO.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI Ônus /ONUS CASA BASE APOLO.pdf",
+              "storagePath": "property-dossiers/5/unidades/ONUS_CASA_BASE_APOLO.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "056094-001"
+        },
+        {
+          "code": "casa 05",
+          "salePrice": 130000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "54.769",
+          "historicalEngineering": "R$ 130.000,00",
+          "valueHintFromFilename": 130000,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo-APOLO-CASA05-130MIL.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos Caixa/Laudo-APOLO-CASA05-130MIL.pdf",
+              "storagePath": "property-dossiers/5/unidades/Laudo-APOLO-CASA05-130MIL.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 05 APOLO.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI Ônus /ONUS CASA 05 APOLO.pdf",
+              "storagePath": "property-dossiers/5/unidades/ONUS_CASA_05_APOLO.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "206836-001"
+        },
+        {
+          "code": "casa 01",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "54.765",
+          "historicalEngineering": "R$ 177.714,59",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 01 APOLO.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI Ônus /ONUS CASA 01 APOLO.pdf",
+              "storagePath": "property-dossiers/5/unidades/ONUS_CASA_01_APOLO.pdf"
+            },
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Casa 1.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos Caixa/Casa 1.pdf",
+              "storagePath": "property-dossiers/5/unidades/Casa_1.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "206832-001"
+        },
+        {
+          "code": "casa 06",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "54.770",
+          "historicalEngineering": "R$ 130.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo cs 6.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos Caixa/Laudo cs 6.pdf",
+              "storagePath": "property-dossiers/5/unidades/Laudo_cs_6.pdf"
+            }
+          ],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "206837-001"
+        },
+        {
+          "code": "casa 02",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "54.766",
+          "historicalEngineering": "R$ 140.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo-APOLO-Casa02.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos Caixa/Laudo-APOLO-Casa02.pdf",
+              "storagePath": "property-dossiers/5/unidades/Laudo-APOLO-Casa02.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 02 APOLO.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI Ônus /ONUS CASA 02 APOLO.pdf",
+              "storagePath": "property-dossiers/5/unidades/ONUS_CASA_02_APOLO.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "206833-001"
+        },
+        {
+          "code": "casa 07",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "54.771",
+          "historicalEngineering": "R$ 140.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo-APOLO-Casa07.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos Caixa/Laudo-APOLO-Casa07.pdf",
+              "storagePath": "property-dossiers/5/unidades/Laudo-APOLO-Casa07.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 07 APOLO.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI Ônus /ONUS CASA 07 APOLO.pdf",
+              "storagePath": "property-dossiers/5/unidades/ONUS_CASA_07_APOLO.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "206838-001"
+        },
+        {
+          "code": "casa 03",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "54.767",
+          "historicalEngineering": "R$ 159.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo cs 3.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos Caixa/Laudo cs 3.pdf",
+              "storagePath": "property-dossiers/5/unidades/Laudo_cs_3.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Ônus cs 3.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI Ônus /Ônus cs 3.pdf",
+              "storagePath": "property-dossiers/5/unidades/Onus_cs_3.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "206834-001"
+        },
+        {
+          "code": "cassa 08",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "54.772",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 08 APOLO.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI Ônus /ONUS CASA 08 APOLO.pdf",
+              "storagePath": "property-dossiers/5/unidades/ONUS_CASA_08_APOLO.pdf"
+            },
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Cs 08.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos Caixa/Cs 08.pdf",
+              "storagePath": "property-dossiers/5/unidades/Cs_08.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "206839-001"
+        },
+        {
+          "code": "casa 04",
+          "salePrice": 140000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "54.768",
+          "historicalEngineering": "R$ 134.000,00",
+          "valueHintFromFilename": 134000,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo-APOLO-CASA04-134MIL.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos Caixa/Laudo-APOLO-CASA04-134MIL.pdf",
+              "storagePath": "property-dossiers/5/unidades/Laudo-APOLO-CASA04-134MIL.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 04 APOLO.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI Ônus /ONUS CASA 04 APOLO.pdf",
+              "storagePath": "property-dossiers/5/unidades/ONUS_CASA_04_APOLO.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "206835-001"
+        },
+        {
+          "code": "casa 09",
+          "salePrice": 150000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "54.773",
+          "historicalEngineering": "R$ 201.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo cs 9.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos Caixa/Laudo cs 9.pdf",
+              "storagePath": "property-dossiers/5/unidades/Laudo_cs_9.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS CASA 09 APOLO.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI Ônus /ONUS CASA 09 APOLO.pdf",
+              "storagePath": "property-dossiers/5/unidades/ONUS_CASA_09_APOLO.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "206840-001"
+        }
+      ]
+    },
+    "6": {
+      "propertyId": 6,
+      "officialName": "Residencial Coelho",
+      "street": "Rua Lopes da Cruz, 122",
+      "neighborhood": "Coelho",
+      "city": "São Gonçalo - RJ",
+      "cep": "",
+      "mapsUrl": "https://maps.app.goo.gl/XBHZuNsdxTTVmnw66",
+      "engenheiro": "Carlos Domingos Azevedo da Silva",
+      "crea": "2005111141",
+      "cartorio": "3º Ofício de São Gonçalo — Registro de Imóveis da 2ª Circunscrição (Ivy Helene Lima Pagliuso). Estrada Raul Veiga, 351, lojas 26/27, Raul Veiga/Alcântara, São Gonçalo/RJ. contato@saogoncalo3oficio.com.br · (21) 2036-0962",
+      "matriculaMae": "",
+      "inscricaoTerreno": "359067001",
+      "artNumber": "2020240302199",
+      "inSales": true,
+      "notes": "",
+      "documents": [
+        {
+          "kind": "habite_planta",
+          "label": "Habite-se / planta / aceite",
+          "name": "Aceite Lopes da Cruz 10u - Lot 32 - Page 1.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Aceite Lopes da Cruz 10u - Lot 32 - Page 1.pdf",
+          "storagePath": "property-dossiers/6/predio/Aceite_Lopes_da_Cruz_10u_-_Lot_32_-_Page_1.pdf"
+        },
+        {
+          "kind": "onus",
+          "label": "Ônus / RGI",
+          "name": "Arquivo.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Onus/Arquivo.pdf",
+          "storagePath": "property-dossiers/6/predio/Arquivo.pdf"
+        },
+        {
+          "kind": "kit_engenharia",
+          "label": "Kit documentação de engenharia",
+          "name": "Docs eng Lopes da Cruz 122 06-30-2025 14-25-58.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Docs eng Lopes da Cruz 122 06-30-2025 14-25-58.pdf",
+          "storagePath": "property-dossiers/6/predio/Docs_eng_Lopes_da_Cruz_122_06-30-2025_14-25-58.pdf"
+        },
+        {
+          "kind": "iptu",
+          "label": "IPTU / inscrição",
+          "name": "IPTU e averbações Rua Lopes da Cruz 122 06-30-2025 14-31-42.pdf",
+          "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/IPTU e averbações Rua Lopes da Cruz 122 06-30-2025 14-31-42.pdf",
+          "storagePath": "property-dossiers/6/predio/IPTU_e_averbacoes_Rua_Lopes_da_Cruz_122_06-30-2025_14-31-42.pdf"
+        }
+      ],
+      "units": [
+        {
+          "code": "casa base",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "",
+          "historicalEngineering": "R$ 165.336,19",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "",
+          "matriculaSource": "catalogo",
+          "inscricaoMunicipal": "359067001"
+        },
+        {
+          "code": "casa 05",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "83.625",
+          "historicalEngineering": "R$ 185.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "Ônus cs 5 Lopes.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Onus/Ônus cs 5 Lopes.pdf",
+              "storagePath": "property-dossiers/6/unidades/Onus_cs_5_Lopes.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359067006"
+        },
+        {
+          "code": "casa 01",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "83.621",
+          "historicalEngineering": "R$ 177.145,79",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo Cs 1.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Laudos Caixa/Laudo Cs 1.pdf",
+              "storagePath": "property-dossiers/6/unidades/Laudo_Cs_1.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "cs 1.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Onus/cs 1.pdf",
+              "storagePath": "property-dossiers/6/unidades/cs_1.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359067002"
+        },
+        {
+          "code": "casa 06",
+          "salePrice": 150000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "83.626",
+          "historicalEngineering": "R$ 197.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Cs 6.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Laudos Caixa/Cs 6.pdf",
+              "storagePath": "property-dossiers/6/unidades/Cs_6.pdf"
+            }
+          ],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359067007"
+        },
+        {
+          "code": "casa 02",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "83.622",
+          "historicalEngineering": "R$ 190.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo cs 2.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Laudos Caixa/Laudo cs 2.pdf",
+              "storagePath": "property-dossiers/6/unidades/Laudo_cs_2.pdf"
+            }
+          ],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359067003"
+        },
+        {
+          "code": "casa 07",
+          "salePrice": 145000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "83.627",
+          "historicalEngineering": "R$ 199.100,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo cs 7.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Laudos Caixa/Laudo cs 7.pdf",
+              "storagePath": "property-dossiers/6/unidades/Laudo_cs_7.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "cs 7.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Onus/cs 7.pdf",
+              "storagePath": "property-dossiers/6/unidades/cs_7.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359067008"
+        },
+        {
+          "code": "casa 03",
+          "salePrice": 150000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "83.623",
+          "historicalEngineering": "R$ 190.000,00",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359067004"
+        },
+        {
+          "code": "cassa 08",
+          "salePrice": 150000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "83.628",
+          "historicalEngineering": "R$ 147.000,00",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "359067009"
+        },
+        {
+          "code": "casa 04",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "83.624",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "cs 4.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Onus/cs 4.pdf",
+              "storagePath": "property-dossiers/6/unidades/cs_4.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359067005"
+        },
+        {
+          "code": "casa 09",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "83.629",
+          "historicalEngineering": "R$ 194.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Cs 9.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Laudos Caixa/Cs 9.pdf",
+              "storagePath": "property-dossiers/6/unidades/Cs_9.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "cs 9.pdf",
+              "zipPath": "Imóveis à venda/Residencial - Lopes da Cruz, 122. 10u/Onus/cs 9.pdf",
+              "storagePath": "property-dossiers/6/unidades/cs_9.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "359067010"
+        }
+      ]
+    },
+    "7": {
+      "propertyId": 7,
+      "officialName": "Edifício Nova Cidade",
+      "street": "Rua Alcio Souto, 576",
+      "neighborhood": "Luiz Caçador",
+      "city": "São Gonçalo - RJ",
+      "cep": "",
+      "mapsUrl": "https://maps.app.goo.gl/N4CNvNQwx1KWBFCH6",
+      "engenheiro": "Carlos Domingos Azevedo da Silva",
+      "crea": "2005111141",
+      "cartorio": "4º Ofício de São Gonçalo — Registro de Imóveis (Gilberto Gonçalves Augusto). Praça Dr. Luiz Palmier, 30, loja, Centro, São Gonçalo/RJ. www.4oficiosg.com.br · (21) 2712-2446",
+      "matriculaMae": "",
+      "inscricaoTerreno": "366126001",
+      "artNumber": "",
+      "inSales": true,
+      "notes": "Nome atual do antigo Luiz Caçador / Alcio 576.",
+      "documents": [
+        {
+          "kind": "memorial",
+          "label": "Memorial descritivo",
+          "name": "Memorial alcio 20 01-12-2026 17-15-47.pdf",
+          "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/Memorial alcio 20 01-12-2026 17-15-47.pdf",
+          "storagePath": "property-dossiers/7/predio/Memorial_alcio_20_01-12-2026_17-15-47.pdf"
+        },
+        {
+          "kind": "crea",
+          "label": "CREA",
+          "name": "Crea Carlos Domingos 11-17-2021 18-56-15.pdf",
+          "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/Crea Carlos Domingos 11-17-2021 18-56-15.pdf",
+          "storagePath": "property-dossiers/7/predio/Crea_Carlos_Domingos_11-17-2021_18-56-15.pdf"
+        },
+        {
+          "kind": "art",
+          "label": "ART",
+          "name": "ART alcio souto.pdf",
+          "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/ART alcio souto.pdf",
+          "storagePath": "property-dossiers/7/predio/ART_alcio_souto.pdf"
+        },
+        {
+          "kind": "recibo_obra",
+          "label": "Recibo / comunicação de obra",
+          "name": "ReciboComunicacaoObra (1)_aLCIO 20.pdf",
+          "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/ReciboComunicacaoObra (1)_aLCIO 20.pdf",
+          "storagePath": "property-dossiers/7/predio/ReciboComunicacaoObra_1__aLCIO_20.pdf"
+        },
+        {
+          "kind": "habite_planta",
+          "label": "Habite-se / planta / aceite",
+          "name": "Planta _ Aceite _ Outorga.pdf",
+          "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/Planta _ Aceite _ Outorga.pdf",
+          "storagePath": "property-dossiers/7/predio/Planta___Aceite___Outorga.pdf"
+        },
+        {
+          "kind": "iptu",
+          "label": "IPTU / inscrição",
+          "name": "IPTU E AVERBACÕES ALCIO SOUTO 576 20 CASAS 01-Oct-2025 16-40-53.pdf",
+          "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/IPTU E AVERBACÕES ALCIO SOUTO 576 20 CASAS 01-Oct-2025 16-40-53.pdf",
+          "storagePath": "property-dossiers/7/predio/IPTU_E_AVERBACOES_ALCIO_SOUTO_576_20_CASAS_01-Oct-2025_16-40-53.pdf"
+        }
+      ],
+      "units": [
+        {
+          "code": "APTO 101",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "68.904",
+          "historicalEngineering": "R$ 159.923,35",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo 101.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/Laudos Caixa/Laudo 101.pdf",
+              "storagePath": "property-dossiers/7/unidades/Laudo_101.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS APT 101 ALCIO SOUTO 376.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/RGI Ônus /ONUS APT 101 ALCIO SOUTO 376.pdf",
+              "storagePath": "property-dossiers/7/unidades/ONUS_APT_101_ALCIO_SOUTO_376.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "366126001"
+        },
+        {
+          "code": "APTO 201",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.914",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "366126011"
+        },
+        {
+          "code": "APTO 102",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "68.905",
+          "historicalEngineering": "R$ 193.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo 102 .pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/Laudos Caixa/Laudo 102 .pdf",
+              "storagePath": "property-dossiers/7/unidades/Laudo_102_.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS APT 102 ALCIO SOUTO 576.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/RGI Ônus /ONUS APT 102 ALCIO SOUTO 576.pdf",
+              "storagePath": "property-dossiers/7/unidades/ONUS_APT_102_ALCIO_SOUTO_576.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "366126002"
+        },
+        {
+          "code": "APTO 202",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.915",
+          "historicalEngineering": "R$ 167.000,00",
+          "valueHintFromFilename": 167000,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS APT 202 ALCIO SOUTO 376.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/RGI Ônus /ONUS APT 202 ALCIO SOUTO 376.pdf",
+              "storagePath": "property-dossiers/7/unidades/ONUS_APT_202_ALCIO_SOUTO_376.pdf"
+            },
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo-ALCIOSOUTO-576-APTO202 - 167MIL.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/Laudos Caixa/Laudo-ALCIOSOUTO-576-APTO202 - 167MIL.pdf",
+              "storagePath": "property-dossiers/7/unidades/Laudo-ALCIOSOUTO-576-APTO202_-_167MIL.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "366126012"
+        },
+        {
+          "code": "APTO 103",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.906",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "366126003"
+        },
+        {
+          "code": "APTO 203",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.916",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "366126013"
+        },
+        {
+          "code": "APTO 104",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.907",
+          "historicalEngineering": "R$ 193.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo 104 -venc jul.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/Laudos Caixa/Laudo 104 -venc jul.pdf",
+              "storagePath": "property-dossiers/7/unidades/Laudo_104_-venc_jul.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS APT 104 ALCIO SOUTO 576.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/RGI Ônus /ONUS APT 104 ALCIO SOUTO 576.pdf",
+              "storagePath": "property-dossiers/7/unidades/ONUS_APT_104_ALCIO_SOUTO_576.pdf"
+            }
+          ],
+          "notes": "Arquivo indica vencimento no nome.",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "366126004"
+        },
+        {
+          "code": "APTO 204",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.917",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "366126014"
+        },
+        {
+          "code": "APTO 105",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.908",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS APT 105 ALCIO SOUTO 376.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/RGI Ônus /ONUS APT 105 ALCIO SOUTO 376.pdf",
+              "storagePath": "property-dossiers/7/unidades/ONUS_APT_105_ALCIO_SOUTO_376.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "366126005"
+        },
+        {
+          "code": "APTO 205",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "assinado",
+          "matricula": "68.918",
+          "historicalEngineering": "R$ 160.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS APT 205 ALCIO SOUTO 576.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/RGI Ônus /ONUS APT 205 ALCIO SOUTO 576.pdf",
+              "storagePath": "property-dossiers/7/unidades/ONUS_APT_205_ALCIO_SOUTO_576.pdf"
+            },
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo 205-venc jul.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/Laudos Caixa/Laudo 205-venc jul.pdf",
+              "storagePath": "property-dossiers/7/unidades/Laudo_205-venc_jul.pdf"
+            }
+          ],
+          "notes": "Arquivo indica vencimento no nome.",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "366126015"
+        },
+        {
+          "code": "APTO 106",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.909",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS APT 106 ALCIO SOUTO 376.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/RGI Ônus /ONUS APT 106 ALCIO SOUTO 376.pdf",
+              "storagePath": "property-dossiers/7/unidades/ONUS_APT_106_ALCIO_SOUTO_376.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "366126006"
+        },
+        {
+          "code": "APTO 206",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.919",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "366126016"
+        },
+        {
+          "code": "APTO 107",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.910",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "366126007"
+        },
+        {
+          "code": "APTO 207",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.920",
+          "historicalEngineering": "R$ 152.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS APT 207 ALCIO SOUTO 576.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/RGI Ônus /ONUS APT 207 ALCIO SOUTO 576.pdf",
+              "storagePath": "property-dossiers/7/unidades/ONUS_APT_207_ALCIO_SOUTO_576.pdf"
+            },
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Apto 207.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/Laudos Caixa/Apto 207.pdf",
+              "storagePath": "property-dossiers/7/unidades/Apto_207.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "366126017"
+        },
+        {
+          "code": "APTO 108",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.911",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "366126008"
+        },
+        {
+          "code": "APTO 208",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.921",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "366126018"
+        },
+        {
+          "code": "APTO 109",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.912",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "366126009"
+        },
+        {
+          "code": "APTO 209",
+          "salePrice": 160000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.922",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "Matrícula pela sequência do RGI do prédio.",
+          "matriculaSource": "sequencia_matriculas",
+          "inscricaoMunicipal": "366126019"
+        },
+        {
+          "code": "APTO 110",
+          "salePrice": 170000,
+          "bedrooms": 1,
+          "catalogStatus": "reservado",
+          "matricula": "68.913",
+          "historicalEngineering": "R$ 162.000,00",
+          "valueHintFromFilename": null,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo 110.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/Laudos Caixa/Laudo 110.pdf",
+              "storagePath": "property-dossiers/7/unidades/Laudo_110.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS APT 110 ALCIO SOUTO 376.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/RGI Ônus /ONUS APT 110 ALCIO SOUTO 376.pdf",
+              "storagePath": "property-dossiers/7/unidades/ONUS_APT_110_ALCIO_SOUTO_376.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "366126010"
+        },
+        {
+          "code": "APTO 210",
+          "salePrice": 165000,
+          "bedrooms": 1,
+          "catalogStatus": "disponivel",
+          "matricula": "68.923",
+          "historicalEngineering": "R$ 167.000,00",
+          "valueHintFromFilename": 167000,
+          "documents": [
+            {
+              "kind": "laudo",
+              "label": "Laudo de engenharia",
+              "name": "Laudo-ALCIOSOUTO-576-APTO210 -167MIL.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/Laudos Caixa/Laudo-ALCIOSOUTO-576-APTO210 -167MIL.pdf",
+              "storagePath": "property-dossiers/7/unidades/Laudo-ALCIOSOUTO-576-APTO210_-167MIL.pdf"
+            },
+            {
+              "kind": "onus",
+              "label": "Ônus / RGI",
+              "name": "ONUS APT 210 ALCIO SOUTO 376.pdf",
+              "zipPath": "Imóveis à venda/Edificio - Alcio Souto, 576. 20u/RGI Ônus /ONUS APT 210 ALCIO SOUTO 376.pdf",
+              "storagePath": "property-dossiers/7/unidades/ONUS_APT_210_ALCIO_SOUTO_376.pdf"
+            }
+          ],
+          "notes": "",
+          "matriculaSource": "certidao_onus",
+          "inscricaoMunicipal": "366126020"
+        }
+      ]
+    },
+    "8": {
+      "propertyId": 8,
+      "officialName": "Casa Luxo Maricá",
+      "street": "Rua Irineu Ferreira Pinto, nº 374",
+      "neighborhood": "Ponta Grossa",
+      "city": "Maricá - RJ",
+      "cep": "24914-345",
+      "mapsUrl": "https://www.google.com/maps?q=Rua%20Irineu%20Ferreira%20Pinto%2C%20374%2C%20Ponta%20Grossa%2C%20Maric%C3%A1%20-%20RJ%2C%20CEP%2024914-345",
+      "engenheiro": "",
+      "crea": "",
+      "cartorio": "",
+      "matriculaMae": "",
+      "inscricaoTerreno": "",
+      "artNumber": "",
+      "inSales": true,
+      "notes": "Não constava do arquivo antigo do Drive.",
+      "documents": [],
+      "units": [
+        {
+          "code": "Casa única",
+          "salePrice": 1180000,
+          "bedrooms": 3,
+          "catalogStatus": "disponivel",
+          "matricula": "",
+          "historicalEngineering": "",
+          "valueHintFromFilename": null,
+          "documents": [],
+          "notes": "",
+          "matriculaSource": "catalogo"
+        }
+      ]
+    }
+  }
+}

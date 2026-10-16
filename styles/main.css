@@ -2945,6 +2945,11 @@ body {
     margin-bottom: 10px;
     font-size: 1rem;
 }
+.engineering-hint {
+    color: #64748b;
+    font-size: 0.85rem;
+    margin: 0 0 10px;
+}
 
 .engineering-grid {
     display: grid;

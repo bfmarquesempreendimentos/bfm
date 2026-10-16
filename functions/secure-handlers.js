@@ -64,6 +64,8 @@ function sanitizeFileName(name) {
 function isAllowedUploadFolder(folder, isAdmin) {
   var f = String(folder || '').replace(/^\/+|\/+$/g, '');
   if (f === 'sale-contracts' || f.indexOf('sale-contracts/') === 0) return isAdmin;
+  if (f === 'engineering-reports' || f.indexOf('engineering-reports/') === 0) return isAdmin;
+  if (f === 'property-dossiers' || f.indexOf('property-dossiers/') === 0) return isAdmin;
   if (f === 'repair-attachments' || f.indexOf('repair-attachments/') === 0) return true;
   if (f.indexOf('repair-response-attachments/') === 0) return true;
   if (f === 'boleto-receipts' || f.indexOf('boleto-receipts/') === 0) return true;
@@ -284,6 +286,8 @@ async function getStorageReadUrlHttp(req, res) {
     if (!path || path.indexOf('..') >= 0) return res.status(400).json({ error: 'path inválido' });
     var allowed =
       path.indexOf('sale-contracts/') === 0 ||
+      path.indexOf('engineering-reports/') === 0 ||
+      path.indexOf('property-dossiers/') === 0 ||
       path.indexOf('repair-attachments/') === 0 ||
       path.indexOf('repair-response-attachments/') === 0 ||
       path.indexOf('boleto-receipts/') === 0;

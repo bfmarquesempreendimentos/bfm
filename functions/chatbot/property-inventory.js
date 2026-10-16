@@ -90,6 +90,20 @@ async function getMergedPropertyUnits(propertyId) {
   return mergeUnitsWithOverrides(raw, allOv[pid] || {});
 }
 
+var validEngineeringCache = { at: 0, map: {} };
+
+async function getValidEngineeringMap() {
+  if (Date.now() - validEngineeringCache.at < 60000) return validEngineeringCache.map;
+  try {
+    var unitEngineering = require('../unit-engineering');
+    var map = await unitEngineering.loadValidEngineeringMap(admin.firestore());
+    validEngineeringCache = { at: Date.now(), map: map || {} };
+  } catch (e) {
+    validEngineeringCache = { at: Date.now(), map: {} };
+  }
+  return validEngineeringCache.map;
+}
+
 function lookupEngineeringValue(engineeringValues, unitCode) {
   if (!engineeringValues || !unitCode) return null;
   var keys = Object.keys(engineeringValues);
@@ -100,7 +114,7 @@ function lookupEngineeringValue(engineeringValues, unitCode) {
   }
   for (i = 0; i < keys.length; i++) {
     var nk = normAlnumUnit(keys[i]);
-    if (nk && target && (nk.indexOf(target) >= 0 || target.indexOf(nk) >= 0)) {
+    if (nk && target && target.indexOf(nk) === 0 && nk.length >= 4) {
       return engineeringValues[keys[i]];
     }
   }
@@ -131,7 +145,7 @@ function formatUnitLine(unit, engineeringValues, includeEngineering) {
   if (includeEngineering) {
     var eng = lookupEngineeringValue(engineeringValues, unit.code);
     if (eng) line += ' | Engenharia: ' + eng;
-    else line += ' | Engenharia: (não cadastrado no sistema)';
+    else line += ' | Engenharia: A confirmar';
   }
   return line;
 }
@@ -143,6 +157,8 @@ async function formatPropertyInventory(propertyId, options) {
 
   var data = await getMergedPropertyUnits(propertyId);
   if (!data) return 'Empreendimento sem inventário de unidades (ID ' + propertyId + ').';
+  var validMap = includeEngineering ? await getValidEngineeringMap() : {};
+  var validForProp = validMap[String(propertyId)] || {};
 
   var lines = ['📋 *' + data.name + '* (ID ' + propertyId + ')', ''];
   var counts = { disponivel: 0, reservado: 0, assinado: 0 };
@@ -157,7 +173,7 @@ async function formatPropertyInventory(propertyId, options) {
     var st = String(u.status || '').toLowerCase();
     if (counts[st] !== undefined) counts[st]++;
     if (statusFilter && st !== statusFilter) continue;
-    lines.push(formatUnitLine(u, data.engineeringValues, includeEngineering));
+    lines.push(formatUnitLine(u, validForProp, includeEngineering));
   }
 
   lines.push('');
@@ -188,8 +204,9 @@ async function formatUnitDetail(propertyId, codigoUnidade, options) {
   if (unit.bedrooms) text += 'Quartos: ' + unit.bedrooms + '\n';
 
   if (includeEngineering) {
-    var eng = lookupEngineeringValue(data.engineeringValues, unit.code);
-    text += 'Valor engenharia: ' + (eng || '(não cadastrado)') + '\n';
+    var validMap = await getValidEngineeringMap();
+    var eng = lookupEngineeringValue(validMap[String(propertyId)] || {}, unit.code);
+    text += 'Valor engenharia: ' + (eng || 'A confirmar') + '\n';
   }
 
   if (String(unit.status).toLowerCase() === 'reservado') {

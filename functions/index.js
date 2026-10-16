@@ -2855,6 +2855,10 @@ exports.adminBrokerReservationReportSend = functions
     memory: '256MB',
   })
   .https.onRequest((req, res) => brokerReservationReport.sendBrokerReservationReportsHttp(req, res));
+const unitEngineering = require('./unit-engineering');
+exports.adminUnitEngineering = functions.https.onRequest((req, res) =>
+  unitEngineering.adminUnitEngineeringHttp(req, res)
+);
 exports.registerFcmToken = functions.https.onRequest((req, res) =>
   fcmPush.registerFcmToken(req, res)
 );

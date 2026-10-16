@@ -114,6 +114,7 @@
             }
         });
         if (typeof loadBrokerReservationsReport === 'function') loadBrokerReservationsReport();
+        if (typeof loadEngineeringAlerts === 'function') loadEngineeringAlerts();
     }
 
     function exportReportsPdf() {

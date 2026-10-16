@@ -11,10 +11,21 @@ const {
   getPropertySlug,
   SITE_BASE_URL,
 } = require('./property-data');
+const admin = require('firebase-admin');
 const axios = require('axios');
 const { sanitizeWhatsAppTemplateParam, uploadMediaBuffer } = require('./whatsapp-api');
 const { BRUNO_CORRETOR_PHONE_DISPLAY } = require('./lead-manager');
 const propertyUnitsBase = require('./property-units-data');
+var validEngineeringByProperty = {};
+
+async function refreshValidEngineeringCache(db) {
+  try {
+    var unitEngineering = require('../unit-engineering');
+    validEngineeringByProperty = await unitEngineering.loadValidEngineeringMap(db) || {};
+  } catch (e) {
+    validEngineeringByProperty = {};
+  }
+}
 
 const MARKET_SNIPPETS = [
   {
@@ -300,19 +311,20 @@ function getCampaignPriceSnapshot(propertyId) {
     }
   }
 
-  var engKeys = raw.engineeringValues ? Object.keys(raw.engineeringValues) : [];
+  var validEng = validEngineeringByProperty[String(propertyId)] || {};
+  var engKeys = Object.keys(validEng);
   for (i = 0; i < engKeys.length; i++) {
-    engNum = parseBrlMoneyString(raw.engineeringValues[engKeys[i]]);
+    engNum = parseBrlMoneyString(validEng[engKeys[i]]);
     if (engNum != null && (out.maxEng == null || engNum > out.maxEng)) {
       out.maxEng = engNum;
-      out.maxEngDisplay = raw.engineeringValues[engKeys[i]];
+      out.maxEngDisplay = validEng[engKeys[i]];
     }
   }
 
   for (i = 0; i < raw.units.length; i++) {
     u = raw.units[i];
     if (String(u.status || '').toLowerCase() !== 'disponivel') continue;
-    eng = lookupEngineeringValueSync(raw.engineeringValues, u.code);
+    eng = lookupEngineeringValueSync(validEng, u.code);
     engNum = parseBrlMoneyString(eng);
     if (engNum != null && engNum > u.price) {
       out.examples.push({
@@ -1126,6 +1138,9 @@ async function sendBrokerCampaignFollowUpMedia(
 async function sendBrokerCampaignDirect(
   waPhone, config, broker, now, waSendOpts, sendTextMessage, sendImageMessage, sendVideoMessage
 ) {
+  try {
+    await refreshValidEngineeringCache(admin.firestore());
+  } catch (eEng) { /* campanha segue sem valores vencidos do catálogo */ }
   var media = await sendBrokerCampaignFollowUpMedia(
     waPhone, config, broker, now, waSendOpts,
     sendTextMessage, sendImageMessage, sendVideoMessage,
@@ -1428,5 +1443,6 @@ module.exports = {
   getWeekOfYearNumber,
   getPropertyPageUrl,
   resolveMarketSnippet,
+  refreshValidEngineeringCache,
   MARKET_SNIPPETS,
 };

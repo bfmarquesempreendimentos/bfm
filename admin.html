@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
     <link rel="stylesheet" href="styles/main.css?v=37">
-    <link rel="stylesheet" href="styles/admin.css?v=36">
+    <link rel="stylesheet" href="styles/admin.css?v=41">
     <link rel="stylesheet" href="styles/admin-finance.css?v=1">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -66,7 +66,7 @@
                 </ul>
             </div>
             <div class="nav-group">
-                <div class="nav-group-label">Operação</div>
+                <div class="nav-group-label">Cadastro</div>
                 <ul class="nav-group-list">
                     <li class="nav-item">
                         <a href="#properties" onclick="showSection('properties'); closeAdminSidebar();">
@@ -74,6 +74,11 @@
                             <span>Empreendimentos</span>
                         </a>
                     </li>
+                </ul>
+            </div>
+            <div class="nav-group">
+                <div class="nav-group-label">Operação</div>
+                <ul class="nav-group-list">
                     <li class="nav-item">
                         <a href="#reservations" onclick="showSection('reservations'); closeAdminSidebar();">
                             <i class="fas fa-calendar-check" aria-hidden="true"></i>
@@ -347,6 +352,15 @@
                         <!-- Expiring reservations will be loaded here -->
                     </div>
                 </div>
+
+                <div class="dashboard-card">
+                    <div class="dashboard-card-head">
+                        <h3>Engenharia</h3>
+                        <span class="dashboard-card-hint">Laudo vale 6 meses</span>
+                    </div>
+                    <p id="ueDashHint">Carregando vencimentos…</p>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="showSection('properties'); if (typeof showPropertiesTab === 'function') showPropertiesTab('docs');">Ver fichas</button>
+                </div>
             </div>
         </section>
 
@@ -355,7 +369,7 @@
             <div class="section-header">
                 <div class="section-header-main">
                     <h2>Empreendimentos</h2>
-                    <p class="section-subtitle">Portfólio do site e status das unidades na vitrine.</p>
+                    <p class="section-subtitle">Cadastro interno do portfólio. A vitrine do corretor só lê preço e engenharia vigente daqui.</p>
                 </div>
                 <div class="header-actions">
                     <button type="button" class="btn btn-success" onclick="showAddPropertyModal()">
@@ -371,6 +385,11 @@
                     </button>
                 </div>
             </details>
+
+            <div class="admin-section-tabs" role="tablist">
+                <button type="button" class="admin-section-tab is-active" data-prop-tab="list" onclick="showPropertiesTab('list')">Lista</button>
+                <button type="button" class="admin-section-tab" data-prop-tab="docs" onclick="showPropertiesTab('docs')">Fichas</button>
+            </div>
 
             <!-- Properties Filters -->
             <div class="admin-filters" role="search" aria-label="Filtrar empreendimentos">
@@ -399,7 +418,7 @@
             </div>
 
             <!-- Properties Table -->
-            <div class="admin-table-container admin-table-container--elevated">
+            <div class="admin-table-container admin-table-container--elevated" id="propertiesListPanel">
                 <div class="admin-table-caption">Lista sincronizada com o site público (cards de obras).</div>
                 <table class="admin-table" id="propertiesTable">
                     <thead>
@@ -417,6 +436,135 @@
                         <!-- Property rows will be loaded here -->
                     </tbody>
                 </table>
+            </div>
+
+            <div id="propertiesDocsPanel" class="properties-docs-panel" hidden>
+                <div id="ueAlerts" class="ue-alerts"></div>
+                <div class="ue-toolbar">
+                    <label>Empreendimento
+                        <select id="ueProperty" onchange="loadUnitEngineeringAdmin()"></select>
+                    </label>
+                    <button type="button" class="btn btn-secondary" onclick="loadUnitEngineeringAdmin()">Atualizar</button>
+                </div>
+
+                <div class="content-card pd-building">
+                    <h3 style="margin-top:0;">Ficha do empreendimento</h3>
+                    <p class="form-hint">Cadastro interno do prédio. O corretor na vitrine não vê esta ficha — ela é a base do que já aparece lá (preço da unidade e engenharia vigente).</p>
+                    <form id="pdBuildingForm" class="ue-form pd-building-form" onsubmit="saveBuildingDossier(event)">
+                        <div class="ue-form-grid">
+                            <label>Nome oficial
+                                <input type="text" id="pdOfficialName" placeholder="Ex: Edifício Nova Cidade">
+                            </label>
+                            <label>Endereço
+                                <input type="text" id="pdStreet" placeholder="Ex: Rua Alcio Souto, 576">
+                            </label>
+                            <label>Bairro
+                                <input type="text" id="pdNeighborhood">
+                            </label>
+                            <label>Cidade
+                                <input type="text" id="pdCity">
+                            </label>
+                            <label>CEP
+                                <input type="text" id="pdCep">
+                            </label>
+                            <label>Google Maps
+                                <input type="url" id="pdMapsUrl" placeholder="https://maps.app.goo.gl/...">
+                            </label>
+                            <label>Cartório
+                                <input type="text" id="pdCartorio">
+                            </label>
+                            <label>Matrícula-mãe
+                                <input type="text" id="pdMatriculaMae">
+                            </label>
+                            <label>Inscrição do terreno
+                                <input type="text" id="pdInscricaoTerreno">
+                            </label>
+                            <label>Engenheiro
+                                <input type="text" id="pdEngenheiro">
+                            </label>
+                            <label>CREA
+                                <input type="text" id="pdCrea">
+                            </label>
+                            <label>ART
+                                <input type="text" id="pdArtNumber">
+                            </label>
+                        </div>
+                        <label>Observações
+                            <input type="text" id="pdNotes" maxlength="800">
+                        </label>
+                        <div class="ue-toolbar">
+                            <button type="submit" class="btn btn-primary">Salvar ficha do prédio</button>
+                        </div>
+                    </form>
+                    <div id="pdBuildingDocs" class="pd-building-docs"></div>
+                </div>
+
+                <div class="content-card">
+                    <h3 style="margin-top:0;">Ficha das unidades</h3>
+                    <p class="form-hint">Código interno do sistema. Matrícula, IPTU, preço e engenharia já vêm do cadastro atual e do arquivo antigo. Sem data no laudo, a vitrine continua “A confirmar”.</p>
+                    <div class="admin-table-container">
+                        <table class="admin-table pd-units-table">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Matrícula</th>
+                                    <th>IPTU / inscrição</th>
+                                    <th>Preço</th>
+                                    <th>Engenharia</th>
+                                    <th>Data do laudo</th>
+                                    <th>Validade</th>
+                                    <th>Arquivos</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="ueTableBody">
+                                <tr><td colspan="9">Escolha um empreendimento.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <form id="ueForm" class="ue-form" hidden onsubmit="saveUnitEngineering(event)">
+                        <h4>Ficha da unidade</h4>
+                        <div class="ue-form-grid">
+                            <label>Código interno
+                                <select id="ueUnitCode" required></select>
+                            </label>
+                            <label>Matrícula
+                                <input type="text" id="ueMatricula" placeholder="Ex: 51.894">
+                            </label>
+                            <label>Inscrição municipal / IPTU
+                                <input type="text" id="ueInscricao">
+                            </label>
+                            <label>Preço (vitrine)
+                                <input type="text" id="ueSalePrice" placeholder="Ex: 160000">
+                            </label>
+                            <label>Responsável pelo laudo
+                                <input type="text" id="ueAppraiser" placeholder="Avaliador / engenharia">
+                            </label>
+                            <label>Valor da engenharia (R$)
+                                <input type="text" id="ueValue" placeholder="Ex: 188000">
+                            </label>
+                            <label>Valor do m² (R$)
+                                <input type="text" id="ueM2">
+                            </label>
+                            <label>Data da engenharia
+                                <input type="date" id="ueDate" onchange="onEngineeringDateChange()">
+                            </label>
+                        </div>
+                        <p id="ueExpiresHint" class="form-hint">Sem data = engenharia não aparece na vitrine (fica “A confirmar”).</p>
+                        <label>Novo laudo (PDF, só admin)
+                            <input type="file" id="ueReportFile" accept=".pdf,application/pdf,image/*">
+                        </label>
+                        <label>Observações
+                            <input type="text" id="ueNotes" maxlength="500">
+                        </label>
+                        <h5>Arquivos antigos desta unidade</h5>
+                        <ul id="ueArchiveDocs" class="pd-doc-list"></ul>
+                        <div class="ue-toolbar">
+                            <button type="submit" class="btn btn-primary">Salvar ficha da unidade</button>
+                            <button type="button" class="btn btn-secondary" onclick="openEngineeringReport()">Abrir laudo anexado</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </section>
 
@@ -1073,22 +1221,16 @@
             </div>
         </section>
 
-        <!-- Legal Section (Wave C stub) -->
         <section id="legal" class="admin-section">
             <div class="section-header">
                 <div class="section-header-main">
                     <h2>Jurídico</h2>
-                    <p class="section-subtitle">Processos, prazos e modelos — base para evolução do módulo jurídico.</p>
+                    <p class="section-subtitle">Processos, prazos e modelos — em desenvolvimento.</p>
                 </div>
             </div>
             <div class="content-card">
-                <h3 style="margin-top:0;">Em desenvolvimento</h3>
-                <p>Próximas entregas: cadastro de processos, alertas de prazos, templates de contratos e distratos vinculados às vendas.</p>
-                <ul>
-                    <li>Processos por empreendimento/unidade</li>
-                    <li>Prazos com alerta no dashboard</li>
-                    <li>Modelos de documentos com placeholders</li>
-                </ul>
+                <p>Ficha do prédio, matrícula, IPTU e engenharia ficam em <strong>Empreendimentos → Cadastro</strong>.</p>
+                <button type="button" class="btn btn-secondary" onclick="showSection('properties'); if (typeof showPropertiesTab === 'function') showPropertiesTab('docs');">Abrir cadastro dos empreendimentos</button>
             </div>
         </section>
 
@@ -1107,10 +1249,30 @@
             </div>
 
             <div class="reports-grid">
+                <div class="report-card report-card--wide" id="engineeringAlertsReportCard">
+                    <h3>Engenharias a vencer</h3>
+                    <p class="section-subtitle">Laudos com menos de 45 dias ou já vencidos — base para fomentar venda das unidades cujo laudo ainda vale (ou precisa renovar).</p>
+                    <div id="ueReportBody"><p>Abrindo alertas…</p></div>
+                    <div class="brr-toolbar">
+                        <button type="button" class="btn btn-secondary" onclick="showSection('properties'); if (typeof showPropertiesTab === 'function') showPropertiesTab('docs');">
+                            Abrir cadastro no empreendimento
+                        </button>
+                    </div>
+                </div>
                 <div class="report-card report-card--wide" id="brokerReservationsReportCard">
                     <h3>Reservas por corretor</h3>
-                    <p class="section-subtitle">Gera uma planilha Excel por responsável (corretor ou imobiliária), agrupada por empreendimento, para atualizar a situação das vendas e devolver pelo WhatsApp.</p>
+                    <p class="section-subtitle">Gera uma planilha Excel por responsável. Escolha o tipo de reserva — o padrão é só as ativas, sem canceladas nem histórico encerrado.</p>
                     <div class="brr-toolbar">
+                        <label>Tipo de reserva
+                            <select id="brrStatusFilter" onchange="loadBrokerReservationsReport()">
+                                <option value="active" selected>Ativas (padrão)</option>
+                                <option value="pending">Pendentes</option>
+                                <option value="active_pending">Ativas e pendentes</option>
+                                <option value="signed">Assinadas</option>
+                                <option value="converted">Convertidas em venda</option>
+                                <option value="linked">Todas vinculadas (sem canceladas)</option>
+                            </select>
+                        </label>
                         <button type="button" class="btn btn-secondary" onclick="loadBrokerReservationsReport()">
                             <i class="fas fa-sync-alt" aria-hidden="true"></i> Atualizar lista
                         </button>
@@ -1906,7 +2068,7 @@
 
     <!-- Scripts -->
     <script src="js/compat-polyfills.js"></script>
-    <script src="config.js?v=37"></script>
+    <script src="config.js?v=41"></script>
     <script src="js/dom-utils.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/audit.js"></script>
@@ -1925,7 +2087,8 @@
     <script src="js/reservations-api.js?v=4"></script>
     <script src="js/reservations.js"></script>
     <script src="js/property-units-catalog.js?v=36"></script>
-    <script src="js/property-units.js?v=34"></script>
+    <script src="js/unit-engineering.js?v=2"></script>
+    <script src="js/property-units.js?v=36"></script>
     <script src="js/pdf-seed-reservations.js"></script>
     <script src="js/pdf-import.js"></script>
     <script src="js/notifications.js"></script>
@@ -1939,9 +2102,10 @@
     <script src="js/fcm-push.js?v=2"></script>
     <script src="js/admin-dashboard-charts.js?v=3"></script>
     <script src="js/admin-finance.js?v=1"></script>
-    <script src="js/admin-reports.js?v=3"></script>
-    <script src="js/admin-broker-reservations-report.js?v=2"></script>
-    <script src="js/admin.js?v=46"></script>
+    <script src="js/admin-reports.js?v=4"></script>
+    <script src="js/admin-broker-reservations-report.js?v=4"></script>
+    <script src="js/admin-unit-engineering.js?v=5"></script>
+    <script src="js/admin.js?v=49"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>

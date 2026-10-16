@@ -19,11 +19,24 @@
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    function isLinkedReservation(r) {
+    function selectedStatusFilter() {
+        var el = document.getElementById('brrStatusFilter');
+        return el && el.value ? el.value : 'active';
+    }
+
+    function matchesReportFilter(r) {
         var st = String((r && r.status) || '').toLowerCase();
         if (st === 'cancelled' || st === 'rejected' || st === 'expired') return false;
-        if (st === 'pending' || st === 'active' || st === 'signed' || st === 'converted') return true;
-        return !!(r && r.renewalDue);
+        var filter = selectedStatusFilter();
+        if (filter === 'active') return st === 'active';
+        if (filter === 'pending') return st === 'pending';
+        if (filter === 'signed') return st === 'signed';
+        if (filter === 'converted') return st === 'converted';
+        if (filter === 'active_pending') return st === 'active' || st === 'pending';
+        if (filter === 'linked') {
+            return st === 'pending' || st === 'active' || st === 'signed' || st === 'converted' || !!(r && r.renewalDue);
+        }
+        return st === 'active';
     }
 
     function brokerKey(r) {
@@ -113,9 +126,11 @@
     }
 
     function lookupEngineeringValue(r) {
-        var raw = (typeof getPropertyUnitsRaw === 'function') ? getPropertyUnitsRaw(r.propertyId) : null;
-        if (!raw || !raw.engineeringValues) return '';
-        return lookupMapValue(raw.engineeringValues, r.unitCode);
+        if (typeof lookupValidEngineeringValue === 'function') {
+            var valid = lookupValidEngineeringValue(r.propertyId, r.unitCode);
+            if (valid) return valid;
+        }
+        return '';
     }
 
     function parseBrl(str) {
@@ -178,7 +193,7 @@
     }
 
     function buildGroups(reservations, brokers) {
-        var linked = (reservations || []).filter(isLinkedReservation);
+        var linked = (reservations || []).filter(matchesReportFilter);
         var byId = {};
         var unique = [];
         linked.forEach(function(r) {
@@ -235,7 +250,7 @@
         }
         var excluded = 0;
         (reservations || []).forEach(function(r) {
-            if (!isLinkedReservation(r)) excluded++;
+            if (!matchesReportFilter(r)) excluded++;
         });
         return { groups: groups, linked: unique, excluded: excluded };
     }
@@ -508,9 +523,18 @@
         }
         if (sum) {
             var omitted = (_excludedCount || 0);
-            sum.textContent = _linked.length + ' reserva(s) vinculada(s) em ' + _groups.length +
-                ' responsável(is). Cada arquivo contém só as reservas daquele corretor; nenhuma some nem duplica.' +
-                (omitted ? ' ' + omitted + ' encerrada(s) (cancelada/rejeitada/expirada) ficam de fora.' : '');
+            var labels = {
+                active: 'ativas',
+                pending: 'pendentes',
+                signed: 'assinadas',
+                converted: 'convertidas em venda',
+                active_pending: 'ativas e pendentes',
+                linked: 'vinculadas (sem canceladas)'
+            };
+            var filtro = labels[selectedStatusFilter()] || 'do filtro';
+            sum.textContent = _linked.length + ' reserva(s) ' + filtro + ' em ' + _groups.length +
+                ' responsável(is). Cada arquivo contém só as reservas daquele corretor neste filtro.' +
+                (omitted ? ' ' + omitted + ' reserva(s) ficaram de fora deste filtro.' : '');
         }
         tbody.innerHTML = _groups.map(function(g, idx) {
             var phone = g.phone || '—';

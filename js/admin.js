@@ -1405,6 +1405,7 @@ function fetchDashboardRemoteThenActivity(localBrokers) {
 // Load dashboard data
 function loadDashboardData() {
     syncAdminDashboardLocalData();
+    if (typeof loadEngineeringAlerts === 'function') loadEngineeringAlerts();
 
     if ((!properties || properties.length === 0) && typeof loadProperties === 'function') {
         loadProperties();
@@ -1491,6 +1492,28 @@ function loadExpiringReservations() {
 }
 
 // Load properties data
+function showPropertiesTab(tab) {
+    var list = document.getElementById('propertiesListPanel');
+    var filters = document.querySelector('#properties .admin-filters');
+    var docs = document.getElementById('propertiesDocsPanel');
+    var isDocs = tab === 'docs';
+    var advanced = document.querySelector('#properties .admin-advanced-tools');
+    if (list) list.hidden = isDocs;
+    if (filters) filters.hidden = isDocs;
+    if (advanced) advanced.hidden = isDocs;
+    if (docs) docs.hidden = !isDocs;
+    document.querySelectorAll('#properties .admin-section-tab').forEach(function(btn) {
+        btn.classList.toggle('is-active', btn.getAttribute('data-prop-tab') === (isDocs ? 'docs' : 'list'));
+    });
+    if (isDocs && typeof loadUnitEngineeringAdmin === 'function') loadUnitEngineeringAdmin();
+}
+
+function openPropertyDocumentation(propertyId) {
+    showSection('properties');
+    showPropertiesTab('docs');
+    if (typeof loadUnitEngineeringAdmin === 'function') loadUnitEngineeringAdmin(propertyId);
+}
+
 function loadPropertiesData() {
     const tbody = document.getElementById('propertiesTableBody');
     if (!tbody) return;
@@ -1510,6 +1533,9 @@ function loadPropertiesData() {
                     </button>
                     <button class="btn-action btn-edit" onclick="editProperty(${property.id})">
                         <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-action" title="Cadastro do empreendimento" onclick="openPropertyDocumentation(${property.id})">
+                        <i class="fas fa-folder-open"></i>
                     </button>
                     <button class="btn-action btn-delete" onclick="deletePropertyAdmin(${property.id})">
                         <i class="fas fa-trash"></i>
@@ -1564,6 +1590,9 @@ function displayFilteredProperties(filteredProperties) {
                     </button>
                     <button class="btn-action btn-edit" onclick="editProperty(${property.id})">
                         <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-action" title="Cadastro do empreendimento" onclick="openPropertyDocumentation(${property.id})">
+                        <i class="fas fa-folder-open"></i>
                     </button>
                     <button class="btn-action btn-delete" onclick="deletePropertyAdmin(${property.id})">
                         <i class="fas fa-trash"></i>

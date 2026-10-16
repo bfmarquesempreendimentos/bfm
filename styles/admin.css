@@ -1266,6 +1266,115 @@
 .report-card--wide {
     grid-column: 1 / -1;
 }
+.admin-section-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 18px 0 12px;
+}
+.admin-section-tab {
+    border: 1px solid var(--admin-border);
+    background: var(--admin-surface);
+    color: var(--admin-text);
+    border-radius: 999px;
+    padding: 8px 14px;
+    cursor: pointer;
+}
+.admin-section-tab.is-active {
+    background: #0b1f3a;
+    color: #fff;
+    border-color: #0b1f3a;
+}
+.brr-toolbar select {
+    padding: 8px 10px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+}
+.ue-alerts {
+    margin: 0 0 16px;
+    padding: 12px 16px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+}
+.ue-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+    margin: 12px 0;
+}
+.ue-toolbar select,
+.ue-form input,
+.ue-form select {
+    min-width: 180px;
+    padding: 8px 10px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+}
+.ue-form {
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--admin-border);
+}
+.ue-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+.ue-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.9rem;
+}
+.ue-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+}
+.ue-status--ok { background: #dcfce7; color: #166534; }
+.ue-status--soon { background: #fef3c7; color: #92400e; }
+.ue-status--expired { background: #fee2e2; color: #991b1b; }
+.ue-row--expired td { background: #fef2f2; }
+.ue-row--soon td { background: #fffbeb; }
+.pd-building-form { margin-top: 0; padding-top: 0; border-top: 0; }
+.pd-building-docs { margin-top: 12px; }
+.pd-doc-list {
+    margin: 8px 0 0;
+    padding-left: 18px;
+}
+.pd-doc-list li { margin: 4px 0; }
+.pd-doc-kind {
+    display: inline-block;
+    min-width: 9.5rem;
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--admin-text-muted, #64748b);
+}
+.pd-doc-more { margin-top: 10px; }
+.pd-doc-link {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: #1d4ed8;
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+.pd-docs-cell {
+    max-width: 220px;
+    font-size: 0.85rem;
+}
+.pd-units-table { min-width: 720px; }
+.properties-docs-panel .content-card { margin-bottom: 18px; }
+@media (max-width: 720px) {
+    .pd-doc-kind { min-width: 0; display: block; }
+    .ue-toolbar label,
+    .ue-form-grid label { min-width: 0; }
+}
 .brr-toolbar {
     display: flex;
     flex-wrap: wrap;

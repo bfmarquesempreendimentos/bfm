@@ -313,7 +313,15 @@ function getPropertyUnits(propertyId) {
         name: data.name,
         units: data.units.map(function(u) {
             var st = resolveUnitStatusClient(u.status, overrides[u.code]);
-            return { code: u.code, price: u.price, bedrooms: u.bedrooms, status: st };
+            var price = u.price;
+            if (typeof lookupCadastroSalePrice === 'function') {
+                var cadastroPrice = lookupCadastroSalePrice(propertyId, u.code);
+                if (cadastroPrice !== '' && cadastroPrice != null) {
+                    var n = typeof cadastroPrice === 'number' ? cadastroPrice : Number(String(cadastroPrice).replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.'));
+                    if (isFinite(n)) price = n;
+                }
+            }
+            return { code: u.code, price: price, bedrooms: u.bedrooms, status: st };
         }),
         engineeringValues: data.engineeringValues,
         matriculas: data.matriculas
@@ -481,19 +489,21 @@ function createUnitsTable(propertyId) {
                 </div>
             ` : ''}
             
-            ${propertyData.engineeringValues ? `
-                <div class="engineering-values-section">
-                    <h5>Valor Engenharia:</h5>
-                    <div class="engineering-grid">
-                        ${Object.entries(propertyData.engineeringValues).map(([unit, value]) => `
-                            <div class="engineering-item">
-                                <span class="engineering-unit">${unit}</span>
-                                <span class="engineering-value">${value}</span>
-                            </div>
-                        `).join('')}
-                    </div>
+            <div class="engineering-values-section">
+                <h5>Valor Engenharia:</h5>
+                <p class="engineering-hint">Somente laudo vigente (6 meses). Sem laudo novo: A confirmar.</p>
+                <div class="engineering-grid">
+                    ${(propertyData.units || []).map(function(u) {
+                        var shown = (typeof displayEngineeringValue === 'function')
+                            ? displayEngineeringValue(propertyId, u.code)
+                            : 'A confirmar';
+                        return '<div class="engineering-item">' +
+                            '<span class="engineering-unit">' + u.code + '</span>' +
+                            '<span class="engineering-value">' + shown + '</span>' +
+                            '</div>';
+                    }).join('')}
                 </div>
-            ` : ''}
+            </div>
         </div>
     `;
     
