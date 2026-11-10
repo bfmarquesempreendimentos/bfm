@@ -90,6 +90,27 @@ eq(r205.valuePerM2, 5978.58, 'APTO 205 m²');
 eq(r205.garantiaCaixa, 'apta', 'APTO 205 garantia favorável');
 
 var fromName = extractLaudoFields('', '27:11:2016.pdf');
+var daniel = [
+  'R DOUTOR LOPES DA CRUZ, 136, Unidade 101.',
+  'VistoriaData da VistoriaUso da UnidadeOcupaçãoPosição FísicaAndar',
+  '13/10/2026ResidencialDesocupadoLateral1',
+  'Sim, Somos Favoráveis à Aceitação do Imóvel Como Garantia',
+  '31,985.003,13R$ 160.000,00',
+  'Área (m²)R$/m²Valor Produto (R$)',
+  '160.000,00 (CENTO E SESSENTA MIL REAIS)Valor de Avaliação R$',
+  'Valor unitário = -2818,443494 +144330,1849 / Area privativa',
+  'Formação',
+  'DANIEL LUIZ COSTA E SILVA',
+  'CPF/MatrículaResponsável Técnico',
+].join('\n');
+var rDaniel = extractLaudoFields(daniel, 'laudo.pdf');
+eq(rDaniel.appraisalDate, '2026-10-13', 'laudo Daniel data');
+eq(rDaniel.appraiser, 'DANIEL LUIZ COSTA E SILVA', 'laudo Daniel responsável');
+eq(rDaniel.engineeringValue, 160000, 'laudo Daniel valor');
+eq(rDaniel.valuePerM2, 5003.13, 'laudo Daniel m², não o -2818 da fórmula');
+eq(rDaniel.garantiaCaixa, 'apta', 'laudo Daniel garantia');
+eq(rDaniel.unitHint, '101', 'laudo Daniel unidade no PDF');
+
 eq(fromName.appraisalDate, '', 'PDF vazio não inventa data pelo nome do arquivo');
 eq(dateFromDocName('27-11-2016.pdf'), '2016-11-27', 'dateFromDocName hífen');
 eq(isPersonName('Representante Legal'), false, 'isPersonName rejeita cargo');
@@ -112,6 +133,17 @@ async function testRealPdf() {
   eq(ex.engineeringValue, 201000, 'PDF real APTO 205 valor');
   eq(ex.valuePerM2, 5978.58, 'PDF real APTO 205 m²');
   eq(ex.garantiaCaixa, 'apta', 'PDF real APTO 205 garantia');
+  eq(ex.unitHint, '205', 'PDF real APTO 205 unidade');
+  var p106 = '/tmp/bfm-laudos/apto106.pdf';
+  if (fs.existsSync(p106)) {
+    var ex106 = await extractLaudoFromPdf(fs.readFileSync(p106), 'laudo.pdf');
+    eq(ex106.appraisalDate, '2026-10-13', 'PDF real 106/101 data');
+    eq(ex106.appraiser, 'DANIEL LUIZ COSTA E SILVA', 'PDF real 106/101 responsável');
+    eq(ex106.engineeringValue, 160000, 'PDF real 106/101 valor');
+    eq(ex106.valuePerM2, 5003.13, 'PDF real 106/101 m²');
+    eq(ex106.garantiaCaixa, 'apta', 'PDF real 106/101 garantia');
+    eq(ex106.unitHint, '101', 'PDF real 106/101 é Unidade 101');
+  }
 }
 
 testRealPdf().then(function() {

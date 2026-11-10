@@ -118,7 +118,7 @@ function extractValorAvaliacao(text) {
 
 function extractValorM2(text, engineeringValue) {
   var t = normalize(text);
-  var flat = flatten(text);
+  var flat = flatten(text).replace(/Valor unit[aá]rio\s*=[^.\n]{0,80}/gi, ' ');
   var m = t.match(/(\d{1,3}\.\d{3},\d{2})\s*\n\s*[ÁA]rea.{0,12}\(m/i) ||
     flat.match(/(\d{1,3}\.\d{3},\d{2})\s+[ÁA]rea\s*\(m/i);
   if (m && inM2Range(parseBrMoney(m[1]), engineeringValue)) return parseBrMoney(m[1]);
@@ -237,6 +237,14 @@ function extractGarantiaCaixa(text) {
   return { garantiaCaixa: '', garantiaSnippet: snippet };
 }
 
+function extractUnitHint(text) {
+  var flat = flatten(text);
+  var m = flat.match(/\bUnidade\s+(\d{2,3})\b/i);
+  if (m) return m[1];
+  m = flat.match(/\bAPTO\s*(\d{2,3})\b/i);
+  return m ? m[1] : '';
+}
+
 function extractLaudoFields(text, fileName) {
   var trio = extractApartmentTrio(text);
   var out = {
@@ -246,6 +254,7 @@ function extractLaudoFields(text, fileName) {
     valuePerM2: trio ? trio.valuePerM2 : '',
     garantiaCaixa: '',
     garantiaSnippet: '',
+    unitHint: extractUnitHint(text),
     textLength: flatten(text).length,
   };
   if (!out.valuePerM2) out.valuePerM2 = extractValorM2(text, out.engineeringValue);

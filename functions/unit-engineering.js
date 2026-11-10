@@ -3,7 +3,7 @@
 var admin = require('firebase-admin');
 var { verifyAdminAuth } = require('./admin-auth');
 var { roleHasPermission } = require('./admin-accounts');
-var { dateFromDocName, isPersonName } = require('./laudo-extract');
+var { dateFromDocName, isPersonName, extractLaudoFromPdf } = require('./laudo-extract');
 var propertyUnitsCatalog = require('./chatbot/property-units-data');
 var dossierSeed = require('./property-dossier-seed.json');
 
@@ -374,8 +374,66 @@ function saneValuePerM2(raw, valor) {
   var n = Number(raw);
   if (!isFinite(n) || n <= 0) return '';
   if (n >= 40000) return '';
-  if (valor && Number(valor) && n >= Number(valor) * 0.35) return '';
+  if (!valor || !Number(valor)) return '';
+  if (n >= Number(valor) * 0.35) return '';
   return n;
+}
+
+async function downloadReportBuffer(storagePath) {
+  var buckets = [
+    'site-interativo-b-f-marques.firebasestorage.app',
+    'site-interativo-b-f-marques.appspot.com',
+  ];
+  var i;
+  var file;
+  var exists;
+  var buf;
+  for (i = 0; i < buckets.length; i++) {
+    try {
+      file = admin.storage().bucket(buckets[i]).file(storagePath);
+      exists = await file.exists();
+      if (exists[0]) {
+        buf = await file.download();
+        return buf[0];
+      }
+    } catch (err) {
+      console.warn('downloadReportBuffer', buckets[i], err && err.message);
+    }
+  }
+  return null;
+}
+
+function mergeExtractIntoDoc(docU, extracted) {
+  if (!extracted) return docU;
+  if (extracted.appraisalDate && !docU.appraisalDate) {
+    docU.appraisalDate = extracted.appraisalDate;
+    docU.expiresAt = addMonthsYmd(extracted.appraisalDate, VALIDITY_MONTHS);
+  }
+  if (extracted.appraiser && !isPersonName(docU.appraiser)) docU.appraiser = extracted.appraiser;
+  if (extracted.engineeringValue && (docU.engineeringValue === '' || docU.engineeringValue == null)) {
+    docU.engineeringValue = extracted.engineeringValue;
+  }
+  var m2 = saneValuePerM2(docU.valuePerM2, docU.engineeringValue);
+  if (!m2) m2 = saneValuePerM2(extracted.valuePerM2, docU.engineeringValue);
+  docU.valuePerM2 = m2;
+  if (!docU.garantiaCaixa && (extracted.garantiaCaixa === 'apta' || extracted.garantiaCaixa === 'inapta')) {
+    docU.garantiaCaixa = extracted.garantiaCaixa;
+  }
+  if (extracted.unitHint) docU.laudoUnitHint = String(extracted.unitHint);
+  return docU;
+}
+
+function docNeedsLaudoParse(docU) {
+  if (!docU || !docU.reportPath) return false;
+  return !docU.appraisalDate || !docU.engineeringValue || !isPersonName(docU.appraiser) || !docU.valuePerM2;
+}
+
+async function fillDocFromStoredLaudo(docU) {
+  if (!docNeedsLaudoParse(docU)) return docU;
+  var buf = await downloadReportBuffer(docU.reportPath);
+  if (!buf) return docU;
+  var extracted = await extractLaudoFromPdf(buf, docU.reportName || '');
+  return mergeExtractIntoDoc(docU, extracted);
 }
 
 function mergeListForProperty(propertyId, firestoreRows) {
@@ -589,6 +647,7 @@ async function adminUnitEngineeringHttp(req, res) {
         updatedAt: nowU,
         updatedBy: auth.email || '',
       };
+      docU = await fillDocFromStoredLaudo(docU);
       await db.collection(COL).doc(id).set(docU, { merge: true });
       return res.json({ ok: true, row: adminRow(id, docU) });
     }

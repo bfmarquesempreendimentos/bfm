@@ -1057,7 +1057,17 @@
         if (isSaneAppraiser(ex.appraiser)) bits.push(ex.appraiser);
         var g = garantiaLabel(ex.garantiaCaixa);
         if (g) bits.push(g);
-        if (bits.length) {
+        var mismatch = '';
+        if (ex.unitHint && _openUnit) {
+            var want = String(_openUnit).match(/(\d{2,3})\s*$/);
+            if (want && String(Number(want[1])) !== String(Number(ex.unitHint))) {
+                mismatch = 'Este PDF é da unidade ' + ex.unitHint + ', não da ' + _openUnit + '.';
+            }
+        }
+        if (mismatch) {
+            setParseHint(mismatch + (bits.length ? ' Leitura: ' + bits.join(' · ') + '.' : ''), false);
+            if (typeof showMessage === 'function') showMessage(mismatch, 'warning');
+        } else if (bits.length) {
             setParseHint('Laudo lido: ' + bits.join(' · ') + '. Confira e salve.', false);
             if (typeof showMessage === 'function') showMessage('Laudo lido. Confira os campos e salve.', 'success');
         } else {
