@@ -1822,6 +1822,7 @@
                     <label>Anexar PDF desta engenharia (só admin)
                         <input type="file" id="ueReportFile" accept=".pdf,application/pdf,image/*">
                     </label>
+                    <p id="ueCurrentReport" class="form-hint">Nenhum PDF nesta engenharia ainda.</p>
                     <p id="ueParseHint" class="form-hint" hidden>Ao enviar o PDF, o sistema lê data, valor, m², responsável e se está apta para garantia Caixa.</p>
                     <div class="ue-toolbar">
                         <button type="button" class="btn btn-secondary" onclick="startNewUnitEngineering()">Cadastrar nova engenharia</button>
@@ -2150,7 +2151,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
     <script src="js/firebase.js"></script>
-    <script src="js/firebase-service.js?v=36"></script>
+    <script src="js/firebase-service.js?v=37"></script>
     <script src="js/main.js"></script>
     <script src="js/auth.js?v=34"></script>
     <script src="js/properties.js"></script>
@@ -2174,7 +2175,7 @@
     <script src="js/admin-finance.js?v=1"></script>
     <script src="js/admin-reports.js?v=4"></script>
     <script src="js/admin-broker-reservations-report.js?v=4"></script>
-    <script src="js/admin-unit-engineering.js?v=12"></script>
+    <script src="js/admin-unit-engineering.js?v=13"></script>
     <script src="js/admin.js?v=50"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

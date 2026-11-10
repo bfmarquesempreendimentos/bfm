@@ -53,60 +53,102 @@ function sanitizeStorageFileName(name) {
     .substring(0, 120);
 }
 
-async function uploadViaFunctionWrite(file, folder, token, parseKind) {
-  var headers = {
-    'Content-Type': file.type || 'application/octet-stream',
-    'X-Upload-Folder': folder,
-    'X-Upload-FileName': sanitizeStorageFileName(file.name)
-  };
-  if (parseKind) headers['X-Parse-Kind'] = String(parseKind);
+function fileToBase64(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function() {
+      var s = String(reader.result || '');
+      var comma = s.indexOf(',');
+      resolve(comma >= 0 ? s.slice(comma + 1) : s);
+    };
+    reader.onerror = function() {
+      reject(new Error('Não foi possível ler o arquivo'));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function parseUploadResponse(res, txt) {
+  var data = null;
+  try { data = txt ? JSON.parse(txt) : null; } catch (e1) { data = null; }
+  if (!res.ok) {
+    throw new Error((data && data.error) ? data.error : ('Falha ao enviar o arquivo (' + res.status + ')'));
+  }
+  if (!data || !data.path) throw new Error('Upload sem caminho no Storage');
+  return data;
+}
+
+async function uploadViaFunctionJson(file, folder, token, parseKind) {
+  var headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = 'Bearer ' + token;
   var res = await fetch(getFirebaseServiceFunctionsBase() + '/prepareStorageUpload', {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify({
+      folder: folder,
+      fileName: file.name,
+      contentType: file.type || 'application/pdf',
+      size: file.size,
+      parseKind: parseKind || '',
+      contentBase64: await fileToBase64(file)
+    }),
+    cache: 'no-store',
+    credentials: 'omit'
+  });
+  var data = parseUploadResponse(res, await res.text());
+  return {
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    path: data.path,
+    url: data.url,
+    extracted: data.extracted || null
+  };
+}
+
+async function uploadViaFunctionBinary(file, folder, token, parseKind) {
+  var q = new URLSearchParams({
+    folder: folder,
+    fileName: sanitizeStorageFileName(file.name),
+    contentType: file.type || 'application/octet-stream'
+  });
+  if (parseKind) q.set('parseKind', parseKind);
+  var headers = { 'Content-Type': 'application/octet-stream' };
+  if (token) headers.Authorization = 'Bearer ' + token;
+  var res = await fetch(getFirebaseServiceFunctionsBase() + '/prepareStorageUpload?' + q.toString(), {
     method: 'POST',
     headers: headers,
     body: file,
     cache: 'no-store',
     credentials: 'omit'
   });
-  var txt = await res.text();
-  var data = null;
-  try { data = txt ? JSON.parse(txt) : null; } catch (e1) { data = null; }
-  if (!res.ok) {
-    throw new Error((data && data.error) ? data.error : 'Falha ao enviar o arquivo');
-  }
+  var data = parseUploadResponse(res, await res.text());
   return {
     name: file.name,
     type: file.type,
     size: file.size,
-    path: data && data.path,
-    url: data && data.url,
-    extracted: (data && data.extracted) || null
+    path: data.path,
+    url: data.url,
+    extracted: data.extracted || null
   };
 }
 
 async function uploadAdminDossierFile(file, folder, token, parseKind) {
   folder = String(folder || '').replace(/^\/+|\/+$/g, '');
   if (!file) throw new Error('Arquivo não informado');
-  if (file.size > 10 * 1024 * 1024) throw new Error('Arquivo acima de 10MB');
+  if (file.size > 6 * 1024 * 1024) throw new Error('Arquivo acima de 6MB. Envie um PDF menor.');
+  var lastErr = null;
   try {
-    return await uploadViaFunctionWrite(file, folder, token, parseKind);
-  } catch (fnErr) {
-    var storage = getFirebaseStorage();
-    if (storage) {
-      try {
-        var filePath = folder + '/' + Date.now() + '-' + sanitizeStorageFileName(file.name);
-        await storage.ref().child(filePath).put(file);
-        return {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          path: filePath,
-          extracted: null
-        };
-      } catch (sdkErr) {}
-    }
-    throw fnErr;
+    return await uploadViaFunctionJson(file, folder, token, parseKind);
+  } catch (jsonErr) {
+    lastErr = jsonErr;
   }
+  try {
+    return await uploadViaFunctionBinary(file, folder, token, parseKind);
+  } catch (binErr) {
+    lastErr = binErr;
+  }
+  throw lastErr || new Error('Falha ao enviar o arquivo');
 }
 
 async function uploadViaSignedUrl(file, folder, token) {

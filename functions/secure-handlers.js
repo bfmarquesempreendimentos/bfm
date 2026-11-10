@@ -427,14 +427,26 @@ async function prepareStorageUploadHttp(req, res) {
       return res.status(401).json({ error: 'Autenticação necessária' });
     }
     var body = parseJsonBody(req);
-    var folder = String(headerValue(req, 'x-upload-folder') || body.folder || 'repair-attachments').replace(/^\/+|\/+$/g, '');
+    var q = req.query || {};
+    var folder = String(q.folder || headerValue(req, 'x-upload-folder') || body.folder || 'repair-attachments').replace(/^\/+|\/+$/g, '');
     if (!isAllowedUploadFolder(folder, isAdmin)) {
       return res.status(403).json({ error: 'Pasta não permitida' });
     }
-    var fileName = sanitizeFileName(headerValue(req, 'x-upload-filename') || body.fileName || 'file');
-    var contentType = String(headerValue(req, 'x-upload-content-type') || body.contentType || requestContentType(req) || 'application/octet-stream').substring(0, 120);
-    var parseKind = String(headerValue(req, 'x-parse-kind') || body.parseKind || '').trim().toLowerCase();
+    var fileName = sanitizeFileName(q.fileName || headerValue(req, 'x-upload-filename') || body.fileName || 'file');
+    var contentType = String(q.contentType || body.contentType || headerValue(req, 'x-upload-content-type') || '').substring(0, 120);
+    if (!contentType || contentType.indexOf('json') >= 0 || contentType.indexOf('octet-stream') >= 0) {
+      contentType = 'application/pdf';
+    }
+    var parseKind = String(q.parseKind || headerValue(req, 'x-parse-kind') || body.parseKind || '').trim().toLowerCase();
     var buf = uploadBufferFromRequest(req, body);
+    console.log('prepareStorageUpload', {
+      folder: folder,
+      parseKind: parseKind,
+      ct: requestContentType(req),
+      rawLen: req.rawBody ? req.rawBody.length : 0,
+      hasB64: !!(body && body.contentBase64),
+      bufLen: buf ? buf.length : 0,
+    });
     if (buf) {
       if (buf.length > 10 * 1024 * 1024) return res.status(400).json({ error: 'Arquivo acima de 10MB' });
       var saved = await saveUploadBuffer(folder, fileName, contentType, buf);
@@ -447,6 +459,11 @@ async function prepareStorageUploadHttp(req, res) {
         path: saved.path,
         url: saved.url,
         extracted: extracted || undefined,
+      });
+    }
+    if (folder.indexOf('engineering-reports') === 0 || folder.indexOf('property-dossiers') === 0) {
+      return res.status(400).json({
+        error: 'Arquivo não chegou ao servidor. Escolha o PDF de novo.',
       });
     }
 

@@ -92,6 +92,17 @@
         else el.classList.remove('is-reading');
     }
 
+    function setCurrentReportLabel(name, path, pending) {
+        var el = document.getElementById('ueCurrentReport');
+        if (!el) return;
+        if (path || name) {
+            el.textContent = 'PDF desta engenharia: ' + (name || 'anexado') +
+                (pending ? ' — salve a ficha para gravar.' : '');
+        } else {
+            el.textContent = 'Nenhum PDF nesta engenharia ainda.';
+        }
+    }
+
     function clearPendingUploads() {
         _laudoSeq += 1;
         _rgiSeq += 1;
@@ -563,6 +574,7 @@
         set('ueDate', r ? r.appraisalDate : '');
         set('ueGarantiaCaixa', r ? (r.garantiaCaixa || '') : '');
         updateGarantiaHint(r ? r.garantiaCaixa : '', '');
+        setCurrentReportLabel(r ? r.reportName : '', r ? r.reportPath : '', false);
         set('ueNotes', r ? r.notes : '');
         var label = document.getElementById('ueDrawerUnitLabel');
         if (label) {
@@ -917,33 +929,35 @@
         });
     }
 
-    function applyExtractedLaudo(ex, fileName) {
+    function applyExtractedLaudo(ex, fileName, overwrite) {
         if (!ex) {
             setParseHint('PDF enviado (' + (fileName || 'laudo') + '). Preencha data, valor, m², responsável e a garantia Caixa.', false);
             return;
         }
-        var set = function(id, val) {
+        var put = function(id, val) {
             if (val == null || val === '') return;
             var el = document.getElementById(id);
-            if (el) el.value = val;
+            if (!el) return;
+            if (overwrite || !el.value) el.value = val;
         };
-        set('ueAppraiser', ex.appraiser);
+        put('ueAppraiser', ex.appraiser);
         if (ex.engineeringValue != null && ex.engineeringValue !== '') {
             var vel = document.getElementById('ueValue');
-            if (vel) vel.value = formatMoney(ex.engineeringValue);
+            if (vel && (overwrite || !vel.value)) vel.value = formatMoney(ex.engineeringValue);
         }
         if (ex.valuePerM2 != null && ex.valuePerM2 !== '') {
             var mel = document.getElementById('ueM2');
-            if (mel) mel.value = formatMoney(ex.valuePerM2);
+            if (mel && (overwrite || !mel.value)) mel.value = formatMoney(ex.valuePerM2);
         }
         if (ex.appraisalDate) {
-            set('ueDate', ex.appraisalDate);
+            put('ueDate', ex.appraisalDate);
             onDateChange();
         }
         if (ex.garantiaCaixa) {
-            set('ueGarantiaCaixa', ex.garantiaCaixa);
+            put('ueGarantiaCaixa', ex.garantiaCaixa);
         }
-        updateGarantiaHint(ex.garantiaCaixa, ex.garantiaSnippet);
+        var garantiaEl = document.getElementById('ueGarantiaCaixa');
+        updateGarantiaHint(garantiaEl ? garantiaEl.value : ex.garantiaCaixa, ex.garantiaSnippet);
         var bits = [];
         if (ex.appraisalDate) bits.push('data ' + formatDate(ex.appraisalDate));
         if (ex.engineeringValue) bits.push(formatMoney(ex.engineeringValue));
@@ -970,9 +984,10 @@
             return;
         }
         var r = findRow(_openUnit);
-        var hasCurrent = !!(r && (r.appraisalDate || r.reportPath || r.engineeringValue));
-        if (hasCurrent) {
+        var overwrite = !!_archiveCurrentOnSave;
+        if (r && r.reportPath) {
             _archiveCurrentOnSave = true;
+            overwrite = true;
             var hint = document.getElementById('ueNewEngHint');
             if (hint) hint.hidden = false;
             var set = function(id, val) {
@@ -1004,7 +1019,8 @@
             .then(function(up) {
                 if (seq !== _laudoSeq) return null;
                 _pendingLaudo = { path: up.path || '', name: up.name || file.name, extracted: up.extracted || null };
-                applyExtractedLaudo(up.extracted, file.name);
+                setCurrentReportLabel(_pendingLaudo.name, _pendingLaudo.path, true);
+                applyExtractedLaudo(up.extracted, file.name, overwrite);
                 return _pendingLaudo;
             })
             .catch(function(err) {
@@ -1193,7 +1209,13 @@
             var up = await uploadFn(fileEl.files[0], 'engineering-reports', token, 'laudo');
             reportPath = up.path || '';
             reportName = up.name || '';
-            if (up.extracted) applyExtractedLaudo(up.extracted, fileEl.files[0].name);
+            if (up.extracted) applyExtractedLaudo(up.extracted, fileEl.files[0].name, !!_archiveCurrentOnSave);
+        }
+        if (fileEl && fileEl.files && fileEl.files[0] && !reportPath) {
+            if (typeof showMessage === 'function') {
+                showMessage('O PDF ainda não foi gravado. Escolha o arquivo de novo e espere a leitura terminar antes de salvar.', 'error');
+            }
+            return;
         }
         var rgiPath = '';
         var rgiName = '';
