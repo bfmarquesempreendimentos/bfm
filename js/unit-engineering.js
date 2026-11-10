@@ -31,6 +31,9 @@
                 _valid = (data && data.valid) ? data.valid : {};
                 _prices = (data && data.prices) ? data.prices : {};
                 _at = Date.now();
+                if (typeof refreshEngineeringValuesDisplay === 'function') {
+                    refreshEngineeringValuesDisplay();
+                }
                 return _valid;
             })
             .catch(function() {
@@ -61,7 +64,14 @@
     }
 
     function displayEngineering(propertyId, unitCode) {
-        return lookupValidValue(propertyId, unitCode) || 'A confirmar';
+        var v = lookupValidValue(propertyId, unitCode);
+        if (v == null || v === '') return '';
+        if (typeof v === 'number' && isFinite(v)) {
+            return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+        var s = String(v).trim();
+        if (!s || /a confirmar/i.test(s)) return '';
+        return s;
     }
 
     function lookupSalePrice(propertyId, unitCode) {

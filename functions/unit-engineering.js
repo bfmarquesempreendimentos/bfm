@@ -3,7 +3,8 @@
 var admin = require('firebase-admin');
 var { verifyAdminAuth } = require('./admin-auth');
 var { roleHasPermission } = require('./admin-accounts');
-var { dateFromDocName, isPersonName, extractLaudoFromPdf, laudoIdentityError } = require('./laudo-extract');
+var { dateFromDocName, isPersonName, extractLaudoFromPdf } = require('./laudo-extract');
+var { documentIdentityError, allSeedProperties } = require('./property-identity');
 var propertyUnitsCatalog = require('./chatbot/property-units-data');
 var dossierSeed = require('./property-dossier-seed.json');
 
@@ -69,7 +70,7 @@ function classify(expiresAt) {
 }
 
 function publicValue(d) {
-  if (!d || !d.expiresAt) return '';
+  if (!d || !d.expiresAt || !d.reportPath) return '';
   var c = classify(d.expiresAt);
   if (c.status === 'vencida' || c.status === 'sem_laudo') return '';
   if (d.engineeringValue == null || d.engineeringValue === '') return '';
@@ -427,6 +428,8 @@ function mergeExtractIntoDoc(docU, extracted, overwrite) {
     if (overwrite || !docU.garantiaCaixa) docU.garantiaCaixa = extracted.garantiaCaixa;
   }
   if (extracted.unitHint) docU.laudoUnitHint = String(extracted.unitHint);
+  if (extracted.addressStreet) docU.laudoAddressStreet = String(extracted.addressStreet).slice(0, 120);
+  if (extracted.addressCity) docU.laudoAddressCity = String(extracted.addressCity).slice(0, 80);
   return docU;
 }
 
@@ -444,10 +447,15 @@ async function fillDocFromStoredLaudo(docU, overwrite) {
     return docU;
   }
   var extracted = await extractLaudoFromPdf(buf, docU.reportName || '');
-  var allProps = Object.keys((dossierSeed && dossierSeed.properties) || {}).map(function(id) {
-    return dossierSeed.properties[id];
+  var identityErr = documentIdentityError({
+    extracted: extracted,
+    property: seedProperty(docU.propertyId),
+    unitCode: docU.unitCode,
+    expectedMatricula: docU.matricula || '',
+    fileName: docU.reportName || '',
+    allProperties: allSeedProperties(),
+    kind: 'laudo',
   });
-  var identityErr = laudoIdentityError(extracted, seedProperty(docU.propertyId), docU.unitCode, allProps);
   if (identityErr) {
     if (overwrite) {
       var mismatch = new Error(identityErr);

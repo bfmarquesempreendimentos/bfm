@@ -4,19 +4,8 @@ const crypto = require('crypto');
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { verifyAdminAuth } = require('./admin-auth');
-const { extractLaudoFromPdf, laudoIdentityError } = require('./laudo-extract');
 const { nextDocFileName } = require('./doc-revision-name');
-const dossierSeed = require('./property-dossier-seed.json');
-
-function seedPropertyById(pid) {
-  var bag = (dossierSeed && dossierSeed.properties) || {};
-  return bag[String(pid)] || null;
-}
-
-function seedPropertiesList() {
-  var bag = (dossierSeed && dossierSeed.properties) || {};
-  return Object.keys(bag).map(function(id) { return bag[id]; });
-}
+const { assertPdfBelongsToUnit, extractedForClient } = require('./property-identity');
 
 const COMPANY_EMAIL = 'bfmarquesempreendimentos@gmail.com';
 var STORAGE_BUCKETS = [
@@ -481,16 +470,19 @@ async function prepareStorageUploadHttp(req, res) {
     if (buf) {
       if (buf.length > 10 * 1024 * 1024) return res.status(400).json({ error: 'Arquivo acima de 10MB' });
       var extracted = null;
-      if (parseKind === 'laudo' || docKind === 'laudo') {
-        extracted = await extractLaudoFromPdf(buf, originalName);
-        var unitCode = String(q.unitCode || body.unitCode || '');
-        var prop = seedPropertyById(q.propertyId || body.propertyId);
-        var identityErr = laudoIdentityError(extracted, prop, unitCode, seedPropertiesList());
-        if (identityErr) {
+      var unitScoped = parseKind === 'laudo' || docKind === 'laudo' || docKind === 'rgi' || docKind === 'onus';
+      if (unitScoped) {
+        var identity = await assertPdfBelongsToUnit(buf, originalName, {
+          kind: docKind === 'onus' ? 'rgi' : (docKind || parseKind || 'documento'),
+          propertyId: q.propertyId || body.propertyId,
+          unitCode: q.unitCode || body.unitCode,
+        });
+        extracted = identity.extracted;
+        if (identity.error) {
           return res.status(400).json({
-            error: identityErr,
+            error: identity.error,
             unitHint: extracted && extracted.unitHint,
-            extracted: extracted,
+            extracted: extractedForClient(extracted),
           });
         }
       }
@@ -500,7 +492,7 @@ async function prepareStorageUploadHttp(req, res) {
         path: saved.path,
         url: saved.url,
         name: fileName,
-        extracted: extracted || undefined,
+        extracted: extractedForClient(extracted) || undefined,
       });
     }
     if (folder.indexOf('engineering-reports') === 0 || folder.indexOf('property-dossiers') === 0) {

@@ -8,7 +8,7 @@
     <title>Painel Administrativo - Construtora Premium</title>
     <script>
     (function() {
-        var need = '55';
+        var need = '56';
         if (String(location.search).indexOf('v=' + need) >= 0) return;
         var u = new URL(location.href);
         u.searchParams.set('v', need);
@@ -1820,7 +1820,7 @@
                             </select>
                         </label>
                     </div>
-                    <p id="ueExpiresHint" class="form-hint">Sem data = engenharia não aparece na vitrine (fica “A confirmar”).</p>
+                    <p id="ueExpiresHint" class="form-hint">Sem data ou sem PDF = esta unidade não aparece na lista de engenharia da vitrine.</p>
                     <p id="ueGarantiaHint" class="form-hint">Lida da manifestação do avaliador sobre aceitação do bem como garantia da Caixa.</p>
                     <div id="ueExpiredBanner" class="ue-expired-banner" hidden>
                         Esta engenharia venceu. Cadastre a nova para o valor voltar à vitrine. O laudo antigo fica no histórico da unidade.
@@ -2150,7 +2150,7 @@
 
     <!-- Scripts -->
     <script src="js/compat-polyfills.js"></script>
-    <script src="config.js?v=55"></script>
+    <script src="config.js?v=56"></script>
     <script src="js/dom-utils.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/audit.js"></script>
@@ -2169,8 +2169,8 @@
     <script src="js/reservations-api.js?v=4"></script>
     <script src="js/reservations.js"></script>
     <script src="js/property-units-catalog.js?v=36"></script>
-    <script src="js/unit-engineering.js?v=2"></script>
-    <script src="js/property-units.js?v=36"></script>
+    <script src="js/unit-engineering.js?v=3"></script>
+    <script src="js/property-units.js?v=37"></script>
     <script src="js/pdf-seed-reservations.js"></script>
     <script src="js/pdf-import.js"></script>
     <script src="js/notifications.js"></script>
@@ -2186,7 +2186,7 @@
     <script src="js/admin-finance.js?v=1"></script>
     <script src="js/admin-reports.js?v=4"></script>
     <script src="js/admin-broker-reservations-report.js?v=4"></script>
-    <script src="js/admin-unit-engineering.js?v=20"></script>
+    <script src="js/admin-unit-engineering.js?v=21"></script>
     <script src="js/admin.js?v=50"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

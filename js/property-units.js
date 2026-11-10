@@ -414,6 +414,59 @@ function getAggregatedUnitInventoryForDashboard() {
     return out;
 }
 
+function formatPublicEngineeringValue(val) {
+    if (val == null || val === '') return '';
+    if (typeof val === 'number' && isFinite(val)) {
+        return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+    var s = String(val).trim();
+    if (!s || /a confirmar/i.test(s) || s === '—' || s === '-') return '';
+    return s;
+}
+
+function engineeringItemsHtml(propertyId, units) {
+    var html = '';
+    (units || []).forEach(function(u) {
+        var raw = (typeof lookupValidEngineeringValue === 'function')
+            ? lookupValidEngineeringValue(propertyId, u.code)
+            : '';
+        var shown = formatPublicEngineeringValue(raw);
+        if (!shown) return;
+        html += '<div class="engineering-item">' +
+            '<span class="engineering-unit">' + String(u.code) + '</span>' +
+            '<span class="engineering-value">' + shown + '</span>' +
+            '</div>';
+    });
+    return html;
+}
+
+function engineeringValuesSectionHtml(propertyId, units) {
+    var items = engineeringItemsHtml(propertyId, units);
+    var hidden = items ? '' : ' hidden';
+    return '<div class="engineering-values-section"' + hidden + ' data-property-id="' + String(propertyId) + '">' +
+        '<h5>Valor Engenharia:</h5>' +
+        '<p class="engineering-hint">Somente unidades com laudo vigente (validade de 6 meses).</p>' +
+        '<div class="engineering-grid">' + items + '</div>' +
+        '</div>';
+}
+
+function refreshEngineeringValuesDisplay() {
+    var nodes = document.querySelectorAll('.engineering-values-section[data-property-id]');
+    if (!nodes || !nodes.length) return;
+    nodes.forEach(function(el) {
+        var pid = el.getAttribute('data-property-id');
+        var data = typeof getPropertyUnits === 'function' ? getPropertyUnits(pid) : null;
+        var items = engineeringItemsHtml(pid, data && data.units);
+        var grid = el.querySelector('.engineering-grid');
+        if (grid) grid.innerHTML = items;
+        el.hidden = !items;
+    });
+}
+
+if (typeof window !== 'undefined') {
+    window.refreshEngineeringValuesDisplay = refreshEngineeringValuesDisplay;
+}
+
 // Create units table for property
 function createUnitsTable(propertyId) {
     const propertyData = getPropertyUnits(propertyId);
@@ -489,21 +542,7 @@ function createUnitsTable(propertyId) {
                 </div>
             ` : ''}
             
-            <div class="engineering-values-section">
-                <h5>Valor Engenharia:</h5>
-                <p class="engineering-hint">Somente laudo vigente (6 meses). Sem laudo novo: A confirmar.</p>
-                <div class="engineering-grid">
-                    ${(propertyData.units || []).map(function(u) {
-                        var shown = (typeof displayEngineeringValue === 'function')
-                            ? displayEngineeringValue(propertyId, u.code)
-                            : 'A confirmar';
-                        return '<div class="engineering-item">' +
-                            '<span class="engineering-unit">' + u.code + '</span>' +
-                            '<span class="engineering-value">' + shown + '</span>' +
-                            '</div>';
-                    }).join('')}
-                </div>
-            </div>
+            ${engineeringValuesSectionHtml(propertyId, propertyData.units)}
         </div>
     `;
     

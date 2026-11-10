@@ -730,7 +730,7 @@
             if (r && (r.expiresAt || r.appraisalDate)) {
                 exp.textContent = 'Validade de 6 meses a partir da data da engenharia.';
             } else {
-                exp.textContent = 'Sem data = engenharia não aparece na vitrine (fica “A confirmar”).';
+                exp.textContent = 'Sem data ou sem PDF = esta unidade não aparece na lista de engenharia da vitrine.';
             }
         }
         var banner = document.getElementById('ueExpiredBanner');
@@ -1257,7 +1257,7 @@
         var uploadFn = typeof uploadAdminDossierFile === 'function' ? uploadAdminDossierFile : uploadViaSignedUrl;
         _pendingRgiPromise = Promise.resolve(typeof getAdminIdToken === 'function' ? getAdminIdToken() : null)
             .then(function(token) {
-                return uploadFn(file, 'property-dossiers/' + pid + '/unidades', token, '', {
+                return uploadFn(file, 'property-dossiers/' + pid + '/unidades', token, 'rgi', {
                     docKind: 'rgi',
                     existingNames: names,
                     propertyId: pid,
@@ -1290,7 +1290,7 @@
         if (out) out.value = expires;
         if (!hint) return;
         if (!el.value) {
-            hint.textContent = 'Sem data = engenharia não aparece na vitrine (fica “A confirmar”).';
+            hint.textContent = 'Sem data ou sem PDF = esta unidade não aparece na lista de engenharia da vitrine.';
             return;
         }
         hint.textContent = 'Validade de 6 meses a partir da data da engenharia.';
@@ -1459,7 +1459,12 @@
             rgiPath = _pendingRgi.path;
             rgiName = _pendingRgi.name || '';
         } else if (rgiEl && rgiEl.files && rgiEl.files[0] && typeof uploadFn === 'function') {
-            var rgiUp = await uploadFn(rgiEl.files[0], 'property-dossiers/' + pid + '/unidades', token);
+            var rgiUp = await uploadFn(rgiEl.files[0], 'property-dossiers/' + pid + '/unidades', token, 'rgi', {
+                docKind: 'rgi',
+                existingNames: existingDocNames(findRow(unit), 'rgi'),
+                propertyId: pid,
+                unitCode: unit
+            });
             rgiPath = rgiUp.path || '';
             rgiName = rgiUp.name || '';
         }
@@ -1543,7 +1548,7 @@
         if (report) {
             var rows = (data.expiring || []).concat(data.expired || []);
             if (!rows.length) {
-                report.innerHTML = '<p>Nenhuma engenharia com data cadastrada vencendo ou vencida. Valores antigos do arquivo ficam na ficha, mas a vitrine mostra “A confirmar” até entrar laudo com data.</p>';
+                report.innerHTML = '<p>Nenhuma engenharia com data cadastrada vencendo ou vencida. Valores antigos do arquivo ficam na ficha; a vitrine só lista unidades com laudo vigente.</p>';
                 return;
             }
             report.innerHTML = '<table class="admin-table"><thead><tr><th>Empreendimento</th><th>Unidade</th><th>Valor</th><th>Vence</th><th>Situação</th></tr></thead><tbody>' +

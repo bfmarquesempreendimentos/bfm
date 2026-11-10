@@ -389,6 +389,7 @@ function extractLaudoFields(text, fileName) {
     addressNumber: addr.addressNumber,
     addressCity: addr.addressCity,
     addressRaw: addr.addressRaw,
+    identityHaystack: flatten(text).slice(0, 5000),
     textLength: flatten(text).length,
   };
   if (!out.valuePerM2) out.valuePerM2 = extractValorM2(text, out.engineeringValue);
@@ -446,4 +447,6 @@ module.exports = {
   extractAddressHint,
   addressMismatch,
   laudoIdentityError,
+  foldPt,
+  distinctiveTokens,
 };

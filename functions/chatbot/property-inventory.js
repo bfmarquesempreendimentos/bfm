@@ -144,8 +144,10 @@ function formatUnitLine(unit, engineeringValues, includeEngineering) {
   if (unit.bedrooms) line += ' | ' + unit.bedrooms + ' quarto(s)';
   if (includeEngineering) {
     var eng = lookupEngineeringValue(engineeringValues, unit.code);
-    if (eng) line += ' | Engenharia: ' + eng;
-    else line += ' | Engenharia: A confirmar';
+    if (eng != null && eng !== '') {
+      var engTxt = typeof eng === 'number' ? formatMoneyBrl(eng) : String(eng);
+      if (engTxt && !/a confirmar/i.test(engTxt)) line += ' | Engenharia: ' + engTxt;
+    }
   }
   return line;
 }
@@ -206,7 +208,10 @@ async function formatUnitDetail(propertyId, codigoUnidade, options) {
   if (includeEngineering) {
     var validMap = await getValidEngineeringMap();
     var eng = lookupEngineeringValue(validMap[String(propertyId)] || {}, unit.code);
-    text += 'Valor engenharia: ' + (eng || 'A confirmar') + '\n';
+    if (eng != null && eng !== '') {
+      var engTxt = typeof eng === 'number' ? formatMoneyBrl(eng) : String(eng);
+      if (engTxt && !/a confirmar/i.test(engTxt)) text += 'Valor engenharia: ' + engTxt + '\n';
+    }
   }
 
   if (String(unit.status).toLowerCase() === 'reservado') {
