@@ -6,6 +6,16 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
+    <script>
+    (function() {
+        var need = '49';
+        if (String(location.search).indexOf('v=' + need) >= 0) return;
+        var u = new URL(location.href);
+        u.searchParams.set('v', need);
+        u.searchParams.set('t', String(Date.now()));
+        location.replace(u.pathname + u.search + u.hash);
+    })();
+    </script>
     <link rel="stylesheet" href="styles/main.css?v=37">
     <link rel="stylesheet" href="styles/admin.css?v=46">
     <link rel="stylesheet" href="styles/admin-finance.css?v=1">
@@ -2139,7 +2149,7 @@
 
     <!-- Scripts -->
     <script src="js/compat-polyfills.js"></script>
-    <script src="config.js?v=46"></script>
+    <script src="config.js?v=49"></script>
     <script src="js/dom-utils.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/audit.js"></script>
