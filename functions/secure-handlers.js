@@ -107,14 +107,26 @@ function parseJsonBody(req) {
   if (body && typeof Buffer !== 'undefined' && Buffer.isBuffer(body)) {
     try { return JSON.parse(body.toString('utf8')); } catch (e) { return {}; }
   }
-  return body && typeof body === 'object' ? body : {};
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    if (Object.keys(body).length) return body;
+  }
+  var raw = req && req.rawBody;
+  if (raw) {
+    try {
+      return JSON.parse(Buffer.isBuffer(raw) ? raw.toString('utf8') : String(raw));
+    } catch (e2) {}
+  }
+  return {};
 }
 
-function resolveStorageObjectPath(body) {
-  var raw = '';
-  if (body && typeof body === 'object') {
-    raw = body.storagePath || body.filePath || body.url || body.path || '';
-  }
+function looksLikeStorageObject(value) {
+  var s = String(value || '').trim();
+  if (!s || s === '/' || s.indexOf('..') >= 0) return false;
+  if (s.charAt(0) === '/' && s.indexOf('/') === s.lastIndexOf('/')) return false;
+  return s.indexOf('/') >= 0 || /^https?:\/\//i.test(s) || /^gs:\/\//i.test(s);
+}
+
+function normalizeStorageObjectPath(raw) {
   raw = String(raw || '').trim();
   if (!raw) return '';
   try {
@@ -135,6 +147,34 @@ function resolveStorageObjectPath(body) {
   var q = raw.indexOf('?');
   if (q >= 0) raw = raw.slice(0, q);
   return raw;
+}
+
+function resolveStorageObjectPath(body, req) {
+  var candidates = [];
+  function push(v) {
+    if (looksLikeStorageObject(v)) candidates.push(String(v).trim());
+  }
+  if (req && req.query) {
+    push(req.query.storagePath);
+    push(req.query.filePath);
+    push(req.query.objectPath);
+    push(req.query.p);
+  }
+  if (body && typeof body === 'object') {
+    push(body.storagePath);
+    push(body.filePath);
+    push(body.objectPath);
+    push(body.url);
+    push(body.path);
+  }
+  var i;
+  var normalized;
+  for (i = 0; i < candidates.length; i++) {
+    normalized = normalizeStorageObjectPath(candidates[i]);
+    if (normalized && isAllowedStorageReadPath(normalized)) return normalized;
+    if (normalized) return normalized;
+  }
+  return '';
 }
 
 function isAllowedStorageReadPath(path) {
@@ -356,8 +396,12 @@ async function getStorageReadUrlHttp(req, res) {
   if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
   try {
     var body = parseJsonBody(req);
-    var path = resolveStorageObjectPath(body);
+    var path = resolveStorageObjectPath(body, req);
     if (!path || path.indexOf('..') >= 0) {
+      console.warn('getStorageReadUrl sem caminho', {
+        query: req.query || {},
+        bodyKeys: body ? Object.keys(body) : [],
+      });
       return res.status(400).json({ error: 'Caminho do arquivo inválido' });
     }
     if (!isAllowedStorageReadPath(path)) {

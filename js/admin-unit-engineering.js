@@ -734,7 +734,13 @@
             return;
         }
         if (typeof adminPostJson !== 'function') return;
-        adminPostJson('/getStorageReadUrl', { storagePath: storagePath }).then(function(data) {
+        var encoded = encodeURIComponent(storagePath);
+        adminPostJson('/getStorageReadUrl?storagePath=' + encoded, {
+            storagePath: storagePath,
+            filePath: storagePath,
+            objectPath: storagePath,
+            path: storagePath
+        }).then(function(data) {
             if (data && data.url) window.open(data.url, '_blank', 'noopener');
             else if (typeof showMessage === 'function') showMessage('Arquivo ainda não está no Storage.', 'warning');
         }).catch(function(err) {
@@ -922,11 +928,7 @@
             if (typeof showMessage === 'function') showMessage('Nenhum laudo vinculado a esta ficha.', 'warning');
             return;
         }
-        adminPostJson('/getStorageReadUrl', { storagePath: path }).then(function(data) {
-            if (data && data.url) window.open(data.url, '_blank', 'noopener');
-        }).catch(function(err) {
-            if (typeof showMessage === 'function') showMessage(err.message || 'Erro ao abrir laudo.', 'error');
-        });
+        openStoredDocument(path);
     }
 
     function loadEngineeringAlerts() {
