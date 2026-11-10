@@ -72,7 +72,10 @@ function parseUploadResponse(res, txt) {
   var data = null;
   try { data = txt ? JSON.parse(txt) : null; } catch (e1) { data = null; }
   if (!res.ok) {
-    throw new Error((data && data.error) ? data.error : ('Falha ao enviar o arquivo (' + res.status + ')'));
+    var err = new Error((data && data.error) ? data.error : ('Falha ao enviar o arquivo (' + res.status + ')'));
+    err.status = res.status;
+    err.payload = data;
+    throw err;
   }
   if (!data || !data.path) throw new Error('Upload sem caminho no Storage');
   return data;
@@ -149,6 +152,7 @@ async function uploadAdminDossierFile(file, folder, token, parseKind, opts) {
   try {
     return await uploadViaFunctionJson(file, folder, token, parseKind, opts);
   } catch (jsonErr) {
+    if (jsonErr && jsonErr.status && jsonErr.status < 500) throw jsonErr;
     lastErr = jsonErr;
   }
   try {

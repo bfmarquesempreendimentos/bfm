@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { verifyAdminAuth } = require('./admin-auth');
-const { extractLaudoFromPdf } = require('./laudo-extract');
+const { extractLaudoFromPdf, unitHintMatches } = require('./laudo-extract');
 const { nextDocFileName } = require('./doc-revision-name');
 
 const COMPANY_EMAIL = 'bfmarquesempreendimentos@gmail.com';
@@ -469,11 +469,19 @@ async function prepareStorageUploadHttp(req, res) {
     });
     if (buf) {
       if (buf.length > 10 * 1024 * 1024) return res.status(400).json({ error: 'Arquivo acima de 10MB' });
-      var saved = await saveUploadBuffer(folder, fileName, contentType, buf);
       var extracted = null;
-      if (parseKind === 'laudo') {
+      if (parseKind === 'laudo' || docKind === 'laudo') {
         extracted = await extractLaudoFromPdf(buf, originalName);
+        var unitCode = String(q.unitCode || body.unitCode || '');
+        if (extracted && extracted.unitHint && unitCode && !unitHintMatches(extracted.unitHint, unitCode)) {
+          return res.status(400).json({
+            error: 'Este PDF é da unidade ' + extracted.unitHint + ', não da ' + unitCode + '. Anexe o laudo desta unidade.',
+            unitHint: extracted.unitHint,
+            extracted: extracted,
+          });
+        }
       }
+      var saved = await saveUploadBuffer(folder, fileName, contentType, buf);
       return res.json({
         ok: true,
         path: saved.path,

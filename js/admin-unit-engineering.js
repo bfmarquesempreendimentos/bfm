@@ -117,12 +117,40 @@
         else el.classList.remove('is-reading');
     }
 
-    function setCurrentReportLabel(name, path, pending) {
+    function unitNumberFromLabel(code) {
+        var all = String(code || '').match(/\d{1,4}/g);
+        if (!all || !all.length) return '';
+        return String(Number(all[all.length - 1]));
+    }
+
+    function unitHintMatches(hint, unitCode) {
+        if (hint == null || hint === '') return true;
+        var want = unitNumberFromLabel(unitCode);
+        if (!want) return true;
+        return String(Number(hint)) === want;
+    }
+
+    function currentReportPath() {
+        if (_pendingLaudo && _pendingLaudo.path) return _pendingLaudo.path;
+        var unit = document.getElementById('ueUnitCode') && document.getElementById('ueUnitCode').value;
+        var r = findRow(unit);
+        return (r && r.reportPath) || '';
+    }
+
+    function setCurrentReportLabel(name, path, pending, unitHint) {
         var el = document.getElementById('ueCurrentReport');
         if (!el) return;
         if (path || name) {
-            el.textContent = 'PDF desta engenharia: ' + (name || 'anexado') +
-                (pending ? ' — salve a ficha para gravar.' : '');
+            var fileLabel = name || (path ? path.split('/').pop() : 'anexado');
+            var hint = unitHint ? ' · unidade ' + unitHint + ' no PDF' : '';
+            var pendingTxt = pending ? ' — salve a ficha para gravar.' : '';
+            if (path) {
+                el.innerHTML = 'PDF vigente desta unidade: <button type="button" class="pd-doc-link" data-pd-path="' +
+                    esc(path) + '">' + esc(fileLabel) + '</button>' + esc(hint) + pendingTxt;
+                bindDocLinks(el);
+            } else {
+                el.textContent = 'PDF desta engenharia: ' + fileLabel + hint + pendingTxt;
+            }
         } else {
             el.textContent = 'Nenhum PDF nesta engenharia ainda.';
         }
@@ -629,7 +657,7 @@
         set('ueDate', r ? r.appraisalDate : '');
         set('ueGarantiaCaixa', r ? (r.garantiaCaixa || '') : '');
         updateGarantiaHint(r ? r.garantiaCaixa : '', '');
-        setCurrentReportLabel(r ? r.reportName : '', r ? r.reportPath : '', false);
+        setCurrentReportLabel(r ? r.reportName : '', r ? r.reportPath : '', false, r ? r.laudoUnitHint : '');
         set('ueNotes', r ? r.notes : '');
         var label = document.getElementById('ueDrawerUnitLabel');
         if (label) {
@@ -804,6 +832,8 @@
         var items = (r && Array.isArray(r.engineeringHistory)) ? r.engineeringHistory.slice() : [];
         var seenHist = {};
         items = items.filter(function(h) {
+            if (h.laudoUnitHint && _openUnit && !unitHintMatches(h.laudoUnitHint, _openUnit)) return false;
+            if (!(h.appraisalDate || h.engineeringValue || isSaneAppraiser(h.appraiser))) return false;
             var key = String(h.reportPath || h.storagePath || '') + '|' + String(h.appraisalDate || '') + '|' + String(h.appraiser || '');
             if (seenHist[key]) return false;
             seenHist[key] = true;
@@ -1005,8 +1035,13 @@
             }
             return res.blob();
         }).then(function(blob) {
-            var u = URL.createObjectURL(blob);
-            window.open(u, '_blank', 'noopener');
+            var name = (String(storagePath).split('/').pop() || 'documento.pdf').replace(/[^\w.\-]+/g, '_');
+            var file = new File([blob], name, { type: blob.type || 'application/pdf' });
+            var u = URL.createObjectURL(file);
+            var w = window.open(u, '_blank', 'noopener');
+            if (!w && typeof showMessage === 'function') {
+                showMessage('Permita pop-ups para abrir o PDF.', 'warning');
+            }
         }).catch(function(err) {
             if (typeof showMessage === 'function') showMessage(err.message || 'Erro ao abrir o arquivo.', 'error');
         });
@@ -1014,6 +1049,11 @@
 
     function applyExtractedLaudo(ex, fileName, overwrite) {
         ex = ex || {};
+        if (ex.unitHint && _openUnit && !unitHintMatches(ex.unitHint, _openUnit)) {
+            setParseHint('Este PDF é da unidade ' + ex.unitHint + ', não da ' + _openUnit + '. Anexe o laudo desta unidade.', false);
+            if (typeof showMessage === 'function') showMessage('Este PDF é da unidade ' + ex.unitHint + ', não da ' + _openUnit + '.', 'error');
+            return false;
+        }
         var put = function(id, val) {
             if (val == null || val === '') return;
             var el = document.getElementById(id);
@@ -1057,23 +1097,14 @@
         if (isSaneAppraiser(ex.appraiser)) bits.push(ex.appraiser);
         var g = garantiaLabel(ex.garantiaCaixa);
         if (g) bits.push(g);
-        var mismatch = '';
-        if (ex.unitHint && _openUnit) {
-            var want = String(_openUnit).match(/(\d{2,3})\s*$/);
-            if (want && String(Number(want[1])) !== String(Number(ex.unitHint))) {
-                mismatch = 'Este PDF é da unidade ' + ex.unitHint + ', não da ' + _openUnit + '.';
-            }
-        }
-        if (mismatch) {
-            setParseHint(mismatch + (bits.length ? ' Leitura: ' + bits.join(' · ') + '.' : ''), false);
-            if (typeof showMessage === 'function') showMessage(mismatch, 'warning');
-        } else if (bits.length) {
+        if (bits.length) {
             setParseHint('Laudo lido: ' + bits.join(' · ') + '. Confira e salve.', false);
             if (typeof showMessage === 'function') showMessage('Laudo lido. Confira os campos e salve.', 'success');
         } else {
             setParseHint('PDF enviado. Não foi possível ler os campos automaticamente. Preencha à mão.', false);
             if (typeof showMessage === 'function') showMessage('PDF enviado. Preencha os campos do laudo.', 'warning');
         }
+        return true;
     }
 
     function onLaudoFileSelected() {
@@ -1113,13 +1144,23 @@
             })
             .then(function(up) {
                 if (seq !== _laudoSeq) return null;
+                if (up.extracted && !applyExtractedLaudo(up.extracted, file.name, true)) {
+                    var prev = findRow(_openUnit);
+                    setCurrentReportLabel(prev && prev.reportName, prev && prev.reportPath, false, prev && prev.laudoUnitHint);
+                    if (fileEl) fileEl.value = '';
+                    _pendingLaudo = null;
+                    return null;
+                }
                 _pendingLaudo = { path: up.path || '', name: up.name || file.name, extracted: up.extracted || null };
-                setCurrentReportLabel(_pendingLaudo.name, _pendingLaudo.path, false);
-                applyExtractedLaudo(up.extracted, file.name, true);
+                setCurrentReportLabel(_pendingLaudo.name, _pendingLaudo.path, false, up.extracted && up.extracted.unitHint);
+                if (!up.extracted) applyExtractedLaudo({}, file.name, true);
                 return _pendingLaudo;
             })
             .catch(function(err) {
                 _pendingLaudo = null;
+                var prev = findRow(_openUnit);
+                setCurrentReportLabel(prev && prev.reportName, prev && prev.reportPath, false, prev && prev.laudoUnitHint);
+                if (fileEl) fileEl.value = '';
                 setParseHint(err.message || 'Não foi possível enviar o PDF.', false);
                 if (typeof showMessage === 'function') showMessage(err.message || 'Falha ao enviar o laudo.', 'error');
                 throw err;
@@ -1318,10 +1359,19 @@
             reportPath = _pendingLaudo.path;
             reportName = _pendingLaudo.name || '';
         } else if (fileEl && fileEl.files && fileEl.files[0] && typeof uploadFn === 'function') {
-            var up = await uploadFn(fileEl.files[0], 'engineering-reports', token, 'laudo');
+            var up = await uploadFn(fileEl.files[0], 'engineering-reports', token, 'laudo', {
+                docKind: 'laudo',
+                existingNames: existingDocNames(findRow(unit), 'laudo'),
+                propertyId: pid,
+                unitCode: unit,
+                archiveCurrent: !!_archiveCurrentOnSave
+            });
+            if (up.extracted && !applyExtractedLaudo(up.extracted, fileEl.files[0].name, !!_archiveCurrentOnSave)) {
+                _savingUnit = false;
+                return;
+            }
             reportPath = up.path || '';
             reportName = up.name || '';
-            if (up.extracted) applyExtractedLaudo(up.extracted, fileEl.files[0].name, !!_archiveCurrentOnSave);
         }
         if (fileEl && fileEl.files && fileEl.files[0] && !reportPath) {
             _savingUnit = false;
@@ -1399,17 +1449,9 @@
     }
 
     async function openEngineeringReport() {
-        var unit = document.getElementById('ueUnitCode') && document.getElementById('ueUnitCode').value;
-        var r = findRow(unit);
-        var path = r && r.reportPath;
-        if (!path && r && r.archiveDocuments) {
-            (r.archiveDocuments || []).some(function(d) {
-                if (d.kind === 'laudo' && d.storagePath) { path = d.storagePath; return true; }
-                return false;
-            });
-        }
+        var path = currentReportPath();
         if (!path) {
-            if (typeof showMessage === 'function') showMessage('Nenhum laudo vinculado a esta ficha.', 'warning');
+            if (typeof showMessage === 'function') showMessage('Nenhum laudo vigente nesta ficha.', 'warning');
             return;
         }
         openStoredDocument(path);

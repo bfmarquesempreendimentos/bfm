@@ -245,6 +245,19 @@ function extractUnitHint(text) {
   return m ? m[1] : '';
 }
 
+function unitNumberFromLabel(code) {
+  var all = String(code || '').match(/\d{1,4}/g);
+  if (!all || !all.length) return '';
+  return String(Number(all[all.length - 1]));
+}
+
+function unitHintMatches(hint, unitCode) {
+  if (hint == null || hint === '') return true;
+  var want = unitNumberFromLabel(unitCode);
+  if (!want) return true;
+  return String(Number(hint)) === want;
+}
+
 function extractLaudoFields(text, fileName) {
   var trio = extractApartmentTrio(text);
   var out = {
@@ -302,4 +315,7 @@ module.exports = {
   extractGarantiaCaixa,
   dateFromDocName,
   isPersonName,
+  extractUnitHint,
+  unitHintMatches,
+  unitNumberFromLabel,
 };

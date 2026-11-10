@@ -3,7 +3,7 @@
 var admin = require('firebase-admin');
 var { verifyAdminAuth } = require('./admin-auth');
 var { roleHasPermission } = require('./admin-accounts');
-var { dateFromDocName, isPersonName, extractLaudoFromPdf } = require('./laudo-extract');
+var { dateFromDocName, isPersonName, extractLaudoFromPdf, unitHintMatches } = require('./laudo-extract');
 var propertyUnitsCatalog = require('./chatbot/property-units-data');
 var dossierSeed = require('./property-dossier-seed.json');
 
@@ -102,6 +102,7 @@ function adminRow(id, d) {
     reportPath: d.reportPath || '',
     reportName: d.reportName || '',
     garantiaCaixa: d.garantiaCaixa === 'apta' || d.garantiaCaixa === 'inapta' ? d.garantiaCaixa : '',
+    laudoUnitHint: d.laudoUnitHint || '',
     archiveDocuments: Array.isArray(d.archiveDocuments) ? d.archiveDocuments : [],
     engineeringHistory: Array.isArray(d.engineeringHistory) ? d.engineeringHistory : [],
     rgiPath: d.rgiPath || '',
@@ -346,6 +347,7 @@ function snapshotEngineering(d) {
     reportPath: d.reportPath || '',
     reportName: d.reportName || '',
     garantiaCaixa: d.garantiaCaixa === 'apta' || d.garantiaCaixa === 'inapta' ? d.garantiaCaixa : '',
+    laudoUnitHint: d.laudoUnitHint || '',
     archivedAt: new Date().toISOString(),
   };
 }
@@ -361,12 +363,12 @@ function hasRealEngineeringData(d) {
 }
 
 function shouldArchiveCurrent(body, old) {
-  if (!hasEngineeringSnapshot(old)) return false;
+  if (!hasRealEngineeringData(old)) return false;
   if (body.archiveCurrent === true || body.archiveCurrent === 'true' || body.archiveCurrent === 1) {
     return true;
   }
   var newPath = String(body.reportPath || '').trim();
-  if (newPath && old.reportPath && newPath !== old.reportPath && hasRealEngineeringData(old)) return true;
+  if (newPath && old.reportPath && newPath !== old.reportPath) return true;
   return false;
 }
 
@@ -442,6 +444,16 @@ async function fillDocFromStoredLaudo(docU, overwrite) {
     return docU;
   }
   var extracted = await extractLaudoFromPdf(buf, docU.reportName || '');
+  if (extracted && extracted.unitHint && !unitHintMatches(extracted.unitHint, docU.unitCode)) {
+    if (overwrite) {
+      var mismatch = new Error('Este PDF é da unidade ' + extracted.unitHint + ', não da ' + docU.unitCode + '. Anexe o laudo desta unidade.');
+      mismatch.code = 'unit-mismatch';
+      mismatch.unitHint = extracted.unitHint;
+      throw mismatch;
+    }
+    docU.laudoUnitHint = String(extracted.unitHint);
+    return docU;
+  }
   return mergeExtractIntoDoc(docU, extracted, overwrite);
 }
 
@@ -657,7 +669,17 @@ async function adminUnitEngineeringHttp(req, res) {
         updatedBy: auth.email || '',
       };
       var pathChanged = !!(docU.reportPath && docU.reportPath !== (old.reportPath || ''));
-      docU = await fillDocFromStoredLaudo(docU, pathChanged);
+      try {
+        docU = await fillDocFromStoredLaudo(docU, pathChanged);
+      } catch (fillErr) {
+        if (fillErr && fillErr.code === 'unit-mismatch') {
+          return res.status(400).json({
+            error: fillErr.message,
+            unitHint: fillErr.unitHint || '',
+          });
+        }
+        throw fillErr;
+      }
       await db.collection(COL).doc(id).set(docU, { merge: true });
       return res.json({ ok: true, row: adminRow(id, docU) });
     }

@@ -1,7 +1,7 @@
 'use strict';
 
 var fs = require('fs');
-var { extractLaudoFields, extractLaudoFromPdf, isPersonName, dateFromDocName } = require('./laudo-extract');
+var { extractLaudoFields, extractLaudoFromPdf, isPersonName, dateFromDocName, unitHintMatches } = require('./laudo-extract');
 var { nextDocFileName } = require('./doc-revision-name');
 
 var failed = 0;
@@ -130,6 +130,10 @@ eq(rIgor.engineeringValue, 203000, 'laudo Igor valor');
 eq(rIgor.valuePerM2, 6347.72, 'laudo Igor m², não o +26171 da fórmula');
 eq(rIgor.garantiaCaixa, 'apta', 'laudo Igor é apto mesmo com “Não atendeu aos seguintes” vazio');
 eq(rIgor.unitHint, '106', 'laudo Igor unidade 106');
+eq(unitHintMatches('101', 'APTO 106'), false, 'PDF da 101 não vale na ficha 106');
+eq(unitHintMatches('106', 'APTO 106'), true, 'PDF da 106 vale na ficha 106');
+eq(unitHintMatches('', 'APTO 106'), true, 'sem unidade no PDF não bloqueia');
+eq(unitHintMatches('1', 'casa 01'), true, 'casa 01 aceita Unidade 1');
 
 eq(fromName.appraisalDate, '', 'PDF vazio não inventa data pelo nome do arquivo');
 eq(dateFromDocName('27-11-2016.pdf'), '2016-11-27', 'dateFromDocName hífen');
