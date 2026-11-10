@@ -102,6 +102,10 @@ function adminRow(id, d) {
     reportName: d.reportName || '',
     archiveDocuments: Array.isArray(d.archiveDocuments) ? d.archiveDocuments : [],
     engineeringHistory: Array.isArray(d.engineeringHistory) ? d.engineeringHistory : [],
+    rgiPath: d.rgiPath || '',
+    rgiName: d.rgiName || '',
+    rgiDate: d.rgiDate || '',
+    rgiHistory: Array.isArray(d.rgiHistory) ? d.rgiHistory : [],
     notes: d.notes || '',
     status: c.status,
     daysLeft: c.daysLeft,
@@ -230,6 +234,10 @@ function mergeUnitRow(propertyId, catalogUnit, catalog, firestoreRow) {
     reportName: '',
     archiveDocuments: [],
     engineeringHistory: [],
+    rgiPath: '',
+    rgiName: '',
+    rgiDate: '',
+    rgiHistory: [],
     notes: '',
     status: 'sem_laudo',
     daysLeft: null,
@@ -268,10 +276,59 @@ function mergeUnitRow(propertyId, catalogUnit, catalog, firestoreRow) {
     row.archiveDocuments = Array.isArray(seedU.documents) ? seedU.documents : [];
   }
   if (!Array.isArray(row.engineeringHistory)) row.engineeringHistory = [];
+  if (!row.rgiPath) {
+    var onusDoc = pickOnusDoc(row.archiveDocuments);
+    if (onusDoc) {
+      row.rgiPath = onusDoc.storagePath || '';
+      row.rgiName = onusDoc.name || row.rgiName || '';
+    }
+  }
+  if (!Array.isArray(row.rgiHistory)) row.rgiHistory = [];
   row.bedrooms = catalogUnit.bedrooms;
   row.catalogStatus = catalogUnit.status || '';
   if (!row.engineeringValue && hist) row.engineeringValue = hist;
   return row;
+}
+
+function pickOnusDoc(docs) {
+  var i;
+  var d;
+  for (i = 0; i < (docs || []).length; i++) {
+    d = docs[i] || {};
+    if (d.kind === 'onus' && d.storagePath) return d;
+  }
+  return null;
+}
+
+function currentRgiSnapshot(d) {
+  d = d || {};
+  var path = d.rgiPath || '';
+  var name = d.rgiName || '';
+  var date = d.rgiDate || '';
+  if (!path) {
+    var onus = pickOnusDoc(d.archiveDocuments);
+    if (onus) {
+      path = onus.storagePath || '';
+      name = name || onus.name || '';
+    }
+  }
+  return {
+    rgiPath: path,
+    rgiName: name,
+    rgiDate: date,
+    archivedAt: new Date().toISOString(),
+  };
+}
+
+function shouldArchiveRgi(body, old) {
+  var current = currentRgiSnapshot(old);
+  if (!current.rgiPath) return false;
+  if (body.archiveCurrentRgi === true || body.archiveCurrentRgi === 'true' || body.archiveCurrentRgi === 1) {
+    return true;
+  }
+  var newPath = String(body.rgiPath || '').trim();
+  if (newPath && current.rgiPath && newPath !== current.rgiPath) return true;
+  return false;
 }
 
 function snapshotEngineering(d) {
@@ -465,6 +522,21 @@ async function adminUnitEngineeringHttp(req, res) {
         if (!dup) history.unshift(snap);
         if (history.length > 20) history = history.slice(0, 20);
       }
+      var rgiHistory = Array.isArray(old.rgiHistory) ? old.rgiHistory.slice() : [];
+      var archiveRgi = shouldArchiveRgi(body, old);
+      if (archiveRgi) {
+        var rgiSnap = currentRgiSnapshot(old);
+        rgiSnap.archivedBy = auth.email || '';
+        var rgiDup = rgiHistory[0] &&
+          String(rgiHistory[0].rgiPath || '') === String(rgiSnap.rgiPath || '') &&
+          String(rgiHistory[0].rgiDate || '') === String(rgiSnap.rgiDate || '');
+        if (!rgiDup && rgiSnap.rgiPath) rgiHistory.unshift(rgiSnap);
+        if (rgiHistory.length > 20) rgiHistory = rgiHistory.slice(0, 20);
+      }
+      var rgiDate = String(body.rgiDate != null ? body.rgiDate : (archiveRgi ? '' : (old.rgiDate || ''))).trim();
+      if (rgiDate && !/^\d{4}-\d{2}-\d{2}$/.test(rgiDate)) {
+        return res.status(400).json({ error: 'Data do RGI inválida' });
+      }
       var docU = {
         propertyId: typeof propertyId === 'number' ? propertyId : (Number(propertyId) || propertyId),
         unitCode: unitCode,
@@ -481,6 +553,10 @@ async function adminUnitEngineeringHttp(req, res) {
         reportName: String(body.reportName || '').trim().slice(0, 160) || (archiveCurrent ? '' : (old.reportName || '')),
         archiveDocuments: Array.isArray(body.archiveDocuments) ? body.archiveDocuments : (old.archiveDocuments || []),
         engineeringHistory: history,
+        rgiPath: String(body.rgiPath || '').trim() || (archiveRgi ? '' : (old.rgiPath || '')),
+        rgiName: String(body.rgiName || '').trim().slice(0, 160) || (archiveRgi ? '' : (old.rgiName || '')),
+        rgiDate: rgiDate,
+        rgiHistory: rgiHistory,
         notes: String(body.notes != null ? body.notes : (old.notes || '')).trim().slice(0, 500),
         updatedAt: nowU,
         updatedBy: auth.email || '',

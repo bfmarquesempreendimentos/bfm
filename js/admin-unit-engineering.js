@@ -16,6 +16,7 @@
     var _openUnit = '';
     var _uiBound = false;
     var _archiveCurrentOnSave = false;
+    var _archiveRgiOnSave = false;
 
     var BUILDING_PRIMARY = {
         art: 1, crea: 1, memorial: 1, habite_planta: 1, averbacao: 1,
@@ -492,6 +493,7 @@
         }
         _openUnit = unitCode || '';
         _archiveCurrentOnSave = false;
+        _archiveRgiOnSave = false;
         var set = function(id, val) {
             var el = document.getElementById(id);
             if (el) el.value = val == null ? '' : val;
@@ -526,10 +528,16 @@
         }
         var newHint = document.getElementById('ueNewEngHint');
         if (newHint) newHint.hidden = true;
+        set('ueRgiDate', r ? (r.rgiDate || '') : '');
+        var rgiHint = document.getElementById('ueNewRgiHint');
+        if (rgiHint) rgiHint.hidden = true;
         renderEngineeringHistory(r);
+        renderRgiHistory(r);
         var archive = document.getElementById('ueArchiveDocs');
         if (archive) {
-            var docs = (r && r.archiveDocuments) || [];
+            var docs = ((r && r.archiveDocuments) || []).filter(function(d) {
+                return d.kind !== 'onus' && d.kind !== 'laudo';
+            });
             archive.innerHTML = docs.length
                 ? docs.map(function(d) {
                     var path = d.storagePath || '';
@@ -539,7 +547,7 @@
                         : name;
                     return '<li><span class="pd-doc-kind">' + esc(d.label || d.kind) + '</span> ' + link + '</li>';
                 }).join('')
-                : '<li>Nenhum arquivo antigo vinculado a esta unidade.</li>';
+                : '<li>Nenhum outro arquivo vinculado a esta unidade.</li>';
             bindDocLinks(archive);
         }
         renderRelated(selectedPropertyId(), unitCode);
@@ -678,6 +686,89 @@
                 '<span>' + who + '</span>' + pdf + '</li>';
         }).join('');
         bindDocLinks(box);
+    }
+
+    function currentRgiPath(r) {
+        if (r && r.rgiPath) return r.rgiPath;
+        var found = '';
+        ((r && r.archiveDocuments) || []).some(function(d) {
+            if (d.kind === 'onus' && d.storagePath) { found = d.storagePath; return true; }
+            return false;
+        });
+        return found;
+    }
+
+    function currentRgiName(r) {
+        if (r && r.rgiName) return r.rgiName;
+        var found = '';
+        ((r && r.archiveDocuments) || []).some(function(d) {
+            if (d.kind === 'onus' && d.name) { found = d.name; return true; }
+            return false;
+        });
+        return found;
+    }
+
+    function renderRgiHistory(r) {
+        var box = document.getElementById('ueRgiHistory');
+        if (!box) return;
+        var currentPath = currentRgiPath(r);
+        var currentName = currentRgiName(r);
+        var items = (r && Array.isArray(r.rgiHistory)) ? r.rgiHistory.slice() : [];
+        var html = '';
+        if (currentPath) {
+            html += '<li><span class="ue-eng-hist-idx">atual</span>' +
+                '<span>' + esc(formatDate(r && r.rgiDate) || 'sem data') + '</span>' +
+                '<button type="button" class="pd-doc-link" data-pd-path="' + esc(currentPath) + '">' +
+                esc(currentName || 'Abrir PDF') + '</button></li>';
+        }
+        html += items.map(function(h, idx) {
+            var path = h.rgiPath || h.storagePath || '';
+            var pdf = path
+                ? '<button type="button" class="pd-doc-link" data-pd-path="' + esc(path) + '">' +
+                    esc(h.rgiName || h.name || 'Abrir PDF') + '</button>'
+                : '<span>sem PDF</span>';
+            return '<li><span class="ue-eng-hist-idx">#' + (items.length - idx) + '</span>' +
+                '<span>' + esc(formatDate(h.rgiDate) || 'sem data') + '</span>' + pdf + '</li>';
+        }).join('');
+        if (!html) {
+            box.innerHTML = '<li class="form-hint">Nenhum RGI anterior. Use “Cadastrar novo RGI” para guardar o atual e registrar o próximo.</li>';
+            return;
+        }
+        box.innerHTML = html;
+        bindDocLinks(box);
+    }
+
+    function startNewUnitRgi() {
+        var unit = document.getElementById('ueUnitCode') && document.getElementById('ueUnitCode').value;
+        var r = findRow(unit);
+        var hasCurrent = !!currentRgiPath(r);
+        if (hasCurrent) {
+            var ok = window.confirm(
+                'O RGI atual vai para o histórico desta unidade. Anexe a nova certidão e salve.\n\nContinuar?'
+            );
+            if (!ok) return;
+        }
+        _archiveRgiOnSave = hasCurrent;
+        var dateEl = document.getElementById('ueRgiDate');
+        if (dateEl) dateEl.value = '';
+        var fileEl = document.getElementById('ueRgiFile');
+        if (fileEl) fileEl.value = '';
+        var hint = document.getElementById('ueNewRgiHint');
+        if (hint) hint.hidden = false;
+        if (fileEl) fileEl.focus();
+        if (typeof showMessage === 'function') {
+            showMessage('Anexe o novo RGI e salve. O anterior fica no histórico.', 'info');
+        }
+    }
+
+    function openCurrentRgi() {
+        var unit = document.getElementById('ueUnitCode') && document.getElementById('ueUnitCode').value;
+        var path = currentRgiPath(findRow(unit));
+        if (!path) {
+            if (typeof showMessage === 'function') showMessage('Nenhum RGI vinculado a esta ficha.', 'warning');
+            return;
+        }
+        openStoredDocument(path);
     }
 
     function startNewUnitEngineering() {
@@ -872,14 +963,23 @@
             if (typeof showMessage === 'function') showMessage('Informe empreendimento e unidade.', 'warning');
             return;
         }
+        var uploadFn = typeof uploadAdminDossierFile === 'function' ? uploadAdminDossierFile : uploadViaSignedUrl;
+        var token = typeof getAdminIdToken === 'function' ? await getAdminIdToken() : null;
         var reportPath = '';
         var reportName = '';
         var fileEl = document.getElementById('ueReportFile');
-        if (fileEl && fileEl.files && fileEl.files[0] && typeof uploadViaSignedUrl === 'function') {
-            var token = typeof getAdminIdToken === 'function' ? await getAdminIdToken() : null;
-            var up = await uploadViaSignedUrl(fileEl.files[0], 'engineering-reports', token);
+        if (fileEl && fileEl.files && fileEl.files[0] && typeof uploadFn === 'function') {
+            var up = await uploadFn(fileEl.files[0], 'engineering-reports', token);
             reportPath = up.path || '';
             reportName = up.name || '';
+        }
+        var rgiPath = '';
+        var rgiName = '';
+        var rgiEl = document.getElementById('ueRgiFile');
+        if (rgiEl && rgiEl.files && rgiEl.files[0] && typeof uploadFn === 'function') {
+            var rgiUp = await uploadFn(rgiEl.files[0], 'property-dossiers/' + pid + '/unidades', token);
+            rgiPath = rgiUp.path || '';
+            rgiName = rgiUp.name || '';
         }
         var current = findRow(unit) || {};
         var payload = {
@@ -899,13 +999,19 @@
             engineeringHistory: current.engineeringHistory || [],
             reportPath: reportPath,
             reportName: reportName,
-            archiveCurrent: !!_archiveCurrentOnSave
+            archiveCurrent: !!_archiveCurrentOnSave,
+            rgiPath: rgiPath,
+            rgiName: rgiName,
+            rgiDate: document.getElementById('ueRgiDate') ? document.getElementById('ueRgiDate').value : '',
+            archiveCurrentRgi: !!_archiveRgiOnSave
         };
         adminPostJson('/adminUnitEngineering', payload).then(function() {
             if (typeof showMessage === 'function') showMessage('Ficha da unidade gravada. Preço e engenharia vigente passam a alimentar a vitrine.', 'success');
             if (typeof invalidateEngineeringCache === 'function') invalidateEngineeringCache();
             if (fileEl) fileEl.value = '';
+            if (rgiEl) rgiEl.value = '';
             _archiveCurrentOnSave = false;
+            _archiveRgiOnSave = false;
             return loadUnitEngineeringAdmin().then(function() {
                 openUnitDrawer(unit);
             });
@@ -977,6 +1083,8 @@
         window.loadEngineeringAlerts = loadEngineeringAlerts;
         window.openEngineeringReport = openEngineeringReport;
         window.startNewUnitEngineering = startNewUnitEngineering;
+        window.startNewUnitRgi = startNewUnitRgi;
+        window.openCurrentRgi = openCurrentRgi;
         window.onEngineeringDateChange = onDateChange;
         window.openUnitDossier = openUnitDossier;
         window.fillUnitEngineeringForm = fillForm;

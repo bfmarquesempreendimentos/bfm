@@ -47,6 +47,31 @@ async function getAnyIdToken() {
   return null;
 }
 
+function sanitizeStorageFileName(name) {
+  return String(name || 'file')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .substring(0, 120);
+}
+
+async function uploadAdminDossierFile(file, folder, token) {
+  folder = String(folder || '').replace(/^\/+|\/+$/g, '');
+  var filePath = folder + '/' + Date.now() + '-' + sanitizeStorageFileName(file.name);
+  var storage = getFirebaseStorage();
+  if (storage) {
+    try {
+      var ref = storage.ref().child(filePath);
+      await ref.put(file);
+      return {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        path: filePath
+      };
+    } catch (sdkErr) {}
+  }
+  return uploadViaSignedUrl(file, folder, token);
+}
+
 async function uploadViaSignedUrl(file, folder, token) {
   var headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = 'Bearer ' + token;

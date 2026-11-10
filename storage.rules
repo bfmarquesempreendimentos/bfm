@@ -13,14 +13,23 @@ service firebase.storage {
       allow read, write: if request.auth != null
         && request.resource.size < 10 * 1024 * 1024;
     }
+    function isAdminUser() {
+      return request.auth != null && (
+        request.auth.token.email == 'brunoferreiramarques@gmail.com' ||
+        request.auth.token.email == 'raphaelmonteirodasilva@yahoo.com.br'
+      );
+    }
+
     match /sale-contracts/{allPaths=**} {
       allow read, write: if false;
     }
     match /engineering-reports/{allPaths=**} {
-      allow read, write: if false;
+      allow read: if isAdminUser();
+      allow write: if isAdminUser() && request.resource.size < 15 * 1024 * 1024;
     }
     match /property-dossiers/{allPaths=**} {
-      allow read, write: if false;
+      allow read: if isAdminUser();
+      allow write: if isAdminUser() && request.resource.size < 15 * 1024 * 1024;
     }
     match /{allPaths=**} {
       allow read, write: if false;

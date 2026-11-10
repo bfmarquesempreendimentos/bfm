@@ -1817,6 +1817,21 @@
                     </div>
                     <h5>Histórico de engenharias</h5>
                     <ul id="ueEngHistory" class="ue-eng-history"></ul>
+                    <h5>Ônus / RGI</h5>
+                    <p class="form-hint">A certidão é atualizada no dia a dia. O PDF antigo permanece no histórico desta unidade.</p>
+                    <label>Data da certidão
+                        <input type="date" id="ueRgiDate">
+                    </label>
+                    <label>Anexar PDF do RGI (só admin)
+                        <input type="file" id="ueRgiFile" accept=".pdf,application/pdf,image/*">
+                    </label>
+                    <p id="ueNewRgiHint" class="form-hint" hidden>O RGI atual vai para o histórico ao salvar. Anexe o novo PDF.</p>
+                    <div class="ue-toolbar">
+                        <button type="button" class="btn btn-secondary" onclick="startNewUnitRgi()">Cadastrar novo RGI</button>
+                        <button type="button" class="btn btn-secondary" onclick="openCurrentRgi()">Abrir RGI atual</button>
+                    </div>
+                    <h5>Histórico de RGI</h5>
+                    <ul id="ueRgiHistory" class="ue-eng-history"></ul>
                     <label>Observações
                         <input type="text" id="ueNotes" maxlength="500">
                     </label>
@@ -2111,7 +2126,7 @@
 
     <!-- Scripts -->
     <script src="js/compat-polyfills.js"></script>
-    <script src="config.js?v=45"></script>
+    <script src="config.js?v=46"></script>
     <script src="js/dom-utils.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/audit.js"></script>
@@ -2123,7 +2138,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
     <script src="js/firebase.js"></script>
-    <script src="js/firebase-service.js?v=34"></script>
+    <script src="js/firebase-service.js?v=35"></script>
     <script src="js/main.js"></script>
     <script src="js/auth.js?v=34"></script>
     <script src="js/properties.js"></script>
@@ -2147,7 +2162,7 @@
     <script src="js/admin-finance.js?v=1"></script>
     <script src="js/admin-reports.js?v=4"></script>
     <script src="js/admin-broker-reservations-report.js?v=4"></script>
-    <script src="js/admin-unit-engineering.js?v=10"></script>
+    <script src="js/admin-unit-engineering.js?v=11"></script>
     <script src="js/admin.js?v=50"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
