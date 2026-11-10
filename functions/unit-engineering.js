@@ -3,7 +3,7 @@
 var admin = require('firebase-admin');
 var { verifyAdminAuth } = require('./admin-auth');
 var { roleHasPermission } = require('./admin-accounts');
-var { dateFromDocName, isPersonName, extractLaudoFromPdf, unitHintMatches } = require('./laudo-extract');
+var { dateFromDocName, isPersonName, extractLaudoFromPdf, laudoIdentityError } = require('./laudo-extract');
 var propertyUnitsCatalog = require('./chatbot/property-units-data');
 var dossierSeed = require('./property-dossier-seed.json');
 
@@ -444,14 +444,18 @@ async function fillDocFromStoredLaudo(docU, overwrite) {
     return docU;
   }
   var extracted = await extractLaudoFromPdf(buf, docU.reportName || '');
-  if (extracted && extracted.unitHint && !unitHintMatches(extracted.unitHint, docU.unitCode)) {
+  var allProps = Object.keys((dossierSeed && dossierSeed.properties) || {}).map(function(id) {
+    return dossierSeed.properties[id];
+  });
+  var identityErr = laudoIdentityError(extracted, seedProperty(docU.propertyId), docU.unitCode, allProps);
+  if (identityErr) {
     if (overwrite) {
-      var mismatch = new Error('Este PDF é da unidade ' + extracted.unitHint + ', não da ' + docU.unitCode + '. Anexe o laudo desta unidade.');
-      mismatch.code = 'unit-mismatch';
-      mismatch.unitHint = extracted.unitHint;
+      var mismatch = new Error(identityErr);
+      mismatch.code = 'laudo-mismatch';
+      mismatch.unitHint = extracted && extracted.unitHint;
       throw mismatch;
     }
-    docU.laudoUnitHint = String(extracted.unitHint);
+    if (extracted && extracted.unitHint) docU.laudoUnitHint = String(extracted.unitHint);
     return docU;
   }
   return mergeExtractIntoDoc(docU, extracted, overwrite);
@@ -672,7 +676,7 @@ async function adminUnitEngineeringHttp(req, res) {
       try {
         docU = await fillDocFromStoredLaudo(docU, pathChanged);
       } catch (fillErr) {
-        if (fillErr && fillErr.code === 'unit-mismatch') {
+        if (fillErr && (fillErr.code === 'unit-mismatch' || fillErr.code === 'laudo-mismatch')) {
           return res.status(400).json({
             error: fillErr.message,
             unitHint: fillErr.unitHint || '',

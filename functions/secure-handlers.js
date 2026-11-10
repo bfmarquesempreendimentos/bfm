@@ -4,8 +4,19 @@ const crypto = require('crypto');
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { verifyAdminAuth } = require('./admin-auth');
-const { extractLaudoFromPdf, unitHintMatches } = require('./laudo-extract');
+const { extractLaudoFromPdf, laudoIdentityError } = require('./laudo-extract');
 const { nextDocFileName } = require('./doc-revision-name');
+const dossierSeed = require('./property-dossier-seed.json');
+
+function seedPropertyById(pid) {
+  var bag = (dossierSeed && dossierSeed.properties) || {};
+  return bag[String(pid)] || null;
+}
+
+function seedPropertiesList() {
+  var bag = (dossierSeed && dossierSeed.properties) || {};
+  return Object.keys(bag).map(function(id) { return bag[id]; });
+}
 
 const COMPANY_EMAIL = 'bfmarquesempreendimentos@gmail.com';
 var STORAGE_BUCKETS = [
@@ -473,10 +484,12 @@ async function prepareStorageUploadHttp(req, res) {
       if (parseKind === 'laudo' || docKind === 'laudo') {
         extracted = await extractLaudoFromPdf(buf, originalName);
         var unitCode = String(q.unitCode || body.unitCode || '');
-        if (extracted && extracted.unitHint && unitCode && !unitHintMatches(extracted.unitHint, unitCode)) {
+        var prop = seedPropertyById(q.propertyId || body.propertyId);
+        var identityErr = laudoIdentityError(extracted, prop, unitCode, seedPropertiesList());
+        if (identityErr) {
           return res.status(400).json({
-            error: 'Este PDF é da unidade ' + extracted.unitHint + ', não da ' + unitCode + '. Anexe o laudo desta unidade.',
-            unitHint: extracted.unitHint,
+            error: identityErr,
+            unitHint: extracted && extracted.unitHint,
             extracted: extracted,
           });
         }

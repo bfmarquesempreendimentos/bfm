@@ -130,6 +130,65 @@
         return String(Number(hint)) === want;
     }
 
+    function foldPt(s) {
+        return String(s || '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function streetTokens(s) {
+        return foldPt(s)
+            .replace(/\b(rua|r|av|avenida|travessa|estrada|dr|dra|doutor|doutora|n|no|nro|numero|lt|lote|qd|quadra|de|da|do|dos|das)\b/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .split(' ')
+            .filter(function(t) { return t.length >= 4 && !/^\d+$/.test(t); });
+    }
+
+    function catalogStreetNumber(street) {
+        var s = String(street || '').replace(/\b(lt|lote|qd|quadra)\s*\.?\s*\d+\b/gi, '');
+        var m = s.match(/,\s*n[ºo°]?\s*(\d{1,5})\b/i) || s.match(/,\s*(\d{1,5})\b/) || s.match(/\b(\d{2,5})\s*$/);
+        return m ? String(Number(m[1])) : '';
+    }
+
+    function addressMismatch(ex, property) {
+        if (!ex || !property) return '';
+        var gotStreet = ex.addressStreet || '';
+        var gotNum = ex.addressNumber || '';
+        var gotCity = ex.addressCity || '';
+        if (!gotStreet && !gotCity) return '';
+        var wantStreet = property.street || '';
+        var wantCity = property.city || '';
+        var expected = wantStreet || property.officialName || 'este empreendimento';
+        var a = streetTokens(gotStreet);
+        var b = streetTokens(wantStreet);
+        var overlap = 0;
+        a.forEach(function(t) { if (b.indexOf(t) >= 0) overlap += 1; });
+        var place = gotStreet
+            ? ('R ' + gotStreet + (gotNum ? ', ' + gotNum : '') + (gotCity ? ' · ' + gotCity : ''))
+            : (gotCity || 'outro endereço');
+        if (gotStreet && b.length && overlap === 0) {
+            return 'Este PDF é de ' + place + ', não de ' + expected + '. Anexe o laudo deste endereço.';
+        }
+        var wantNum = catalogStreetNumber(wantStreet);
+        if (gotStreet && overlap > 0 && wantNum && gotNum && wantNum !== gotNum) {
+            return 'Este PDF é do nº ' + gotNum + ' (' + place + '), não de ' + expected + '.';
+        }
+        if (!gotStreet && gotCity) {
+            var ca = streetTokens(gotCity);
+            var cb = streetTokens(wantCity);
+            var cityHit = 0;
+            ca.forEach(function(t) { if (cb.indexOf(t) >= 0) cityHit += 1; });
+            if (cb.length && cityHit === 0) {
+                return 'Este PDF é de ' + gotCity + ', não de ' + (wantCity || expected) + '. Anexe o laudo deste endereço.';
+            }
+        }
+        return '';
+    }
+
     function currentReportPath() {
         if (_pendingLaudo && _pendingLaudo.path) return _pendingLaudo.path;
         var unit = document.getElementById('ueUnitCode') && document.getElementById('ueUnitCode').value;
@@ -1052,6 +1111,12 @@
         if (ex.unitHint && _openUnit && !unitHintMatches(ex.unitHint, _openUnit)) {
             setParseHint('Este PDF é da unidade ' + ex.unitHint + ', não da ' + _openUnit + '. Anexe o laudo desta unidade.', false);
             if (typeof showMessage === 'function') showMessage('Este PDF é da unidade ' + ex.unitHint + ', não da ' + _openUnit + '.', 'error');
+            return false;
+        }
+        var addrErr = addressMismatch(ex, _property);
+        if (addrErr) {
+            setParseHint(addrErr, false);
+            if (typeof showMessage === 'function') showMessage(addrErr, 'error');
             return false;
         }
         var put = function(id, val) {

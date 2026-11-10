@@ -258,8 +258,125 @@ function unitHintMatches(hint, unitCode) {
   return String(Number(hint)) === want;
 }
 
+function foldPt(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function stripStreetNoise(s) {
+  return foldPt(s)
+    .replace(/\b(rua|r|av|avenida|travessa|estrada|dr|dra|doutor|doutora|n|no|nro|numero|lt|lote|qd|quadra)\b/g, ' ')
+    .replace(/\b(de|da|do|dos|das)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function distinctiveTokens(s) {
+  return stripStreetNoise(s).split(' ').filter(function(t) {
+    return t.length >= 4 && !/^\d+$/.test(t);
+  });
+}
+
+function tokenOverlapCount(a, b) {
+  var A = distinctiveTokens(a);
+  var B = distinctiveTokens(b);
+  var n = 0;
+  A.forEach(function(t) { if (B.indexOf(t) >= 0) n += 1; });
+  return { n: n, a: A, b: B };
+}
+
+function catalogStreetNumber(street) {
+  var s = String(street || '').replace(/\b(lt|lote|qd|quadra)\s*\.?\s*\d+\b/gi, '');
+  var m = s.match(/,\s*n[ºo°]?\s*(\d{1,5})\b/i) || s.match(/,\s*(\d{1,5})\b/) || s.match(/\b(\d{2,5})\s*$/);
+  return m ? String(Number(m[1])) : '';
+}
+
+function extractAddressHint(text) {
+  var flat = flatten(text);
+  var out = { addressStreet: '', addressNumber: '', addressCity: '', addressRaw: '' };
+  var m = flat.match(/\bR(?:UA)?\s+([A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç0-9 .'-]{4,80}?),?\s+(\d{1,5}),?\s+Unidade\s+(\d{1,3})\b/i);
+  if (m) {
+    out.addressStreet = m[1].replace(/\s+/g, ' ').trim();
+    out.addressNumber = String(Number(m[2]));
+    out.addressRaw = ('R ' + out.addressStreet + ', ' + m[2] + ', Unidade ' + m[3]).replace(/\s+/g, ' ');
+  }
+  var c = flat.match(/([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ ]{2,40})\s+Munic[ií]pio do Im[oó]vel/i);
+  if (c) out.addressCity = c[1].replace(/\s+/g, ' ').trim();
+  return out;
+}
+
+function describeExtractedPlace(extracted) {
+  if (!extracted) return 'outro endereço';
+  if (extracted.addressStreet) {
+    var s = 'R ' + extracted.addressStreet;
+    if (extracted.addressNumber) s += ', ' + extracted.addressNumber;
+    if (extracted.addressCity) s += ' · ' + extracted.addressCity;
+    return s;
+  }
+  return extracted.addressCity || 'outro endereço';
+}
+
+function guessConflictingProperty(extracted, property, allProperties) {
+  var best = null;
+  var bestN = 0;
+  (allProperties || []).forEach(function(p) {
+    if (!p || !extracted || !extracted.addressStreet) return;
+    if (property && foldPt(p.street || '') === foldPt(property.street || '') &&
+        foldPt(p.officialName || '') === foldPt(property.officialName || '')) return;
+    var ov = tokenOverlapCount(extracted.addressStreet, p.street || '');
+    if (ov.n > bestN) {
+      bestN = ov.n;
+      best = p;
+    }
+  });
+  return bestN >= 2 ? best : null;
+}
+
+function addressMismatch(extracted, property, allProperties) {
+  if (!extracted || !property) return '';
+  var gotStreet = extracted.addressStreet || '';
+  var gotNum = extracted.addressNumber || '';
+  var gotCity = extracted.addressCity || '';
+  if (!gotStreet && !gotCity) return '';
+  var wantStreet = property.street || '';
+  var wantCity = property.city || '';
+  var expected = wantStreet || property.officialName || 'este empreendimento';
+  var streetOv = tokenOverlapCount(gotStreet, wantStreet);
+  var cityOv = tokenOverlapCount(gotCity, wantCity);
+  var place = describeExtractedPlace(extracted);
+  var other = guessConflictingProperty(extracted, property, allProperties);
+  var otherName = other && other.officialName ? other.officialName : '';
+  if (gotStreet && streetOv.b.length && streetOv.n === 0) {
+    if (otherName) {
+      return 'Este PDF é do ' + otherName + ' (' + place + '), não de ' + expected + '. Anexe o laudo deste endereço.';
+    }
+    return 'Este PDF é de ' + place + ', não de ' + expected + '. Anexe o laudo deste endereço.';
+  }
+  var wantNum = catalogStreetNumber(wantStreet);
+  if (gotStreet && streetOv.n > 0 && wantNum && gotNum && wantNum !== gotNum) {
+    return 'Este PDF é do nº ' + gotNum + ' (' + place + '), não de ' + expected + '.';
+  }
+  if (!gotStreet && gotCity && cityOv.b.length && cityOv.n === 0) {
+    return 'Este PDF é de ' + gotCity + ', não de ' + (wantCity || expected) + '. Anexe o laudo deste endereço.';
+  }
+  return '';
+}
+
+function laudoIdentityError(extracted, property, unitCode, allProperties) {
+  if (!extracted) return '';
+  if (extracted.unitHint && unitCode && !unitHintMatches(extracted.unitHint, unitCode)) {
+    return 'Este PDF é da unidade ' + extracted.unitHint + ', não da ' + unitCode + '. Anexe o laudo desta unidade.';
+  }
+  return addressMismatch(extracted, property, allProperties);
+}
+
 function extractLaudoFields(text, fileName) {
   var trio = extractApartmentTrio(text);
+  var addr = extractAddressHint(text);
   var out = {
     appraisalDate: extractDate(text),
     appraiser: extractAppraiser(text),
@@ -268,6 +385,10 @@ function extractLaudoFields(text, fileName) {
     garantiaCaixa: '',
     garantiaSnippet: '',
     unitHint: extractUnitHint(text),
+    addressStreet: addr.addressStreet,
+    addressNumber: addr.addressNumber,
+    addressCity: addr.addressCity,
+    addressRaw: addr.addressRaw,
     textLength: flatten(text).length,
   };
   if (!out.valuePerM2) out.valuePerM2 = extractValorM2(text, out.engineeringValue);
@@ -301,6 +422,10 @@ async function extractLaudoFromPdf(buffer, fileName) {
       engineeringValue: out.engineeringValue,
       valuePerM2: out.valuePerM2,
       garantiaCaixa: out.garantiaCaixa,
+      unitHint: out.unitHint,
+      addressStreet: out.addressStreet,
+      addressNumber: out.addressNumber,
+      addressCity: out.addressCity,
     });
     return out;
   } catch (err) {
@@ -318,4 +443,7 @@ module.exports = {
   extractUnitHint,
   unitHintMatches,
   unitNumberFromLabel,
+  extractAddressHint,
+  addressMismatch,
+  laudoIdentityError,
 };

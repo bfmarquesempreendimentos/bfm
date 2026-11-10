@@ -1,7 +1,7 @@
 'use strict';
 
 var fs = require('fs');
-var { extractLaudoFields, extractLaudoFromPdf, isPersonName, dateFromDocName, unitHintMatches } = require('./laudo-extract');
+var { extractLaudoFields, extractLaudoFromPdf, isPersonName, dateFromDocName, unitHintMatches, addressMismatch, laudoIdentityError } = require('./laudo-extract');
 var { nextDocFileName } = require('./doc-revision-name');
 
 var failed = 0;
@@ -135,6 +135,35 @@ eq(unitHintMatches('106', 'APTO 106'), true, 'PDF da 106 vale na ficha 106');
 eq(unitHintMatches('', 'APTO 106'), true, 'sem unidade no PDF não bloqueia');
 eq(unitHintMatches('1', 'casa 01'), true, 'casa 01 aceita Unidade 1');
 
+var jussara = { officialName: 'Condomínio Laranjal', street: 'Rua Jussara, 178', neighborhood: 'Laranjal', city: 'São Gonçalo - RJ' };
+var apolo = { officialName: 'Residencial Apolo', street: 'Rua Maria José Arruda Barbosa, LT 02 QD 18', neighborhood: 'Apolo', city: 'Itaboraí - RJ' };
+var bandeirantes = { officialName: 'Edifício Bandeirantes', street: 'Rua Lopes da Cruz, 136', neighborhood: 'Amendoeira', city: 'São Gonçalo - RJ' };
+var coelho = { officialName: 'Residencial Coelho', street: 'Rua Lopes da Cruz, 122', neighborhood: 'Coelho', city: 'São Gonçalo - RJ' };
+var allProps = [jussara, apolo, bandeirantes, coelho];
+
+var apoloTxt = [
+  'R MARIA JOSE DE ARRUDA BARBOSA, 270, Unidade 03.',
+  'ITABORAI Municipio do Imovel Sul',
+].join('\n');
+var rApolo = extractLaudoFields(apoloTxt, 'laudo.pdf');
+eq(rApolo.addressStreet.toUpperCase().indexOf('ARRUDA') >= 0, true, 'Apolo rua no PDF');
+eq(rApolo.addressNumber, '270', 'Apolo número no SIOPI');
+eq(rApolo.unitHint, '03', 'Apolo unidade 03');
+eq(!!laudoIdentityError(rApolo, jussara, 'CS 03', allProps), true, 'laudo do Apolo não entra na Jussara');
+eq(laudoIdentityError(rApolo, apolo, 'CS 03', allProps), '', 'laudo do Apolo entra no Apolo');
+
+var jussaraTxt = 'Hemisfério R JUSSARA, 178, Unidade 04. Datum SAO GONCALO Municipio do Imovel';
+var rJussara = extractLaudoFields(jussaraTxt, 'Cs 4.pdf');
+eq(rJussara.addressStreet.toUpperCase(), 'JUSSARA', 'Jussara rua no PDF');
+eq(rJussara.addressNumber, '178', 'Jussara número 178');
+eq(laudoIdentityError(rJussara, jussara, 'CS 04', allProps), '', 'laudo da Jussara entra na Jussara');
+eq(!!laudoIdentityError(rJussara, apolo, 'CS 04', allProps), true, 'laudo da Jussara não entra no Apolo');
+
+eq(rIgor.addressStreet.toUpperCase().indexOf('LOPES') >= 0, true, 'Igor rua Lopes da Cruz');
+eq(rIgor.addressNumber, '136', 'Igor número 136');
+eq(laudoIdentityError(rIgor, bandeirantes, 'APTO 106', allProps), '', 'laudo 136 entra no Bandeirantes');
+eq(!!laudoIdentityError(rIgor, coelho, 'APTO 106', allProps), true, 'laudo 136 não entra no Coelho 122');
+
 eq(fromName.appraisalDate, '', 'PDF vazio não inventa data pelo nome do arquivo');
 eq(dateFromDocName('27-11-2016.pdf'), '2016-11-27', 'dateFromDocName hífen');
 eq(isPersonName('Representante Legal'), false, 'isPersonName rejeita cargo');
@@ -177,6 +206,23 @@ async function testRealPdf() {
     eq(exIgor.valuePerM2, 6347.72, 'PDF real laudo2 m²');
     eq(exIgor.garantiaCaixa, 'apta', 'PDF real laudo2 garantia');
     eq(exIgor.unitHint, '106', 'PDF real laudo2 unidade 106');
+    eq(exIgor.addressNumber, '136', 'PDF real laudo2 número');
+  }
+  var pApoloWrong = '/tmp/bfm-laudos/jussara-cs03-WRONG.pdf';
+  if (fs.existsSync(pApoloWrong)) {
+    var exApolo = await extractLaudoFromPdf(fs.readFileSync(pApoloWrong), 'laudo.pdf');
+    eq(exApolo.unitHint, '03', 'PDF Apolo na CS 03 unidade');
+    eq(exApolo.addressStreet.toUpperCase().indexOf('ARRUDA') >= 0, true, 'PDF Apolo rua Arruda Barbosa');
+    eq(!!addressMismatch(exApolo, jussara, allProps), true, 'PDF Apolo recusado na Jussara');
+    eq(addressMismatch(exApolo, apolo, allProps), '', 'PDF Apolo aceito no Apolo');
+  }
+  var pJussara4 = '/tmp/bfm-laudos/jussara-cs04.pdf';
+  if (fs.existsSync(pJussara4)) {
+    var exJ4 = await extractLaudoFromPdf(fs.readFileSync(pJussara4), 'Cs 4.pdf');
+    eq(exJ4.addressStreet.toUpperCase(), 'JUSSARA', 'PDF Jussara CS 04 rua');
+    eq(exJ4.addressNumber, '178', 'PDF Jussara CS 04 número');
+    eq(addressMismatch(exJ4, jussara, allProps), '', 'PDF Jussara CS 04 aceito na Jussara');
+    eq(!!addressMismatch(exJ4, apolo, allProps), true, 'PDF Jussara CS 04 recusado no Apolo');
   }
 }
 
