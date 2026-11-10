@@ -373,7 +373,7 @@ function shouldArchiveCurrent(body, old) {
 function saneValuePerM2(raw, valor) {
   var n = Number(raw);
   if (!isFinite(n) || n <= 0) return '';
-  if (n >= 40000) return '';
+  if (n > 20000) return '';
   if (!valor || !Number(valor)) return '';
   if (n >= Number(valor) * 0.35) return '';
   return n;
@@ -403,21 +403,26 @@ async function downloadReportBuffer(storagePath) {
   return null;
 }
 
-function mergeExtractIntoDoc(docU, extracted) {
+function mergeExtractIntoDoc(docU, extracted, overwrite) {
   if (!extracted) return docU;
-  if (extracted.appraisalDate && !docU.appraisalDate) {
+  if (extracted.appraisalDate && (overwrite || !docU.appraisalDate)) {
     docU.appraisalDate = extracted.appraisalDate;
     docU.expiresAt = addMonthsYmd(extracted.appraisalDate, VALIDITY_MONTHS);
   }
-  if (extracted.appraiser && !isPersonName(docU.appraiser)) docU.appraiser = extracted.appraiser;
-  if (extracted.engineeringValue && (docU.engineeringValue === '' || docU.engineeringValue == null)) {
+  if (extracted.appraiser && (overwrite || !isPersonName(docU.appraiser))) {
+    docU.appraiser = extracted.appraiser;
+  }
+  if (extracted.engineeringValue && (overwrite || docU.engineeringValue === '' || docU.engineeringValue == null)) {
     docU.engineeringValue = extracted.engineeringValue;
   }
-  var m2 = saneValuePerM2(docU.valuePerM2, docU.engineeringValue);
-  if (!m2) m2 = saneValuePerM2(extracted.valuePerM2, docU.engineeringValue);
-  docU.valuePerM2 = m2;
-  if (!docU.garantiaCaixa && (extracted.garantiaCaixa === 'apta' || extracted.garantiaCaixa === 'inapta')) {
-    docU.garantiaCaixa = extracted.garantiaCaixa;
+  var extractedM2 = saneValuePerM2(extracted.valuePerM2, docU.engineeringValue || extracted.engineeringValue);
+  if (extractedM2 && (overwrite || !saneValuePerM2(docU.valuePerM2, docU.engineeringValue))) {
+    docU.valuePerM2 = extractedM2;
+  } else {
+    docU.valuePerM2 = saneValuePerM2(docU.valuePerM2, docU.engineeringValue);
+  }
+  if (extracted.garantiaCaixa === 'apta' || extracted.garantiaCaixa === 'inapta') {
+    if (overwrite || !docU.garantiaCaixa) docU.garantiaCaixa = extracted.garantiaCaixa;
   }
   if (extracted.unitHint) docU.laudoUnitHint = String(extracted.unitHint);
   return docU;
@@ -425,15 +430,19 @@ function mergeExtractIntoDoc(docU, extracted) {
 
 function docNeedsLaudoParse(docU) {
   if (!docU || !docU.reportPath) return false;
-  return !docU.appraisalDate || !docU.engineeringValue || !isPersonName(docU.appraiser) || !docU.valuePerM2;
+  return !docU.appraisalDate || !docU.engineeringValue || !isPersonName(docU.appraiser) || !saneValuePerM2(docU.valuePerM2, docU.engineeringValue);
 }
 
-async function fillDocFromStoredLaudo(docU) {
-  if (!docNeedsLaudoParse(docU)) return docU;
+async function fillDocFromStoredLaudo(docU, overwrite) {
+  if (!docU.reportPath) return docU;
+  if (!overwrite && !docNeedsLaudoParse(docU)) return docU;
   var buf = await downloadReportBuffer(docU.reportPath);
-  if (!buf) return docU;
+  if (!buf) {
+    console.warn('fillDocFromStoredLaudo: PDF não encontrado', docU.reportPath);
+    return docU;
+  }
   var extracted = await extractLaudoFromPdf(buf, docU.reportName || '');
-  return mergeExtractIntoDoc(docU, extracted);
+  return mergeExtractIntoDoc(docU, extracted, overwrite);
 }
 
 function mergeListForProperty(propertyId, firestoreRows) {
@@ -647,7 +656,8 @@ async function adminUnitEngineeringHttp(req, res) {
         updatedAt: nowU,
         updatedBy: auth.email || '',
       };
-      docU = await fillDocFromStoredLaudo(docU);
+      var pathChanged = !!(docU.reportPath && docU.reportPath !== (old.reportPath || ''));
+      docU = await fillDocFromStoredLaudo(docU, pathChanged);
       await db.collection(COL).doc(id).set(docU, { merge: true });
       return res.json({ ok: true, row: adminRow(id, docU) });
     }

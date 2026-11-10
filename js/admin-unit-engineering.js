@@ -78,8 +78,8 @@
 
     function isSaneM2(raw, valor) {
         var n = Number(raw);
-        if (!isFinite(n) || n <= 0 || n >= 40000) return false;
-        if (valor && Number(valor) && n >= Number(valor) * 0.35) return false;
+        if (!isFinite(n) || n <= 0 || n > 20000) return false;
+        if (!valor || !Number(valor) || n >= Number(valor) * 0.35) return false;
         return true;
     }
 

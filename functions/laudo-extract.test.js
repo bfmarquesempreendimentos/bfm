@@ -111,6 +111,26 @@ eq(rDaniel.valuePerM2, 5003.13, 'laudo Daniel m², não o -2818 da fórmula');
 eq(rDaniel.garantiaCaixa, 'apta', 'laudo Daniel garantia');
 eq(rDaniel.unitHint, '101', 'laudo Daniel unidade no PDF');
 
+var igor = [
+  'R DOUTOR LOPES DA CRUZ, 136, Unidade 106.',
+  '13/10/2026ResidencialDesocupadoFundos/Canto1',
+  'Sim, Somos Favoráveis à Aceitação do Imóvel Como Garantia',
+  'Não atendeu aos seguintes Requisitos Gerais:',
+  '31,986.347,72R$ 203.000,00',
+  '203.000,00 (DUZENTOS E TRÊS MIL REAIS)Valor de Avaliação R$',
+  'Valor unitário = +26171,89738 +144330 / Area privativa',
+  'Formação',
+  'IGOR MIRANDA DO REGO BARROS',
+  'CPF/MatrículaResponsável Técnico',
+].join('\n');
+var rIgor = extractLaudoFields(igor, 'laudo2.pdf');
+eq(rIgor.appraisalDate, '2026-10-13', 'laudo Igor data');
+eq(rIgor.appraiser, 'IGOR MIRANDA DO REGO BARROS', 'laudo Igor responsável');
+eq(rIgor.engineeringValue, 203000, 'laudo Igor valor');
+eq(rIgor.valuePerM2, 6347.72, 'laudo Igor m², não o +26171 da fórmula');
+eq(rIgor.garantiaCaixa, 'apta', 'laudo Igor é apto mesmo com “Não atendeu aos seguintes” vazio');
+eq(rIgor.unitHint, '106', 'laudo Igor unidade 106');
+
 eq(fromName.appraisalDate, '', 'PDF vazio não inventa data pelo nome do arquivo');
 eq(dateFromDocName('27-11-2016.pdf'), '2016-11-27', 'dateFromDocName hífen');
 eq(isPersonName('Representante Legal'), false, 'isPersonName rejeita cargo');
@@ -143,6 +163,16 @@ async function testRealPdf() {
     eq(ex106.valuePerM2, 5003.13, 'PDF real 106/101 m²');
     eq(ex106.garantiaCaixa, 'apta', 'PDF real 106/101 garantia');
     eq(ex106.unitHint, '101', 'PDF real 106/101 é Unidade 101');
+  }
+  var p106b = '/tmp/bfm-laudos/apto106-laudo2.pdf';
+  if (fs.existsSync(p106b)) {
+    var exIgor = await extractLaudoFromPdf(fs.readFileSync(p106b), 'laudo2.pdf');
+    eq(exIgor.appraisalDate, '2026-10-13', 'PDF real laudo2 data');
+    eq(exIgor.appraiser, 'IGOR MIRANDA DO REGO BARROS', 'PDF real laudo2 responsável');
+    eq(exIgor.engineeringValue, 203000, 'PDF real laudo2 valor');
+    eq(exIgor.valuePerM2, 6347.72, 'PDF real laudo2 m²');
+    eq(exIgor.garantiaCaixa, 'apta', 'PDF real laudo2 garantia');
+    eq(exIgor.unitHint, '106', 'PDF real laudo2 unidade 106');
   }
 }
 

@@ -85,7 +85,7 @@ function inValorRange(n) {
 }
 
 function inM2Range(n, valor) {
-  if (!n || n < 800 || n > 25000) return false;
+  if (!n || n < 800 || n > 20000) return false;
   if (valor && n >= Number(valor) * 0.35) return false;
   return true;
 }
@@ -118,7 +118,7 @@ function extractValorAvaliacao(text) {
 
 function extractValorM2(text, engineeringValue) {
   var t = normalize(text);
-  var flat = flatten(text).replace(/Valor unit[aá]rio\s*=[^.\n]{0,80}/gi, ' ');
+  var flat = flatten(text).replace(/Valor unit[aá]rio\s*=[^A-Z\n]{0,120}/gi, ' ');
   var m = t.match(/(\d{1,3}\.\d{3},\d{2})\s*\n\s*[ÁA]rea.{0,12}\(m/i) ||
     flat.match(/(\d{1,3}\.\d{3},\d{2})\s+[ÁA]rea\s*\(m/i);
   if (m && inM2Range(parseBrMoney(m[1]), engineeringValue)) return parseBrMoney(m[1]);
