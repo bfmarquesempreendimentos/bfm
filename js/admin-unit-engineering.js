@@ -17,6 +17,12 @@
     var _uiBound = false;
     var _archiveCurrentOnSave = false;
     var _archiveRgiOnSave = false;
+    var _pendingLaudo = null;
+    var _pendingRgi = null;
+    var _pendingLaudoPromise = null;
+    var _pendingRgiPromise = null;
+    var _laudoSeq = 0;
+    var _rgiSeq = 0;
 
     var BUILDING_PRIMARY = {
         art: 1, crea: 1, memorial: 1, habite_planta: 1, averbacao: 1,
@@ -50,6 +56,54 @@
         var p = String(ymd).split('-');
         if (p.length !== 3) return ymd;
         return p[2] + '/' + p[1] + '/' + p[0];
+    }
+
+    function garantiaLabel(value) {
+        if (value === 'apta') return 'Apta para garantia Caixa';
+        if (value === 'inapta') return 'Inapta para garantia Caixa';
+        return '';
+    }
+
+    function updateGarantiaHint(value, snippet) {
+        var hint = document.getElementById('ueGarantiaHint');
+        var banner = document.getElementById('ueInaptaBanner');
+        if (banner) banner.hidden = value !== 'inapta';
+        if (!hint) return;
+        hint.classList.remove('ue-garantia-apta', 'ue-garantia-inapta');
+        if (value === 'apta') {
+            hint.classList.add('ue-garantia-apta');
+            hint.textContent = 'Avaliador: imóvel apto à aceitação como garantia da Caixa.';
+        } else if (value === 'inapta') {
+            hint.classList.add('ue-garantia-inapta');
+            hint.textContent = 'Avaliador: imóvel não atende aos requisitos mínimos da Caixa.';
+        } else {
+            hint.textContent = snippet
+                ? 'Manifestação não identificada automaticamente. Confira o PDF e indique se está apta.'
+                : 'Lida da manifestação do avaliador sobre aceitação do bem como garantia da Caixa.';
+        }
+    }
+
+    function setParseHint(text, reading) {
+        var el = document.getElementById('ueParseHint');
+        if (!el) return;
+        el.hidden = !text;
+        el.textContent = text || '';
+        if (reading) el.classList.add('is-reading');
+        else el.classList.remove('is-reading');
+    }
+
+    function clearPendingUploads() {
+        _laudoSeq += 1;
+        _rgiSeq += 1;
+        _pendingLaudo = null;
+        _pendingRgi = null;
+        _pendingLaudoPromise = null;
+        _pendingRgiPromise = null;
+        var report = document.getElementById('ueReportFile');
+        var rgi = document.getElementById('ueRgiFile');
+        if (report) report.value = '';
+        if (rgi) rgi.value = '';
+        setParseHint('', false);
     }
 
     function parseUnit(code) {
@@ -494,6 +548,7 @@
         _openUnit = unitCode || '';
         _archiveCurrentOnSave = false;
         _archiveRgiOnSave = false;
+        clearPendingUploads();
         var set = function(id, val) {
             var el = document.getElementById(id);
             if (el) el.value = val == null ? '' : val;
@@ -506,6 +561,8 @@
         set('ueValue', r ? formatMoney(r.engineeringValue || r.historicalEngineering) : '');
         set('ueM2', r ? formatMoney(r.valuePerM2) : '');
         set('ueDate', r ? r.appraisalDate : '');
+        set('ueGarantiaCaixa', r ? (r.garantiaCaixa || '') : '');
+        updateGarantiaHint(r ? r.garantiaCaixa : '', '');
         set('ueNotes', r ? r.notes : '');
         var label = document.getElementById('ueDrawerUnitLabel');
         if (label) {
@@ -597,6 +654,16 @@
             if (!drawer || drawer.hidden) return;
             if (ev.key === 'Escape') closeUnitDrawer();
         });
+        var reportFile = document.getElementById('ueReportFile');
+        if (reportFile) reportFile.addEventListener('change', onLaudoFileSelected);
+        var rgiFile = document.getElementById('ueRgiFile');
+        if (rgiFile) rgiFile.addEventListener('change', onRgiFileSelected);
+        var garantia = document.getElementById('ueGarantiaCaixa');
+        if (garantia) {
+            garantia.addEventListener('change', function() {
+                updateGarantiaHint(garantia.value, '');
+            });
+        }
     }
 
     function renderRelated(pid, unitCode) {
@@ -677,13 +744,17 @@
             var title = formatDate(h.appraisalDate) || 'Sem data';
             var val = formatMoney(h.engineeringValue) || '—';
             var who = h.appraiser ? esc(h.appraiser) : 'sem responsável';
+            var garantia = garantiaLabel(h.garantiaCaixa);
+            var garantiaHtml = garantia
+                ? '<span class="' + (h.garantiaCaixa === 'inapta' ? 'ue-garantia-inapta' : 'ue-garantia-apta') + '">' + esc(garantia) + '</span>'
+                : '';
             var pdf = path
                 ? '<button type="button" class="pd-doc-link" data-pd-path="' + esc(path) + '">' +
                     esc(h.reportName || 'Abrir PDF') + '</button>'
                 : '<span>sem PDF</span>';
             return '<li><span class="ue-eng-hist-idx">#' + (items.length - idx) + '</span>' +
                 '<span>' + esc(title) + '</span><span>' + esc(val) + '</span>' +
-                '<span>' + who + '</span>' + pdf + '</li>';
+                '<span>' + who + '</span>' + garantiaHtml + pdf + '</li>';
         }).join('');
         bindDocLinks(box);
     }
@@ -791,8 +862,14 @@
         set('ueM2', '');
         set('ueDate', '');
         set('ueExpiresAt', '');
+        set('ueGarantiaCaixa', '');
+        updateGarantiaHint('', '');
+        _laudoSeq += 1;
+        _pendingLaudo = null;
+        _pendingLaudoPromise = null;
         var fileEl = document.getElementById('ueReportFile');
         if (fileEl) fileEl.value = '';
+        setParseHint('Anexe o PDF do laudo. A leitura dos campos é automática.', false);
         var exp = document.getElementById('ueExpiresHint');
         if (exp) {
             exp.textContent = 'Nova engenharia: preencha data, responsável, valor, m² e anexe o PDF.';
@@ -838,6 +915,141 @@
             var msg = err.message || 'Erro ao abrir o arquivo.';
             if (typeof showMessage === 'function') showMessage(msg, 'error');
         });
+    }
+
+    function applyExtractedLaudo(ex, fileName) {
+        if (!ex) {
+            setParseHint('PDF enviado (' + (fileName || 'laudo') + '). Preencha data, valor, m², responsável e a garantia Caixa.', false);
+            return;
+        }
+        var set = function(id, val) {
+            if (val == null || val === '') return;
+            var el = document.getElementById(id);
+            if (el) el.value = val;
+        };
+        set('ueAppraiser', ex.appraiser);
+        if (ex.engineeringValue != null && ex.engineeringValue !== '') {
+            var vel = document.getElementById('ueValue');
+            if (vel) vel.value = formatMoney(ex.engineeringValue);
+        }
+        if (ex.valuePerM2 != null && ex.valuePerM2 !== '') {
+            var mel = document.getElementById('ueM2');
+            if (mel) mel.value = formatMoney(ex.valuePerM2);
+        }
+        if (ex.appraisalDate) {
+            set('ueDate', ex.appraisalDate);
+            onDateChange();
+        }
+        if (ex.garantiaCaixa) {
+            set('ueGarantiaCaixa', ex.garantiaCaixa);
+        }
+        updateGarantiaHint(ex.garantiaCaixa, ex.garantiaSnippet);
+        var bits = [];
+        if (ex.appraisalDate) bits.push('data ' + formatDate(ex.appraisalDate));
+        if (ex.engineeringValue) bits.push(formatMoney(ex.engineeringValue));
+        if (ex.valuePerM2) bits.push(formatMoney(ex.valuePerM2) + '/m²');
+        if (ex.appraiser) bits.push(ex.appraiser);
+        var g = garantiaLabel(ex.garantiaCaixa);
+        if (g) bits.push(g);
+        if (bits.length) {
+            setParseHint('Laudo lido: ' + bits.join(' · ') + '. Confira e salve.', false);
+            if (typeof showMessage === 'function') showMessage('Laudo lido. Confira os campos e salve.', 'success');
+        } else {
+            setParseHint('PDF enviado. Não foi possível ler os campos automaticamente. Preencha à mão.', false);
+            if (typeof showMessage === 'function') showMessage('PDF enviado. Preencha os campos do laudo.', 'warning');
+        }
+    }
+
+    function onLaudoFileSelected() {
+        var fileEl = document.getElementById('ueReportFile');
+        var file = fileEl && fileEl.files && fileEl.files[0];
+        _pendingLaudo = null;
+        _pendingLaudoPromise = null;
+        if (!file) {
+            setParseHint('', false);
+            return;
+        }
+        var r = findRow(_openUnit);
+        var hasCurrent = !!(r && (r.appraisalDate || r.reportPath || r.engineeringValue));
+        if (hasCurrent) {
+            _archiveCurrentOnSave = true;
+            var hint = document.getElementById('ueNewEngHint');
+            if (hint) hint.hidden = false;
+            var set = function(id, val) {
+                var el = document.getElementById(id);
+                if (el) el.value = val == null ? '' : val;
+            };
+            set('ueAppraiser', '');
+            set('ueValue', '');
+            set('ueM2', '');
+            set('ueDate', '');
+            set('ueExpiresAt', '');
+            set('ueGarantiaCaixa', '');
+            updateGarantiaHint('', '');
+            onDateChange();
+        }
+        setParseHint('Enviando e lendo o laudo…', true);
+        if (typeof showMessage === 'function') showMessage('Enviando o PDF e lendo os dados do laudo…', 'info');
+        var pid = selectedPropertyId();
+        if (!pid) {
+            setParseHint('Selecione o empreendimento antes de anexar o laudo.', false);
+            return;
+        }
+        var seq = ++_laudoSeq;
+        var uploadFn = typeof uploadAdminDossierFile === 'function' ? uploadAdminDossierFile : uploadViaSignedUrl;
+        _pendingLaudoPromise = Promise.resolve(typeof getAdminIdToken === 'function' ? getAdminIdToken() : null)
+            .then(function(token) {
+                return uploadFn(file, 'engineering-reports', token, 'laudo');
+            })
+            .then(function(up) {
+                if (seq !== _laudoSeq) return null;
+                _pendingLaudo = { path: up.path || '', name: up.name || file.name, extracted: up.extracted || null };
+                applyExtractedLaudo(up.extracted, file.name);
+                return _pendingLaudo;
+            })
+            .catch(function(err) {
+                _pendingLaudo = null;
+                setParseHint(err.message || 'Não foi possível enviar o PDF.', false);
+                if (typeof showMessage === 'function') showMessage(err.message || 'Falha ao enviar o laudo.', 'error');
+                throw err;
+            });
+    }
+
+    function onRgiFileSelected() {
+        var fileEl = document.getElementById('ueRgiFile');
+        var file = fileEl && fileEl.files && fileEl.files[0];
+        _pendingRgi = null;
+        _pendingRgiPromise = null;
+        if (!file) return;
+        var r = findRow(_openUnit);
+        if (r && (r.rgiPath || r.rgiDate)) {
+            _archiveRgiOnSave = true;
+            var hint = document.getElementById('ueNewRgiHint');
+            if (hint) hint.hidden = false;
+        }
+        if (typeof showMessage === 'function') showMessage('Enviando o RGI…', 'info');
+        var pid = selectedPropertyId();
+        if (!pid) {
+            if (typeof showMessage === 'function') showMessage('Selecione o empreendimento antes de anexar o RGI.', 'warning');
+            return;
+        }
+        var seq = ++_rgiSeq;
+        var uploadFn = typeof uploadAdminDossierFile === 'function' ? uploadAdminDossierFile : uploadViaSignedUrl;
+        _pendingRgiPromise = Promise.resolve(typeof getAdminIdToken === 'function' ? getAdminIdToken() : null)
+            .then(function(token) {
+                return uploadFn(file, 'property-dossiers/' + pid + '/unidades', token);
+            })
+            .then(function(up) {
+                if (seq !== _rgiSeq) return null;
+                _pendingRgi = { path: up.path || '', name: up.name || file.name };
+                if (typeof showMessage === 'function') showMessage('RGI enviado. Confira a data e salve a ficha.', 'success');
+                return _pendingRgi;
+            })
+            .catch(function(err) {
+                _pendingRgi = null;
+                if (typeof showMessage === 'function') showMessage(err.message || 'Falha ao enviar o RGI.', 'error');
+                throw err;
+            });
     }
 
     function onDateChange() {
@@ -968,15 +1180,34 @@
         var reportPath = '';
         var reportName = '';
         var fileEl = document.getElementById('ueReportFile');
-        if (fileEl && fileEl.files && fileEl.files[0] && typeof uploadFn === 'function') {
-            var up = await uploadFn(fileEl.files[0], 'engineering-reports', token);
+        try {
+            if (_pendingLaudoPromise) await _pendingLaudoPromise;
+        } catch (laudoErr) {
+            if (typeof showMessage === 'function') showMessage(laudoErr.message || 'Falha ao enviar o laudo.', 'error');
+            return;
+        }
+        if (_pendingLaudo && _pendingLaudo.path) {
+            reportPath = _pendingLaudo.path;
+            reportName = _pendingLaudo.name || '';
+        } else if (fileEl && fileEl.files && fileEl.files[0] && typeof uploadFn === 'function') {
+            var up = await uploadFn(fileEl.files[0], 'engineering-reports', token, 'laudo');
             reportPath = up.path || '';
             reportName = up.name || '';
+            if (up.extracted) applyExtractedLaudo(up.extracted, fileEl.files[0].name);
         }
         var rgiPath = '';
         var rgiName = '';
         var rgiEl = document.getElementById('ueRgiFile');
-        if (rgiEl && rgiEl.files && rgiEl.files[0] && typeof uploadFn === 'function') {
+        try {
+            if (_pendingRgiPromise) await _pendingRgiPromise;
+        } catch (rgiErr) {
+            if (typeof showMessage === 'function') showMessage(rgiErr.message || 'Falha ao enviar o RGI.', 'error');
+            return;
+        }
+        if (_pendingRgi && _pendingRgi.path) {
+            rgiPath = _pendingRgi.path;
+            rgiName = _pendingRgi.name || '';
+        } else if (rgiEl && rgiEl.files && rgiEl.files[0] && typeof uploadFn === 'function') {
             var rgiUp = await uploadFn(rgiEl.files[0], 'property-dossiers/' + pid + '/unidades', token);
             rgiPath = rgiUp.path || '';
             rgiName = rgiUp.name || '';
@@ -999,6 +1230,7 @@
             engineeringHistory: current.engineeringHistory || [],
             reportPath: reportPath,
             reportName: reportName,
+            garantiaCaixa: document.getElementById('ueGarantiaCaixa') ? document.getElementById('ueGarantiaCaixa').value : '',
             archiveCurrent: !!_archiveCurrentOnSave,
             rgiPath: rgiPath,
             rgiName: rgiName,
@@ -1010,6 +1242,10 @@
             if (typeof invalidateEngineeringCache === 'function') invalidateEngineeringCache();
             if (fileEl) fileEl.value = '';
             if (rgiEl) rgiEl.value = '';
+            _pendingLaudo = null;
+            _pendingRgi = null;
+            _pendingLaudoPromise = null;
+            _pendingRgiPromise = null;
             _archiveCurrentOnSave = false;
             _archiveRgiOnSave = false;
             return loadUnitEngineeringAdmin().then(function() {

@@ -1513,6 +1513,17 @@ body.ue-drawer-open { overflow: hidden; }
     margin: 0 0 12px;
     font-size: 0.9rem;
 }
+.ue-garantia-apta {
+    color: #166534;
+    font-weight: 600;
+}
+.ue-garantia-inapta {
+    color: #991b1b;
+    font-weight: 600;
+}
+#ueParseHint.is-reading {
+    color: #1d4ed8;
+}
 .ue-eng-history {
     list-style: none;
     padding: 0;

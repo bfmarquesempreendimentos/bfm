@@ -2867,7 +2867,9 @@ const secureHandlers = require('./secure-handlers');
 exports.queueEmail = functions.https.onRequest((req, res) => secureHandlers.queueEmailHttp(req, res));
 exports.trackSiteVisit = functions.https.onRequest((req, res) => secureHandlers.trackSiteVisitHttp(req, res));
 exports.adminSiteVisits = functions.https.onRequest((req, res) => secureHandlers.adminSiteVisitsHttp(req, res));
-exports.prepareStorageUpload = functions.https.onRequest((req, res) => secureHandlers.prepareStorageUploadHttp(req, res));
+exports.prepareStorageUpload = functions
+  .runWith({ timeoutSeconds: 120, memory: '512MB' })
+  .https.onRequest((req, res) => secureHandlers.prepareStorageUploadHttp(req, res));
 exports.getStorageReadUrl = functions.https.onRequest((req, res) => secureHandlers.getStorageReadUrlHttp(req, res));
 exports.logEmailAudit = functions.https.onRequest((req, res) => secureHandlers.logEmailAuditHttp(req, res));
 

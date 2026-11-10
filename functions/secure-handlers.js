@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { verifyAdminAuth } = require('./admin-auth');
+const { extractLaudoFromPdf } = require('./laudo-extract');
 
 const COMPANY_EMAIL = 'bfmarquesempreendimentos@gmail.com';
 var STORAGE_BUCKETS = [
@@ -51,7 +52,7 @@ const rateBuckets = {};
 function allowCors(res) {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Upload-Folder, X-Upload-FileName, X-Parse-Kind');
 }
 
 function clientIp(req) {
@@ -357,7 +358,63 @@ async function adminSiteVisitsHttp(req, res) {
   }
 }
 
-/** POST — URL assinada para upload (contratos admin; anexos autenticados). */
+function headerValue(req, name) {
+  if (req && typeof req.get === 'function') {
+    try {
+      var fromGet = req.get(name);
+      if (fromGet) return String(fromGet);
+    } catch (e) {}
+  }
+  var h = (req && req.headers) || {};
+  var key = String(name || '').toLowerCase();
+  return String(h[key] || h[name] || '');
+}
+
+function requestContentType(req) {
+  return headerValue(req, 'content-type').split(';')[0].trim().toLowerCase();
+}
+
+function uploadBufferFromRequest(req, body) {
+  var ct = requestContentType(req);
+  var isJson = ct.indexOf('application/json') >= 0 || ct.indexOf('text/') >= 0;
+  if (!isJson) {
+    if (req.rawBody && req.rawBody.length > 16) {
+      return Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(req.rawBody);
+    }
+    if (req.body && Buffer.isBuffer(req.body) && req.body.length > 16) {
+      return req.body;
+    }
+  }
+  if (body && body.contentBase64) {
+    try {
+      return Buffer.from(String(body.contentBase64), 'base64');
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
+
+async function saveUploadBuffer(folder, fileName, contentType, buf) {
+  var path = folder + '/' + Date.now() + '-' + fileName;
+  var token = crypto.randomUUID();
+  var bucketName = STORAGE_BUCKETS[0];
+  var file = admin.storage().bucket(bucketName).file(path);
+  var type = contentType && (contentType.indexOf('application/') === 0 || contentType.indexOf('image/') === 0)
+    ? contentType.substring(0, 120)
+    : 'application/pdf';
+  await file.save(buf, {
+    resumable: false,
+    metadata: {
+      contentType: type,
+      metadata: { firebaseStorageDownloadTokens: token },
+    },
+  });
+  var url = await firebaseMediaUrl(file);
+  return { path: path, url: url };
+}
+
+/** POST — grava arquivo no Storage (laudo/RGI) ou devolve URL assinada (anexos). */
 async function prepareStorageUploadHttp(req, res) {
   allowCors(res);
   if (req.method === 'OPTIONS') return res.sendStatus(204);
@@ -369,18 +426,35 @@ async function prepareStorageUploadHttp(req, res) {
     if (!isAdmin && !userAuth.ok) {
       return res.status(401).json({ error: 'Autenticação necessária' });
     }
-    var body = req.body || {};
-    var folder = String(body.folder || 'repair-attachments').replace(/^\/+|\/+$/g, '');
+    var body = parseJsonBody(req);
+    var folder = String(headerValue(req, 'x-upload-folder') || body.folder || 'repair-attachments').replace(/^\/+|\/+$/g, '');
     if (!isAllowedUploadFolder(folder, isAdmin)) {
       return res.status(403).json({ error: 'Pasta não permitida' });
     }
-    var fileName = sanitizeFileName(body.fileName || 'file');
-    var contentType = String(body.contentType || 'application/octet-stream').substring(0, 120);
+    var fileName = sanitizeFileName(headerValue(req, 'x-upload-filename') || body.fileName || 'file');
+    var contentType = String(headerValue(req, 'x-upload-content-type') || body.contentType || requestContentType(req) || 'application/octet-stream').substring(0, 120);
+    var parseKind = String(headerValue(req, 'x-parse-kind') || body.parseKind || '').trim().toLowerCase();
+    var buf = uploadBufferFromRequest(req, body);
+    if (buf) {
+      if (buf.length > 10 * 1024 * 1024) return res.status(400).json({ error: 'Arquivo acima de 10MB' });
+      var saved = await saveUploadBuffer(folder, fileName, contentType, buf);
+      var extracted = null;
+      if (parseKind === 'laudo') {
+        extracted = await extractLaudoFromPdf(buf);
+      }
+      return res.json({
+        ok: true,
+        path: saved.path,
+        url: saved.url,
+        extracted: extracted || undefined,
+      });
+    }
+
     var size = Number(body.size) || 0;
     if (size > 10 * 1024 * 1024) return res.status(400).json({ error: 'Arquivo acima de 10MB' });
 
     var path = folder + '/' + Date.now() + '-' + fileName;
-    var bucket = admin.storage().bucket();
+    var bucket = admin.storage().bucket(STORAGE_BUCKETS[0]);
     var file = bucket.file(path);
 
     var uploadUrl = await file.getSignedUrl({
@@ -390,17 +464,10 @@ async function prepareStorageUploadHttp(req, res) {
       contentType: contentType,
     });
 
-    var readUrl = await file.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
-    });
-
     return res.json({
       ok: true,
       path: path,
       uploadUrl: uploadUrl[0],
-      url: readUrl[0],
     });
   } catch (err) {
     console.error('prepareStorageUploadHttp:', err);

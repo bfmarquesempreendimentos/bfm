@@ -100,6 +100,7 @@ function adminRow(id, d) {
     expiresAt: d.expiresAt || '',
     reportPath: d.reportPath || '',
     reportName: d.reportName || '',
+    garantiaCaixa: d.garantiaCaixa === 'apta' || d.garantiaCaixa === 'inapta' ? d.garantiaCaixa : '',
     archiveDocuments: Array.isArray(d.archiveDocuments) ? d.archiveDocuments : [],
     engineeringHistory: Array.isArray(d.engineeringHistory) ? d.engineeringHistory : [],
     rgiPath: d.rgiPath || '',
@@ -232,6 +233,7 @@ function mergeUnitRow(propertyId, catalogUnit, catalog, firestoreRow) {
     expiresAt: '',
     reportPath: '',
     reportName: '',
+    garantiaCaixa: '',
     archiveDocuments: [],
     engineeringHistory: [],
     rgiPath: '',
@@ -341,6 +343,7 @@ function snapshotEngineering(d) {
     valuePerM2: d.valuePerM2 == null ? '' : d.valuePerM2,
     reportPath: d.reportPath || '',
     reportName: d.reportName || '',
+    garantiaCaixa: d.garantiaCaixa === 'apta' || d.garantiaCaixa === 'inapta' ? d.garantiaCaixa : '',
     archivedAt: new Date().toISOString(),
   };
 }
@@ -551,6 +554,10 @@ async function adminUnitEngineeringHttp(req, res) {
         expiresAt: expiresAt,
         reportPath: String(body.reportPath || '').trim() || (archiveCurrent ? '' : (old.reportPath || '')),
         reportName: String(body.reportName || '').trim().slice(0, 160) || (archiveCurrent ? '' : (old.reportName || '')),
+        garantiaCaixa: (function() {
+          var g = String(body.garantiaCaixa != null ? body.garantiaCaixa : (archiveCurrent ? '' : (old.garantiaCaixa || ''))).trim();
+          return g === 'apta' || g === 'inapta' ? g : '';
+        })(),
         archiveDocuments: Array.isArray(body.archiveDocuments) ? body.archiveDocuments : (old.archiveDocuments || []),
         engineeringHistory: history,
         rgiPath: String(body.rgiPath || '').trim() || (archiveRgi ? '' : (old.rgiPath || '')),

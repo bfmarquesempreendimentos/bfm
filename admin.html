@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <title>Painel Administrativo - Construtora Premium</title>
     <link rel="stylesheet" href="styles/main.css?v=37">
-    <link rel="stylesheet" href="styles/admin.css?v=45">
+    <link rel="stylesheet" href="styles/admin.css?v=46">
     <link rel="stylesheet" href="styles/admin-finance.css?v=1">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1802,15 +1802,27 @@
                         <label>Projeção do vencimento
                             <input type="date" id="ueExpiresAt" readonly>
                         </label>
+                        <label>Garantia Caixa
+                            <select id="ueGarantiaCaixa">
+                                <option value="">Não identificado no laudo</option>
+                                <option value="apta">Apta — aceitação como garantia</option>
+                                <option value="inapta">Inapta — não atende aos requisitos</option>
+                            </select>
+                        </label>
                     </div>
                     <p id="ueExpiresHint" class="form-hint">Sem data = engenharia não aparece na vitrine (fica “A confirmar”).</p>
+                    <p id="ueGarantiaHint" class="form-hint">Lida da manifestação do avaliador sobre aceitação do bem como garantia da Caixa.</p>
                     <div id="ueExpiredBanner" class="ue-expired-banner" hidden>
                         Esta engenharia venceu. Cadastre a nova para o valor voltar à vitrine. O laudo antigo fica no histórico da unidade.
+                    </div>
+                    <div id="ueInaptaBanner" class="ue-expired-banner" hidden>
+                        O avaliador indicou que o imóvel <strong>não atende</strong> aos requisitos mínimos da Caixa para garantia.
                     </div>
                     <p id="ueNewEngHint" class="form-hint" hidden>O laudo atual vai para o histórico ao salvar. Preencha data, responsável, valor, m² e anexe o PDF.</p>
                     <label>Anexar PDF desta engenharia (só admin)
                         <input type="file" id="ueReportFile" accept=".pdf,application/pdf,image/*">
                     </label>
+                    <p id="ueParseHint" class="form-hint" hidden>Ao enviar o PDF, o sistema lê data, valor, m², responsável e se está apta para garantia Caixa.</p>
                     <div class="ue-toolbar">
                         <button type="button" class="btn btn-secondary" onclick="startNewUnitEngineering()">Cadastrar nova engenharia</button>
                         <button type="button" class="btn btn-secondary" onclick="openEngineeringReport()">Abrir laudo atual</button>
@@ -2138,7 +2150,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
     <script src="js/firebase.js"></script>
-    <script src="js/firebase-service.js?v=35"></script>
+    <script src="js/firebase-service.js?v=36"></script>
     <script src="js/main.js"></script>
     <script src="js/auth.js?v=34"></script>
     <script src="js/properties.js"></script>
@@ -2162,7 +2174,7 @@
     <script src="js/admin-finance.js?v=1"></script>
     <script src="js/admin-reports.js?v=4"></script>
     <script src="js/admin-broker-reservations-report.js?v=4"></script>
-    <script src="js/admin-unit-engineering.js?v=11"></script>
+    <script src="js/admin-unit-engineering.js?v=12"></script>
     <script src="js/admin.js?v=50"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

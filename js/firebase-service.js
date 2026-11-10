@@ -53,23 +53,60 @@ function sanitizeStorageFileName(name) {
     .substring(0, 120);
 }
 
-async function uploadAdminDossierFile(file, folder, token) {
-  folder = String(folder || '').replace(/^\/+|\/+$/g, '');
-  var filePath = folder + '/' + Date.now() + '-' + sanitizeStorageFileName(file.name);
-  var storage = getFirebaseStorage();
-  if (storage) {
-    try {
-      var ref = storage.ref().child(filePath);
-      await ref.put(file);
-      return {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        path: filePath
-      };
-    } catch (sdkErr) {}
+async function uploadViaFunctionWrite(file, folder, token, parseKind) {
+  var headers = {
+    'Content-Type': file.type || 'application/octet-stream',
+    'X-Upload-Folder': folder,
+    'X-Upload-FileName': sanitizeStorageFileName(file.name)
+  };
+  if (parseKind) headers['X-Parse-Kind'] = String(parseKind);
+  if (token) headers.Authorization = 'Bearer ' + token;
+  var res = await fetch(getFirebaseServiceFunctionsBase() + '/prepareStorageUpload', {
+    method: 'POST',
+    headers: headers,
+    body: file,
+    cache: 'no-store',
+    credentials: 'omit'
+  });
+  var txt = await res.text();
+  var data = null;
+  try { data = txt ? JSON.parse(txt) : null; } catch (e1) { data = null; }
+  if (!res.ok) {
+    throw new Error((data && data.error) ? data.error : 'Falha ao enviar o arquivo');
   }
-  return uploadViaSignedUrl(file, folder, token);
+  return {
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    path: data && data.path,
+    url: data && data.url,
+    extracted: (data && data.extracted) || null
+  };
+}
+
+async function uploadAdminDossierFile(file, folder, token, parseKind) {
+  folder = String(folder || '').replace(/^\/+|\/+$/g, '');
+  if (!file) throw new Error('Arquivo não informado');
+  if (file.size > 10 * 1024 * 1024) throw new Error('Arquivo acima de 10MB');
+  try {
+    return await uploadViaFunctionWrite(file, folder, token, parseKind);
+  } catch (fnErr) {
+    var storage = getFirebaseStorage();
+    if (storage) {
+      try {
+        var filePath = folder + '/' + Date.now() + '-' + sanitizeStorageFileName(file.name);
+        await storage.ref().child(filePath).put(file);
+        return {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          path: filePath,
+          extracted: null
+        };
+      } catch (sdkErr) {}
+    }
+    throw fnErr;
+  }
 }
 
 async function uploadViaSignedUrl(file, folder, token) {
