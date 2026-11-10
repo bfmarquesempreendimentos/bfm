@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { verifyAdminAuth } = require('./admin-auth');
@@ -23,6 +24,25 @@ async function findStorageFile(path) {
   exists = await file.exists();
   return exists[0] ? file : null;
 }
+
+async function firebaseMediaUrl(file) {
+  var meta = await file.getMetadata();
+  var data = Array.isArray(meta) ? meta[0] : meta;
+  var custom = (data && data.metadata) || {};
+  var token = custom.firebaseStorageDownloadTokens
+    ? String(custom.firebaseStorageDownloadTokens).split(',')[0].trim()
+    : '';
+  if (!token) {
+    token = crypto.randomUUID();
+    custom.firebaseStorageDownloadTokens = token;
+    await file.setMetadata({ metadata: custom });
+  }
+  var bucketName = file.bucket.name;
+  var encoded = encodeURIComponent(file.name);
+  return 'https://firebasestorage.googleapis.com/v0/b/' + bucketName + '/o/' + encoded +
+    '?alt=media&token=' + encodeURIComponent(token);
+}
+
 const MAX_EMAIL_BODY = 120000;
 const MAX_SUBJECT = 500;
 const TRACK_MAX_UA = 400;
@@ -413,12 +433,8 @@ async function getStorageReadUrlHttp(req, res) {
     }
     var file = await findStorageFile(path);
     if (!file) return res.status(404).json({ error: 'Arquivo não encontrado no Storage' });
-    var readUrl = await file.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + 60 * 60 * 1000,
-    });
-    return res.json({ ok: true, url: readUrl[0], path: path });
+    var readUrl = await firebaseMediaUrl(file);
+    return res.json({ ok: true, url: readUrl, path: path });
   } catch (err) {
     console.error('getStorageReadUrlHttp:', err);
     return res.status(500).json({ error: err.message });
