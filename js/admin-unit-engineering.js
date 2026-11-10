@@ -58,6 +58,31 @@
         return p[2] + '/' + p[1] + '/' + p[0];
     }
 
+    function dateFromDocName(name) {
+        var m = String(name || '').match(/(\d{1,2})[-:._\/](\d{1,2})[-:._\/](\d{4})/);
+        if (!m) return '';
+        var dd = String(m[1]).padStart(2, '0');
+        var mm = String(m[2]).padStart(2, '0');
+        var yy = m[3];
+        if (Number(yy) < 1990 || Number(yy) > 2100) return '';
+        if (Number(mm) < 1 || Number(mm) > 12 || Number(dd) < 1 || Number(dd) > 31) return '';
+        return yy + '-' + mm + '-' + dd;
+    }
+
+    function isSaneAppraiser(raw) {
+        var s = String(raw || '').replace(/\s+/g, ' ').trim();
+        if (s.length < 8) return false;
+        if (/representante|outros|^legal$|^data$/i.test(s)) return false;
+        return true;
+    }
+
+    function isSaneM2(raw, valor) {
+        var n = Number(raw);
+        if (!isFinite(n) || n <= 0 || n >= 40000) return false;
+        if (valor && Number(valor) && n >= Number(valor) * 0.35) return false;
+        return true;
+    }
+
     function garantiaLabel(value) {
         if (value === 'apta') return 'Apta para garantia Caixa';
         if (value === 'inapta') return 'Inapta para garantia Caixa';
@@ -776,23 +801,31 @@
     function renderEngineeringHistory(r) {
         var box = document.getElementById('ueEngHistory');
         if (!box) return;
-        var items = (r && Array.isArray(r.engineeringHistory)) ? r.engineeringHistory : [];
+        var items = (r && Array.isArray(r.engineeringHistory)) ? r.engineeringHistory.slice() : [];
+        var seenHist = {};
+        items = items.filter(function(h) {
+            var key = String(h.reportPath || h.storagePath || '') + '|' + String(h.appraisalDate || '') + '|' + String(h.appraiser || '');
+            if (seenHist[key]) return false;
+            seenHist[key] = true;
+            return true;
+        });
         if (!items.length) {
             box.innerHTML = '<li class="form-hint">Nenhum laudo anterior. Ao vencer, use “Cadastrar nova engenharia” para guardar o atual e registrar o próximo.</li>';
             return;
         }
         box.innerHTML = items.map(function(h, idx) {
             var path = h.storagePath || h.reportPath || '';
-            var title = formatDate(h.appraisalDate) || 'Sem data';
+            var fileLabel = h.reportName || (path ? path.split('/').pop() : '');
+            var title = formatDate(h.appraisalDate || dateFromDocName(fileLabel)) || 'Sem data';
             var val = formatMoney(h.engineeringValue) || '—';
-            var who = h.appraiser ? esc(h.appraiser) : 'sem responsável';
+            var who = isSaneAppraiser(h.appraiser) ? esc(h.appraiser) : '—';
             var garantia = garantiaLabel(h.garantiaCaixa);
             var garantiaHtml = garantia
                 ? '<span class="' + (h.garantiaCaixa === 'inapta' ? 'ue-garantia-inapta' : 'ue-garantia-apta') + '">' + esc(garantia) + '</span>'
                 : '';
             var pdf = path
                 ? '<button type="button" class="pd-doc-link" data-pd-path="' + esc(path) + '">' +
-                    esc(h.reportName || 'Abrir PDF') + '</button>'
+                    esc(fileLabel || 'Abrir PDF') + '</button>'
                 : '<span>sem PDF</span>';
             return '<li><span class="ue-eng-hist-idx">#' + (items.length - idx) + '</span>' +
                 '<span>' + esc(title) + '</span><span>' + esc(val) + '</span>' +
@@ -980,39 +1013,48 @@
     }
 
     function applyExtractedLaudo(ex, fileName, overwrite) {
-        if (!ex) {
-            setParseHint('PDF enviado (' + (fileName || 'laudo') + '). Preencha data, valor, m², responsável e a garantia Caixa.', false);
-            return;
-        }
+        ex = ex || {};
         var put = function(id, val) {
             if (val == null || val === '') return;
             var el = document.getElementById(id);
             if (!el) return;
             if (overwrite || !el.value) el.value = val;
         };
-        put('ueAppraiser', ex.appraiser);
+        if (isSaneAppraiser(ex.appraiser)) {
+            put('ueAppraiser', ex.appraiser);
+        } else if (overwrite) {
+            var appEl = document.getElementById('ueAppraiser');
+            if (appEl) appEl.value = '';
+        }
         if (ex.engineeringValue != null && ex.engineeringValue !== '') {
             var vel = document.getElementById('ueValue');
             if (vel && (overwrite || !vel.value)) vel.value = formatMoney(ex.engineeringValue);
         }
-        if (ex.valuePerM2 != null && ex.valuePerM2 !== '') {
+        if (ex.valuePerM2 != null && ex.valuePerM2 !== '' && isSaneM2(ex.valuePerM2, ex.engineeringValue)) {
             var mel = document.getElementById('ueM2');
             if (mel && (overwrite || !mel.value)) mel.value = formatMoney(ex.valuePerM2);
+        } else if (overwrite) {
+            var melClear = document.getElementById('ueM2');
+            if (melClear && !isSaneM2(parseMoneyInput(melClear.value), ex.engineeringValue)) melClear.value = '';
         }
-        if (ex.appraisalDate) {
-            put('ueDate', ex.appraisalDate);
+        var dateVal = ex.appraisalDate || dateFromDocName(fileName);
+        if (dateVal) {
+            put('ueDate', dateVal);
             onDateChange();
         }
         if (ex.garantiaCaixa) {
             put('ueGarantiaCaixa', ex.garantiaCaixa);
+        } else if (overwrite) {
+            var gel = document.getElementById('ueGarantiaCaixa');
+            if (gel) gel.value = '';
         }
         var garantiaEl = document.getElementById('ueGarantiaCaixa');
         updateGarantiaHint(garantiaEl ? garantiaEl.value : ex.garantiaCaixa, ex.garantiaSnippet);
         var bits = [];
-        if (ex.appraisalDate) bits.push('data ' + formatDate(ex.appraisalDate));
+        if (dateVal) bits.push('data ' + formatDate(dateVal));
         if (ex.engineeringValue) bits.push(formatMoney(ex.engineeringValue));
-        if (ex.valuePerM2) bits.push(formatMoney(ex.valuePerM2) + '/m²');
-        if (ex.appraiser) bits.push(ex.appraiser);
+        if (ex.valuePerM2 && isSaneM2(ex.valuePerM2, ex.engineeringValue)) bits.push(formatMoney(ex.valuePerM2) + '/m²');
+        if (isSaneAppraiser(ex.appraiser)) bits.push(ex.appraiser);
         var g = garantiaLabel(ex.garantiaCaixa);
         if (g) bits.push(g);
         if (bits.length) {
@@ -1035,8 +1077,9 @@
         }
         var r = findRow(_openUnit);
         var names = existingDocNames(r, 'laudo');
-        if (!_archiveCurrentOnSave && r && r.reportName) {
-            names = names.filter(function(n) { return n !== r.reportName; });
+        var replaceName = '';
+        if (!_archiveCurrentOnSave && r && /^laudo\d*\.pdf$/i.test(r.reportName || '')) {
+            replaceName = r.reportName;
         }
         setParseHint('Enviando e lendo o laudo…', true);
         if (typeof showMessage === 'function') showMessage('Enviando o PDF e lendo os dados do laudo…', 'info');
@@ -1053,14 +1096,16 @@
                     docKind: 'laudo',
                     existingNames: names,
                     propertyId: pid,
-                    unitCode: _openUnit
+                    unitCode: _openUnit,
+                    replaceName: replaceName,
+                    archiveCurrent: !!_archiveCurrentOnSave
                 });
             })
             .then(function(up) {
                 if (seq !== _laudoSeq) return null;
                 _pendingLaudo = { path: up.path || '', name: up.name || file.name, extracted: up.extracted || null };
                 setCurrentReportLabel(_pendingLaudo.name, _pendingLaudo.path, false);
-                applyExtractedLaudo(up.extracted, _pendingLaudo.name, true);
+                applyExtractedLaudo(up.extracted, file.name, true);
                 return _pendingLaudo;
             })
             .catch(function(err) {

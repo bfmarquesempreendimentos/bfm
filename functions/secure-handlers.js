@@ -430,11 +430,18 @@ async function prepareStorageUploadHttp(req, res) {
     var body = parseJsonBody(req);
     var q = req.query || {};
     var folder = String(q.folder || headerValue(req, 'x-upload-folder') || body.folder || 'repair-attachments').replace(/^\/+|\/+$/g, '');
-    var fileName = sanitizeFileName(q.fileName || headerValue(req, 'x-upload-filename') || body.fileName || 'file');
+    var originalName = String(body.originalFileName || q.fileName || headerValue(req, 'x-upload-filename') || body.fileName || 'file');
+    var fileName = sanitizeFileName(originalName);
     var docKind = String(q.docKind || body.docKind || '').trim().toLowerCase();
+    var archiveCurrent = body.archiveCurrent === true || body.archiveCurrent === 'true' || q.archiveCurrent === 'true';
     if (docKind === 'laudo' || docKind === 'rgi' || docKind === 'onus') {
       var kind = docKind === 'onus' ? 'rgi' : docKind;
-      fileName = nextDocFileName(kind, body.existingNames || []);
+      var replaceName = String(body.replaceName || q.replaceName || '').trim().toLowerCase();
+      if (!archiveCurrent && /^(laudo|rgi)\d*\.pdf$/.test(replaceName)) {
+        fileName = replaceName;
+      } else {
+        fileName = nextDocFileName(kind, body.existingNames || []);
+      }
       var pid = String(q.propertyId || body.propertyId || '').replace(/[^a-zA-Z0-9_-]/g, '');
       var unit = String(q.unitCode || body.unitCode || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 80);
       if (pid && unit) {
@@ -465,7 +472,7 @@ async function prepareStorageUploadHttp(req, res) {
       var saved = await saveUploadBuffer(folder, fileName, contentType, buf);
       var extracted = null;
       if (parseKind === 'laudo') {
-        extracted = await extractLaudoFromPdf(buf);
+        extracted = await extractLaudoFromPdf(buf, originalName);
       }
       return res.json({
         ok: true,

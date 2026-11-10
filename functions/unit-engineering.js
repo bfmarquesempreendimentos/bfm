@@ -3,6 +3,7 @@
 var admin = require('firebase-admin');
 var { verifyAdminAuth } = require('./admin-auth');
 var { roleHasPermission } = require('./admin-accounts');
+var { dateFromDocName, isPersonName } = require('./laudo-extract');
 var propertyUnitsCatalog = require('./chatbot/property-units-data');
 var dossierSeed = require('./property-dossier-seed.json');
 
@@ -335,10 +336,11 @@ function shouldArchiveRgi(body, old) {
 
 function snapshotEngineering(d) {
   d = d || {};
+  var appraiser = isPersonName(d.appraiser) ? String(d.appraiser).trim() : '';
   return {
-    appraisalDate: d.appraisalDate || '',
+    appraisalDate: d.appraisalDate || dateFromDocName(d.reportName) || '',
     expiresAt: d.expiresAt || '',
-    appraiser: d.appraiser || '',
+    appraiser: appraiser,
     engineeringValue: d.engineeringValue == null ? '' : d.engineeringValue,
     valuePerM2: d.valuePerM2 == null ? '' : d.valuePerM2,
     reportPath: d.reportPath || '',
@@ -353,14 +355,27 @@ function hasEngineeringSnapshot(d) {
   return !!(d.appraisalDate || d.reportPath || d.engineeringValue);
 }
 
+function hasRealEngineeringData(d) {
+  if (!d) return false;
+  return !!(d.appraisalDate || d.engineeringValue || isPersonName(d.appraiser));
+}
+
 function shouldArchiveCurrent(body, old) {
   if (!hasEngineeringSnapshot(old)) return false;
   if (body.archiveCurrent === true || body.archiveCurrent === 'true' || body.archiveCurrent === 1) {
     return true;
   }
   var newPath = String(body.reportPath || '').trim();
-  if (newPath && old.reportPath && newPath !== old.reportPath) return true;
+  if (newPath && old.reportPath && newPath !== old.reportPath && hasRealEngineeringData(old)) return true;
   return false;
+}
+
+function saneValuePerM2(raw, valor) {
+  var n = Number(raw);
+  if (!isFinite(n) || n <= 0) return '';
+  if (n >= 40000) return '';
+  if (valor && Number(valor) && n >= Number(valor) * 0.35) return '';
+  return n;
 }
 
 function mergeListForProperty(propertyId, firestoreRows) {
@@ -546,10 +561,16 @@ async function adminUnitEngineeringHttp(req, res) {
         matricula: String(body.matricula != null ? body.matricula : (old.matricula || '')).trim().slice(0, 40),
         inscricaoMunicipal: String(body.inscricaoMunicipal != null ? body.inscricaoMunicipal : (old.inscricaoMunicipal || '')).trim().slice(0, 60),
         salePrice: body.salePrice != null && body.salePrice !== '' ? parseSalePrice(body.salePrice) : (old.salePrice != null ? old.salePrice : ''),
-        appraiser: String(body.appraiser != null ? body.appraiser : (old.appraiser || '')).trim().slice(0, 120),
+        appraiser: (function() {
+          var a = String(body.appraiser != null ? body.appraiser : (old.appraiser || '')).trim().slice(0, 120);
+          return isPersonName(a) ? a : '';
+        })(),
         engineeringValue: body.engineeringValue != null ? body.engineeringValue : (old.engineeringValue || ''),
         historicalEngineering: String(body.historicalEngineering != null ? body.historicalEngineering : (old.historicalEngineering || '')).trim().slice(0, 80),
-        valuePerM2: body.valuePerM2 != null ? body.valuePerM2 : (old.valuePerM2 || ''),
+        valuePerM2: saneValuePerM2(
+          body.valuePerM2 != null ? body.valuePerM2 : (old.valuePerM2 || ''),
+          body.engineeringValue != null ? body.engineeringValue : old.engineeringValue
+        ),
         appraisalDate: appraisalDate || '',
         expiresAt: expiresAt,
         reportPath: String(body.reportPath || '').trim() || (archiveCurrent ? '' : (old.reportPath || '')),

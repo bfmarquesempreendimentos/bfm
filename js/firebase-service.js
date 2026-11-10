@@ -95,6 +95,9 @@ async function uploadViaFunctionJson(file, folder, token, parseKind, opts) {
       existingNames: opts.existingNames || [],
       propertyId: opts.propertyId || '',
       unitCode: opts.unitCode || '',
+      originalFileName: file.name || '',
+      replaceName: opts.replaceName || '',
+      archiveCurrent: !!opts.archiveCurrent,
       contentBase64: await fileToBase64(file)
     }),
     cache: 'no-store',
