@@ -1,11 +1,24 @@
 'use strict';
 
+var MONTHS = {
+  janeiro: '01', fevereiro: '02', marco: '03', março: '03', abril: '04',
+  maio: '05', junho: '06', julho: '07', agosto: '08', setembro: '09',
+  outubro: '10', novembro: '11', dezembro: '12',
+};
+
 function flatten(text) {
   return String(text || '')
     .replace(/\u00a0/g, ' ')
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{2,}/g, '\n')
     .trim();
+}
+
+function joinSpacedCaps(text) {
+  return String(text || '').replace(
+    /(?:[A-ZÁÉÍÓÚÂÊÔÃÕÇ]\s){2,}[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/g,
+    function(m) { return m.replace(/\s+/g, ''); }
+  );
 }
 
 function parseBrMoney(raw) {
@@ -38,10 +51,18 @@ function firstMatch(text, regs) {
   return null;
 }
 
+function moneyNear(text, keywordRe) {
+  var idx = text.search(keywordRe);
+  if (idx < 0) return '';
+  var window = text.slice(idx, idx + 280);
+  var m = window.match(/R\$\s*([\d.]{1,12},\d{2})/) || window.match(/([\d.]{1,12},\d{2})/);
+  return m ? parseBrMoney(m[1]) : '';
+}
+
 function cleanName(raw) {
   return String(raw || '')
     .replace(/\s+/g, ' ')
-    .replace(/\b(CREA|Cau|CAU|Eng\.?|Arquiteto|Arquiteto\(a\))\b.*$/i, '')
+    .replace(/\b(CREA|Cau|CAU|Eng\.?|Arquiteto|Arquiteto\(a\)|Civil)\b.*$/i, '')
     .replace(/[:;,.]+$/, '')
     .trim()
     .slice(0, 120);
@@ -68,12 +89,10 @@ function extractGarantiaCaixa(text) {
     if (idx >= 0) break;
   }
   var window = idx >= 0
-    ? upper.slice(idx, idx + 2200)
-    : upper.slice(Math.max(0, upper.length - 2200));
+    ? upper.slice(idx, idx + 2500)
+    : upper.slice(Math.max(0, upper.length - 2500));
   var snippetSrc = flatten(text);
-  var snippet = idx >= 0
-    ? snippetSrc.slice(idx, idx + 420)
-    : '';
+  var snippet = idx >= 0 ? snippetSrc.slice(idx, idx + 420) : '';
 
   var negativa = [
     /\(\s*[XXx]\s*\)\s*N[AÃ]O\s+ATENDE/,
@@ -84,6 +103,7 @@ function extractGarantiaCaixa(text) {
     /N[AÃ]O\s+RECOMEND/,
     /\bINAPTO\b/,
     /N[AÃ]O\s+ACEITA[CÇ][AÃ]O/,
+    /IM[OÓ]VEL\s+AVALIADO\s+N[AÃ]O\s+ATENDE/,
   ];
   var positiva = [
     /\(\s*[XXx]\s*\)\s*ATENDE/,
@@ -95,6 +115,7 @@ function extractGarantiaCaixa(text) {
     /PASS[IÍ]VEL\s+DE\s+ACEITA[CÇ][AÃ]O/,
     /POSS[IÍ]VEL\s+A\s+ACEITA[CÇ][AÃ]O/,
     /RECOMENDA-SE\s+A\s+ACEITA/,
+    /IM[OÓ]VEL\s+AVALIADO\s+ATENDE/,
   ];
   for (i = 0; i < negativa.length; i++) {
     if (negativa[i].test(window)) {
@@ -116,7 +137,7 @@ function extractGarantiaCaixa(text) {
 }
 
 function extractLaudoFields(text) {
-  var t = flatten(text);
+  var t = joinSpacedCaps(flatten(text));
   var out = {
     appraisalDate: '',
     appraiser: '',
@@ -124,6 +145,7 @@ function extractLaudoFields(text) {
     valuePerM2: '',
     garantiaCaixa: '',
     garantiaSnippet: '',
+    textLength: t.length,
   };
 
   var date = firstMatch(t, [
@@ -131,25 +153,44 @@ function extractLaudoFields(text) {
     /Data\s+da\s+inspe[cç][aã]o[:\s]*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{4})/i,
     /Vistoria[:\s]*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{4})/i,
     /Data\s+do\s+Laudo[:\s]*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{4})/i,
+    /Laudo\s+elaborado\s+em[:\s]*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{4})/i,
   ]);
   if (date) out.appraisalDate = ymdFromParts(date[1], date[2], date[3]);
+  if (!out.appraisalDate) {
+    var named = t.match(/(\d{1,2})\s+de\s+([A-Za-zçáéíóúãõ]+)\s+de\s+(\d{4})/i);
+    if (named && MONTHS[named[2].toLowerCase()]) {
+      out.appraisalDate = ymdFromParts(named[1], MONTHS[named[2].toLowerCase()], named[3]);
+    }
+  }
 
-  var valor = firstMatch(t, [
-    /Valor\s+de\s+Avalia[cç][aã]o[:\s]*R\$?\s*([\d.]{1,12},\d{2})/i,
-    /Valor\s+de\s+Mercado[:\s]*R\$?\s*([\d.]{1,12},\d{2})/i,
-  ]);
-  if (valor) out.engineeringValue = parseBrMoney(valor[1]);
+  out.engineeringValue = moneyNear(t, /Valor\s+de\s+Avalia[cç][aã]o/i)
+    || moneyNear(t, /Avalia[cç][aã]o\s+do\s+Im[oó]vel/i)
+    || moneyNear(t, /Valor\s+de\s+Mercado/i);
+  if (!out.engineeringValue) {
+    var valor = firstMatch(t, [
+      /Valor\s+de\s+Avalia[cç][aã]o[:\s]*R\$?\s*([\d.]{1,12},\d{2})/i,
+      /Valor\s+de\s+Mercado[:\s]*R\$?\s*([\d.]{1,12},\d{2})/i,
+    ]);
+    if (valor) out.engineeringValue = parseBrMoney(valor[1]);
+  }
 
-  var m2 = firstMatch(t, [
-    /Valor\s+unit[aá]rio[:\s]*R\$?\s*([\d.]{1,12},\d{2})/i,
-    /R\$\s*([\d.]{1,12},\d{2})\s*\/\s*m/i,
-    /([\d.]{1,12},\d{2})\s*\/\s*m[²2]/i,
-  ]);
-  if (m2) out.valuePerM2 = parseBrMoney(m2[1]);
+  out.valuePerM2 = moneyNear(t, /Valor\s+unit[aá]rio/i)
+    || moneyNear(t, /R\$\s*\/\s*m/i)
+    || moneyNear(t, /valor\s+do\s+m/i);
+  if (!out.valuePerM2) {
+    var m2 = firstMatch(t, [
+      /Valor\s+unit[aá]rio[:\s]*R\$?\s*([\d.]{1,12},\d{2})/i,
+      /R\$\s*([\d.]{1,12},\d{2})\s*\/\s*m/i,
+      /([\d.]{1,12},\d{2})\s*\/\s*m[²2]/i,
+    ]);
+    if (m2) out.valuePerM2 = parseBrMoney(m2[1]);
+  }
 
   var who = firstMatch(t, [
     /Respons[aá]vel\s+T[eé]cnico[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç' ]{4,80})/,
+    /Elaborado\s+por[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç' ]{4,80})/i,
     /Avaliador[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç' ]{4,80})/,
+    /Engenheiro\s+Civil[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-Za-zÁÉÍÓÚÂÊÔÃÕÇáéíóúâêôãõç' ]{4,80})/i,
   ]);
   if (who) out.appraiser = cleanName(who[1]);
 
@@ -172,7 +213,16 @@ async function extractLaudoFromPdf(buffer) {
   }
   try {
     var data = await pdfParse(buffer);
-    return extractLaudoFields(data && data.text);
+    var out = extractLaudoFields(data && data.text);
+    console.log('extractLaudoFromPdf', {
+      textLength: (data && data.text && data.text.length) || 0,
+      appraisalDate: out.appraisalDate,
+      appraiser: out.appraiser,
+      engineeringValue: out.engineeringValue,
+      valuePerM2: out.valuePerM2,
+      garantiaCaixa: out.garantiaCaixa,
+    });
+    return out;
   } catch (err) {
     console.warn('extractLaudoFromPdf:', err && err.message);
     return extractLaudoFields('');

@@ -5,6 +5,7 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { verifyAdminAuth } = require('./admin-auth');
 const { extractLaudoFromPdf } = require('./laudo-extract');
+const { nextDocFileName } = require('./doc-revision-name');
 
 const COMPANY_EMAIL = 'bfmarquesempreendimentos@gmail.com';
 var STORAGE_BUCKETS = [
@@ -396,7 +397,7 @@ function uploadBufferFromRequest(req, body) {
 }
 
 async function saveUploadBuffer(folder, fileName, contentType, buf) {
-  var path = folder + '/' + Date.now() + '-' + fileName;
+  var path = folder + '/' + fileName;
   var token = crypto.randomUUID();
   var bucketName = STORAGE_BUCKETS[0];
   var file = admin.storage().bucket(bucketName).file(path);
@@ -429,10 +430,22 @@ async function prepareStorageUploadHttp(req, res) {
     var body = parseJsonBody(req);
     var q = req.query || {};
     var folder = String(q.folder || headerValue(req, 'x-upload-folder') || body.folder || 'repair-attachments').replace(/^\/+|\/+$/g, '');
+    var fileName = sanitizeFileName(q.fileName || headerValue(req, 'x-upload-filename') || body.fileName || 'file');
+    var docKind = String(q.docKind || body.docKind || '').trim().toLowerCase();
+    if (docKind === 'laudo' || docKind === 'rgi' || docKind === 'onus') {
+      var kind = docKind === 'onus' ? 'rgi' : docKind;
+      fileName = nextDocFileName(kind, body.existingNames || []);
+      var pid = String(q.propertyId || body.propertyId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      var unit = String(q.unitCode || body.unitCode || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 80);
+      if (pid && unit) {
+        folder = kind === 'laudo'
+          ? ('engineering-reports/' + pid + '/' + unit)
+          : (folder || ('property-dossiers/' + pid + '/unidades'));
+      }
+    }
     if (!isAllowedUploadFolder(folder, isAdmin)) {
       return res.status(403).json({ error: 'Pasta não permitida' });
     }
-    var fileName = sanitizeFileName(q.fileName || headerValue(req, 'x-upload-filename') || body.fileName || 'file');
     var contentType = String(q.contentType || body.contentType || headerValue(req, 'x-upload-content-type') || '').substring(0, 120);
     if (!contentType || contentType.indexOf('json') >= 0 || contentType.indexOf('octet-stream') >= 0) {
       contentType = 'application/pdf';
@@ -458,6 +471,7 @@ async function prepareStorageUploadHttp(req, res) {
         ok: true,
         path: saved.path,
         url: saved.url,
+        name: fileName,
         extracted: extracted || undefined,
       });
     }
@@ -517,6 +531,22 @@ async function getStorageReadUrlHttp(req, res) {
     }
     var file = await findStorageFile(path);
     if (!file) return res.status(404).json({ error: 'Arquivo não encontrado no Storage' });
+    var mode = String((req.query && req.query.mode) || body.mode || '').trim().toLowerCase();
+    if (mode === 'file') {
+      var meta = await file.getMetadata();
+      var data = Array.isArray(meta) ? meta[0] : meta;
+      var downloadName = path.split('/').pop() || 'documento.pdf';
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Content-Type', (data && data.contentType) || 'application/pdf');
+      res.set('Content-Disposition', 'inline; filename="' + downloadName.replace(/"/g, '') + '"');
+      file.createReadStream()
+        .on('error', function(streamErr) {
+          console.error('getStorageReadUrl stream:', streamErr);
+          if (!res.headersSent) res.status(500).json({ error: streamErr.message });
+        })
+        .pipe(res);
+      return;
+    }
     var readUrl = await firebaseMediaUrl(file);
     return res.json({ ok: true, url: readUrl, path: path });
   } catch (err) {

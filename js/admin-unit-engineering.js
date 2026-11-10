@@ -103,6 +103,36 @@
         }
     }
 
+    function existingDocNames(r, kind) {
+        var names = [];
+        if (!r) return names;
+        if (kind === 'laudo') {
+            if (r.reportName) names.push(r.reportName);
+            (r.engineeringHistory || []).forEach(function(h) {
+                if (h.reportName) names.push(h.reportName);
+            });
+            (r.archiveDocuments || []).forEach(function(d) {
+                if (d.kind === 'laudo' && d.name) names.push(d.name);
+            });
+        }
+        if (kind === 'rgi') {
+            if (r.rgiName) names.push(r.rgiName);
+            (r.rgiHistory || []).forEach(function(h) {
+                if (h.rgiName) names.push(h.rgiName);
+            });
+            (r.archiveDocuments || []).forEach(function(d) {
+                if ((d.kind === 'onus' || d.kind === 'rgi') && d.name) names.push(d.name);
+            });
+        }
+        return names;
+    }
+
+    function adminFunctionsBase() {
+        if (typeof ADMIN_FUNCTIONS_BASE !== 'undefined' && ADMIN_FUNCTIONS_BASE) return ADMIN_FUNCTIONS_BASE;
+        if (typeof getCloudFunctionsBaseUrl === 'function') return getCloudFunctionsBaseUrl();
+        return '';
+    }
+
     function clearPendingUploads() {
         _laudoSeq += 1;
         _rgiSeq += 1;
@@ -913,19 +943,39 @@
             if (typeof showMessage === 'function') showMessage('Arquivo sem caminho no Storage.', 'warning');
             return;
         }
-        if (typeof adminPostJson !== 'function') return;
         var encoded = encodeURIComponent(storagePath);
-        adminPostJson('/getStorageReadUrl?storagePath=' + encoded, {
-            storagePath: storagePath,
-            filePath: storagePath,
-            objectPath: storagePath,
-            path: storagePath
-        }).then(function(data) {
-            if (data && data.url) window.open(data.url, '_blank', 'noopener');
-            else if (typeof showMessage === 'function') showMessage('Arquivo ainda não está no Storage.', 'warning');
+        Promise.resolve(typeof getAdminIdToken === 'function' ? getAdminIdToken() : null).then(function(token) {
+            if (!token) throw new Error('Sessão expirada. Faça login novamente.');
+            return fetch(adminFunctionsBase() + '/getStorageReadUrl?storagePath=' + encoded + '&mode=file', {
+                method: 'POST',
+                headers: {
+                    Authorization: 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    storagePath: storagePath,
+                    filePath: storagePath,
+                    objectPath: storagePath,
+                    path: storagePath,
+                    mode: 'file'
+                }),
+                cache: 'no-store',
+                credentials: 'omit'
+            });
+        }).then(function(res) {
+            if (!res.ok) {
+                return res.text().then(function(txt) {
+                    var data = null;
+                    try { data = txt ? JSON.parse(txt) : null; } catch (e1) {}
+                    throw new Error((data && data.error) || 'Erro ao abrir o arquivo.');
+                });
+            }
+            return res.blob();
+        }).then(function(blob) {
+            var u = URL.createObjectURL(blob);
+            window.open(u, '_blank', 'noopener');
         }).catch(function(err) {
-            var msg = err.message || 'Erro ao abrir o arquivo.';
-            if (typeof showMessage === 'function') showMessage(msg, 'error');
+            if (typeof showMessage === 'function') showMessage(err.message || 'Erro ao abrir o arquivo.', 'error');
         });
     }
 
@@ -984,24 +1034,9 @@
             return;
         }
         var r = findRow(_openUnit);
-        var overwrite = !!_archiveCurrentOnSave;
-        if (r && r.reportPath) {
-            _archiveCurrentOnSave = true;
-            overwrite = true;
-            var hint = document.getElementById('ueNewEngHint');
-            if (hint) hint.hidden = false;
-            var set = function(id, val) {
-                var el = document.getElementById(id);
-                if (el) el.value = val == null ? '' : val;
-            };
-            set('ueAppraiser', '');
-            set('ueValue', '');
-            set('ueM2', '');
-            set('ueDate', '');
-            set('ueExpiresAt', '');
-            set('ueGarantiaCaixa', '');
-            updateGarantiaHint('', '');
-            onDateChange();
+        var names = existingDocNames(r, 'laudo');
+        if (!_archiveCurrentOnSave && r && r.reportName) {
+            names = names.filter(function(n) { return n !== r.reportName; });
         }
         setParseHint('Enviando e lendo o laudo…', true);
         if (typeof showMessage === 'function') showMessage('Enviando o PDF e lendo os dados do laudo…', 'info');
@@ -1014,13 +1049,18 @@
         var uploadFn = typeof uploadAdminDossierFile === 'function' ? uploadAdminDossierFile : uploadViaSignedUrl;
         _pendingLaudoPromise = Promise.resolve(typeof getAdminIdToken === 'function' ? getAdminIdToken() : null)
             .then(function(token) {
-                return uploadFn(file, 'engineering-reports', token, 'laudo');
+                return uploadFn(file, 'engineering-reports', token, 'laudo', {
+                    docKind: 'laudo',
+                    existingNames: names,
+                    propertyId: pid,
+                    unitCode: _openUnit
+                });
             })
             .then(function(up) {
                 if (seq !== _laudoSeq) return null;
                 _pendingLaudo = { path: up.path || '', name: up.name || file.name, extracted: up.extracted || null };
-                setCurrentReportLabel(_pendingLaudo.name, _pendingLaudo.path, true);
-                applyExtractedLaudo(up.extracted, file.name, overwrite);
+                setCurrentReportLabel(_pendingLaudo.name, _pendingLaudo.path, false);
+                applyExtractedLaudo(up.extracted, _pendingLaudo.name, true);
                 return _pendingLaudo;
             })
             .catch(function(err) {
@@ -1029,6 +1069,10 @@
                 if (typeof showMessage === 'function') showMessage(err.message || 'Falha ao enviar o laudo.', 'error');
                 throw err;
             });
+        _pendingLaudoPromise.then(function(pending) {
+            if (!pending || !pending.path) return;
+            return saveUnitEngineering();
+        });
     }
 
     function onRgiFileSelected() {
@@ -1038,27 +1082,31 @@
         _pendingRgiPromise = null;
         if (!file) return;
         var r = findRow(_openUnit);
-        if (r && (r.rgiPath || r.rgiDate)) {
-            _archiveRgiOnSave = true;
-            var hint = document.getElementById('ueNewRgiHint');
-            if (hint) hint.hidden = false;
-        }
         if (typeof showMessage === 'function') showMessage('Enviando o RGI…', 'info');
         var pid = selectedPropertyId();
         if (!pid) {
             if (typeof showMessage === 'function') showMessage('Selecione o empreendimento antes de anexar o RGI.', 'warning');
             return;
         }
+        var names = existingDocNames(r, 'rgi');
+        if (!_archiveRgiOnSave && r && r.rgiName) {
+            names = names.filter(function(n) { return n !== r.rgiName; });
+        }
         var seq = ++_rgiSeq;
         var uploadFn = typeof uploadAdminDossierFile === 'function' ? uploadAdminDossierFile : uploadViaSignedUrl;
         _pendingRgiPromise = Promise.resolve(typeof getAdminIdToken === 'function' ? getAdminIdToken() : null)
             .then(function(token) {
-                return uploadFn(file, 'property-dossiers/' + pid + '/unidades', token);
+                return uploadFn(file, 'property-dossiers/' + pid + '/unidades', token, '', {
+                    docKind: 'rgi',
+                    existingNames: names,
+                    propertyId: pid,
+                    unitCode: _openUnit
+                });
             })
             .then(function(up) {
                 if (seq !== _rgiSeq) return null;
                 _pendingRgi = { path: up.path || '', name: up.name || file.name };
-                if (typeof showMessage === 'function') showMessage('RGI enviado. Confira a data e salve a ficha.', 'success');
+                if (typeof showMessage === 'function') showMessage('RGI enviado como ' + (_pendingRgi.name || 'rgi.pdf') + '.', 'success');
                 return _pendingRgi;
             })
             .catch(function(err) {
@@ -1066,6 +1114,10 @@
                 if (typeof showMessage === 'function') showMessage(err.message || 'Falha ao enviar o RGI.', 'error');
                 throw err;
             });
+        _pendingRgiPromise.then(function(pending) {
+            if (!pending || !pending.path) return;
+            return saveUnitEngineering();
+        });
     }
 
     function onDateChange() {
@@ -1183,11 +1235,15 @@
         });
     }
 
+    var _savingUnit = false;
     async function saveUnitEngineering(ev) {
         if (ev) ev.preventDefault();
+        if (_savingUnit) return;
+        _savingUnit = true;
         var pid = selectedPropertyId();
         var unit = document.getElementById('ueUnitCode') && document.getElementById('ueUnitCode').value;
         if (!pid || !unit) {
+            _savingUnit = false;
             if (typeof showMessage === 'function') showMessage('Informe empreendimento e unidade.', 'warning');
             return;
         }
@@ -1199,6 +1255,7 @@
         try {
             if (_pendingLaudoPromise) await _pendingLaudoPromise;
         } catch (laudoErr) {
+            _savingUnit = false;
             if (typeof showMessage === 'function') showMessage(laudoErr.message || 'Falha ao enviar o laudo.', 'error');
             return;
         }
@@ -1212,6 +1269,7 @@
             if (up.extracted) applyExtractedLaudo(up.extracted, fileEl.files[0].name, !!_archiveCurrentOnSave);
         }
         if (fileEl && fileEl.files && fileEl.files[0] && !reportPath) {
+            _savingUnit = false;
             if (typeof showMessage === 'function') {
                 showMessage('O PDF ainda não foi gravado. Escolha o arquivo de novo e espere a leitura terminar antes de salvar.', 'error');
             }
@@ -1223,6 +1281,7 @@
         try {
             if (_pendingRgiPromise) await _pendingRgiPromise;
         } catch (rgiErr) {
+            _savingUnit = false;
             if (typeof showMessage === 'function') showMessage(rgiErr.message || 'Falha ao enviar o RGI.', 'error');
             return;
         }
@@ -1259,8 +1318,12 @@
             rgiDate: document.getElementById('ueRgiDate') ? document.getElementById('ueRgiDate').value : '',
             archiveCurrentRgi: !!_archiveRgiOnSave
         };
+        var savedName = reportName || rgiName || '';
         adminPostJson('/adminUnitEngineering', payload).then(function() {
-            if (typeof showMessage === 'function') showMessage('Ficha da unidade gravada. Preço e engenharia vigente passam a alimentar a vitrine.', 'success');
+            var msg = savedName
+                ? 'Ficha gravada com ' + savedName + '.'
+                : 'Ficha da unidade gravada. Preço e engenharia vigente passam a alimentar a vitrine.';
+            if (typeof showMessage === 'function') showMessage(msg, 'success');
             if (typeof invalidateEngineeringCache === 'function') invalidateEngineeringCache();
             if (fileEl) fileEl.value = '';
             if (rgiEl) rgiEl.value = '';
@@ -1275,6 +1338,8 @@
             });
         }).catch(function(err) {
             if (typeof showMessage === 'function') showMessage(err.message || 'Erro ao gravar.', 'error');
+        }).then(function() {
+            _savingUnit = false;
         });
     }
 

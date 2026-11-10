@@ -78,7 +78,8 @@ function parseUploadResponse(res, txt) {
   return data;
 }
 
-async function uploadViaFunctionJson(file, folder, token, parseKind) {
+async function uploadViaFunctionJson(file, folder, token, parseKind, opts) {
+  opts = opts || {};
   var headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = 'Bearer ' + token;
   var res = await fetch(getFirebaseServiceFunctionsBase() + '/prepareStorageUpload', {
@@ -90,6 +91,10 @@ async function uploadViaFunctionJson(file, folder, token, parseKind) {
       contentType: file.type || 'application/pdf',
       size: file.size,
       parseKind: parseKind || '',
+      docKind: opts.docKind || parseKind || '',
+      existingNames: opts.existingNames || [],
+      propertyId: opts.propertyId || '',
+      unitCode: opts.unitCode || '',
       contentBase64: await fileToBase64(file)
     }),
     cache: 'no-store',
@@ -97,7 +102,7 @@ async function uploadViaFunctionJson(file, folder, token, parseKind) {
   });
   var data = parseUploadResponse(res, await res.text());
   return {
-    name: file.name,
+    name: data.name || file.name,
     type: file.type,
     size: file.size,
     path: data.path,
@@ -133,13 +138,13 @@ async function uploadViaFunctionBinary(file, folder, token, parseKind) {
   };
 }
 
-async function uploadAdminDossierFile(file, folder, token, parseKind) {
+async function uploadAdminDossierFile(file, folder, token, parseKind, opts) {
   folder = String(folder || '').replace(/^\/+|\/+$/g, '');
   if (!file) throw new Error('Arquivo não informado');
   if (file.size > 6 * 1024 * 1024) throw new Error('Arquivo acima de 6MB. Envie um PDF menor.');
   var lastErr = null;
   try {
-    return await uploadViaFunctionJson(file, folder, token, parseKind);
+    return await uploadViaFunctionJson(file, folder, token, parseKind, opts);
   } catch (jsonErr) {
     lastErr = jsonErr;
   }
