@@ -1037,7 +1037,7 @@
             var melClear = document.getElementById('ueM2');
             if (melClear && !isSaneM2(parseMoneyInput(melClear.value), ex.engineeringValue)) melClear.value = '';
         }
-        var dateVal = ex.appraisalDate || dateFromDocName(fileName);
+        var dateVal = ex.appraisalDate || '';
         if (dateVal) {
             put('ueDate', dateVal);
             onDateChange();

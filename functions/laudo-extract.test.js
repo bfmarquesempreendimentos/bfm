@@ -1,6 +1,7 @@
 'use strict';
 
-var { extractLaudoFields, isPersonName, dateFromDocName } = require('./laudo-extract');
+var fs = require('fs');
+var { extractLaudoFields, extractLaudoFromPdf, isPersonName, dateFromDocName } = require('./laudo-extract');
 var { nextDocFileName } = require('./doc-revision-name');
 
 var failed = 0;
@@ -62,8 +63,34 @@ eq(rJunk.appraiser, '', 'lixo do formulário não vira responsável');
 eq(rJunk.valuePerM2, '', 'valor global não vira m²');
 eq(rJunk.engineeringValue, 201000, 'ainda lê o valor de avaliação');
 
+var apto205 = [
+  'VistoriaData da VistoriaUso da UnidadeOcupaçãoPosição FísicaAndar',
+  '01/06/2026ResidencialDesocupadoFrente/Meio2',
+  'Sim, Somos Favoráveis à Aceitação do Imóvel Como Garantia',
+  'MANIFESTAÇÃO SOBRE A POSSIBILIDADE DE ACEITAÇÃO DO BEM COMO GARANTIA E SOBRE A SUA CONFORMIDADE COM A DOCUMENTAÇÃO E',
+  'ATENDIMENTO AOS REQUISITOS MÍNIMOS DE ENGENHARIA / ARQUITETURA ESTABELECIDOS PELA CAIXA',
+  'Não atendeu aos seguintes Requisitos Gerais:',
+  '33,625.978,58R$ 201.000,00',
+  'Área (m²)R$/m²Valor Produto (R$)',
+  '201.000,00 (DUZENTOS E UM MIL REAIS)Valor de Avaliação R$',
+  'SIGNATÁRIOS',
+  'Formação',
+  'GUALTER VIEIRA FIGUEIREDO',
+  'CPF/MatrículaResponsável Técnico',
+  'CREA / CAU',
+  'GUALTER VIEIRA FIGUEIREDO',
+  'VIEIRA FIGUEIREDO ENGENHARIA',
+  'LTDA',
+].join('\n');
+var r205 = extractLaudoFields(apto205, '27:11:2016.pdf');
+eq(r205.appraisalDate, '2026-06-01', 'APTO 205 data da vistoria, não do nome do arquivo');
+eq(r205.appraiser, 'GUALTER VIEIRA FIGUEIREDO', 'APTO 205 responsável');
+eq(r205.engineeringValue, 201000, 'APTO 205 valor');
+eq(r205.valuePerM2, 5978.58, 'APTO 205 m²');
+eq(r205.garantiaCaixa, 'apta', 'APTO 205 garantia favorável');
+
 var fromName = extractLaudoFields('', '27:11:2016.pdf');
-eq(fromName.appraisalDate, '2016-11-27', 'data pelo nome do arquivo');
+eq(fromName.appraisalDate, '', 'PDF vazio não inventa data pelo nome do arquivo');
 eq(dateFromDocName('27-11-2016.pdf'), '2016-11-27', 'dateFromDocName hífen');
 eq(isPersonName('Representante Legal'), false, 'isPersonName rejeita cargo');
 eq(isPersonName('LUIZ FERNANDO GOMES SOUTINHO'), true, 'isPersonName aceita avaliador');
@@ -73,8 +100,27 @@ eq(nextDocFileName('laudo', ['27:11:2016.pdf', 'laudo.pdf']), 'laudo2.pdf', 'rev
 eq(nextDocFileName('laudo', ['27:11:2016.pdf']), 'laudo.pdf', 'nome antigo não conta como laudo1');
 eq(nextDocFileName('laudo', ['Laudo_101.pdf']), 'laudo.pdf', 'Laudo_101 não vira revisão 101');
 
-if (failed) {
-  console.error('\n' + failed + ' falha(s)');
-  process.exit(1);
+async function testRealPdf() {
+  var p = '/tmp/bfm-laudo/laudo.pdf';
+  if (!fs.existsSync(p)) {
+    console.log('skip PDF real (arquivo local ausente)');
+    return;
+  }
+  var ex = await extractLaudoFromPdf(fs.readFileSync(p), '27:11:2016.pdf');
+  eq(ex.appraisalDate, '2026-06-01', 'PDF real APTO 205 data');
+  eq(ex.appraiser, 'GUALTER VIEIRA FIGUEIREDO', 'PDF real APTO 205 responsável');
+  eq(ex.engineeringValue, 201000, 'PDF real APTO 205 valor');
+  eq(ex.valuePerM2, 5978.58, 'PDF real APTO 205 m²');
+  eq(ex.garantiaCaixa, 'apta', 'PDF real APTO 205 garantia');
 }
-console.log('\ntodos os testes ok');
+
+testRealPdf().then(function() {
+  if (failed) {
+    console.error('\n' + failed + ' falha(s)');
+    process.exit(1);
+  }
+  console.log('\ntodos os testes ok');
+}).catch(function(err) {
+  console.error(err);
+  process.exit(1);
+});

@@ -73,7 +73,7 @@ function extractDate(text) {
   if (m) return ymdFromParts(m[1], m[2], m[3]);
   m = flat.match(/Data da\s*\|?\s*Vistoria[^\d]{0,80}(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})/i);
   if (m) return ymdFromParts(m[1], m[2], m[3]);
-  m = flat.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})\s+Residencial/i);
+  m = flat.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})\s*Residencial/i);
   if (m) return ymdFromParts(m[1], m[2], m[3]);
   m = flat.match(/Data da Vistoria[:\s]*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})/i);
   if (m) return ymdFromParts(m[1], m[2], m[3]);
@@ -92,7 +92,7 @@ function inM2Range(n, valor) {
 
 function extractApartmentTrio(text) {
   var t = flatten(text);
-  var m = t.match(/(\d{1,3},\d{2})\s+(\d{1,3}\.\d{3},\d{2})\s+(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+,\d{2})/);
+  var m = t.match(/(\d{1,3},\d{2})\s*(\d{1,3}\.\d{3},\d{2})\s*(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+,\d{2})/);
   if (!m) return null;
   var area = parseBrMoney(m[1]);
   var m2 = parseBrMoney(m[2]);
@@ -151,6 +151,7 @@ function nameFromTokens(chunk) {
     if (NAME_STOP.test(tokens[i]) || /\d/.test(tokens[i])) break;
     if (!/^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(tokens[i]) && !PARTICLE.test(tokens[i])) break;
     if (JUNK_TOKEN.test(tokens[i]) && !PARTICLE.test(tokens[i])) break;
+    if (name.length >= 2 && name.indexOf(tokens[i]) >= 0 && !PARTICLE.test(tokens[i])) break;
     name.push(tokens[i]);
     if (name.length >= 7) break;
   }
@@ -162,7 +163,13 @@ function extractAppraiser(text) {
   var t = normalize(text);
   var flat = flatten(text);
   var n;
-  var m = flat.match(/CREA\s*\/\s*CAU\s*\|?\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇa-záéíóúâêôãõç' |]{6,90})/i);
+  var m = t.match(/Forma[cç][aã]o\s*\n\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ ]{8,70})\s*\n\s*CPF\/Matr/i);
+  if (!m) m = flat.match(/Forma[cç][aã]o\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ ]{8,70})\s+CPF\/Matr/i);
+  if (m) {
+    n = cleanName(m[1]);
+    if (isPersonName(n)) return n;
+  }
+  m = flat.match(/CREA\s*\/\s*CAU\s*\|?\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇa-záéíóúâêôãõç' |]{6,90})/i);
   if (m) {
     n = nameFromTokens(m[1]);
     if (n) return n;
@@ -191,6 +198,10 @@ function extractAppraiser(text) {
 function extractGarantiaCaixa(text) {
   var raw = flatten(text);
   var upper = raw.toUpperCase();
+  if (/SOMOS FAVOR[AÁ]VEIS\s+[AÀ]\s+ACEITA/.test(upper) ||
+      /SIM,?\s+SOMOS FAVOR[AÁ]VEIS/.test(upper)) {
+    return { garantiaCaixa: 'apta', garantiaSnippet: 'Sim, somos favoráveis à aceitação do imóvel como garantia.' };
+  }
   var markers = [
     'MANIFESTAÇÃO SOBRE A POSSIBILIDADE DE ACEITAÇÃO',
     'MANIFESTACAO SOBRE A POSSIBILIDADE DE ACEITACAO',
@@ -212,7 +223,7 @@ function extractGarantiaCaixa(text) {
   }
   var window = upper.slice(idx, idx + 1800);
   var snippet = raw.slice(idx, idx + 360);
-  if (/N[AÃ]O\s+ATENDE\s+AOS\s+REQUISITOS\s+M[IÍ]NIMOS/.test(window) ||
+  if (/N[AÃ]O\s+ATENDE(?!U)\s+AOS\s+REQUISITOS\s+M[IÍ]NIMOS/.test(window) ||
       /N[AÃ]O\s+[ÉE]\s+PASS[IÍ]VEL/.test(window) ||
       /N[AÃ]O\s+POSSUI\s+INFRA/.test(window) ||
       /IMPOSSIBILIDADE\s+DE\s+ACEITA/.test(window)) {
@@ -238,7 +249,6 @@ function extractLaudoFields(text, fileName) {
     textLength: flatten(text).length,
   };
   if (!out.valuePerM2) out.valuePerM2 = extractValorM2(text, out.engineeringValue);
-  if (!out.appraisalDate) out.appraisalDate = dateFromDocName(fileName);
   var garantia = extractGarantiaCaixa(text);
   out.garantiaCaixa = garantia.garantiaCaixa;
   out.garantiaSnippet = garantia.garantiaSnippet;
