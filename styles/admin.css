@@ -1504,6 +1504,34 @@ body.ue-drawer-open { overflow: hidden; }
     font: inherit;
     text-align: left;
 }
+.ue-expired-banner {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 0 0 12px;
+    font-size: 0.9rem;
+}
+.ue-eng-history {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+}
+.ue-eng-history li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    align-items: baseline;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--admin-border);
+    font-size: 0.9rem;
+}
+.ue-eng-hist-idx {
+    font-weight: 600;
+    color: #64748b;
+    min-width: 1.8em;
+}
 .pd-docs-cell {
     max-width: 220px;
     font-size: 0.85rem;

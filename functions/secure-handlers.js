@@ -79,6 +79,15 @@ function sanitizeFileName(name) {
     .substring(0, 120);
 }
 
+var ALLOWED_STORAGE_PREFIXES = [
+  'sale-contracts/',
+  'engineering-reports/',
+  'property-dossiers/',
+  'repair-attachments/',
+  'repair-response-attachments/',
+  'boleto-receipts/',
+];
+
 function isAllowedUploadFolder(folder, isAdmin) {
   var f = String(folder || '').replace(/^\/+|\/+$/g, '');
   if (f === 'sale-contracts' || f.indexOf('sale-contracts/') === 0) return isAdmin;
@@ -87,6 +96,53 @@ function isAllowedUploadFolder(folder, isAdmin) {
   if (f === 'repair-attachments' || f.indexOf('repair-attachments/') === 0) return true;
   if (f.indexOf('repair-response-attachments/') === 0) return true;
   if (f === 'boleto-receipts' || f.indexOf('boleto-receipts/') === 0) return true;
+  return false;
+}
+
+function parseJsonBody(req) {
+  var body = req && req.body;
+  if (typeof body === 'string') {
+    try { return JSON.parse(body); } catch (e) { return {}; }
+  }
+  if (body && typeof Buffer !== 'undefined' && Buffer.isBuffer(body)) {
+    try { return JSON.parse(body.toString('utf8')); } catch (e) { return {}; }
+  }
+  return body && typeof body === 'object' ? body : {};
+}
+
+function resolveStorageObjectPath(body) {
+  var raw = '';
+  if (body && typeof body === 'object') {
+    raw = body.storagePath || body.filePath || body.url || body.path || '';
+  }
+  raw = String(raw || '').trim();
+  if (!raw) return '';
+  try {
+    if (/^https?:\/\//i.test(raw)) {
+      var u = new URL(raw);
+      var pathname = u.pathname || '';
+      var oIdx = pathname.indexOf('/o/');
+      if (oIdx >= 0) {
+        raw = decodeURIComponent(pathname.slice(oIdx + 3));
+      } else if (/(firebasestorage|storage\.googleapis)/i.test(u.hostname)) {
+        raw = decodeURIComponent(pathname.replace(/^\/+/, '').replace(/^[^/]+\//, ''));
+      }
+    }
+  } catch (e) {}
+  raw = raw.replace(/^gs:\/\/[^/]+\//, '');
+  try { raw = decodeURIComponent(raw); } catch (e2) {}
+  raw = raw.replace(/^\/+/, '');
+  var q = raw.indexOf('?');
+  if (q >= 0) raw = raw.slice(0, q);
+  return raw;
+}
+
+function isAllowedStorageReadPath(path) {
+  var p = String(path || '');
+  var i;
+  for (i = 0; i < ALLOWED_STORAGE_PREFIXES.length; i++) {
+    if (p.indexOf(ALLOWED_STORAGE_PREFIXES[i]) === 0) return true;
+  }
   return false;
 }
 
@@ -299,31 +355,26 @@ async function getStorageReadUrlHttp(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
   if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
   try {
-    var body = req.body || {};
-    var path = String(body.path || body.storagePath || '').replace(/^\/+/, '');
-    path = path.replace(/^gs:\/\/[^/]+\//, '');
-    if (!path || path.indexOf('..') >= 0) return res.status(400).json({ error: 'path inválido' });
-    var allowed =
-      path.indexOf('sale-contracts/') === 0 ||
-      path.indexOf('engineering-reports/') === 0 ||
-      path.indexOf('property-dossiers/') === 0 ||
-      path.indexOf('repair-attachments/') === 0 ||
-      path.indexOf('repair-response-attachments/') === 0 ||
-      path.indexOf('boleto-receipts/') === 0;
-    if (!allowed) {
+    var body = parseJsonBody(req);
+    var path = resolveStorageObjectPath(body);
+    if (!path || path.indexOf('..') >= 0) {
+      return res.status(400).json({ error: 'Caminho do arquivo inválido' });
+    }
+    if (!isAllowedStorageReadPath(path)) {
+      console.warn('getStorageReadUrl pasta recusada:', path);
       return res.status(403).json({
-        error: 'Pasta não permitida',
-        hint: 'Use o arquivo do cadastro (property-dossiers/… ou engineering-reports/…).',
+        error: 'Arquivo fora das pastas do cadastro',
+        hint: 'O admin só abre property-dossiers/ ou engineering-reports/.',
       });
     }
     var file = await findStorageFile(path);
-    if (!file) return res.status(404).json({ error: 'Arquivo não encontrado' });
+    if (!file) return res.status(404).json({ error: 'Arquivo não encontrado no Storage' });
     var readUrl = await file.getSignedUrl({
       version: 'v4',
       action: 'read',
       expires: Date.now() + 60 * 60 * 1000,
     });
-    return res.json({ ok: true, url: readUrl[0] });
+    return res.json({ ok: true, url: readUrl[0], path: path });
   } catch (err) {
     console.error('getStorageReadUrlHttp:', err);
     return res.status(500).json({ error: err.message });

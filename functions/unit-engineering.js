@@ -101,6 +101,7 @@ function adminRow(id, d) {
     reportPath: d.reportPath || '',
     reportName: d.reportName || '',
     archiveDocuments: Array.isArray(d.archiveDocuments) ? d.archiveDocuments : [],
+    engineeringHistory: Array.isArray(d.engineeringHistory) ? d.engineeringHistory : [],
     notes: d.notes || '',
     status: c.status,
     daysLeft: c.daysLeft,
@@ -228,6 +229,7 @@ function mergeUnitRow(propertyId, catalogUnit, catalog, firestoreRow) {
     reportPath: '',
     reportName: '',
     archiveDocuments: [],
+    engineeringHistory: [],
     notes: '',
     status: 'sem_laudo',
     daysLeft: null,
@@ -265,10 +267,40 @@ function mergeUnitRow(propertyId, catalogUnit, catalog, firestoreRow) {
   if (!row.archiveDocuments || !row.archiveDocuments.length) {
     row.archiveDocuments = Array.isArray(seedU.documents) ? seedU.documents : [];
   }
+  if (!Array.isArray(row.engineeringHistory)) row.engineeringHistory = [];
   row.bedrooms = catalogUnit.bedrooms;
   row.catalogStatus = catalogUnit.status || '';
   if (!row.engineeringValue && hist) row.engineeringValue = hist;
   return row;
+}
+
+function snapshotEngineering(d) {
+  d = d || {};
+  return {
+    appraisalDate: d.appraisalDate || '',
+    expiresAt: d.expiresAt || '',
+    appraiser: d.appraiser || '',
+    engineeringValue: d.engineeringValue == null ? '' : d.engineeringValue,
+    valuePerM2: d.valuePerM2 == null ? '' : d.valuePerM2,
+    reportPath: d.reportPath || '',
+    reportName: d.reportName || '',
+    archivedAt: new Date().toISOString(),
+  };
+}
+
+function hasEngineeringSnapshot(d) {
+  if (!d) return false;
+  return !!(d.appraisalDate || d.reportPath || d.engineeringValue);
+}
+
+function shouldArchiveCurrent(body, old) {
+  if (!hasEngineeringSnapshot(old)) return false;
+  if (body.archiveCurrent === true || body.archiveCurrent === 'true' || body.archiveCurrent === 1) {
+    return true;
+  }
+  var newPath = String(body.reportPath || '').trim();
+  if (newPath && old.reportPath && newPath !== old.reportPath) return true;
+  return false;
 }
 
 function mergeListForProperty(propertyId, firestoreRows) {
@@ -422,6 +454,17 @@ async function adminUnitEngineeringHttp(req, res) {
       var nowU = new Date().toISOString();
       var prev = await db.collection(COL).doc(id).get();
       var old = prev.exists ? (prev.data() || {}) : {};
+      var history = Array.isArray(old.engineeringHistory) ? old.engineeringHistory.slice() : [];
+      var archiveCurrent = shouldArchiveCurrent(body, old);
+      if (archiveCurrent) {
+        var snap = snapshotEngineering(old);
+        snap.archivedBy = auth.email || '';
+        var dup = history[0] &&
+          String(history[0].appraisalDate || '') === String(snap.appraisalDate || '') &&
+          String(history[0].reportPath || '') === String(snap.reportPath || '');
+        if (!dup) history.unshift(snap);
+        if (history.length > 20) history = history.slice(0, 20);
+      }
       var docU = {
         propertyId: typeof propertyId === 'number' ? propertyId : (Number(propertyId) || propertyId),
         unitCode: unitCode,
@@ -434,9 +477,10 @@ async function adminUnitEngineeringHttp(req, res) {
         valuePerM2: body.valuePerM2 != null ? body.valuePerM2 : (old.valuePerM2 || ''),
         appraisalDate: appraisalDate || '',
         expiresAt: expiresAt,
-        reportPath: String(body.reportPath || '').trim() || old.reportPath || '',
-        reportName: String(body.reportName || '').trim().slice(0, 160) || old.reportName || '',
+        reportPath: String(body.reportPath || '').trim() || (archiveCurrent ? '' : (old.reportPath || '')),
+        reportName: String(body.reportName || '').trim().slice(0, 160) || (archiveCurrent ? '' : (old.reportName || '')),
         archiveDocuments: Array.isArray(body.archiveDocuments) ? body.archiveDocuments : (old.archiveDocuments || []),
+        engineeringHistory: history,
         notes: String(body.notes != null ? body.notes : (old.notes || '')).trim().slice(0, 500),
         updatedAt: nowU,
         updatedBy: auth.email || '',

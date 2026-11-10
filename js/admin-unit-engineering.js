@@ -15,6 +15,7 @@
     var _statusFilter = '';
     var _openUnit = '';
     var _uiBound = false;
+    var _archiveCurrentOnSave = false;
 
     var BUILDING_PRIMARY = {
         art: 1, crea: 1, memorial: 1, habite_planta: 1, averbacao: 1,
@@ -369,12 +370,12 @@
         });
         function list(items) {
             return '<ul class="pd-doc-list">' + items.map(function(d) {
-                var path = d.storagePath || '';
-                var name = esc(d.name);
+                var path = d.storagePath || d.reportPath || '';
+                var name = esc(d.name || d.reportName || 'Arquivo');
                 var link = path
                     ? '<button type="button" class="pd-doc-link" data-pd-path="' + esc(path) + '">' + name + '</button>'
                     : name;
-                return '<li><span class="pd-doc-kind">' + esc(d.label || d.kind) + '</span> ' + link + '</li>';
+                return '<li><span class="pd-doc-kind">' + esc(d.label || d.kind || 'Arquivo') + '</span> ' + link + '</li>';
             }).join('') + '</ul>';
         }
         var html = '<h4>Documentos do prédio (arquivo antigo)</h4>' + list(primary.length ? primary : docs);
@@ -490,6 +491,7 @@
             return;
         }
         _openUnit = unitCode || '';
+        _archiveCurrentOnSave = false;
         var set = function(id, val) {
             var el = document.getElementById(id);
             if (el) el.value = val == null ? '' : val;
@@ -518,6 +520,13 @@
                 exp.textContent = 'Sem data = engenharia não aparece na vitrine (fica “A confirmar”).';
             }
         }
+        var banner = document.getElementById('ueExpiredBanner');
+        if (banner) {
+            banner.hidden = !(r && r.status === 'vencida');
+        }
+        var newHint = document.getElementById('ueNewEngHint');
+        if (newHint) newHint.hidden = true;
+        renderEngineeringHistory(r);
         var archive = document.getElementById('ueArchiveDocs');
         if (archive) {
             var docs = (r && r.archiveDocuments) || [];
@@ -647,22 +656,85 @@
         }
     }
 
+    function renderEngineeringHistory(r) {
+        var box = document.getElementById('ueEngHistory');
+        if (!box) return;
+        var items = (r && Array.isArray(r.engineeringHistory)) ? r.engineeringHistory : [];
+        if (!items.length) {
+            box.innerHTML = '<li class="form-hint">Nenhum laudo anterior. Ao vencer, use “Cadastrar nova engenharia” para guardar o atual e registrar o próximo.</li>';
+            return;
+        }
+        box.innerHTML = items.map(function(h, idx) {
+            var path = h.storagePath || h.reportPath || '';
+            var title = formatDate(h.appraisalDate) || 'Sem data';
+            var val = formatMoney(h.engineeringValue) || '—';
+            var who = h.appraiser ? esc(h.appraiser) : 'sem responsável';
+            var pdf = path
+                ? '<button type="button" class="pd-doc-link" data-pd-path="' + esc(path) + '">' +
+                    esc(h.reportName || 'Abrir PDF') + '</button>'
+                : '<span>sem PDF</span>';
+            return '<li><span class="ue-eng-hist-idx">#' + (items.length - idx) + '</span>' +
+                '<span>' + esc(title) + '</span><span>' + esc(val) + '</span>' +
+                '<span>' + who + '</span>' + pdf + '</li>';
+        }).join('');
+        bindDocLinks(box);
+    }
+
+    function startNewUnitEngineering() {
+        var unit = document.getElementById('ueUnitCode') && document.getElementById('ueUnitCode').value;
+        var r = findRow(unit);
+        var hasCurrent = !!(r && (r.appraisalDate || r.reportPath || r.engineeringValue));
+        if (hasCurrent) {
+            var ok = window.confirm(
+                'O laudo atual vai para o histórico desta unidade. Preencha a nova engenharia e salve.\n\nContinuar?'
+            );
+            if (!ok) return;
+        }
+        _archiveCurrentOnSave = hasCurrent;
+        var set = function(id, val) {
+            var el = document.getElementById(id);
+            if (el) el.value = val == null ? '' : val;
+        };
+        set('ueAppraiser', '');
+        set('ueValue', '');
+        set('ueM2', '');
+        set('ueDate', '');
+        set('ueExpiresAt', '');
+        var fileEl = document.getElementById('ueReportFile');
+        if (fileEl) fileEl.value = '';
+        var exp = document.getElementById('ueExpiresHint');
+        if (exp) {
+            exp.textContent = 'Nova engenharia: preencha data, responsável, valor, m² e anexe o PDF.';
+        }
+        var hint = document.getElementById('ueNewEngHint');
+        if (hint) hint.hidden = false;
+        var banner = document.getElementById('ueExpiredBanner');
+        if (banner) banner.hidden = true;
+        var dateEl = document.getElementById('ueDate');
+        if (dateEl) dateEl.focus();
+        if (typeof showMessage === 'function') {
+            showMessage('Preencha o novo laudo e salve. O anterior fica no histórico.', 'info');
+        }
+    }
+
     function bindDocLinks(root) {
         if (!root) return;
         root.querySelectorAll('[data-pd-path]').forEach(function(btn) {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', function(ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
                 openStoredDocument(btn.getAttribute('data-pd-path'));
             });
         });
     }
 
-    function openStoredDocument(path) {
-        if (!path) {
+    function openStoredDocument(storagePath) {
+        if (!storagePath) {
             if (typeof showMessage === 'function') showMessage('Arquivo sem caminho no Storage.', 'warning');
             return;
         }
         if (typeof adminPostJson !== 'function') return;
-        adminPostJson('/getStorageReadUrl', { path: path }).then(function(data) {
+        adminPostJson('/getStorageReadUrl', { storagePath: storagePath }).then(function(data) {
             if (data && data.url) window.open(data.url, '_blank', 'noopener');
             else if (typeof showMessage === 'function') showMessage('Arquivo ainda não está no Storage.', 'warning');
         }).catch(function(err) {
@@ -818,13 +890,16 @@
             appraisalDate: document.getElementById('ueDate').value,
             notes: document.getElementById('ueNotes').value,
             archiveDocuments: current.archiveDocuments || [],
+            engineeringHistory: current.engineeringHistory || [],
             reportPath: reportPath,
-            reportName: reportName
+            reportName: reportName,
+            archiveCurrent: !!_archiveCurrentOnSave
         };
         adminPostJson('/adminUnitEngineering', payload).then(function() {
             if (typeof showMessage === 'function') showMessage('Ficha da unidade gravada. Preço e engenharia vigente passam a alimentar a vitrine.', 'success');
             if (typeof invalidateEngineeringCache === 'function') invalidateEngineeringCache();
             if (fileEl) fileEl.value = '';
+            _archiveCurrentOnSave = false;
             return loadUnitEngineeringAdmin().then(function() {
                 openUnitDrawer(unit);
             });
@@ -847,7 +922,7 @@
             if (typeof showMessage === 'function') showMessage('Nenhum laudo vinculado a esta ficha.', 'warning');
             return;
         }
-        adminPostJson('/getStorageReadUrl', { path: path }).then(function(data) {
+        adminPostJson('/getStorageReadUrl', { storagePath: path }).then(function(data) {
             if (data && data.url) window.open(data.url, '_blank', 'noopener');
         }).catch(function(err) {
             if (typeof showMessage === 'function') showMessage(err.message || 'Erro ao abrir laudo.', 'error');
@@ -899,6 +974,7 @@
         window.saveBuildingDossier = saveBuildingDossier;
         window.loadEngineeringAlerts = loadEngineeringAlerts;
         window.openEngineeringReport = openEngineeringReport;
+        window.startNewUnitEngineering = startNewUnitEngineering;
         window.onEngineeringDateChange = onDateChange;
         window.openUnitDossier = openUnitDossier;
         window.fillUnitEngineeringForm = fillForm;
