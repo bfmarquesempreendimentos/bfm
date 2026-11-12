@@ -8,7 +8,7 @@
     <title>Painel Administrativo - Construtora Premium</title>
     <script>
     (function() {
-        var need = '58';
+        var need = '59';
         if (String(location.search).indexOf('v=' + need) >= 0) return;
         var u = new URL(location.href);
         u.searchParams.set('v', need);
@@ -17,7 +17,7 @@
     })();
     </script>
     <link rel="stylesheet" href="styles/main.css?v=37">
-    <link rel="stylesheet" href="styles/admin.css?v=48">
+    <link rel="stylesheet" href="styles/admin.css?v=49">
     <link rel="stylesheet" href="styles/admin-finance.css?v=2">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -779,10 +779,12 @@
                         <label>Observações internas (opcional)</label>
                         <textarea id="saleNotes" rows="2" placeholder="Forma de pagamento, corretor externo, etc."></textarea>
                     </div>
-                    <div id="saleContractPhotosGroup" class="form-group" style="display:none">
-                        <label>Fotos do contrato/escritura (Caixa) *</label>
+                    <div id="saleContractPhotosGroup" class="form-group">
+                        <label>Contrato / escritura (Caixa) *</label>
                         <input type="file" id="saleContractPhotos" accept="image/*,.pdf" multiple>
-                        <small class="form-hint">Obrigatório anexar pelo menos 1 foto ou PDF do contrato de venda.</small>
+                        <small class="form-hint">Até 4 arquivos. O PDF da minuta/contrato da Caixa é lido na hora: unidade, comprador, CPF, número e valor. Fotos extras entram no mesmo arquivo da unidade.</small>
+                        <ul id="saleContractFileList" class="sale-file-list"></ul>
+                        <div id="saleContractReadout" class="sale-contract-readout" hidden></div>
                     </div>
                     <div class="form-actions-bar">
                     <button type="submit" class="btn btn-primary">
@@ -2335,7 +2337,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
     <script src="js/firebase.js"></script>
-    <script src="js/firebase-service.js?v=40"></script>
+    <script src="js/firebase-service.js?v=41"></script>
     <script src="js/main.js"></script>
     <script src="js/auth.js?v=34"></script>
     <script src="js/properties.js"></script>
@@ -2360,7 +2362,7 @@
     <script src="js/admin-reports.js?v=4"></script>
     <script src="js/admin-broker-reservations-report.js?v=4"></script>
     <script src="js/admin-unit-engineering.js?v=23"></script>
-    <script src="js/admin.js?v=51"></script>
+    <script src="js/admin.js?v=52"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>

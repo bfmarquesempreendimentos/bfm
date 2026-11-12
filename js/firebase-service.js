@@ -101,6 +101,10 @@ async function uploadViaFunctionJson(file, folder, token, parseKind, opts) {
       originalFileName: file.name || '',
       replaceName: opts.replaceName || '',
       archiveCurrent: !!opts.archiveCurrent,
+      clientCPF: opts.clientCPF || '',
+      clientName: opts.clientName || '',
+      contractNumber: opts.contractNumber || '',
+      salePrice: opts.salePrice || '',
       contentBase64: await fileToBase64(file)
     }),
     cache: 'no-store',
@@ -147,7 +151,7 @@ async function uploadViaFunctionBinary(file, folder, token, parseKind) {
 async function uploadAdminDossierFile(file, folder, token, parseKind, opts) {
   folder = String(folder || '').replace(/^\/+|\/+$/g, '');
   if (!file) throw new Error('Arquivo não informado');
-  if (file.size > 6 * 1024 * 1024) throw new Error('Arquivo acima de 6MB. Envie um PDF menor.');
+  if (file.size > 10 * 1024 * 1024) throw new Error('Arquivo acima de 10MB. Envie um arquivo menor.');
   var lastErr = null;
   try {
     return await uploadViaFunctionJson(file, folder, token, parseKind, opts);
@@ -195,14 +199,20 @@ async function uploadViaSignedUrl(file, folder, token) {
   };
 }
 
-async function uploadRepairAttachmentsToFirebase(files, folder) {
+async function uploadRepairAttachmentsToFirebase(files, folder, opts) {
   folder = folder || 'repair-attachments';
   const storage = getFirebaseStorage();
   const token = await getAnyIdToken();
   const uploaded = [];
   const contractsOnly = String(folder).indexOf('sale-contracts') === 0;
   for (const file of files) {
-    var usedSigned = contractsOnly || !storage || !token;
+    if (contractsOnly) {
+      uploaded.push(await uploadAdminDossierFile(file, folder, token, 'contrato', Object.assign({
+        docKind: String(file.type || '').indexOf('pdf') >= 0 || /\.pdf$/i.test(file.name || '') ? 'contrato' : '',
+      }, opts || {})));
+      continue;
+    }
+    var usedSigned = !storage || !token;
     if (!usedSigned) {
       try {
         const filePath = folder + '/' + Date.now() + '-' + file.name;
@@ -707,6 +717,7 @@ if (typeof window !== 'undefined') {
   window.getFirebaseDb = getFirebaseDb;
   window.getFirebaseStorage = getFirebaseStorage;
   window.uploadRepairAttachmentsToFirebase = uploadRepairAttachmentsToFirebase;
+  window.uploadAdminDossierFile = uploadAdminDossierFile;
   window.saveRepairRequestToFirestore = saveRepairRequestToFirestore;
   window.updateRepairRequestInFirestore = updateRepairRequestInFirestore;
   window.getRepairRequestFromFirestore = getRepairRequestFromFirestore;

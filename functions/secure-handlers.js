@@ -6,6 +6,7 @@ const admin = require('firebase-admin');
 const { verifyAdminAuth } = require('./admin-auth');
 const { nextDocFileName } = require('./doc-revision-name');
 const { assertPdfBelongsToUnit, extractedForClient } = require('./property-identity');
+const { extractContractFromPdf, contractMatchError } = require('./contract-extract');
 
 const COMPANY_EMAIL = 'bfmarquesempreendimentos@gmail.com';
 var STORAGE_BUCKETS = [
@@ -397,6 +398,9 @@ function uploadBufferFromRequest(req, body) {
 }
 
 async function saveUploadBuffer(folder, fileName, contentType, buf) {
+  if (!/^(laudo|rgi|contrato)\d*\.pdf$/i.test(fileName)) {
+    fileName = Date.now() + '-' + fileName;
+  }
   var path = folder + '/' + fileName;
   var token = crypto.randomUUID();
   var bucketName = STORAGE_BUCKETS[0];
@@ -434,20 +438,20 @@ async function prepareStorageUploadHttp(req, res) {
     var fileName = sanitizeFileName(originalName);
     var docKind = String(q.docKind || body.docKind || '').trim().toLowerCase();
     var archiveCurrent = body.archiveCurrent === true || body.archiveCurrent === 'true' || q.archiveCurrent === 'true';
-    if (docKind === 'laudo' || docKind === 'rgi' || docKind === 'onus') {
+    if (docKind === 'laudo' || docKind === 'rgi' || docKind === 'onus' || docKind === 'contrato') {
       var kind = docKind === 'onus' ? 'rgi' : docKind;
       var replaceName = String(body.replaceName || q.replaceName || '').trim().toLowerCase();
-      if (!archiveCurrent && /^(laudo|rgi)\d*\.pdf$/.test(replaceName)) {
+      if (!archiveCurrent && /^(laudo|rgi|contrato)\d*\.pdf$/.test(replaceName)) {
         fileName = replaceName;
-      } else {
+      } else if (kind === 'laudo' || kind === 'rgi' || kind === 'contrato') {
         fileName = nextDocFileName(kind, body.existingNames || []);
       }
       var pid = String(q.propertyId || body.propertyId || '').replace(/[^a-zA-Z0-9_-]/g, '');
       var unit = String(q.unitCode || body.unitCode || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 80);
       if (pid && unit) {
-        folder = kind === 'laudo'
-          ? ('engineering-reports/' + pid + '/' + unit)
-          : (folder || ('property-dossiers/' + pid + '/unidades'));
+        if (kind === 'laudo') folder = 'engineering-reports/' + pid + '/' + unit;
+        else if (kind === 'contrato') folder = 'sale-contracts/' + pid + '/' + unit;
+        else folder = folder || ('property-dossiers/' + pid + '/unidades');
       }
     }
     if (!isAllowedUploadFolder(folder, isAdmin)) {
@@ -471,6 +475,7 @@ async function prepareStorageUploadHttp(req, res) {
       if (buf.length > 10 * 1024 * 1024) return res.status(400).json({ error: 'Arquivo acima de 10MB' });
       var extracted = null;
       var unitScoped = parseKind === 'laudo' || docKind === 'laudo' || docKind === 'rgi' || docKind === 'onus';
+      var contractScoped = parseKind === 'contrato' || docKind === 'contrato';
       if (unitScoped) {
         var identity = await assertPdfBelongsToUnit(buf, originalName, {
           kind: docKind === 'onus' ? 'rgi' : (docKind || parseKind || 'documento'),
@@ -485,6 +490,24 @@ async function prepareStorageUploadHttp(req, res) {
             extracted: extractedForClient(extracted),
           });
         }
+      } else if (contractScoped) {
+        extracted = await extractContractFromPdf(buf, originalName);
+        var matchErr = contractMatchError(extracted, {
+          propertyId: q.propertyId || body.propertyId,
+          unitCode: q.unitCode || body.unitCode,
+          clientCPF: body.clientCPF || q.clientCPF,
+          clientName: body.clientName || q.clientName,
+          contractNumber: body.contractNumber || q.contractNumber,
+          salePrice: body.salePrice || q.salePrice,
+          fileName: originalName,
+        });
+        if (matchErr) {
+          return res.status(400).json({
+            error: matchErr,
+            unitHint: extracted && extracted.unitHint,
+            extracted: extractedForClient(extracted),
+          });
+        }
       }
       var saved = await saveUploadBuffer(folder, fileName, contentType, buf);
       return res.json({
@@ -495,7 +518,7 @@ async function prepareStorageUploadHttp(req, res) {
         extracted: extractedForClient(extracted) || undefined,
       });
     }
-    if (folder.indexOf('engineering-reports') === 0 || folder.indexOf('property-dossiers') === 0) {
+    if (folder.indexOf('engineering-reports') === 0 || folder.indexOf('property-dossiers') === 0 || folder.indexOf('sale-contracts') === 0) {
       return res.status(400).json({
         error: 'Arquivo não chegou ao servidor. Escolha o PDF de novo.',
       });

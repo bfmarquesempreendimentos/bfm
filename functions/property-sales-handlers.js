@@ -122,6 +122,38 @@ async function removeSaleFromClientProfile(db, auth, clientEmail, saleFirestoreI
   await ref.set({ properties: filtered, updatedAt: new Date().toISOString() }, { merge: true });
 }
 
+function saleDossierId(propertyId, unitCode) {
+  var u = String(unitCode || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  return String(propertyId) + '__' + (u.slice(0, 80) || 'unidade');
+}
+
+async function appendContractToUnitArchive(db, propertyId, unitCode, files) {
+  if (!propertyId || !unitCode || !Array.isArray(files) || !files.length) return;
+  var id = saleDossierId(propertyId, unitCode);
+  var ref = db.collection('unit_engineering').doc(id);
+  var snap = await ref.get();
+  var old = snap.exists ? (snap.data() || {}) : {};
+  var docs = Array.isArray(old.archiveDocuments) ? old.archiveDocuments.slice() : [];
+  files.forEach(function(f) {
+    if (!f || !f.path) return;
+    var dup = docs.some(function(d) { return String(d.storagePath || '') === String(f.path); });
+    if (dup) return;
+    docs.push({
+      kind: f.kind || 'contrato',
+      label: f.label || (f.kind === 'contrato' ? 'Contrato Caixa' : 'Anexo da venda'),
+      name: f.name || '',
+      storagePath: f.path,
+    });
+  });
+  if (docs.length === (old.archiveDocuments || []).length) return;
+  await ref.set({
+    propertyId: typeof propertyId === 'number' ? propertyId : (Number(propertyId) || propertyId),
+    unitCode: unitCode,
+    archiveDocuments: docs.slice(0, 40),
+    updatedAt: new Date().toISOString(),
+  }, { merge: true });
+}
+
 async function applyUnitStatusOverride(db, propertyId, unitCode, status) {
   if (!propertyId || !unitCode) return;
   var ref = db.collection('unit_status_overrides').doc(String(propertyId));
@@ -186,8 +218,12 @@ async function adminPropertySaleMutate(req, res) {
         updatedAt: new Date().toISOString(),
       };
       if (patch.contractPhotos != null) update.contractPhotos = patch.contractPhotos;
+      if (patch.contractFiles != null) update.contractFiles = patch.contractFiles;
       if (body.updatedBy && typeof body.updatedBy === 'object') update.updatedBy = body.updatedBy;
       await upRef.set(update, { merge: true });
+      if (Array.isArray(patch.contractFiles) && patch.contractFiles.length) {
+        await appendContractToUnitArchive(db, prev.propertyId, prev.unitCode, patch.contractFiles);
+      }
       var merged = await upRef.get();
       return res.json({ success: true, sale: { id: upId, ...merged.data() } });
     }
@@ -242,6 +278,7 @@ async function adminPropertySaleMutate(req, res) {
       salePrice: salePrice,
       contractNumber: sale.contractNumber || null,
       contractPhotos: sale.contractPhotos || null,
+      contractFiles: Array.isArray(sale.contractFiles) ? sale.contractFiles.slice(0, 8) : null,
       contractPhotosSkippedBySuperAdmin: !!sale.contractPhotosSkippedBySuperAdmin,
       brokerName: sale.brokerName || null,
       brokerEmail: sale.brokerEmail || null,
@@ -254,6 +291,7 @@ async function adminPropertySaleMutate(req, res) {
     var ref = await db.collection('propertySales').add(doc);
     var newId = ref.id;
     await db.collection('propertySales').doc(newId).set({ id: newId }, { merge: true });
+    await appendContractToUnitArchive(db, doc.propertyId, doc.unitCode, doc.contractFiles);
 
     if (body.syncUnitStatus && doc.unitCode) {
       await applyUnitStatusOverride(db, doc.propertyId, doc.unitCode, 'assinado');

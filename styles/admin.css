@@ -3854,4 +3854,37 @@ tr.row-renewal-due { background: #fffbeb; }
     gap: 8px;
     margin-bottom: 8px;
 }
+.sale-file-list {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.sale-file-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    background: #fff;
+    font-size: 0.85rem;
+}
+.sale-file-item small { color: var(--admin-text-muted); }
+.sale-file-item--ok { border-color: #86efac; background: #f0fdf4; }
+.sale-file-item--erro { border-color: #fca5a5; background: #fef2f2; }
+.sale-file-item--lendo { border-color: #fde68a; background: #fffbeb; }
+.sale-contract-readout {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    font-size: 0.88rem;
+}
+.sale-contract-readout p { margin: 0 0 6px; }
+.sale-contract-readout p:last-child { margin: 0; }
 

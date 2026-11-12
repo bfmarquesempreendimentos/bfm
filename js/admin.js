@@ -266,8 +266,7 @@ function setupAdminEventListeners() {
 async function loadSalesData() {
     loadSalesPropertyOptions();
     setupSaleFormMasks();
-    const photosGroup = document.getElementById('saleContractPhotosGroup');
-    if (photosGroup) photosGroup.style.display = (typeof isSuperAdmin === 'function' && isSuperAdmin()) ? 'none' : 'block';
+    bindSaleContractFiles();
     var token = await getAdminIdToken();
     if (!token) {
         showMessage('Sessão expirada. Saia e entre novamente no painel administrativo.', 'warning');
@@ -371,6 +370,176 @@ function setupSaleFormMasks() {
             this.value = formatPriceMask(v);
         });
     }
+    bindSaleContractFiles();
+}
+
+var SALE_CONTRACT_MAX = 4;
+var _saleContractQueue = [];
+
+function saleContractIsPdf(file) {
+    return !!(file && ((file.type || '').indexOf('pdf') >= 0 || /\.pdf$/i.test(file.name || '')));
+}
+
+function bindSaleContractFiles() {
+    var input = document.getElementById('saleContractPhotos');
+    if (!input || input.dataset.saleFilesBound) return;
+    input.dataset.saleFilesBound = '1';
+    input.addEventListener('change', function() {
+        onSaleContractFilesPicked(input);
+    });
+}
+
+function onSaleContractFilesPicked(input) {
+    var picked = Array.from(input.files || []);
+    input.value = '';
+    var pid = (document.getElementById('saleProperty') && document.getElementById('saleProperty').value) || '';
+    var unit = typeof getSaleUnitCodeValue === 'function' ? getSaleUnitCodeValue() : '';
+    if (picked.some(saleContractIsPdf) && (!pid || !unit) && typeof showMessage === 'function') {
+        showMessage('Escolha o imóvel e a unidade antes do contrato, para conferir se o PDF é desta unidade.', 'warning');
+    }
+    var i;
+    for (i = 0; i < picked.length; i++) {
+        if (_saleContractQueue.length >= SALE_CONTRACT_MAX) {
+            if (typeof showMessage === 'function') {
+                showMessage('Pode anexar no máximo ' + SALE_CONTRACT_MAX + ' arquivos nesta venda.', 'warning');
+            }
+            break;
+        }
+        _saleContractQueue.push({
+            file: picked[i],
+            name: picked[i].name,
+            uploaded: null,
+            error: '',
+            reading: false
+        });
+    }
+    renderSaleContractList();
+    processSaleContractQueue();
+}
+
+function renderSaleContractList() {
+    var list = document.getElementById('saleContractFileList');
+    if (!list) return;
+    if (!_saleContractQueue.length) {
+        list.innerHTML = '';
+        return;
+    }
+    list.innerHTML = _saleContractQueue.map(function(item, idx) {
+        var st = item.error ? 'erro' : (item.uploaded ? 'ok' : (item.reading ? 'lendo' : 'fila'));
+        return '<li class="sale-file-item sale-file-item--' + st + '">' +
+            '<span>' + String(item.name || '').replace(/</g, '') + '</span>' +
+            '<small>' + (item.error || (item.uploaded ? 'anexado' : (item.reading ? 'lendo…' : 'na fila'))) + '</small>' +
+            '<button type="button" class="btn btn-secondary btn-sm" data-sale-file-remove="' + idx + '">Remover</button>' +
+            '</li>';
+    }).join('');
+    list.querySelectorAll('[data-sale-file-remove]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var i = Number(btn.getAttribute('data-sale-file-remove'));
+            if (!isNaN(i)) _saleContractQueue.splice(i, 1);
+            renderSaleContractList();
+            renderSaleContractReadout();
+        });
+    });
+}
+
+function renderSaleContractReadout() {
+    var box = document.getElementById('saleContractReadout');
+    if (!box) return;
+    var hit = null;
+    _saleContractQueue.some(function(item) {
+        if (item.uploaded && item.uploaded.extracted && item.uploaded.extracted.textLength) {
+            hit = item.uploaded.extracted;
+            return true;
+        }
+        return false;
+    });
+    if (!hit) {
+        box.hidden = true;
+        box.innerHTML = '';
+        return;
+    }
+    var bits = [];
+    if (hit.buyerName) bits.push('<strong>Comprador:</strong> ' + String(hit.buyerName).replace(/</g, ''));
+    if (hit.buyerCpf) bits.push('<strong>CPF:</strong> ' + String(hit.buyerCpf).replace(/</g, ''));
+    if (hit.contractNumber) bits.push('<strong>Contrato:</strong> ' + String(hit.contractNumber).replace(/</g, ''));
+    if (hit.saleValue) bits.push('<strong>Valor:</strong> R$ ' + Number(hit.saleValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+    if (hit.unitHint) bits.push('<strong>Unidade no PDF:</strong> ' + String(hit.unitHint).replace(/</g, ''));
+    if (hit.addressRaw || hit.addressStreet) bits.push('<strong>Endereço:</strong> ' + String(hit.addressRaw || hit.addressStreet).replace(/</g, ''));
+    box.hidden = false;
+    box.innerHTML = '<p>Lido do contrato da Caixa — conferido com o cadastro.</p><p>' + bits.join(' · ') + '</p>';
+}
+
+function applyExtractedSaleContract(extracted) {
+    if (!extracted) return;
+    var nameEl = document.getElementById('saleClientName');
+    if (nameEl && !String(nameEl.value || '').trim() && extracted.buyerName) nameEl.value = extracted.buyerName;
+    var cpfEl = document.getElementById('saleClientCPF');
+    if (cpfEl && !String(cpfEl.value || '').replace(/\D/g, '') && extracted.buyerCpf && typeof formatCPFMask === 'function') {
+        cpfEl.value = formatCPFMask(extracted.buyerCpf);
+    }
+    var numEl = document.getElementById('saleContractNumber');
+    if (numEl && !String(numEl.value || '').trim() && extracted.contractNumber) numEl.value = extracted.contractNumber;
+    var priceEl = document.getElementById('salePrice');
+    if (priceEl && !(parseFloat(String(priceEl.value || '').replace(/\./g, '').replace(',', '.')) > 0) && extracted.saleValue && typeof formatPriceMask === 'function') {
+        priceEl.value = formatPriceMask(String(Math.round(Number(extracted.saleValue) * 100)));
+    }
+    renderSaleContractReadout();
+}
+
+function saleContractUploadOpts() {
+    var pid = (document.getElementById('saleProperty') && document.getElementById('saleProperty').value) || '';
+    var unit = typeof getSaleUnitCodeValue === 'function' ? getSaleUnitCodeValue() : '';
+    var priceStr = ((document.getElementById('salePrice') && document.getElementById('salePrice').value) || '').replace(/\./g, '').replace(',', '.');
+    return {
+        propertyId: pid,
+        unitCode: unit,
+        clientCPF: (document.getElementById('saleClientCPF') && document.getElementById('saleClientCPF').value) || '',
+        clientName: (document.getElementById('saleClientName') && document.getElementById('saleClientName').value) || '',
+        contractNumber: (document.getElementById('saleContractNumber') && document.getElementById('saleContractNumber').value) || '',
+        salePrice: parseFloat(priceStr) || '',
+        existingNames: _saleContractQueue.map(function(item) {
+            return (item.uploaded && item.uploaded.name) || item.name || '';
+        })
+    };
+}
+
+async function processSaleContractQueue() {
+    var token = typeof getAdminIdToken === 'function' ? await getAdminIdToken() : null;
+    var uploadFn = typeof uploadAdminDossierFile === 'function' ? uploadAdminDossierFile : null;
+    if (!uploadFn) return;
+    var opts = saleContractUploadOpts();
+    var i;
+    for (i = 0; i < _saleContractQueue.length; i++) {
+        var item = _saleContractQueue[i];
+        if (item.uploaded || item.reading) continue;
+        item.error = '';
+        item.reading = true;
+        renderSaleContractList();
+        try {
+            var isPdf = saleContractIsPdf(item.file);
+            var up = await uploadFn(item.file, 'sale-contracts', token, isPdf ? 'contrato' : '', Object.assign({
+                docKind: isPdf ? 'contrato' : '',
+            }, opts));
+            item.uploaded = up;
+            item.reading = false;
+            item.error = '';
+            if (up && up.extracted) applyExtractedSaleContract(up.extracted);
+        } catch (err) {
+            item.reading = false;
+            item.error = (err && err.message) ? err.message : 'Falha no envio';
+            if (typeof showMessage === 'function') showMessage(item.error, 'error');
+        }
+        renderSaleContractList();
+        renderSaleContractReadout();
+    }
+}
+
+function clearSaleContractQueue() {
+    _saleContractQueue = [];
+    var input = document.getElementById('saleContractPhotos');
+    if (input) input.value = '';
+    renderSaleContractList();
+    renderSaleContractReadout();
 }
 
 function loadSalesPropertyOptions() {
@@ -613,6 +782,7 @@ function cancelSaleEdit() {
     if (formEl) formEl.reset();
     var fp = document.getElementById('saleContractPhotos');
     if (fp) fp.value = '';
+    clearSaleContractQueue();
     updateSaleFormModeUi();
     if (typeof updateSalePropertyUnitField === 'function') updateSalePropertyUnitField();
 }
@@ -696,29 +866,30 @@ async function handleSaleFormSubmission(e) {
     }
 
     var isSA = typeof isSuperAdmin === 'function' && isSuperAdmin();
-    var photosInput = document.getElementById('saleContractPhotos');
     var contractPhotos = [];
+    var contractFiles = [];
 
-    if (!isSA && photosInput && !editingSaleFirestoreId) {
-        var files = photosInput.files || [];
-        if (files.length === 0) {
-            showMessage('É obrigatório anexar fotos do contrato de venda (escritura/Caixa).', 'error');
-            return;
-        }
-        if (typeof uploadRepairAttachmentsToFirebase === 'function') {
-            try {
-                var uploaded = await uploadRepairAttachmentsToFirebase(Array.from(files), 'sale-contracts');
-                contractPhotos = (uploaded || []).map(function(u) { return u.url; });
-            } catch (err) {
-                console.error('Erro ao enviar fotos:', err);
-                showMessage('Erro ao enviar fotos do contrato. Tente novamente.', 'error');
-                return;
-            }
-        } else {
-            showMessage('Sistema de upload indisponível. Tente mais tarde.', 'error');
-            return;
-        }
+    await processSaleContractQueue();
+    if (_saleContractQueue.some(function(item) { return item.error; })) {
+        var failed = _saleContractQueue.filter(function(item) { return item.error; })[0];
+        showMessage((failed && failed.error) || 'Erro ao enviar o contrato. Confira se o PDF é desta unidade.', 'error');
+        return;
     }
+    if (!isSA && !editingSaleFirestoreId && !_saleContractQueue.length) {
+        showMessage('Anexe o PDF do contrato da Caixa (e, se quiser, mais 2 ou 3 fotos).', 'error');
+        return;
+    }
+    contractFiles = _saleContractQueue.map(function(item) {
+        var up = item.uploaded || {};
+        return {
+            name: up.name || item.name,
+            path: up.path || '',
+            url: up.url || '',
+            kind: saleContractIsPdf(item.file) ? 'contrato' : 'anexo',
+            label: saleContractIsPdf(item.file) ? 'Contrato Caixa' : 'Anexo da venda',
+        };
+    }).filter(function(f) { return f.path || f.url; });
+    contractPhotos = contractFiles.map(function(f) { return f.url; }).filter(Boolean);
     
     if (editingSaleFirestoreId) {
         var patch = {
@@ -730,6 +901,10 @@ async function handleSaleFormSubmission(e) {
             contractNumber: (document.getElementById('saleContractNumber') && document.getElementById('saleContractNumber').value) || '',
             notes: (document.getElementById('saleNotes') && document.getElementById('saleNotes').value) || '',
         };
+        if (contractFiles.length) {
+            patch.contractFiles = contractFiles;
+            patch.contractPhotos = contractPhotos;
+        }
         var updPayload = {
             action: 'update',
             saleFirestoreId: editingSaleFirestoreId,
@@ -777,6 +952,7 @@ async function handleSaleFormSubmission(e) {
         salePrice: salePrice,
         contractNumber: (document.getElementById('saleContractNumber') && document.getElementById('saleContractNumber').value) || '',
         contractPhotos: contractPhotos.length > 0 ? contractPhotos : undefined,
+        contractFiles: contractFiles.length ? contractFiles : undefined,
         contractPhotosSkippedBySuperAdmin: !!(isSA && contractPhotos.length === 0),
         brokerName: adminUser.name || null,
         brokerEmail: adminUser.email || null,
@@ -801,8 +977,7 @@ async function handleSaleFormSubmission(e) {
             var formEl2 = (e && e.target) || document.getElementById('saleForm');
             if (formEl2) {
                 formEl2.reset();
-                var fp2 = document.getElementById('saleContractPhotos');
-                if (fp2) fp2.value = '';
+                clearSaleContractQueue();
             }
             await loadSalesData();
             await registerClientFromSaleAndSendCredentials(saleData, result.sale);

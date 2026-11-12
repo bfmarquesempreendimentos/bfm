@@ -110,6 +110,7 @@ function saleToClientProperty(sale) {
         unitCode: sale.unitCode,
         purchaseDate: sale.saleDate,
         contractNumber: sale.contractNumber,
+        documents: Array.isArray(sale.contractFiles) ? sale.contractFiles : [],
         status: 'vendido',
         openPortion: null,
         images: (property && property.images) || [],
