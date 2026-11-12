@@ -3196,6 +3196,27 @@ button.wa-stat.wa-stat--click:focus {
     font-size: 0.7rem;
     font-weight: 600;
 }
+.analytics-people-filters { margin: 8px 0 12px; }
+.analytics-people-search {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 320px;
+    margin: 0 0 12px;
+    font-size: 0.85rem;
+}
+.analytics-people-search input {
+    padding: 8px 10px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+}
+.analytics-people-email {
+    margin-top: 2px;
+    font-size: 0.75rem;
+    color: var(--admin-text-muted);
+    font-weight: 400;
+}
+tr.analytics-people-few td { color: #64748b; }
 
 .analytics-period-btn {
     padding: 6px 14px;

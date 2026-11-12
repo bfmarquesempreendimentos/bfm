@@ -8,7 +8,7 @@
     <title>Painel Administrativo - Construtora Premium</title>
     <script>
     (function() {
-        var need = '60';
+        var need = '61';
         if (String(location.search).indexOf('v=' + need) >= 0) return;
         var u = new URL(location.href);
         u.searchParams.set('v', need);
@@ -17,7 +17,7 @@
     })();
     </script>
     <link rel="stylesheet" href="styles/main.css?v=37">
-    <link rel="stylesheet" href="styles/admin.css?v=50">
+    <link rel="stylesheet" href="styles/admin.css?v=51">
     <link rel="stylesheet" href="styles/admin-finance.css?v=2">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1728,6 +1728,39 @@
                 </div>
 
                 <div class="analytics-chart-row">
+                    <div class="analytics-chart-card analytics-chart-wide">
+                        <h3>Quem visita o site</h3>
+                        <p class="form-hint">Últimos 30 dias. Cadastrados aparecem pelo nome. Clique em Visitas: primeiro o que mais acessa; de novo, quem acessa pouco.</p>
+                        <div class="admin-kind-chips analytics-people-filters" role="tablist" aria-label="Filtrar visitantes">
+                            <button type="button" class="admin-kind-chip is-active" data-people-filter="identified" onclick="filterAnalyticsPeople('identified')">Cadastrados</button>
+                            <button type="button" class="admin-kind-chip" data-people-filter="broker" onclick="filterAnalyticsPeople('broker')">Corretores</button>
+                            <button type="button" class="admin-kind-chip" data-people-filter="client" onclick="filterAnalyticsPeople('client')">Clientes</button>
+                            <button type="button" class="admin-kind-chip" data-people-filter="admin" onclick="filterAnalyticsPeople('admin')">Admin</button>
+                            <button type="button" class="admin-kind-chip" data-people-filter="all" onclick="filterAnalyticsPeople('all')">Todos</button>
+                        </div>
+                        <label class="analytics-people-search">Buscar
+                            <input type="search" id="analyticsPeopleSearch" placeholder="Nome ou e-mail" autocomplete="off">
+                        </label>
+                        <div class="analytics-table-scroll">
+                            <table class="analytics-table" id="analyticsPeopleTable">
+                                <thead>
+                                    <tr>
+                                        <th>Pessoa</th>
+                                        <th>Tipo</th>
+                                        <th class="is-sortable is-sorted-desc" data-people-sort="visits">Visitas</th>
+                                        <th class="is-sortable" data-people-sort="last">Última visita</th>
+                                        <th>Página mais vista</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analyticsPeopleBody">
+                                    <tr><td colspan="5" style="text-align:center;color:#999;">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="analytics-chart-row">
                     <div class="analytics-chart-card">
                         <h3>Páginas Mais Visitadas</h3>
                         <div class="analytics-table-scroll">
@@ -2353,7 +2386,7 @@
     <script src="js/sample-data.js"></script>
     <script src="js/property-sales.js"></script>
     <script src="js/whatsapp-leads.js?v=34"></script>
-    <script src="js/admin-analytics.js?v=35"></script>
+    <script src="js/admin-analytics.js?v=36"></script>
     <script src="js/admin-repairs.js?v=37"></script>
     <script src="js/admin-boletos.js?v=36"></script>
     <script src="js/fcm-push.js?v=2"></script>

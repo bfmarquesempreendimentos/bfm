@@ -6,6 +6,11 @@
     let visitsChart = null;
     let devicesChart = null;
     let browsersChart = null;
+    var _peopleFilter = 'identified';
+    var _peopleSort = 'visits';
+    var _peopleDir = 'desc';
+    var _peopleQuery = '';
+    var _peopleUiBound = false;
 
     function startOfDay(date) {
         const d = new Date(date);
@@ -54,6 +59,8 @@
             renderBrowsersChart();
             renderPagesTable();
             renderRecentVisits();
+            bindPeopleUi();
+            renderPeopleTable();
         } catch (err) {
             console.error('Erro ao carregar analytics:', err);
             document.getElementById('analyticsContent').innerHTML =
@@ -287,6 +294,175 @@
         }
         return '<span class="analytics-visitor-anon">Visitante</span>';
     }
+
+    function visitorKey(v) {
+        if (v.visitorUid) return 'uid:' + v.visitorUid;
+        if (v.visitorEmail) return 'email:' + String(v.visitorEmail).toLowerCase();
+        return 'anon:' + (v.visitorId || 'x');
+    }
+
+    function topPage(pages) {
+        var best = '';
+        var n = 0;
+        Object.keys(pages || {}).forEach(function(p) {
+            if (pages[p] > n) {
+                n = pages[p];
+                best = p;
+            }
+        });
+        return best;
+    }
+
+    function isAdminRole(role) {
+        return role === 'super' || role === 'admin' || role === 'comercial' || role === 'posvenda' || role === 'financeiro';
+    }
+
+    function aggregatePeople() {
+        var map = {};
+        allVisits.forEach(function(v) {
+            var k = visitorKey(v);
+            if (!map[k]) {
+                map[k] = {
+                    key: k,
+                    name: '',
+                    email: '',
+                    role: '',
+                    visits: 0,
+                    last: null,
+                    pages: {},
+                    identified: false
+                };
+            }
+            var row = map[k];
+            row.visits += 1;
+            if (!row.last || v._date > row.last) row.last = v._date;
+            if (v.visitorName) {
+                row.name = v.visitorName;
+                row.identified = true;
+            }
+            if (v.visitorEmail) row.email = v.visitorEmail;
+            if (v.visitorRole) row.role = v.visitorRole;
+            var page = v.pageName || v.page;
+            if (page) row.pages[page] = (row.pages[page] || 0) + 1;
+        });
+        var rows = Object.keys(map).map(function(k) { return map[k]; });
+        var seenEmail = {};
+        rows.forEach(function(r) {
+            if (r.email) seenEmail[String(r.email).toLowerCase()] = true;
+        });
+        var knownBrokers = [];
+        if (typeof getAllBrokers === 'function') {
+            try { knownBrokers = getAllBrokers() || []; } catch (e1) { knownBrokers = []; }
+        }
+        if ((!knownBrokers || !knownBrokers.length) && Array.isArray(window.brokers)) {
+            knownBrokers = window.brokers;
+        }
+        knownBrokers.forEach(function(b) {
+            if (!b || b.isActive === false) return;
+            var em = String(b.email || '').trim().toLowerCase();
+            if (!em || seenEmail[em]) return;
+            rows.push({
+                key: 'email:' + em,
+                name: b.name || em,
+                email: em,
+                role: 'broker',
+                visits: 0,
+                last: null,
+                pages: {},
+                identified: true
+            });
+        });
+        return rows;
+    }
+
+    function peopleMatchesFilter(row) {
+        if (_peopleFilter === 'identified') return row.identified;
+        if (_peopleFilter === 'broker') return row.role === 'broker';
+        if (_peopleFilter === 'client') return row.role === 'client';
+        if (_peopleFilter === 'admin') return isAdminRole(row.role);
+        return true;
+    }
+
+    function comparePeople(a, b) {
+        var dir = _peopleDir === 'asc' ? 1 : -1;
+        if (_peopleSort === 'last') {
+            var av = a.last ? a.last.getTime() : 0;
+            var bv = b.last ? b.last.getTime() : 0;
+            if (av !== bv) return (av - bv) * dir;
+        } else {
+            if (a.visits !== b.visits) return (a.visits - b.visits) * dir;
+        }
+        return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'pt');
+    }
+
+    function bindPeopleUi() {
+        if (_peopleUiBound) return;
+        _peopleUiBound = true;
+        var table = document.getElementById('analyticsPeopleTable');
+        if (table) {
+            table.addEventListener('click', function(ev) {
+                var th = ev.target.closest('[data-people-sort]');
+                if (!th || !table.contains(th)) return;
+                var key = th.getAttribute('data-people-sort');
+                if (_peopleSort === key) _peopleDir = _peopleDir === 'desc' ? 'asc' : 'desc';
+                else {
+                    _peopleSort = key;
+                    _peopleDir = key === 'visits' ? 'desc' : 'desc';
+                }
+                renderPeopleTable();
+            });
+        }
+        var search = document.getElementById('analyticsPeopleSearch');
+        if (search) {
+            search.addEventListener('input', function() {
+                _peopleQuery = search.value;
+                renderPeopleTable();
+            });
+        }
+    }
+
+    function renderPeopleTable() {
+        var tbody = document.getElementById('analyticsPeopleBody');
+        if (!tbody) return;
+        var q = String(_peopleQuery || '').trim().toLowerCase();
+        var rows = aggregatePeople().filter(peopleMatchesFilter).filter(function(r) {
+            if (!q) return true;
+            return [r.name, r.email, visitorRoleLabel(r.role)].join(' ').toLowerCase().indexOf(q) !== -1;
+        }).sort(comparePeople);
+        document.querySelectorAll('#analyticsPeopleTable th[data-people-sort]').forEach(function(th) {
+            th.classList.remove('is-sorted-asc', 'is-sorted-desc');
+            if (th.getAttribute('data-people-sort') === _peopleSort) {
+                th.classList.add(_peopleDir === 'asc' ? 'is-sorted-asc' : 'is-sorted-desc');
+            }
+        });
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;">Ninguém neste filtro nos últimos 30 dias.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = rows.map(function(r) {
+            var label = r.identified
+                ? ('<span class="analytics-visitor-known">' + escapeHtml(r.name || r.email) + '</span> ' +
+                    (visitorRoleLabel(r.role) ? '<span class="analytics-visitor-role">' + escapeHtml(visitorRoleLabel(r.role)) + '</span>' : ''))
+                : '<span class="analytics-visitor-anon">Visitante</span>';
+            var last = r.last ? formatDateTime(r.last) : 'Não visitou';
+            var few = r.visits <= 2 ? ' class="analytics-people-few"' : '';
+            return '<tr' + few + '>' +
+                '<td>' + label + (r.email && r.identified ? '<div class="analytics-people-email">' + escapeHtml(r.email) + '</div>' : '') + '</td>' +
+                '<td>' + escapeHtml(visitorRoleLabel(r.role) || (r.identified ? '—' : 'Anônimo')) + '</td>' +
+                '<td><strong>' + r.visits + '</strong></td>' +
+                '<td>' + last + '</td>' +
+                '<td>' + escapeHtml(topPage(r.pages) || '—') + '</td>' +
+                '</tr>';
+        }).join('');
+    }
+
+    window.filterAnalyticsPeople = function(kind) {
+        _peopleFilter = kind || 'identified';
+        document.querySelectorAll('.analytics-people-filters .admin-kind-chip').forEach(function(btn) {
+            btn.classList.toggle('is-active', (btn.getAttribute('data-people-filter') || '') === _peopleFilter);
+        });
+        renderPeopleTable();
+    };
 
     function renderRecentVisits() {
         var tbody = document.getElementById('analyticsRecentBody');
