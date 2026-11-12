@@ -575,7 +575,10 @@ function scheduleOpenPropertyFromUrl() {
 
 function getVisibleProperties(list) {
     return (list || []).filter(function(property) {
-        return !property.hideFromSite;
+        if (property.hideFromSite) return false;
+        if (property.inventoryKind === 'patrimonio') return false;
+        if (property.inSales === false) return false;
+        return true;
     });
 }
 

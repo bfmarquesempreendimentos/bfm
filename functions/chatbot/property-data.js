@@ -250,6 +250,7 @@ function getPropertyIdFromSlug(slug) {
 function isPropertyOffered(p) {
   if (!p || p.id == null) return false;
   if (OFFERING_EXCLUDED_PROPERTY_IDS[Number(p.id)]) return false;
+  if (p.inventoryKind === 'patrimonio' || p.inSales === false) return false;
   var st = String(p.status || '').toLowerCase();
   if (st === 'vendido') return false;
   return true;

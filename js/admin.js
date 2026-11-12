@@ -1517,43 +1517,61 @@ function openPropertyDocumentation(propertyId) {
     if (typeof loadUnitEngineeringAdmin === 'function') loadUnitEngineeringAdmin(propertyId);
 }
 
-function loadPropertiesData() {
-    const tbody = document.getElementById('propertiesTableBody');
-    if (!tbody) return;
-    
-    tbody.innerHTML = properties.map(property => `
+function adminInventoryKind(pid) {
+    if (typeof propertyInventoryKind === 'function') return propertyInventoryKind(pid);
+    return 'empreendimento';
+}
+
+function adminKindLabel(pid) {
+    return adminInventoryKind(pid) === 'patrimonio' ? 'Patrimônio' : 'À venda';
+}
+
+function propertyPortfolioRowHtml(property) {
+    return `
         <tr>
             <td>${property.id}</td>
             <td>${property.title}</td>
+            <td>${adminKindLabel(property.id)}</td>
             <td>${property.type}</td>
             <td>${property.location}</td>
             <td>R$ ${property.price.toLocaleString('pt-BR')}</td>
             <td><span class="status-badge status-${property.status}">${getStatusText(property.status)}</span></td>
             <td>
                 <div class="action-buttons">
-                    <button class="btn-action btn-view" onclick="viewProperty(${property.id})">
+                    <button class="btn-action btn-view" onclick="viewProperty(${property.id})" title="Ver no site">
                         <i class="fas fa-eye"></i>
                     </button>
-                    <button class="btn-action btn-edit" onclick="editProperty(${property.id})">
+                    <button class="btn-action btn-edit" onclick="editProperty(${property.id})" title="Editar card">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn-action" title="Cadastro do empreendimento" onclick="openPropertyDocumentation(${property.id})">
+                    <button class="btn-action" title="Abrir ficha" onclick="openPropertyDocumentation(${property.id})">
                         <i class="fas fa-folder-open"></i>
                     </button>
-                    <button class="btn-action btn-delete" onclick="deletePropertyAdmin(${property.id})">
+                    <button class="btn-action btn-delete" onclick="deletePropertyAdmin(${property.id})" title="Excluir">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
             </td>
         </tr>
-    `).join('');
+    `;
+}
+
+function loadPropertiesData() {
+    const tbody = document.getElementById('propertiesTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = properties.map(propertyPortfolioRowHtml).join('');
 }
 
 // Filter admin properties
 function filterAdminProperties() {
-    const typeFilter = document.getElementById('adminTypeFilter').value;
-    const statusFilter = document.getElementById('adminStatusFilter').value;
-    const searchFilter = document.getElementById('adminSearchInput').value.toLowerCase();
+    const typeEl = document.getElementById('adminTypeFilter');
+    const statusEl = document.getElementById('adminStatusFilter');
+    const searchEl = document.getElementById('adminSearchInput');
+    const typeFilter = typeEl ? typeEl.value : '';
+    const statusFilter = statusEl ? statusEl.value : '';
+    const searchFilter = searchEl ? searchEl.value.toLowerCase() : '';
+    const kindChip = document.querySelector('.admin-kind-chip.is-active');
+    const kindFilter = kindChip ? (kindChip.getAttribute('data-kind') || '') : '';
     
     const filtered = properties.filter(property => {
         const matchesType = !typeFilter || property.type === typeFilter;
@@ -1561,8 +1579,9 @@ function filterAdminProperties() {
         const matchesSearch = !searchFilter || 
             property.title.toLowerCase().includes(searchFilter) ||
             property.location.toLowerCase().includes(searchFilter);
+        const matchesKind = !kindFilter || adminInventoryKind(property.id) === kindFilter;
         
-        return matchesType && matchesStatus && matchesSearch;
+        return matchesType && matchesStatus && matchesSearch && matchesKind;
     });
     
     displayFilteredProperties(filtered);
@@ -1574,36 +1593,11 @@ function displayFilteredProperties(filteredProperties) {
     if (!tbody) return;
     
     if (filteredProperties.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-message">Nenhum imóvel encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-message">Nenhum imóvel encontrado.</td></tr>';
         return;
     }
     
-    tbody.innerHTML = filteredProperties.map(property => `
-        <tr>
-            <td>${property.id}</td>
-            <td>${property.title}</td>
-            <td>${property.type}</td>
-            <td>${property.location}</td>
-            <td>R$ ${property.price.toLocaleString('pt-BR')}</td>
-            <td><span class="status-badge status-${property.status}">${getStatusText(property.status)}</span></td>
-            <td>
-                <div class="action-buttons">
-                    <button class="btn-action btn-view" onclick="viewProperty(${property.id})">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="btn-action btn-edit" onclick="editProperty(${property.id})">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn-action" title="Cadastro do empreendimento" onclick="openPropertyDocumentation(${property.id})">
-                        <i class="fas fa-folder-open"></i>
-                    </button>
-                    <button class="btn-action btn-delete" onclick="deletePropertyAdmin(${property.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = filteredProperties.map(propertyPortfolioRowHtml).join('');
 }
 
 // Get status text

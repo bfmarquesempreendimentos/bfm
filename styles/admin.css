@@ -885,7 +885,7 @@
 
 .admin-table {
     width: 100%;
-    min-width: 880px;
+    min-width: 720px;
     border-collapse: collapse;
 }
 
@@ -1304,10 +1304,18 @@
     align-items: end;
     margin: 12px 0;
 }
-.ue-toolbar select,
+.ue-toolbar select {
+    min-width: 180px;
+    padding: 8px 10px;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+}
 .ue-form input,
 .ue-form select {
-    min-width: 180px;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     padding: 8px 10px;
     border: 1px solid var(--admin-border);
     border-radius: 8px;
@@ -1401,8 +1409,10 @@
 }
 .ue-drawer-panel {
     position: relative;
-    width: min(560px, 100vw);
+    width: min(520px, 100%);
     height: 100%;
+    height: 100dvh;
+    max-height: 100%;
     background: #fff;
     box-shadow: -12px 0 40px rgba(15, 23, 42, 0.18);
     display: flex;
@@ -1451,7 +1461,7 @@
 body.ue-drawer-open { overflow: hidden; }
 .ue-form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
     gap: 10px;
 }
 .ue-form label {
@@ -3698,4 +3708,150 @@ button.wa-stat.wa-stat--click:focus {
 .admin-kpi-card--alert .admin-kpi-value { color: #b45309; }
 .status-renewal-due { background: #fef3c7; color: #92400e; }
 tr.row-renewal-due { background: #fffbeb; }
+
+/* Admin layout v7 — laptop 13/14" e ficha lateral */
+.admin-body {
+    overflow-x: hidden;
+}
+.admin-main {
+    overflow-x: clip;
+    min-width: 0;
+}
+.section-header,
+.header-actions,
+.ue-toolbar,
+.ue-units-toolbar {
+    flex-wrap: wrap;
+}
+.admin-kind-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 12px;
+}
+.admin-kind-chip {
+    border: 1px solid var(--admin-border);
+    background: #fff;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: #475569;
+}
+.admin-kind-chip.is-active {
+    background: #0b1f3a;
+    color: #fff;
+    border-color: #0b1f3a;
+}
+.ue-check-label .ue-check-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    font-weight: 500;
+}
+.ue-check-label input[type="checkbox"] {
+    width: auto;
+    min-width: 0;
+}
+.ue-occ {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: #e2e8f0;
+    color: #334155;
+}
+.ue-occ--sale { background: #dbeafe; color: #1e40af; }
+.ue-occ--rent { background: #dcfce7; color: #166534; }
+.ue-occ--idle { background: #fef3c7; color: #92400e; }
+.ue-occ--own { background: #ede9fe; color: #5b21b6; }
+.ue-lease-mini {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: var(--admin-text-muted);
+    font-weight: 500;
+}
+.ue-lease-block {
+    margin: 16px 0;
+    padding: 12px 0 4px;
+    border-top: 1px solid var(--admin-border);
+}
+.ue-lease-block h5 {
+    margin: 0 0 6px;
+}
+.pd-units-table th:first-child,
+.pd-units-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #fff;
+    box-shadow: 1px 0 0 var(--admin-border);
+}
+.pd-units-table th:first-child {
+    background: #f1f5f9;
+    z-index: 2;
+}
+.ue-drawer .ue-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 1280px) {
+    .admin-menu-toggle {
+        display: block;
+    }
+    .admin-sidebar-overlay.visible {
+        display: block;
+    }
+    .admin-sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 999;
+    }
+    .admin-sidebar.open {
+        transform: translateX(0);
+    }
+    .admin-main {
+        margin-left: 0;
+        padding: 20px 16px 32px;
+    }
+}
+@media (max-width: 560px) {
+    .ue-drawer .ue-form-grid {
+        grid-template-columns: 1fr;
+    }
+    .ue-drawer-panel {
+        width: 100%;
+    }
+}
+.ue-charge-section {
+    margin: 18px 0 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--admin-border);
+}
+.ue-charge-section h4,
+.ue-charge-section h5 {
+    margin: 0 0 6px;
+}
+.ue-charge-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+.ue-charge-card {
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #f8fafc;
+}
+.ue-charge-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
 

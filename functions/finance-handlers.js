@@ -54,6 +54,7 @@ function normalizeTx(doc) {
     reconciled: !!d.reconciled,
     reconciledAt: d.reconciledAt || '',
     notes: d.notes || '',
+    sourceChargeId: d.sourceChargeId || '',
     createdAt: d.createdAt || '',
     updatedAt: d.updatedAt || '',
   };
@@ -211,6 +212,7 @@ async function handleFinanceMutate(req, res, auth) {
       reconciled: !!body.reconciled,
       reconciledAt: body.reconciled ? new Date().toISOString() : '',
       notes: String(body.notes || '').trim(),
+      sourceChargeId: String(body.sourceChargeId || '').trim().slice(0, 80),
       createdBy: auth.email || '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

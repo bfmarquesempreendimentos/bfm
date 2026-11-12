@@ -13,6 +13,9 @@
     var _sortDir = 'asc';
     var _filterText = '';
     var _statusFilter = '';
+    var _occupancyFilter = '';
+    var _kindFilter = '';
+    var _kindByPid = {};
     var _openUnit = '';
     var _uiBound = false;
     var _archiveCurrentOnSave = false;
@@ -23,6 +26,10 @@
     var _pendingRgiPromise = null;
     var _laudoSeq = 0;
     var _rgiSeq = 0;
+    var _unitCharges = [];
+    var _buildingCharges = [];
+    var _maintenances = [];
+    var _unitMaintenances = [];
 
     var BUILDING_PRIMARY = {
         art: 1, crea: 1, memorial: 1, habite_planta: 1, averbacao: 1,
@@ -344,6 +351,10 @@
             av = String(a.inscricaoMunicipal || '');
             bv = String(b.inscricaoMunicipal || '');
             if (av !== bv) return av.localeCompare(bv, 'pt', { numeric: true }) * dir;
+        } else if (_sortKey === 'occupancy') {
+            av = occupancyLabel(a.occupancy);
+            bv = occupancyLabel(b.occupancy);
+            if (av !== bv) return av.localeCompare(bv, 'pt') * dir;
         } else if (_sortKey === 'salePrice') {
             av = moneyKey(a.salePrice);
             bv = moneyKey(b.salePrice);
@@ -366,16 +377,23 @@
         return compareUnitCodes(a.unitCode, b.unitCode);
     }
 
+    function unitOccupancy(r) {
+        return (r && r.occupancy) || (_property && _property.occupancy) || '';
+    }
+
     function visibleRows() {
         var q = String(_filterText || '').trim().toLowerCase();
         return _rows.filter(function(r) {
             if (_statusFilter && String(r.status || 'sem_laudo') !== _statusFilter) return false;
+            if (_occupancyFilter && unitOccupancy(r) !== _occupancyFilter) return false;
             if (!q) return true;
             var blob = [
                 r.unitCode,
                 formatUnitLabel(r.unitCode),
                 r.matricula,
-                r.inscricaoMunicipal
+                r.inscricaoMunicipal,
+                occupancyLabel(unitOccupancy(r)),
+                r.leaseTenant
             ].join(' ').toLowerCase();
             return blob.indexOf(q) !== -1;
         }).slice().sort(compareRows);
@@ -409,13 +427,453 @@
         return _seed.properties[String(pid)] || null;
     }
 
+    function occupancyLabel(v) {
+        return ({
+            venda: 'À venda',
+            alugado: 'Alugado',
+            vago: 'Parado / vago',
+            uso_proprio: 'Uso próprio'
+        })[v] || '—';
+    }
+
+    function occupancyClass(v) {
+        if (v === 'alugado') return 'ue-occ ue-occ--rent';
+        if (v === 'vago') return 'ue-occ ue-occ--idle';
+        if (v === 'uso_proprio') return 'ue-occ ue-occ--own';
+        if (v === 'venda') return 'ue-occ ue-occ--sale';
+        return 'ue-occ';
+    }
+
+    function chargeKindLabel(k) {
+        return ({
+            iptu: 'IPTU', condominio: 'Condomínio', manutencao: 'Manutenção',
+            seguro: 'Seguro', agua: 'Água', luz: 'Luz', outro: 'Outro'
+        })[k] || 'Outro';
+    }
+
+    function chargeStatusClass(st) {
+        if (st === 'pago') return 'ue-status ue-status--ok';
+        if (st === 'atrasado') return 'ue-status ue-status--expired';
+        return 'ue-status ue-status--soon';
+    }
+
+    function chargeStatusLabel(st) {
+        if (st === 'pago') return 'Pago';
+        if (st === 'atrasado') return 'Atrasado';
+        return 'A vencer';
+    }
+
+    function newLocalChargeId() {
+        return 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+    }
+
+    function cloneCharges(list) {
+        return (list || []).map(function(c) { return Object.assign({}, c); });
+    }
+
+    function addMonthsLocal(ymd, months) {
+        return addMonthsYmd(ymd, months);
+    }
+
+    function blankCharge(kind, extras) {
+        extras = extras || {};
+        return Object.assign({
+            id: newLocalChargeId(),
+            kind: kind || 'outro',
+            label: extras.label || chargeKindLabel(kind),
+            dueDate: extras.dueDate || '',
+            amount: extras.amount != null ? extras.amount : '',
+            period: extras.period || (extras.dueDate ? String(extras.dueDate).slice(0, 7) : ''),
+            status: extras.status || 'a_vencer',
+            paidAt: '',
+            receiptPath: '',
+            receiptName: '',
+            notes: extras.notes || '',
+            vendor: extras.vendor || '',
+            recurrence: extras.recurrence || (kind === 'manutencao' || kind === 'seguro' ? 'anual' : 'mensal'),
+            lastDoneAt: extras.lastDoneAt || '',
+            financeTxId: ''
+        }, extras);
+    }
+
+    function generateChargeParcels(kind, baseDate, amount, count) {
+        var n = Math.min(12, Math.max(1, parseInt(count, 10) || 1));
+        var out = [];
+        var i;
+        if (!baseDate) return out;
+        for (i = 0; i < n; i++) {
+            var due = addMonthsLocal(baseDate, i);
+            out.push(blankCharge(kind, {
+                dueDate: due,
+                period: due ? due.slice(0, 7) : '',
+                amount: amount,
+                label: chargeKindLabel(kind) + (due ? ' ' + due.slice(5, 7) + '/' + due.slice(0, 4) : '')
+            }));
+        }
+        return out;
+    }
+
+    function mergeGenerated(list, generated) {
+        var have = {};
+        (list || []).forEach(function(c) {
+            have[c.kind + '|' + (c.period || c.dueDate || '')] = 1;
+        });
+        generated.forEach(function(c) {
+            if (list.length >= 120) return;
+            var key = c.kind + '|' + (c.period || c.dueDate || '');
+            if (have[key]) return;
+            have[key] = 1;
+            list.push(c);
+        });
+        return list;
+    }
+
+    function chargesFromList(scope) {
+        if (scope === 'building') return _buildingCharges;
+        if (scope === 'maint') return _maintenances;
+        if (scope === 'unitMaint') return _unitMaintenances;
+        return _unitCharges;
+    }
+
+    function readChargeCard(card) {
+        if (!card) return null;
+        var id = card.getAttribute('data-charge-id');
+        var get = function(sel) {
+            var el = card.querySelector(sel);
+            return el ? el.value : '';
+        };
+        return {
+            id: id,
+            kind: get('[data-cf="kind"]') || card.getAttribute('data-kind') || 'outro',
+            label: get('[data-cf="label"]'),
+            dueDate: get('[data-cf="dueDate"]'),
+            amount: parseMoneyInput(get('[data-cf="amount"]')),
+            period: get('[data-cf="period"]'),
+            status: get('[data-cf="status"]') || 'a_vencer',
+            paidAt: get('[data-cf="paidAt"]'),
+            vendor: get('[data-cf="vendor"]'),
+            recurrence: get('[data-cf="recurrence"]'),
+            lastDoneAt: get('[data-cf="lastDoneAt"]'),
+            notes: get('[data-cf="notes"]'),
+            receiptPath: card.getAttribute('data-receipt-path') || '',
+            receiptName: card.getAttribute('data-receipt-name') || '',
+            financeTxId: card.getAttribute('data-finance-tx') || ''
+        };
+    }
+
+    function syncChargeListFromDom(scope) {
+        var boxId = scope === 'building' ? 'pdBuildingCharges'
+            : scope === 'maint' ? 'pdMaintenances'
+            : scope === 'unitMaint' ? 'ueMaintenances'
+            : 'ueCharges';
+        var box = document.getElementById(boxId);
+        if (!box) return;
+        var next = [];
+        box.querySelectorAll('.ue-charge-card').forEach(function(card) {
+            var c = readChargeCard(card);
+            if (c) next.push(c);
+        });
+        if (scope === 'building') _buildingCharges = next;
+        else if (scope === 'maint') _maintenances = next;
+        else if (scope === 'unitMaint') _unitMaintenances = next;
+        else _unitCharges = next;
+    }
+
+    function renderChargeList(boxId, list, scope) {
+        var box = document.getElementById(boxId);
+        if (!box) return;
+        if (!list.length) {
+            box.innerHTML = '<p class="form-hint">Nenhum lançamento ainda.</p>';
+            return;
+        }
+        var showMaint = scope === 'maint' || scope === 'unitMaint';
+        box.innerHTML = list.map(function(c) {
+            var receipt = c.receiptPath
+                ? '<button type="button" class="pd-doc-link" data-pd-path="' + esc(c.receiptPath) + '">' + esc(c.receiptName || 'Comprovante') + '</button>'
+                : '—';
+            return '<div class="ue-charge-card" data-charge-id="' + esc(c.id) + '" data-kind="' + esc(c.kind) +
+                '" data-scope="' + esc(scope) + '" data-receipt-path="' + esc(c.receiptPath || '') +
+                '" data-receipt-name="' + esc(c.receiptName || '') + '" data-finance-tx="' + esc(c.financeTxId || '') + '">' +
+                '<div class="ue-charge-head">' +
+                '<strong>' + esc(c.label || chargeKindLabel(c.kind)) + '</strong>' +
+                '<span class="' + chargeStatusClass(c.status) + '">' + esc(chargeStatusLabel(c.status)) + '</span>' +
+                '</div>' +
+                '<div class="ue-form-grid">' +
+                (showMaint
+                    ? '<label>Tipo<input data-cf="label" value="' + esc(c.label || '') + '" placeholder="Elevador, extintor…">'
+                    : '<input type="hidden" data-cf="label" value="' + esc(c.label || '') + '">') +
+                (showMaint ? '</label>' : '') +
+                '<label>Vencimento / próxima<input type="date" data-cf="dueDate" value="' + esc(c.dueDate || '') + '"></label>' +
+                '<label>Competência<input data-cf="period" value="' + esc(c.period || '') + '" placeholder="2026-05"></label>' +
+                '<label>Valor<input data-cf="amount" value="' + esc(c.amount !== '' && c.amount != null ? formatMoney(c.amount) : '') + '" inputmode="decimal"></label>' +
+                '<label>Situação<select data-cf="status">' +
+                '<option value="a_vencer"' + (c.status === 'a_vencer' ? ' selected' : '') + '>A vencer</option>' +
+                '<option value="pago"' + (c.status === 'pago' ? ' selected' : '') + '>Pago</option>' +
+                '<option value="atrasado"' + (c.status === 'atrasado' ? ' selected' : '') + '>Atrasado</option>' +
+                '</select></label>' +
+                '<label>Pago em<input type="date" data-cf="paidAt" value="' + esc(c.paidAt || '') + '"></label>' +
+                (showMaint
+                    ? '<label>Última<input type="date" data-cf="lastDoneAt" value="' + esc(c.lastDoneAt || '') + '"></label>' +
+                      '<label>Fornecedor<input data-cf="vendor" value="' + esc(c.vendor || '') + '"></label>' +
+                      '<label>Periodicidade<select data-cf="recurrence">' +
+                      '<option value="mensal"' + (c.recurrence === 'mensal' ? ' selected' : '') + '>Mensal</option>' +
+                      '<option value="semestral"' + (c.recurrence === 'semestral' ? ' selected' : '') + '>Semestral</option>' +
+                      '<option value="anual"' + (c.recurrence === 'anual' ? ' selected' : '') + '>Anual</option>' +
+                      '<option value="unica"' + (c.recurrence === 'unica' ? ' selected' : '') + '>Única</option>' +
+                      '</select></label>'
+                    : '<input type="hidden" data-cf="vendor" value="' + esc(c.vendor || '') + '">' +
+                      '<input type="hidden" data-cf="recurrence" value="' + esc(c.recurrence || 'mensal') + '">' +
+                      '<input type="hidden" data-cf="lastDoneAt" value="' + esc(c.lastDoneAt || '') + '">') +
+                '<label>Obs.<input data-cf="notes" value="' + esc(c.notes || '') + '"></label>' +
+                '</div>' +
+                '<div class="ue-toolbar">' +
+                '<span class="form-hint">Comprovante: ' + receipt + '</span>' +
+                '<label class="btn btn-secondary btn-sm">Anexar<input type="file" hidden accept=".pdf,application/pdf,image/*" data-charge-file="' + esc(c.id) + '"></label>' +
+                (c.financeTxId ? '<span class="form-hint">Já no financeiro</span>' :
+                    '<button type="button" class="btn btn-secondary btn-sm" data-charge-finance="' + esc(c.id) + '">Lançar no financeiro</button>') +
+                '<button type="button" class="btn btn-secondary btn-sm" data-charge-del="' + esc(c.id) + '">Excluir</button>' +
+                '</div></div>';
+        }).join('');
+        bindDocLinks(box);
+        box.querySelectorAll('[data-charge-del]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                syncChargeListFromDom(scope);
+                var id = btn.getAttribute('data-charge-del');
+                var arr = chargesFromList(scope).filter(function(x) { return x.id !== id; });
+                if (scope === 'building') _buildingCharges = arr;
+                else if (scope === 'maint') _maintenances = arr;
+                else if (scope === 'unitMaint') _unitMaintenances = arr;
+                else _unitCharges = arr;
+                renderChargeList(boxId, arr, scope);
+            });
+        });
+        box.querySelectorAll('[data-charge-file]').forEach(function(inp) {
+            inp.addEventListener('change', function() {
+                uploadChargeReceipt(inp, scope);
+            });
+        });
+        box.querySelectorAll('[data-charge-finance]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                launchChargeFinance(btn.getAttribute('data-charge-finance'), scope);
+            });
+        });
+    }
+
+    function refreshChargeLists() {
+        renderChargeList('pdBuildingCharges', _buildingCharges, 'building');
+        renderChargeList('pdMaintenances', _maintenances, 'maint');
+        renderChargeList('ueCharges', _unitCharges, 'unit');
+        renderChargeList('ueMaintenances', _unitMaintenances, 'unitMaint');
+    }
+
+    async function uploadChargeReceipt(inp, scope) {
+        var file = inp.files && inp.files[0];
+        if (!file) return;
+        syncChargeListFromDom(scope);
+        var id = inp.getAttribute('data-charge-file');
+        var pid = selectedPropertyId();
+        var unit = document.getElementById('ueUnitCode') && document.getElementById('ueUnitCode').value;
+        var folder = 'property-dossiers/' + pid + '/charges';
+        var uploadFn = typeof uploadAdminDossierFile === 'function' ? uploadAdminDossierFile : null;
+        if (!uploadFn || !pid) {
+            if (typeof showMessage === 'function') showMessage('Faça login para anexar o comprovante.', 'warning');
+            return;
+        }
+        var token = typeof getAdminIdToken === 'function' ? await getAdminIdToken() : null;
+        try {
+            var up = await uploadFn(file, folder, token, '', {
+                docKind: 'comprovante',
+                propertyId: pid,
+                unitCode: unit || 'predio'
+            });
+            chargesFromList(scope).forEach(function(c) {
+                if (c.id === id) {
+                    c.receiptPath = up.path || '';
+                    c.receiptName = up.name || file.name;
+                }
+            });
+            refreshChargeLists();
+            if (typeof showMessage === 'function') showMessage('Comprovante anexado. Salve a ficha para gravar.', 'success');
+        } catch (err) {
+            if (typeof showMessage === 'function') showMessage(err.message || 'Falha no comprovante.', 'error');
+        }
+        inp.value = '';
+    }
+
+    function launchChargeFinance(id, scope) {
+        syncChargeListFromDom(scope);
+        var c = null;
+        chargesFromList(scope).some(function(x) { if (x.id === id) { c = x; return true; } return false; });
+        if (!c) return;
+        if (!c.amount) {
+            if (typeof showMessage === 'function') showMessage('Informe o valor do encargo antes de lançar.', 'warning');
+            return;
+        }
+        if (typeof financeCreateFromCharge !== 'function') {
+            if (typeof showMessage === 'function') showMessage('Abra o Financeiro para lançar.', 'warning');
+            return;
+        }
+        var pid = selectedPropertyId();
+        var unit = (document.getElementById('ueUnitCode') && document.getElementById('ueUnitCode').value) || '';
+        var title = '';
+        if (typeof getPropertyById === 'function') {
+            var p = getPropertyById(pid) || getPropertyById(Number(pid));
+            if (p) title = p.title || p.name || '';
+        }
+        financeCreateFromCharge({
+            id: c.id,
+            kind: c.kind,
+            amount: c.amount,
+            date: c.paidAt || c.dueDate,
+            description: chargeKindLabel(c.kind) + (c.period ? ' ' + c.period : '') +
+                (title ? ' · ' + title : '') + (unit ? ' · ' + unit : '')
+        }).then(function(txId) {
+            c.financeTxId = txId || 'ok';
+            refreshChargeLists();
+        });
+    }
+
+    function generateBuildingCharges() {
+        syncChargeListFromDom('building');
+        var kind = (document.getElementById('pdChargeKind') || {}).value || 'iptu';
+        var base = (document.getElementById('pdChargeBase') || {}).value;
+        var amount = parseMoneyInput((document.getElementById('pdChargeAmount') || {}).value);
+        var count = (document.getElementById('pdChargeCount') || {}).value;
+        if (!base) {
+            if (typeof showMessage === 'function') showMessage('Informe o primeiro vencimento.', 'warning');
+            return;
+        }
+        _buildingCharges = mergeGenerated(_buildingCharges, generateChargeParcels(kind, base, amount, count));
+        renderChargeList('pdBuildingCharges', _buildingCharges, 'building');
+    }
+
+    function generateUnitCharges() {
+        syncChargeListFromDom('unit');
+        var kind = (document.getElementById('ueChargeKind') || {}).value || 'iptu';
+        var base = (document.getElementById('ueChargeBase') || {}).value;
+        var amountEl = document.getElementById('ueChargeAmount');
+        var amount = parseMoneyInput(amountEl ? amountEl.value : '');
+        if (!amount && kind === 'condominio' && _property && _property.condoDefaultAmount) {
+            amount = parseMoneyInput(_property.condoDefaultAmount) || _property.condoDefaultAmount;
+        }
+        var count = (document.getElementById('ueChargeCount') || {}).value;
+        if (!base) {
+            if (typeof showMessage === 'function') showMessage('Informe o primeiro vencimento.', 'warning');
+            return;
+        }
+        _unitCharges = mergeGenerated(_unitCharges, generateChargeParcels(kind, base, amount, count));
+        renderChargeList('ueCharges', _unitCharges, 'unit');
+    }
+
+    function addBuildingCharge(kind) {
+        syncChargeListFromDom('building');
+        _buildingCharges.push(blankCharge(kind));
+        renderChargeList('pdBuildingCharges', _buildingCharges, 'building');
+    }
+
+    function addUnitCharge(kind) {
+        syncChargeListFromDom('unit');
+        var extra = {};
+        if (kind === 'condominio' && _property && _property.condoDefaultAmount) extra.amount = _property.condoDefaultAmount;
+        _unitCharges.push(blankCharge(kind, extra));
+        renderChargeList('ueCharges', _unitCharges, 'unit');
+    }
+
+    function addBuildingMaintenance() {
+        syncChargeListFromDom('maint');
+        _maintenances.push(blankCharge('manutencao', { label: '', recurrence: 'anual' }));
+        renderChargeList('pdMaintenances', _maintenances, 'maint');
+    }
+
+    function addUnitMaintenance() {
+        syncChargeListFromDom('unitMaint');
+        _unitMaintenances.push(blankCharge('manutencao', { label: '', recurrence: 'anual' }));
+        renderChargeList('ueMaintenances', _unitMaintenances, 'unitMaint');
+    }
+
+    function collectUnitChargesForSave() {
+        syncChargeListFromDom('unit');
+        syncChargeListFromDom('unitMaint');
+        return _unitCharges.concat(_unitMaintenances.map(function(c) {
+            c.kind = 'manutencao';
+            return c;
+        }));
+    }
+
+    function propertyInventoryKind(pid) {
+        if (_kindByPid[String(pid)]) return _kindByPid[String(pid)];
+        if (_property && String(_property.propertyId) === String(pid) && _property.inventoryKind) {
+            return _property.inventoryKind;
+        }
+        var seed = seedOf(pid);
+        if (seed && seed.inventoryKind) return seed.inventoryKind;
+        var list = (typeof properties !== 'undefined' && properties) ? properties : [];
+        var found = null;
+        list.some(function(p) {
+            if (String(p.id) === String(pid)) { found = p; return true; }
+            return false;
+        });
+        if (found && found.inventoryKind) return found.inventoryKind;
+        return 'empreendimento';
+    }
+
+    function rememberKind(pid, kind) {
+        if (pid == null || pid === '') return;
+        _kindByPid[String(pid)] = kind === 'patrimonio' ? 'patrimonio' : 'empreendimento';
+    }
+
     function propertyOptionsHtml() {
         var list = (typeof properties !== 'undefined' && properties) ? properties : [];
-        var html = '<option value="">Selecione o empreendimento</option>';
+        var html = '<option value="">Selecione o imóvel</option>';
         list.forEach(function(p) {
-            html += '<option value="' + esc(p.id) + '">' + esc(p.title || p.name || ('Imóvel ' + p.id)) + '</option>';
+            var kind = propertyInventoryKind(p.id);
+            if (_kindFilter && kind !== _kindFilter) return;
+            var tag = kind === 'patrimonio' ? ' · patrimônio' : '';
+            html += '<option value="' + esc(p.id) + '">' + esc((p.title || p.name || ('Imóvel ' + p.id)) + tag) + '</option>';
         });
         return html;
+    }
+
+    function syncKindChips() {
+        document.querySelectorAll('.admin-kind-chip').forEach(function(btn) {
+            btn.classList.toggle('is-active', (btn.getAttribute('data-kind') || '') === String(_kindFilter || ''));
+        });
+    }
+
+    function filterPortfolioKind(kind) {
+        _kindFilter = kind || '';
+        syncKindChips();
+        if (typeof filterAdminProperties === 'function') filterAdminProperties();
+        var sel = document.getElementById('ueProperty');
+        var prev = sel ? sel.value : '';
+        if (sel) sel.innerHTML = propertyOptionsHtml();
+        if (sel && prev && sel.querySelector('option[value="' + prev + '"]')) sel.value = prev;
+        else if (sel && sel.options.length > 1) sel.selectedIndex = 1;
+        loadUnitEngineeringAdmin();
+    }
+
+    function onInventoryKindChange() {
+        var kindEl = document.getElementById('pdInventoryKind');
+        var salesWrap = document.getElementById('pdInSalesWrap');
+        var occEl = document.getElementById('pdOccupancy');
+        var hint = document.getElementById('pdKindHint');
+        var kind = kindEl ? kindEl.value : 'empreendimento';
+        if (salesWrap) salesWrap.hidden = kind === 'patrimonio';
+        if (occEl) {
+            var vendaOpt = occEl.querySelector('option[value="venda"]');
+            if (vendaOpt) vendaOpt.hidden = kind === 'patrimonio';
+        }
+        if (kind === 'patrimonio') {
+            var sales = document.getElementById('pdInSales');
+            if (sales) sales.checked = false;
+            if (occEl && occEl.value === 'venda') occEl.value = 'vago';
+            if (hint) hint.textContent = 'Patrimônio da empresa (inclusive para locação): mesma ficha de matrícula, engenharia, RGI e contrato. Não entra na vitrine do corretor.';
+        } else {
+            if (hint) hint.textContent = 'Empreendimento à venda. A vitrine só mostra se “Mostrar para o corretor” estiver marcado, com preço e engenharia vigente.';
+        }
+        document.querySelectorAll('.ue-utility-only').forEach(function(el) {
+            el.hidden = kind !== 'patrimonio';
+        });
     }
 
     function selectedPropertyId() {
@@ -451,8 +909,11 @@
                 artNumber: seed.artNumber || '',
                 notes: seed.notes || '',
                 documents: seed.documents || [],
-                inSales: seed.inSales !== false
+                inSales: seed.inSales !== false,
+                inventoryKind: seed.inventoryKind === 'patrimonio' ? 'patrimonio' : 'empreendimento',
+                occupancy: seed.occupancy || (seed.inSales === false ? 'vago' : 'venda')
             };
+            rememberKind(pid, _property.inventoryKind);
         }
         if (_property && !_property.inscricaoTerreno && seed.inscricaoTerreno) {
             _property.inscricaoTerreno = seed.inscricaoTerreno;
@@ -548,6 +1009,12 @@
         };
         p = p || {};
         set('pdOfficialName', p.officialName);
+        set('pdInventoryKind', p.inventoryKind === 'patrimonio' ? 'patrimonio' : 'empreendimento');
+        set('pdOccupancy', p.occupancy || (p.inventoryKind === 'patrimonio' ? 'vago' : 'venda'));
+        var sales = document.getElementById('pdInSales');
+        if (sales) sales.checked = p.inventoryKind === 'patrimonio' ? false : p.inSales !== false;
+        rememberKind(p.propertyId, p.inventoryKind === 'patrimonio' ? 'patrimonio' : 'empreendimento');
+        onInventoryKindChange();
         set('pdStreet', p.street);
         set('pdNeighborhood', p.neighborhood);
         set('pdCity', p.city);
@@ -560,6 +1027,11 @@
         set('pdCrea', p.crea);
         set('pdArtNumber', p.artNumber);
         set('pdNotes', p.notes);
+        set('pdCondoDefault', p.condoDefaultAmount != null && p.condoDefaultAmount !== '' ? formatMoney(p.condoDefaultAmount) : (p.condoDefaultAmount || ''));
+        _buildingCharges = cloneCharges(p.buildingCharges);
+        _maintenances = cloneCharges(p.maintenances);
+        renderChargeList('pdBuildingCharges', _buildingCharges, 'building');
+        renderChargeList('pdMaintenances', _maintenances, 'maint');
         renderBuildingDocs(p.documents || []);
     }
 
@@ -609,12 +1081,12 @@
         if (!tbody) return;
         updateSortHeaders();
         if (!_rows.length) {
-            tbody.innerHTML = '<tr><td colspan="9">Sem unidades neste empreendimento.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10">Sem unidades neste imóvel.</td></tr>';
             return;
         }
         var rows = visibleRows();
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="9">Nenhuma unidade com esse filtro.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10">Nenhuma unidade com esse filtro.</td></tr>';
             return;
         }
         tbody.innerHTML = rows.map(function(r) {
@@ -626,8 +1098,17 @@
             var rowCls = (r.status === 'vencida' ? 'ue-row--expired' : (r.status === 'a_vencer' ? 'ue-row--soon' : '')) + openCls;
             var validity = '<div class="ue-validity"><span>' + esc(formatDate(r.expiresAt) || '—') + '</span>' +
                 '<span class="' + statusClass(r.status) + '">' + esc(r.statusLabel || 'Sem data') + '</span></div>';
+            var occ = unitOccupancy(r);
+            var occHtml = '<span class="' + occupancyClass(occ) + '">' + esc(occupancyLabel(occ)) + '</span>';
+            if (occ === 'alugado' && (r.leaseTenant || r.leaseRent)) {
+                occHtml += '<small class="ue-lease-mini">' +
+                    esc(r.leaseTenant || 'Sem inquilino') +
+                    (r.leaseRent ? ' · ' + esc(formatMoney(r.leaseRent)) : '') +
+                    '</small>';
+            }
             return '<tr class="' + rowCls + '" data-ue-row="' + esc(r.unitCode) + '">' +
                 '<td><span class="ue-unit-name">' + esc(r.unitCode) + '</span></td>' +
+                '<td>' + occHtml + '</td>' +
                 '<td>' + esc(r.matricula || '—') + '</td>' +
                 '<td>' + esc(r.inscricaoMunicipal || '—') + '</td>' +
                 '<td>' + esc(formatMoney(r.salePrice) || '—') + '</td>' +
@@ -709,6 +1190,26 @@
         set('ueUnitCode', unitCode);
         set('ueMatricula', r ? r.matricula : '');
         set('ueInscricao', r ? r.inscricaoMunicipal : '');
+        set('ueOccupancy', r ? (r.occupancy || '') : '');
+        set('ueLeaseTenant', r ? (r.leaseTenant || '') : '');
+        set('ueLeaseDoc', r ? (r.leaseDoc || '') : '');
+        set('ueLeasePhone', r ? (r.leasePhone || '') : '');
+        set('ueLeaseEmail', r ? (r.leaseEmail || '') : '');
+        set('ueLeaseRent', r ? formatMoney(r.leaseRent) : '');
+        set('ueLeaseDueDay', r && r.leaseDueDay ? r.leaseDueDay : '');
+        set('ueLeaseStart', r ? (r.leaseStart || '') : '');
+        set('ueLeaseEnd', r ? (r.leaseEnd || '') : '');
+        set('ueLeaseIndex', r ? (r.leaseIndex || '') : '');
+        set('ueLeaseDeposit', r ? formatMoney(r.leaseDeposit) : '');
+        set('ueLeaseNotes', r ? (r.leaseNotes || '') : '');
+        syncLeaseSection();
+        var allCh = cloneCharges(r ? r.charges : []);
+        _unitCharges = allCh.filter(function(c) { return c.kind !== 'manutencao'; });
+        _unitMaintenances = allCh.filter(function(c) { return c.kind === 'manutencao'; });
+        renderChargeList('ueCharges', _unitCharges, 'unit');
+        renderChargeList('ueMaintenances', _unitMaintenances, 'unitMaint');
+        var maintBox = document.getElementById('ueMaintBlock');
+        if (maintBox) maintBox.hidden = !/casa/i.test(String(unitCode || ''));
         set('ueSalePrice', r ? formatMoney(r.salePrice) : '');
         set('ueAppraiser', r ? r.appraiser : '');
         set('ueValue', r ? formatMoney(r.engineeringValue || r.historicalEngineering) : '');
@@ -796,6 +1297,13 @@
         if (status) {
             status.addEventListener('change', function() {
                 _statusFilter = status.value;
+                renderTable();
+            });
+        }
+        var occFilter = document.getElementById('ueOccupancyFilter');
+        if (occFilter) {
+            occFilter.addEventListener('change', function() {
+                _occupancyFilter = occFilter.value;
                 renderTable();
             });
         }
@@ -1281,6 +1789,24 @@
         });
     }
 
+    function effectiveDrawerOccupancy() {
+        var el = document.getElementById('ueOccupancy');
+        var unitOcc = el ? el.value : '';
+        if (unitOcc) return unitOcc;
+        return (_property && _property.occupancy) || '';
+    }
+
+    function syncLeaseSection() {
+        var block = document.getElementById('ueLeaseBlock');
+        if (!block) return;
+        var occ = effectiveDrawerOccupancy();
+        block.hidden = !(occ === 'alugado' || occ === 'vago');
+    }
+
+    function onUnitOccupancyChange() {
+        syncLeaseSection();
+    }
+
     function onDateChange() {
         var el = document.getElementById('ueDate');
         var out = document.getElementById('ueExpiresAt');
@@ -1299,19 +1825,26 @@
     function loadUnitEngineeringAdmin(preferredId) {
         bindUnitsUi();
         var sel = document.getElementById('ueProperty');
-        if (sel && !sel.options.length) sel.innerHTML = propertyOptionsHtml();
-        if (sel && preferredId != null && preferredId !== '') sel.value = String(preferredId);
+        if (sel) {
+            var keep = (preferredId != null && preferredId !== '') ? String(preferredId) : sel.value;
+            sel.innerHTML = propertyOptionsHtml();
+            if (keep && sel.querySelector('option[value="' + keep + '"]')) sel.value = keep;
+            else if (sel.options.length > 1 && !sel.value) sel.selectedIndex = 1;
+        }
         if (typeof loadEngineeringAlerts === 'function') loadEngineeringAlerts();
         var pid = selectedPropertyId();
         if (loadUnitEngineeringAdmin._pid && loadUnitEngineeringAdmin._pid !== pid) {
             _filterText = '';
             _statusFilter = '';
+            _occupancyFilter = '';
             _sortKey = 'unit';
             _sortDir = 'asc';
             var filterEl = document.getElementById('ueUnitFilter');
             if (filterEl) filterEl.value = '';
             var statusEl = document.getElementById('ueStatusFilter');
             if (statusEl) statusEl.value = '';
+            var occEl = document.getElementById('ueOccupancyFilter');
+            if (occEl) occEl.value = '';
             closeUnitDrawer();
         }
         loadUnitEngineeringAdmin._pid = pid;
@@ -1320,7 +1853,7 @@
             _rows = [];
             _property = null;
             fillBuildingForm({});
-            if (tbody) tbody.innerHTML = '<tr><td colspan="9">Escolha um empreendimento.</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="10">Escolha um imóvel do portfólio.</td></tr>';
             closeUnitDrawer();
             return Promise.resolve();
         }
@@ -1336,6 +1869,7 @@
                 _rows = (data && data.rows) || [];
                 _catalog = (data && data.catalog) || null;
                 _property = (data && data.property) || null;
+                if (_property) rememberKind(pid, _property.inventoryKind);
                 mergeLocalIfNeeded(pid);
                 fillBuildingForm(_property);
                 fillUnitSelect();
@@ -1349,7 +1883,7 @@
                 fillUnitSelect();
                 renderTable();
                 if (!_rows.length && tbody) {
-                    tbody.innerHTML = '<tr><td colspan="9">' + esc(err.message || 'Erro') + '</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="10">' + esc(err.message || 'Erro') + '</td></tr>';
                 }
             });
         });
@@ -1359,7 +1893,7 @@
         if (ev) ev.preventDefault();
         var pid = selectedPropertyId();
         if (!pid) {
-            if (typeof showMessage === 'function') showMessage('Escolha o empreendimento.', 'warning');
+            if (typeof showMessage === 'function') showMessage('Escolha o imóvel.', 'warning');
             return;
         }
         var val = function(id) {
@@ -1370,6 +1904,13 @@
             action: 'save_property',
             propertyId: pid,
             officialName: val('pdOfficialName'),
+            inventoryKind: val('pdInventoryKind') || 'empreendimento',
+            occupancy: val('pdOccupancy'),
+            inSales: (function() {
+                if (val('pdInventoryKind') === 'patrimonio') return false;
+                var box = document.getElementById('pdInSales');
+                return box ? !!box.checked : true;
+            })(),
             street: val('pdStreet'),
             neighborhood: val('pdNeighborhood'),
             city: val('pdCity'),
@@ -1381,7 +1922,10 @@
             engenheiro: val('pdEngenheiro'),
             crea: val('pdCrea'),
             artNumber: val('pdArtNumber'),
-            notes: val('pdNotes')
+            notes: val('pdNotes'),
+            condoDefaultAmount: parseMoneyInput(val('pdCondoDefault')),
+            buildingCharges: (function() { syncChargeListFromDom('building'); return _buildingCharges; })(),
+            maintenances: (function() { syncChargeListFromDom('maint'); return _maintenances; })()
         };
         if (typeof adminPostJson !== 'function') {
             if (typeof showMessage === 'function') showMessage('API administrativa indisponível.', 'error');
@@ -1389,8 +1933,10 @@
         }
         adminPostJson('/adminUnitEngineering', payload).then(function(data) {
             _property = (data && data.property) || _property;
+            if (_property) rememberKind(pid, _property.inventoryKind);
             fillBuildingForm(_property);
-            if (typeof showMessage === 'function') showMessage('Ficha do empreendimento gravada.', 'success');
+            if (typeof filterAdminProperties === 'function') filterAdminProperties();
+            if (typeof showMessage === 'function') showMessage('Ficha do imóvel gravada.', 'success');
         }).catch(function(err) {
             if (typeof showMessage === 'function') showMessage(err.message || 'Erro ao gravar o prédio.', 'error');
         });
@@ -1405,7 +1951,7 @@
         var unit = document.getElementById('ueUnitCode') && document.getElementById('ueUnitCode').value;
         if (!pid || !unit) {
             _savingUnit = false;
-            if (typeof showMessage === 'function') showMessage('Informe empreendimento e unidade.', 'warning');
+            if (typeof showMessage === 'function') showMessage('Informe o imóvel e a unidade.', 'warning');
             return;
         }
         var uploadFn = typeof uploadAdminDossierFile === 'function' ? uploadAdminDossierFile : uploadViaSignedUrl;
@@ -1469,12 +2015,29 @@
             rgiName = rgiUp.name || '';
         }
         var current = findRow(unit) || {};
+        var valLease = function(id) {
+            var el = document.getElementById(id);
+            return el ? el.value : '';
+        };
         var payload = {
             action: 'upsert',
             propertyId: pid,
             unitCode: unit,
             matricula: document.getElementById('ueMatricula').value,
             inscricaoMunicipal: document.getElementById('ueInscricao').value,
+            occupancy: document.getElementById('ueOccupancy') ? document.getElementById('ueOccupancy').value : '',
+            leaseTenant: valLease('ueLeaseTenant'),
+            leaseDoc: valLease('ueLeaseDoc'),
+            leasePhone: valLease('ueLeasePhone'),
+            leaseEmail: valLease('ueLeaseEmail'),
+            leaseRent: parseMoneyInput(valLease('ueLeaseRent')),
+            leaseDueDay: valLease('ueLeaseDueDay'),
+            leaseStart: valLease('ueLeaseStart'),
+            leaseEnd: valLease('ueLeaseEnd'),
+            leaseIndex: valLease('ueLeaseIndex'),
+            leaseDeposit: parseMoneyInput(valLease('ueLeaseDeposit')),
+            leaseNotes: valLease('ueLeaseNotes'),
+            charges: collectUnitChargesForSave(),
             salePrice: parseMoneyInput(document.getElementById('ueSalePrice').value),
             appraiser: document.getElementById('ueAppraiser').value,
             engineeringValue: parseMoneyInput(document.getElementById('ueValue').value),
@@ -1541,8 +2104,17 @@
         var report = document.getElementById('ueReportBody');
         if (!data) return;
         var c = data.counts || {};
-        var html = '<p><strong>' + (c.expiring || 0) + '</strong> a vencer (45 dias) · <strong>' +
+        var html = '<p><strong>' + (c.expiring || 0) + '</strong> engenharia(s) a vencer (45 dias) · <strong>' +
             (c.expired || 0) + '</strong> vencida(s) · <strong>' + (c.vigente || 0) + '</strong> vigente(s).</p>';
+        if ((c.leaseEnding || 0) || (c.vacantPatrimonio || 0)) {
+            html += '<p><strong>' + (c.leaseEnding || 0) + '</strong> contrato(s) de locação a vencer · <strong>' +
+                (c.vacantPatrimonio || 0) + '</strong> unidade(s) vaga(s) no patrimônio.</p>';
+        }
+        if ((c.chargesDue || 0) || (c.chargesOverdue || 0) || (c.maintenancesDue || 0)) {
+            html += '<p><strong>' + (c.chargesOverdue || 0) + '</strong> encargo(s) atrasado(s) · <strong>' +
+                (c.chargesDue || 0) + '</strong> a vencer (45 dias) · <strong>' +
+                (c.maintenancesDue || 0) + '</strong> manutenção(ões) na agenda.</p>';
+        }
         if (box) box.innerHTML = html;
         if (dash) dash.textContent = (c.expiring || 0) + ' engenharia(s) a vencer';
         if (report) {
@@ -1570,6 +2142,17 @@
         window.loadUnitEngineeringAdmin = loadUnitEngineeringAdmin;
         window.saveUnitEngineering = saveUnitEngineering;
         window.saveBuildingDossier = saveBuildingDossier;
+        window.filterPortfolioKind = filterPortfolioKind;
+        window.onInventoryKindChange = onInventoryKindChange;
+        window.onUnitOccupancyChange = onUnitOccupancyChange;
+        window.generateBuildingCharges = generateBuildingCharges;
+        window.generateUnitCharges = generateUnitCharges;
+        window.addBuildingCharge = addBuildingCharge;
+        window.addUnitCharge = addUnitCharge;
+        window.addBuildingMaintenance = addBuildingMaintenance;
+        window.addUnitMaintenance = addUnitMaintenance;
+        window.propertyInventoryKind = propertyInventoryKind;
+        window.occupancyLabel = occupancyLabel;
         window.loadEngineeringAlerts = loadEngineeringAlerts;
         window.openEngineeringReport = openEngineeringReport;
         window.startNewUnitEngineering = startNewUnitEngineering;

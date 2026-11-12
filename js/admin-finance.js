@@ -163,6 +163,7 @@
             if (typeof renderDashboardFinanceWidgets === 'function') {
                 renderDashboardFinanceWidgets(_cache.summary);
             }
+            loadPortfolioChargeSlice();
         }).catch(function(err) {
             showMessage((err && err.message) || 'Erro ao carregar financeiro.', 'error');
         });
@@ -276,6 +277,112 @@
 
     function financeEditTransaction(id) { openFinanceModal(id); }
 
+    function chargeKindPt(k) {
+        return ({ iptu: 'IPTU', condominio: 'Condomínio', manutencao: 'Manutenção', seguro: 'Seguro', agua: 'Água', luz: 'Luz' })[k] || 'Encargo';
+    }
+
+    function loadPortfolioChargeSlice() {
+        var box = document.getElementById('financePortfolioCharges');
+        if (!box || typeof adminPostJson !== 'function') return;
+        adminPostJson('/adminUnitEngineering', { action: 'list_charges' }).then(function(data) {
+            var items = (data && data.charges) || [];
+            var today = new Date();
+            var t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            var open = items.filter(function(c) {
+                if (!c || c.status === 'pago' || !c.dueDate) return false;
+                var p = String(c.dueDate).split('-');
+                if (p.length < 3) return false;
+                var dt = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+                var days = Math.round((dt - t0) / 86400000);
+                return days <= 45;
+            });
+            open.sort(function(a, b) { return String(a.dueDate).localeCompare(String(b.dueDate)); });
+            if (!open.length) {
+                box.innerHTML = '<p class="form-hint">Nenhum IPTU, condomínio, seguro ou manutenção a vencer ou atrasado nas fichas.</p>';
+                return;
+            }
+            box.innerHTML = '<div class="admin-table-container"><table class="admin-table"><thead><tr>' +
+                '<th>Vence</th><th>Tipo</th><th>Imóvel</th><th>Unidade</th><th>Valor</th><th>Situação</th><th></th>' +
+                '</tr></thead><tbody>' +
+                open.map(function(c) {
+                    var title = c.officialName || c.propertyId;
+                    if (typeof getPropertyById === 'function') {
+                        var p = getPropertyById(c.propertyId) || getPropertyById(Number(c.propertyId));
+                        if (p) title = p.title || p.name || title;
+                    }
+                    var late = c.status === 'atrasado';
+                    var already = c.financeTxId
+                        ? '<span class="form-hint">Lançado</span>'
+                        : '<button type="button" class="btn btn-secondary btn-sm" data-fin-charge="' + esc(c.id) +
+                            '" data-fin-amount="' + esc(c.amount) + '" data-fin-date="' + esc(c.dueDate) +
+                            '" data-fin-kind="' + esc(c.kind) + '" data-fin-title="' + esc(title) +
+                            '" data-fin-unit="' + esc(c.unitCode || '') + '">Lançar</button>';
+                    return '<tr class="' + (late ? 'ue-row--expired' : 'ue-row--soon') + '">' +
+                        '<td>' + esc(fmtDate(c.dueDate)) + '</td>' +
+                        '<td>' + esc(chargeKindPt(c.kind)) + (c.period ? ' ' + esc(c.period) : '') + '</td>' +
+                        '<td>' + esc(title) + '</td>' +
+                        '<td>' + esc(c.unitCode || 'Prédio') + '</td>' +
+                        '<td>' + fmtMoney(c.amount) + '</td>' +
+                        '<td>' + (late ? 'Atrasado' : 'A vencer') + '</td>' +
+                        '<td>' + already + '</td></tr>';
+                }).join('') + '</tbody></table></div>';
+            box.querySelectorAll('[data-fin-charge]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    financeCreateFromCharge({
+                        id: btn.getAttribute('data-fin-charge'),
+                        amount: btn.getAttribute('data-fin-amount'),
+                        date: btn.getAttribute('data-fin-date'),
+                        description: chargeKindPt(btn.getAttribute('data-fin-kind')) + ' · ' +
+                            btn.getAttribute('data-fin-title') +
+                            (btn.getAttribute('data-fin-unit') ? ' · ' + btn.getAttribute('data-fin-unit') : '')
+                    });
+                });
+            });
+        }).catch(function() {
+            box.innerHTML = '<p class="form-hint">Não foi possível ler os encargos das fichas.</p>';
+        });
+    }
+
+    function ensureFinanceCache() {
+        if (_cache.accounts && _cache.accounts.length) return Promise.resolve();
+        return financePost('summary', {}).then(function(data) {
+            _cache.accounts = (data && data.accounts) || [];
+            _cache.categories = (data && data.categories) || [];
+        });
+    }
+
+    function financeCreateFromCharge(charge) {
+        if (!charge || !charge.amount) {
+            showMessage('Valor do encargo ausente.', 'warning');
+            return Promise.reject(new Error('sem valor'));
+        }
+        return ensureFinanceCache().then(function() {
+            var cat = (_cache.categories || []).filter(function(c) {
+                return /imposto|taxa|condom|manuten/i.test(c.name || '');
+            })[0] || (_cache.categories || []).filter(function(c) { return c.type === 'despesa'; })[0];
+            var acc = (_cache.accounts || [])[0];
+            return financePost('create', {
+                type: 'saida',
+                amount: charge.amount,
+                date: String(charge.date || '').slice(0, 10),
+                description: charge.description || 'Encargo do portfólio',
+                categoryId: cat ? (cat.id || '') : '',
+                categoryName: cat ? cat.name : 'Impostos e taxas',
+                accountId: acc ? (acc.id || '') : '',
+                accountName: acc ? acc.name : '',
+                notes: 'Encargo do portfólio ' + (charge.id || ''),
+                sourceChargeId: charge.id || ''
+            });
+        }).then(function(data) {
+            showMessage('Saída lançada no financeiro.', 'success');
+            loadFinanceModule();
+            return data && data.id;
+        }).catch(function(err) {
+            showMessage((err && err.message) || 'Não foi possível lançar.', 'error');
+            throw err;
+        });
+    }
+
     function renderDashboardFinanceWidgets(summary) {
         if (!summary) return;
         var row = document.getElementById('dashboardFinanceRow');
@@ -301,5 +408,6 @@
         window.financeReconcileSelected = financeReconcileSelected;
         window.financeEditTransaction = financeEditTransaction;
         window.renderDashboardFinanceWidgets = renderDashboardFinanceWidgets;
+        window.financeCreateFromCharge = financeCreateFromCharge;
     }
 })();

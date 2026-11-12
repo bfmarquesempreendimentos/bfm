@@ -17,6 +17,7 @@ var BUILDING_FIELDS = [
   'officialName', 'street', 'neighborhood', 'city', 'cep', 'mapsUrl',
   'cartorio', 'matriculaMae', 'inscricaoTerreno',
   'engenheiro', 'crea', 'artNumber', 'notes',
+  'inventoryKind', 'occupancy', 'condoDefaultAmount',
 ];
 
 function allowCors(res) {
@@ -85,6 +86,134 @@ function parseSalePrice(raw) {
   return isFinite(n) ? n : String(raw).slice(0, 40);
 }
 
+function ymdOrEmpty(v) {
+  var s = String(v || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+}
+
+function clampDueDay(v) {
+  var n = parseInt(v, 10);
+  if (!n || n < 1 || n > 31) return '';
+  return n;
+}
+
+function leaseFromBody(body, old) {
+  old = old || {};
+  function text(key, max) {
+    if (body[key] != null) return String(body[key]).trim().slice(0, max);
+    return old[key] || '';
+  }
+  var rent = body.leaseRent != null && body.leaseRent !== ''
+    ? parseSalePrice(body.leaseRent)
+    : (body.leaseRent === '' ? '' : (old.leaseRent != null ? old.leaseRent : ''));
+  var deposit = body.leaseDeposit != null && body.leaseDeposit !== ''
+    ? parseSalePrice(body.leaseDeposit)
+    : (body.leaseDeposit === '' ? '' : (old.leaseDeposit != null ? old.leaseDeposit : ''));
+  return {
+    leaseTenant: text('leaseTenant', 120),
+    leaseDoc: text('leaseDoc', 32),
+    leasePhone: text('leasePhone', 32),
+    leaseEmail: text('leaseEmail', 120),
+    leaseRent: rent,
+    leaseDueDay: body.leaseDueDay != null ? clampDueDay(body.leaseDueDay) : (old.leaseDueDay || ''),
+    leaseStart: body.leaseStart != null ? ymdOrEmpty(body.leaseStart) : (old.leaseStart || ''),
+    leaseEnd: body.leaseEnd != null ? ymdOrEmpty(body.leaseEnd) : (old.leaseEnd || ''),
+    leaseIndex: text('leaseIndex', 80),
+    leaseDeposit: deposit,
+    leaseNotes: text('leaseNotes', 500),
+  };
+}
+
+var CHARGE_KINDS = { iptu: 1, condominio: 1, manutencao: 1, seguro: 1, agua: 1, luz: 1, outro: 1 };
+var CHARGE_STATUS = { a_vencer: 1, pago: 1, atrasado: 1 };
+var CHARGE_RECUR = { mensal: 1, anual: 1, semestral: 1, unica: 1 };
+
+function newChargeId() {
+  return 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+}
+
+function chargeStatusFor(c, today) {
+  if (c && c.status === 'pago') return 'pago';
+  if (!c || !c.dueDate) return 'a_vencer';
+  var days = daysBetween(today, c.dueDate);
+  if (days != null && days < 0) return 'atrasado';
+  return 'a_vencer';
+}
+
+function sanitizeCharge(raw, today) {
+  if (!raw || typeof raw !== 'object') return null;
+  var kind = String(raw.kind || 'outro').trim();
+  if (!CHARGE_KINDS[kind]) kind = 'outro';
+  var due = ymdOrEmpty(raw.dueDate);
+  var period = String(raw.period || '').replace(/[^\d-]/g, '').slice(0, 7);
+  if (due && !period) period = due.slice(0, 7);
+  var st = String(raw.status || '').trim();
+  if (!CHARGE_STATUS[st]) st = 'a_vencer';
+  var rec = String(raw.recurrence || '').trim();
+  var c = {
+    id: String(raw.id || '').trim().slice(0, 40) || newChargeId(),
+    kind: kind,
+    label: String(raw.label || '').trim().slice(0, 80),
+    dueDate: due,
+    amount: raw.amount != null && raw.amount !== '' ? parseSalePrice(raw.amount) : '',
+    period: period,
+    status: st,
+    paidAt: ymdOrEmpty(raw.paidAt),
+    receiptPath: String(raw.receiptPath || '').trim().slice(0, 240),
+    receiptName: String(raw.receiptName || '').trim().slice(0, 160),
+    notes: String(raw.notes || '').trim().slice(0, 240),
+    vendor: String(raw.vendor || '').trim().slice(0, 80),
+    recurrence: CHARGE_RECUR[rec] ? rec : (kind === 'manutencao' || kind === 'seguro' ? 'anual' : 'mensal'),
+    lastDoneAt: ymdOrEmpty(raw.lastDoneAt),
+    financeTxId: String(raw.financeTxId || '').trim().slice(0, 64),
+  };
+  if (c.status !== 'pago') c.status = chargeStatusFor(c, today || todayYmd());
+  if (c.status === 'pago' && !c.paidAt) c.paidAt = today || todayYmd();
+  return c;
+}
+
+function sanitizeChargeList(arr) {
+  var today = todayYmd();
+  var out = [];
+  var seen = {};
+  (Array.isArray(arr) ? arr : []).forEach(function(raw) {
+    if (out.length >= 120) return;
+    var c = sanitizeCharge(raw, today);
+    if (!c || seen[c.id]) return;
+    seen[c.id] = 1;
+    out.push(c);
+  });
+  return out;
+}
+
+function flattenOpenCharges(list, meta) {
+  var today = todayYmd();
+  var due = [];
+  var overdue = [];
+  (list || []).forEach(function(c) {
+    if (!c || c.status === 'pago' || !c.dueDate) return;
+    var days = daysBetween(today, c.dueDate);
+    if (days == null) return;
+    var item = {
+      id: c.id,
+      kind: c.kind,
+      label: c.label,
+      dueDate: c.dueDate,
+      amount: c.amount,
+      period: c.period,
+      status: days < 0 ? 'atrasado' : 'a_vencer',
+      daysLeft: days,
+      propertyId: meta.propertyId,
+      unitCode: meta.unitCode || '',
+      scope: meta.scope || 'unit',
+      officialName: meta.officialName || '',
+    };
+    if (days < 0) overdue.push(item);
+    else if (days <= ALERT_DAYS) due.push(item);
+  });
+  return { due: due, overdue: overdue };
+}
+
 function adminRow(id, d) {
   var c = classify(d.expiresAt);
   return {
@@ -111,6 +240,19 @@ function adminRow(id, d) {
     rgiDate: d.rgiDate || '',
     rgiHistory: Array.isArray(d.rgiHistory) ? d.rgiHistory : [],
     notes: d.notes || '',
+    occupancy: d.occupancy === 'alugado' || d.occupancy === 'vago' || d.occupancy === 'uso_proprio' || d.occupancy === 'venda' ? d.occupancy : '',
+    leaseTenant: d.leaseTenant || '',
+    leaseDoc: d.leaseDoc || '',
+    leasePhone: d.leasePhone || '',
+    leaseEmail: d.leaseEmail || '',
+    leaseRent: d.leaseRent == null ? '' : d.leaseRent,
+    leaseDueDay: d.leaseDueDay == null ? '' : d.leaseDueDay,
+    leaseStart: d.leaseStart || '',
+    leaseEnd: d.leaseEnd || '',
+    leaseIndex: d.leaseIndex || '',
+    leaseDeposit: d.leaseDeposit == null ? '' : d.leaseDeposit,
+    leaseNotes: d.leaseNotes || '',
+    charges: sanitizeChargeList(d.charges),
     status: c.status,
     daysLeft: c.daysLeft,
     statusLabel: c.label,
@@ -181,6 +323,11 @@ function emptyPropertyDossier(propertyId) {
     notes: seed.notes || '',
     documents: Array.isArray(seed.documents) ? seed.documents : [],
     inSales: seed.inSales !== false,
+    inventoryKind: seed.inventoryKind === 'patrimonio' ? 'patrimonio' : 'empreendimento',
+    occupancy: seed.occupancy || (seed.inSales === false ? 'vago' : 'venda'),
+    condoDefaultAmount: seed.condoDefaultAmount || '',
+    buildingCharges: Array.isArray(seed.buildingCharges) ? seed.buildingCharges : [],
+    maintenances: Array.isArray(seed.maintenances) ? seed.maintenances : [],
     updatedAt: '',
     updatedBy: '',
   };
@@ -195,6 +342,17 @@ function mergePropertyDossier(propertyId, stored) {
   if (Array.isArray(stored.documents) && stored.documents.length) {
     base.documents = stored.documents;
   }
+  if (stored.inventoryKind === 'patrimonio' || stored.inventoryKind === 'empreendimento') {
+    base.inventoryKind = stored.inventoryKind;
+  }
+  if (stored.occupancy) base.occupancy = stored.occupancy;
+  if (stored.inSales === false || stored.inSales === true) base.inSales = stored.inSales;
+  if (base.inventoryKind === 'patrimonio') base.inSales = false;
+  if (stored.condoDefaultAmount != null && stored.condoDefaultAmount !== '') {
+    base.condoDefaultAmount = stored.condoDefaultAmount;
+  }
+  if (Array.isArray(stored.buildingCharges)) base.buildingCharges = sanitizeChargeList(stored.buildingCharges);
+  if (Array.isArray(stored.maintenances)) base.maintenances = sanitizeChargeList(stored.maintenances);
   base.updatedAt = stored.updatedAt || '';
   base.updatedBy = stored.updatedBy || '';
   return base;
@@ -571,17 +729,101 @@ async function adminUnitEngineeringHttp(req, res) {
       var all = await loadAllRows(db);
       var expiring = all.filter(function(r) { return r.status === 'a_vencer'; });
       var expired = all.filter(function(r) { return r.status === 'vencida'; });
+      var propMeta = {};
+      var propSnap = await db.collection(PROP_COL).limit(500).get();
+      propSnap.forEach(function(doc) {
+        var d = doc.data() || {};
+        propMeta[doc.id] = {
+          inventoryKind: d.inventoryKind === 'patrimonio' ? 'patrimonio' : 'empreendimento',
+          occupancy: d.occupancy || '',
+        };
+      });
+      function effectiveOcc(r) {
+        if (r.occupancy) return r.occupancy;
+        var m = propMeta[String(r.propertyId)];
+        return (m && m.occupancy) || '';
+      }
+      function isPatrimonio(r) {
+        var m = propMeta[String(r.propertyId)];
+        return !!(m && m.inventoryKind === 'patrimonio');
+      }
+      var leaseEnding = all.filter(function(r) {
+        if (effectiveOcc(r) !== 'alugado' || !r.leaseEnd) return false;
+        var days = daysBetween(todayYmd(), r.leaseEnd);
+        return days != null && days <= ALERT_DAYS;
+      });
+      var vacantPatrimonio = all.filter(function(r) {
+        return isPatrimonio(r) && effectiveOcc(r) === 'vago';
+      });
+      var chargesDue = [];
+      var chargesOverdue = [];
+      var maintDue = [];
+      all.forEach(function(r) {
+        var bag = flattenOpenCharges(r.charges, {
+          propertyId: r.propertyId,
+          unitCode: r.unitCode,
+          scope: 'unit',
+        });
+        chargesDue = chargesDue.concat(bag.due);
+        chargesOverdue = chargesOverdue.concat(bag.overdue);
+      });
+      propSnap.forEach(function(doc) {
+        var d = doc.data() || {};
+        var meta = { propertyId: doc.id, unitCode: '', scope: 'building', officialName: d.officialName || '' };
+        var b = flattenOpenCharges(d.buildingCharges, meta);
+        var m = flattenOpenCharges(d.maintenances, meta);
+        chargesDue = chargesDue.concat(b.due);
+        chargesOverdue = chargesOverdue.concat(b.overdue);
+        maintDue = maintDue.concat(m.due || []).concat(m.overdue || []);
+      });
       return res.json({
         ok: true,
         alertDays: ALERT_DAYS,
         expiring: expiring,
         expired: expired,
+        leaseEnding: leaseEnding,
+        vacantPatrimonio: vacantPatrimonio,
+        chargesDue: chargesDue,
+        chargesOverdue: chargesOverdue,
+        maintenancesDue: maintDue,
         counts: {
           expiring: expiring.length,
           expired: expired.length,
           vigente: all.filter(function(r) { return r.status === 'vigente'; }).length,
+          leaseEnding: leaseEnding.length,
+          vacantPatrimonio: vacantPatrimonio.length,
+          chargesDue: chargesDue.length,
+          chargesOverdue: chargesOverdue.length,
+          maintenancesDue: maintDue.length,
         },
       });
+    }
+
+    if (action === 'list_charges') {
+      var allC = await loadAllRows(db);
+      var propSnapC = await db.collection(PROP_COL).limit(500).get();
+      var items = [];
+      allC.forEach(function(r) {
+        (r.charges || []).forEach(function(ch) {
+          items.push(Object.assign({}, ch, {
+            propertyId: r.propertyId,
+            unitCode: r.unitCode,
+            scope: 'unit',
+          }));
+        });
+      });
+      propSnapC.forEach(function(doc) {
+        var d = doc.data() || {};
+        (sanitizeChargeList(d.buildingCharges) || []).concat(sanitizeChargeList(d.maintenances) || []).forEach(function(ch) {
+          items.push(Object.assign({}, ch, {
+            propertyId: doc.id,
+            unitCode: '',
+            scope: 'building',
+            officialName: d.officialName || '',
+          }));
+        });
+      });
+      return res.json({ ok: true, charges: items });
     }
 
     if (action === 'save_property') {
@@ -595,6 +837,31 @@ async function adminUnitEngineeringHttp(req, res) {
         if (body[key] != null) doc[key] = String(body[key]).trim().slice(0, key === 'notes' ? 800 : 240);
       });
       if (Array.isArray(body.documents)) doc.documents = body.documents;
+      doc.inventoryKind = String(body.inventoryKind || doc.inventoryKind || '').trim() === 'patrimonio'
+        ? 'patrimonio'
+        : 'empreendimento';
+      var occ = String(body.occupancy != null ? body.occupancy : doc.occupancy || '').trim();
+      doc.occupancy = ({ venda: 1, alugado: 1, vago: 1, uso_proprio: 1 }[occ])
+        ? occ
+        : (doc.inventoryKind === 'patrimonio' ? 'vago' : 'venda');
+      if (doc.inventoryKind === 'patrimonio') {
+        doc.inSales = false;
+        if (doc.occupancy === 'venda') doc.occupancy = 'vago';
+      } else if (body.inSales === false || body.inSales === 'false' || body.inSales === 0) {
+        doc.inSales = false;
+      } else if (body.inSales === true || body.inSales === 'true' || body.inSales === 1) {
+        doc.inSales = true;
+      }
+      if (body.condoDefaultAmount != null) {
+        doc.condoDefaultAmount = String(body.condoDefaultAmount).trim().slice(0, 40);
+      }
+      if (body.buildingCharges != null) doc.buildingCharges = sanitizeChargeList(body.buildingCharges);
+      if (body.maintenances != null) {
+        doc.maintenances = sanitizeChargeList(body.maintenances).map(function(c) {
+          c.kind = 'manutencao';
+          return c;
+        });
+      }
       doc.updatedAt = now;
       doc.updatedBy = auth.email || '';
       await db.collection(PROP_COL).doc(String(pid)).set(doc, { merge: true });
@@ -677,9 +944,16 @@ async function adminUnitEngineeringHttp(req, res) {
         rgiDate: rgiDate,
         rgiHistory: rgiHistory,
         notes: String(body.notes != null ? body.notes : (old.notes || '')).trim().slice(0, 500),
+        occupancy: (function() {
+          var o = String(body.occupancy != null ? body.occupancy : (old.occupancy || '')).trim();
+          return ({ venda: 1, alugado: 1, vago: 1, uso_proprio: 1 }[o]) ? o : (old.occupancy || '');
+        })(),
         updatedAt: nowU,
         updatedBy: auth.email || '',
       };
+      var lease = leaseFromBody(body, old);
+      Object.keys(lease).forEach(function(key) { docU[key] = lease[key]; });
+      docU.charges = body.charges != null ? sanitizeChargeList(body.charges) : sanitizeChargeList(old.charges);
       var pathChanged = !!(docU.reportPath && docU.reportPath !== (old.reportPath || ''));
       try {
         docU = await fillDocFromStoredLaudo(docU, pathChanged);
