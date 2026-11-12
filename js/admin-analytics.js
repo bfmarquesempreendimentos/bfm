@@ -261,6 +261,33 @@
         }).join('');
     }
 
+    function visitorRoleLabel(role) {
+        if (role === 'super') return 'Administrador';
+        if (role === 'admin' || role === 'comercial' || role === 'posvenda' || role === 'financeiro') return 'Administrativo';
+        if (role === 'broker') return 'Corretor';
+        if (role === 'client') return 'Cliente';
+        return '';
+    }
+
+    function escapeHtml(s) {
+        return String(s || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function visitorCell(v) {
+        var name = String(v.visitorName || '').trim();
+        var role = v.visitorRoleLabel || visitorRoleLabel(v.visitorRole);
+        if (name) {
+            var title = v.visitorEmail ? ' title="' + escapeHtml(v.visitorEmail) + '"' : '';
+            var badge = role ? '<span class="analytics-visitor-role">' + escapeHtml(role) + '</span>' : '';
+            return '<span class="analytics-visitor-known"' + title + '>' + escapeHtml(name) + '</span> ' + badge;
+        }
+        return '<span class="analytics-visitor-anon">Visitante</span>';
+    }
+
     function renderRecentVisits() {
         var tbody = document.getElementById('analyticsRecentBody');
         if (!tbody) return;
@@ -281,7 +308,7 @@
                 '<td><i class="fas ' + deviceIcon + '"></i> ' + (v.device || '-') + '</td>' +
                 '<td>' + (v.browser || '-') + '</td>' +
                 '<td>' + (v.os || '-') + '</td>' +
-                '<td class="analytics-visitor-id">' + (v.visitorId || '-').substring(0, 12) + '</td>' +
+                '<td class="analytics-visitor-id">' + visitorCell(v) + '</td>' +
                 '</tr>';
         }).join('');
     }

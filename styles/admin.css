@@ -3175,6 +3175,27 @@ button.wa-stat.wa-stat--click:focus {
     font-size: 11px;
     color: #9ca3af;
 }
+.analytics-visitor-known {
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+.analytics-visitor-anon {
+    font-family: inherit;
+    color: #94a3b8;
+}
+.analytics-visitor-role {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #334155;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
 
 .analytics-period-btn {
     padding: 6px 14px;

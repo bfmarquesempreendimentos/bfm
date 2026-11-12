@@ -69,6 +69,44 @@
         return names[file] || file;
     }
 
+    function getAuthToken() {
+        if (typeof getAnyIdToken === 'function') {
+            return getAnyIdToken().catch(function() { return null; });
+        }
+        try {
+            var auth = typeof getFirebaseAuth === 'function' ? getFirebaseAuth() : null;
+            if (auth && auth.currentUser) return auth.currentUser.getIdToken();
+        } catch (e) {}
+        return Promise.resolve(null);
+    }
+
+    function waitForAuth(maxMs) {
+        return new Promise(function(resolve) {
+            var auth = typeof getFirebaseAuth === 'function' ? getFirebaseAuth() : null;
+            if (!auth) {
+                setTimeout(resolve, 400);
+                return;
+            }
+            if (auth.currentUser) {
+                resolve();
+                return;
+            }
+            var done = false;
+            var unsub = auth.onAuthStateChanged(function() {
+                if (done) return;
+                done = true;
+                if (typeof unsub === 'function') unsub();
+                resolve();
+            });
+            setTimeout(function() {
+                if (done) return;
+                done = true;
+                if (typeof unsub === 'function') unsub();
+                resolve();
+            }, maxMs || 2500);
+        });
+    }
+
     function trackVisit() {
         const now = Date.now();
         const last = parseInt(sessionStorage.getItem(LAST_TRACK_KEY) || '0', 10);
@@ -107,20 +145,32 @@
         if (typeof getCloudFunctionsBaseUrl === 'function') base = getCloudFunctionsBaseUrl();
         else if (typeof CONFIG !== 'undefined' && CONFIG.cloudFunctions) base = CONFIG.cloudFunctions.baseURL || '';
         if (!base) return;
-        fetch(base + '/trackSiteVisit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-            cache: 'no-store',
-            credentials: 'omit'
+
+        getAuthToken().then(function(token) {
+            var headers = { 'Content-Type': 'application/json' };
+            if (token) {
+                headers.Authorization = 'Bearer ' + token;
+                data.idToken = token;
+            }
+            return fetch(base + '/trackSiteVisit', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(data),
+                cache: 'no-store',
+                credentials: 'omit'
+            });
         }).catch(function() {});
     }
 
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        setTimeout(trackVisit, 500);
-    } else {
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(trackVisit, 500);
+    function startTracking() {
+        waitForAuth(2500).then(function() {
+            setTimeout(trackVisit, 300);
         });
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        startTracking();
+    } else {
+        document.addEventListener('DOMContentLoaded', startTracking);
     }
 })();

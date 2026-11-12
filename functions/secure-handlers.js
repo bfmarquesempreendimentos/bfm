@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { verifyAdminAuth } = require('./admin-auth');
+const { getAdminAccount } = require('./admin-accounts');
+const { findBrokerByEmail, brokerIsActive } = require('./broker-auth');
 const { nextDocFileName } = require('./doc-revision-name');
 const { assertPdfBelongsToUnit, extractedForClient } = require('./property-identity');
 const { extractContractFromPdf, contractMatchError } = require('./contract-extract');
@@ -296,6 +298,74 @@ async function queueEmailHttp(req, res) {
   }
 }
 
+function prettyNameFromEmail(email) {
+  var local = String(email || '').split('@')[0].replace(/[._]+/g, ' ').trim();
+  if (!local) return '';
+  return local.replace(/\b\w/g, function(ch) { return ch.toUpperCase(); });
+}
+
+function visitorRoleLabel(role) {
+  if (role === 'super') return 'Administrador';
+  if (role === 'comercial' || role === 'posvenda' || role === 'financeiro' || role === 'admin') return 'Administrativo';
+  if (role === 'broker') return 'Corretor';
+  if (role === 'client') return 'Cliente';
+  return '';
+}
+
+async function resolveVisitIdentity(req) {
+  var auth = await verifyAnyFirebaseToken(req);
+  if (!auth.ok || !auth.email) return null;
+  var db = admin.firestore();
+  var email = auth.email;
+  var uid = String((auth.decoded && auth.decoded.uid) || '');
+  var display = String((auth.decoded && (auth.decoded.name || auth.decoded.displayName)) || '').trim();
+  var adminAcc = getAdminAccount(email);
+  if (adminAcc) {
+    return {
+      uid: uid,
+      email: email,
+      name: display || prettyNameFromEmail(email),
+      role: adminAcc.role === 'super' ? 'super' : 'admin',
+    };
+  }
+  try {
+    var broker = await findBrokerByEmail(db, email);
+    if (broker && brokerIsActive(broker.data)) {
+      return {
+        uid: uid,
+        email: email,
+        name: String(broker.data.name || display || prettyNameFromEmail(email)).trim(),
+        role: 'broker',
+      };
+    }
+  } catch (e1) {}
+  try {
+    var clientSnap = uid ? await db.collection('clients').doc(uid).get() : null;
+    var clientData = clientSnap && clientSnap.exists ? (clientSnap.data() || {}) : null;
+    if (!clientData) {
+      var byEmail = await db.collection('clients').where('email', '==', email).limit(1).get();
+      if (!byEmail.empty) clientData = byEmail.docs[0].data() || {};
+    }
+    if (clientData) {
+      return {
+        uid: uid,
+        email: email,
+        name: String(clientData.name || clientData.clientName || display || prettyNameFromEmail(email)).trim(),
+        role: 'client',
+      };
+    }
+  } catch (e2) {}
+  if (display || email) {
+    return {
+      uid: uid,
+      email: email,
+      name: display || prettyNameFromEmail(email),
+      role: 'client',
+    };
+  }
+  return null;
+}
+
 /** POST — visitas do site (substitui write direto no Firestore). */
 async function trackSiteVisitHttp(req, res) {
   allowCors(res);
@@ -327,6 +397,22 @@ async function trackSiteVisitHttp(req, res) {
       clientTimestamp: body.clientTimestamp || new Date().toISOString(),
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     };
+    var ident = await resolveVisitIdentity(req);
+    if (ident) {
+      data.visitorName = String(ident.name || '').substring(0, 120);
+      data.visitorEmail = String(ident.email || '').substring(0, 160);
+      data.visitorRole = String(ident.role || '').substring(0, 40);
+      data.visitorUid = String(ident.uid || '').substring(0, 80);
+      if (data.visitorId) {
+        await admin.firestore().collection('visit_identities').doc(data.visitorId).set({
+          name: data.visitorName,
+          email: data.visitorEmail,
+          role: data.visitorRole,
+          uid: data.visitorUid,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+      }
+    }
     await admin.firestore().collection('site_visits').add(data);
     return res.json({ ok: true });
   } catch (err) {
@@ -352,6 +438,34 @@ async function adminSiteVisitsHttp(req, res) {
       .get();
     var visits = snap.docs.map(function(doc) {
       return Object.assign({ id: doc.id }, doc.data());
+    });
+    var missingIds = [];
+    var seen = {};
+    visits.forEach(function(v) {
+      if (v.visitorName || !v.visitorId || seen[v.visitorId]) return;
+      seen[v.visitorId] = true;
+      missingIds.push(v.visitorId);
+    });
+    if (missingIds.length) {
+      var refs = missingIds.slice(0, 200).map(function(id) {
+        return admin.firestore().collection('visit_identities').doc(id);
+      });
+      var idDocs = await admin.firestore().getAll.apply(admin.firestore(), refs);
+      var byVisitor = {};
+      idDocs.forEach(function(d) {
+        if (d.exists) byVisitor[d.id] = d.data() || {};
+      });
+      visits.forEach(function(v) {
+        var idn = byVisitor[v.visitorId];
+        if (!v.visitorName && idn && idn.name) {
+          v.visitorName = idn.name;
+          v.visitorRole = idn.role || v.visitorRole;
+          v.visitorEmail = idn.email || v.visitorEmail;
+        }
+      });
+    }
+    visits.forEach(function(v) {
+      v.visitorRoleLabel = visitorRoleLabel(v.visitorRole);
     });
     return res.json({ visits: visits });
   } catch (err) {
