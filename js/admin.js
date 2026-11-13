@@ -2938,6 +2938,99 @@ async function loadBrokersData() {
     }
     
     renderBrokersActiveTable(allBrokers);
+    renderInactiveBrokersSection();
+    loadBrokerCampaignMetrics(false);
+}
+
+function getInactiveDeactivatedBrokers() {
+    if (typeof getAllBrokers !== 'function') return [];
+    return getAllBrokers().filter(function(b) {
+        if (!b || b.isAdmin || b.isActive) return false;
+        if (typeof isBrokerPendingApproval === 'function' && isBrokerPendingApproval(b)) return false;
+        return true;
+    });
+}
+
+function renderInactiveBrokersSection() {
+    var section = document.getElementById('brokersInactiveSection');
+    var tbody = document.getElementById('brokersInactiveTableBody');
+    var countEl = document.getElementById('brokersInactiveCount');
+    if (!section || !tbody) return;
+    var list = getInactiveDeactivatedBrokers();
+    if (countEl) countEl.textContent = String(list.length);
+    if (list.length === 0) {
+        section.style.display = 'none';
+        tbody.innerHTML = '';
+        return;
+    }
+    section.style.display = '';
+    var brokerId = function(id) { return typeof id === 'string' ? "'" + String(id).replace(/'/g, "\\'") + "'" : id; };
+    list.sort(function(a, b) {
+        return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'pt-BR');
+    });
+    tbody.innerHTML = list.map(function(broker) {
+        var campOn = !broker.whatsappCampaignOptOut;
+        var actions = '<button type="button" class="btn btn-success btn-sm" onclick="reactivateBroker(' + brokerId(broker.id) + ')">' +
+            '<i class="fas fa-undo" aria-hidden="true"></i> Reativar</button> ';
+        actions += '<button type="button" class="btn btn-secondary btn-sm" onclick="editBroker(' + brokerId(broker.id) + ')">Editar</button>';
+        if (typeof isSuperAdmin === 'function' && isSuperAdmin()) {
+            actions += ' <button type="button" class="btn btn-danger btn-sm" onclick="deleteBroker(' + brokerId(broker.id) + ')">Excluir</button>';
+        }
+        return '<tr class="broker-row-muted">' +
+            '<td><strong>' + escapeHtml(broker.name || '—') + '</strong></td>' +
+            '<td>' + escapeHtml(broker.email || '') + '</td>' +
+            '<td>' + escapeHtml(broker.phone || '—') + '</td>' +
+            '<td>' + escapeHtml(broker.creci || '—') + '</td>' +
+            '<td>' + (campOn ? 'Recebia' : 'Opt-out') + '</td>' +
+            '<td>' + formatDate(broker.createdAt) + '</td>' +
+            '<td class="brokers-pending-actions">' + actions + '</td></tr>';
+    }).join('');
+}
+
+function loadBrokerCampaignMetrics(showToast) {
+    var sinceEl = document.getElementById('brokerCampaignMetricsSince');
+    if (sinceEl && showToast) sinceEl.textContent = 'Atualizando métricas…';
+    return adminFetchJson('/brokerCampaignMetrics').then(function(m) {
+        if (!m || !m.ok) return;
+        var sentEl = document.getElementById('brokerMetricsLastSent');
+        var errEl = document.getElementById('brokerMetricsLastErrors');
+        var repEl = document.getElementById('brokerMetricsReplied');
+        var pctEl = document.getElementById('brokerMetricsReplyPct');
+        var visEl = document.getElementById('brokerMetricsVisits');
+        var lr = m.lastRun;
+        if (sentEl) sentEl.textContent = lr ? String(lr.sent != null ? lr.sent : '—') : '—';
+        if (errEl) errEl.textContent = lr ? String(lr.errors != null ? lr.errors : 0) : '—';
+        if (repEl) repEl.textContent = String(m.corretoresResponderam != null ? m.corretoresResponderam : '—');
+        if (pctEl) pctEl.textContent = (m.taxaRespostaPct != null ? m.taxaRespostaPct + '%' : '—');
+        if (visEl) visEl.textContent = String(m.visitasAgendadasCorretores != null ? m.visitasAgendadasCorretores : '—');
+        if (sinceEl) {
+            var bits = [];
+            if (m.scheduleLabel) bits.push('Agenda: ' + m.scheduleLabel);
+            if (m.desde) bits.push('Engajamento desde ' + formatDate(m.desde));
+            if (lr && lr.startedAt) {
+                bits.push('Último disparo: ' + formatDate(lr.startedAt) + ' (' + (lr.status || '') + ')');
+            }
+            sinceEl.textContent = bits.join(' · ') || 'Sem dados de campanha ainda.';
+        }
+        var listEl = document.getElementById('brokerCampaignMetricsReplyList');
+        var replies = m.respostas || [];
+        if (listEl) {
+            if (!replies.length) {
+                listEl.innerHTML = '<li>Nenhuma resposta de corretor no período.</li>';
+            } else {
+                listEl.innerHTML = replies.map(function(r) {
+                    return '<li><strong>' + escapeHtml(r.name || r.phone || '') + '</strong> · ' +
+                        formatDate(r.at) + '</li>';
+                }).join('');
+            }
+        }
+        if (showToast && typeof showMessage === 'function') showMessage('Métricas atualizadas.', 'success');
+    }).catch(function(err) {
+        if (sinceEl) sinceEl.textContent = 'Não foi possível carregar métricas. ' + (err.message || '');
+        if (showToast && typeof showMessage === 'function') {
+            showMessage('Erro ao carregar métricas: ' + (err.message || ''), 'error');
+        }
+    });
 }
 
 function renderBrokersActiveTable(sourceList) {
@@ -3001,7 +3094,11 @@ function renderPendingBrokersSection() {
 
     var pending = [];
     if (typeof getPendingBrokers === 'function') {
-        pending = getPendingBrokers().filter(function(b) { return !b.isAdmin; });
+        pending = getPendingBrokers().filter(function(b) {
+            if (b.isAdmin) return false;
+            if (typeof isBrokerPendingApproval === 'function') return isBrokerPendingApproval(b);
+            return !b.isActive;
+        });
     }
 
     if (countEl) countEl.textContent = String(pending.length);
@@ -3361,6 +3458,9 @@ function prepareBrokersPanelManual(force) {
 }
 
 function showBrokerCampaignResult(result, isError) {
+    if (!isError && typeof loadBrokerCampaignMetrics === 'function') {
+        loadBrokerCampaignMetrics(false);
+    }
     var sent = result && result.sent ? result.sent : 0;
     var errors = result && result.errors ? result.errors : 0;
     var skipped = result && result.skipped ? result.skipped : 0;

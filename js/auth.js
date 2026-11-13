@@ -942,6 +942,29 @@ async function deactivateBroker(brokerId) {
     }
 }
 
+function isBrokerPendingApproval(b) {
+    if (!b || b.isActive) return false;
+    var st = String(b.registrationStatus || '').toLowerCase();
+    return !st || st === 'pending';
+}
+
+async function reactivateBroker(brokerId) {
+    const broker = findBrokerById(brokerId);
+    if (!broker) return;
+    if (!confirm('Reativar o corretor ' + (broker.name || broker.email) + '? Ele voltará a acessar o sistema.')) return;
+    broker.isActive = true;
+    if (typeof updateBrokerInFirestore === 'function' && typeof brokerId === 'string') {
+        try {
+            await updateBrokerInFirestore(brokerId, { isActive: true, registrationStatus: 'auto_approved' });
+        } catch (e) { console.error(e); }
+    }
+    saveBrokersToStorage();
+    if (typeof showMessage === 'function') {
+        showMessage('Corretor ' + (broker.name || broker.email) + ' reativado.', 'success');
+    }
+    if (typeof loadBrokersData === 'function') loadBrokersData();
+}
+
 function getAllBrokers() {
     return brokers;
 }

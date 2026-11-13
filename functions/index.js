@@ -4056,6 +4056,29 @@ exports.brokerSyncLeads = functions.https.onRequest(async (req, res) => {
   }
 });
 
+function findLastScheduledCampaignStartIso(now, config) {
+  var cfg = normalizeCampaignScheduleFields(Object.assign({}, config || {}));
+  now = now || new Date();
+  var d;
+  for (d = 0; d < 10; d++) {
+    var probe = new Date(now.getTime() - d * 86400000);
+    var p = saoPauloScheduleParts(probe);
+    if (p.weekday !== cfg.scheduleWeekday) continue;
+    if (d === 0 && (p.hour * 60 + p.minute) < (cfg.scheduleHour * 60 + cfg.scheduleMinute)) continue;
+    var ymd = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(probe);
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    var isoLocal = ymd + 'T' + pad(cfg.scheduleHour) + ':' + pad(cfg.scheduleMinute) + ':00-03:00';
+    var asDate = new Date(isoLocal);
+    if (!isNaN(asDate.getTime()) && asDate.getTime() <= now.getTime()) {
+      return asDate.toISOString();
+    }
+  }
+  return null;
+}
+
 /** Métricas simples da campanha de corretores (resposta e visitas). */
 exports.brokerCampaignMetrics = functions.https.onRequest(async (req, res) => {
   allowCors(res);
@@ -4065,16 +4088,43 @@ exports.brokerCampaignMetrics = functions.https.onRequest(async (req, res) => {
     const body = req.method === 'POST' ? (req.body || {}) : (req.query || {});
     if (!(await verifyAdminAuth(req)).ok) return res.status(403).json({ error: 'Acesso negado' });
     const db = admin.firestore();
+    var campaignConfig = await getBrokerCampaignConfig(db);
 
-    // Início da última campanha (segunda 08:00 BRT = 11:00 UTC).
     var now = new Date();
-    var since = new Date(now.getTime());
-    var dow = since.getUTCDay();
-    var diff = (dow + 6) % 7; // dias desde segunda
-    since.setUTCDate(since.getUTCDate() - diff);
-    since.setUTCHours(11, 0, 0, 0);
-    if (since.getTime() > now.getTime()) since.setUTCDate(since.getUTCDate() - 7);
-    var sinceIso = since.toISOString();
+    var sinceIso = findLastScheduledCampaignStartIso(now, campaignConfig);
+    var lastRun = null;
+    try {
+      var logsSnap = await db.collection('broker_campaign_logs').limit(25).get();
+      var logDocs = logsSnap.docs.slice().sort(function(a, b) {
+        var ta = String((a.data() || {}).startedAt || '');
+        var tb = String((b.data() || {}).startedAt || '');
+        return tb.localeCompare(ta);
+      });
+      if (logDocs.length) {
+        var lr = logDocs[0].data() || {};
+        lastRun = {
+          runId: logDocs[0].id,
+          status: lr.status || '',
+          sent: lr.sent || 0,
+          errors: lr.errors || 0,
+          skipped: lr.skipped || 0,
+          totalTargets: lr.totalTargets || 0,
+          startedAt: lr.startedAt || '',
+          finishedAt: lr.finishedAt || '',
+          weekKey: lr.weekKey || '',
+          type: lr.type || '',
+        };
+        if (lastRun.startedAt && (!sinceIso || lastRun.startedAt > sinceIso)) {
+          sinceIso = lastRun.startedAt;
+        }
+      }
+    } catch (logErr) {
+      console.warn('brokerCampaignMetrics logs:', logErr.message);
+    }
+    if (!sinceIso) {
+      sinceIso = findLastScheduledCampaignStartIso(now, campaignConfig) ||
+        new Date(now.getTime() - 7 * 86400000).toISOString();
+    }
 
     const brokerIndex = await buildBrokerPhoneIndex(db);
     var brokersAtivos = 0;
@@ -4115,6 +4165,8 @@ exports.brokerCampaignMetrics = functions.https.onRequest(async (req, res) => {
     return res.json({
       ok: true,
       desde: sinceIso,
+      scheduleLabel: formatCampaignScheduleLabel(campaignConfig),
+      lastRun: lastRun,
       brokersAtivos: brokersAtivos,
       corretoresResponderam: corretoresResponderam,
       taxaRespostaPct: taxaResposta,

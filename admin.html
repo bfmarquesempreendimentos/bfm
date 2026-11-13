@@ -17,7 +17,7 @@
     })();
     </script>
     <link rel="stylesheet" href="styles/main.css?v=37">
-    <link rel="stylesheet" href="styles/admin.css?v=55">
+    <link rel="stylesheet" href="styles/admin.css?v=56">
     <link rel="stylesheet" href="styles/admin-finance.css?v=2">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1036,6 +1036,42 @@
                         <span id="brokerCampaignScheduleHint" class="broker-campaign-schedule-hint"></span>
                     </div>
 
+                    <div class="broker-campaign-metrics-panel" id="brokerCampaignMetricsPanel" aria-live="polite">
+                        <div class="broker-campaign-metrics-head">
+                            <h4 class="broker-campaign-metrics-title">Desempenho recente</h4>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="loadBrokerCampaignMetrics(true)">
+                                <i class="fas fa-sync-alt" aria-hidden="true"></i> Atualizar métricas
+                            </button>
+                        </div>
+                        <p id="brokerCampaignMetricsSince" class="broker-campaign-hint">Carregando métricas…</p>
+                        <div class="broker-campaign-metrics-kpis">
+                            <div class="broker-kpi">
+                                <span class="broker-kpi__label">Enviados (último disparo)</span>
+                                <strong id="brokerMetricsLastSent" class="broker-kpi__value">—</strong>
+                            </div>
+                            <div class="broker-kpi">
+                                <span class="broker-kpi__label">Falhas</span>
+                                <strong id="brokerMetricsLastErrors" class="broker-kpi__value">—</strong>
+                            </div>
+                            <div class="broker-kpi">
+                                <span class="broker-kpi__label">Responderam</span>
+                                <strong id="brokerMetricsReplied" class="broker-kpi__value">—</strong>
+                            </div>
+                            <div class="broker-kpi">
+                                <span class="broker-kpi__label">Taxa resposta</span>
+                                <strong id="brokerMetricsReplyPct" class="broker-kpi__value">—</strong>
+                            </div>
+                            <div class="broker-kpi">
+                                <span class="broker-kpi__label">Visitas (leads)</span>
+                                <strong id="brokerMetricsVisits" class="broker-kpi__value">—</strong>
+                            </div>
+                        </div>
+                        <details class="broker-campaign-metrics-replies" id="brokerCampaignMetricsReplies">
+                            <summary>Corretores que responderam após o último envio</summary>
+                            <ul id="brokerCampaignMetricsReplyList" class="broker-campaign-metrics-list"></ul>
+                        </details>
+                    </div>
+
                     <div class="broker-campaign-kpis">
                         <div class="broker-kpi broker-kpi--ready">
                             <span class="broker-kpi__label">Prontos</span>
@@ -1198,6 +1234,30 @@
                     </thead>
                     <tbody id="brokersTableBody">
                     </tbody>
+                </table>
+            </div>
+
+            <div id="brokersInactiveSection" class="brokers-inactive-section admin-table-container admin-table-container--elevated" style="display:none">
+                <div class="brokers-inactive-section__head">
+                    <h3>Corretores desativados</h3>
+                    <span id="brokersInactiveCount" class="brokers-inactive-count">0</span>
+                </div>
+                <p class="section-subtitle" style="padding:0 16px 8px 16px;margin:0;">
+                    Cadastros que já foram aprovados e depois desativados. Reative sem precisar novo cadastro.
+                </p>
+                <table class="admin-table" id="brokersInactiveTable">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Telefone</th>
+                            <th>CRECI</th>
+                            <th>Campanha</th>
+                            <th>Cadastro</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="brokersInactiveTableBody"></tbody>
                 </table>
             </div>
         </section>
@@ -2425,7 +2485,7 @@
     <script src="js/firebase.js"></script>
     <script src="js/firebase-service.js?v=41"></script>
     <script src="js/main.js"></script>
-    <script src="js/auth.js?v=34"></script>
+    <script src="js/auth.js?v=35"></script>
     <script src="js/properties.js"></script>
     <script src="js/reservations-api.js?v=4"></script>
     <script src="js/reservations.js"></script>
@@ -2448,7 +2508,7 @@
     <script src="js/admin-reports.js?v=4"></script>
     <script src="js/admin-broker-reservations-report.js?v=4"></script>
     <script src="js/admin-unit-engineering.js?v=27"></script>
-    <script src="js/admin.js?v=53"></script>
+    <script src="js/admin.js?v=54"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>

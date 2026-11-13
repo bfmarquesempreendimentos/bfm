@@ -3848,6 +3848,71 @@ tr.analytics-people-few td { color: #64748b; }
     padding: 6px 8px;
     font-size: 0.85rem;
 }
+.broker-campaign-metrics-panel {
+    margin: 12px 0 16px 0;
+    padding: 14px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+.broker-campaign-metrics-head {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    -webkit-box-pack: justify;
+    -ms-flex-pack: justify;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.broker-campaign-metrics-title {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #0f172a;
+}
+.broker-campaign-metrics-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin: 10px 0;
+}
+.broker-campaign-metrics-replies {
+    margin-top: 8px;
+    font-size: 0.88rem;
+}
+.broker-campaign-metrics-list {
+    margin: 8px 0 0 0;
+    padding-left: 18px;
+    max-height: 160px;
+    overflow-y: auto;
+}
+.brokers-inactive-section {
+    margin-top: 16px;
+    border: 1px solid #cbd5e1;
+    background: #f1f5f9;
+}
+.brokers-inactive-section__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 0 16px;
+}
+.brokers-inactive-section__head h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #334155;
+}
+.brokers-inactive-count {
+    background: #64748b;
+    color: #fff;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+}
 .brokers-pending-section {
     margin-bottom: 16px;
     border: 2px solid #fbbf24;
