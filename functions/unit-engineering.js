@@ -269,11 +269,48 @@ function adminRow(id, d) {
   };
 }
 
+var _rowsCache = { at: 0, rows: null };
+var ROWS_CACHE_MS = 20000;
+var _publicCache = { at: 0, body: null };
+var PUBLIC_CACHE_MS = 45000;
+
+function invalidateEngineeringCaches() {
+  _rowsCache.at = 0;
+  _rowsCache.rows = null;
+  _publicCache.at = 0;
+  _publicCache.body = null;
+}
+
 async function loadAllRows(db) {
+  if (_rowsCache.rows && Date.now() - _rowsCache.at < ROWS_CACHE_MS) {
+    return _rowsCache.rows;
+  }
   var snap = await db.collection(COL).limit(2000).get();
   var rows = [];
   snap.forEach(function(doc) {
     rows.push(adminRow(doc.id, doc.data() || {}));
+  });
+  _rowsCache = { at: Date.now(), rows: rows };
+  return rows;
+}
+
+async function loadRowsForProperty(db, propertyId) {
+  var num = Number(propertyId);
+  var queries = [
+    db.collection(COL).where('propertyId', '==', String(propertyId)).limit(400).get(),
+  ];
+  if (isFinite(num)) {
+    queries.push(db.collection(COL).where('propertyId', '==', num).limit(400).get());
+  }
+  var snaps = await Promise.all(queries);
+  var seen = {};
+  var rows = [];
+  snaps.forEach(function(snap) {
+    snap.forEach(function(doc) {
+      if (seen[doc.id]) return;
+      seen[doc.id] = true;
+      rows.push(adminRow(doc.id, doc.data() || {}));
+    });
   });
   return rows;
 }
@@ -865,6 +902,10 @@ async function adminUnitEngineeringHttp(req, res) {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.method === 'GET') {
     try {
+      if (_publicCache.body && Date.now() - _publicCache.at < PUBLIC_CACHE_MS) {
+        res.set('Cache-Control', 'public, max-age=45');
+        return res.json(_publicCache.body);
+      }
       var db = admin.firestore();
       var rows = await loadAllRows(db);
       var overrides = await loadUnitOverridesMap(db);
@@ -887,7 +928,10 @@ async function adminUnitEngineeringHttp(req, res) {
           prices[pid][r.unitCode] = r.salePrice;
         }
       });
-      return res.json({ ok: true, valid: publicMap, prices: prices });
+      var publicBody = { ok: true, valid: publicMap, prices: prices };
+      _publicCache = { at: Date.now(), body: publicBody };
+      res.set('Cache-Control', 'public, max-age=45');
+      return res.json(publicBody);
     } catch (err) {
       console.error('unitEngineering public:', err);
       return res.status(500).json({ error: err.message });
@@ -906,8 +950,9 @@ async function adminUnitEngineeringHttp(req, res) {
 
     if (action === 'list') {
       var filterPid = body.propertyId != null && body.propertyId !== '' ? String(body.propertyId) : '';
-      var rows = await loadAllRows(db);
-      if (filterPid) rows = rows.filter(function(r) { return String(r.propertyId) === filterPid; });
+      var rows = filterPid
+        ? await loadRowsForProperty(db, filterPid)
+        : await loadAllRows(db);
       var merged = filterPid ? mergeListForProperty(filterPid, rows) : { catalog: null, rows: rows };
       var property = filterPid ? await loadPropertyDossier(db, filterPid) : null;
       return res.json({
@@ -1207,6 +1252,7 @@ async function adminUnitEngineeringHttp(req, res) {
         throw fillErr;
       }
       await db.collection(COL).doc(id).set(docU, { merge: true });
+      invalidateEngineeringCaches();
       return res.json({ ok: true, row: adminRow(id, docU) });
     }
 
@@ -1214,6 +1260,7 @@ async function adminUnitEngineeringHttp(req, res) {
       var importId = String(body.importId || 'email-2026-11-13').trim();
       var importResult = await applyCaixaLaudoImport(db, importId, auth);
       if (!importResult.ok) return res.status(400).json(importResult);
+      invalidateEngineeringCaches();
       return res.json(importResult);
     }
 
@@ -1221,6 +1268,7 @@ async function adminUnitEngineeringHttp(req, res) {
       var delId = String(body.id || '').trim();
       if (!delId) return res.status(400).json({ error: 'id obrigatório' });
       await db.collection(COL).doc(delId).delete();
+      invalidateEngineeringCaches();
       return res.json({ ok: true });
     }
 

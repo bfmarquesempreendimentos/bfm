@@ -6,7 +6,7 @@
     var _valid = null;
     var _prices = null;
     var _at = 0;
-    var CACHE_MS = 60000;
+    var CACHE_MS = 3 * 60 * 1000;
 
     function functionsBase() {
         if (typeof getCloudFunctionsBaseUrl === 'function') return getCloudFunctionsBaseUrl();
@@ -25,7 +25,7 @@
             _at = Date.now();
             return Promise.resolve(_valid);
         }
-        return fetch(base + '/adminUnitEngineering', { method: 'GET', cache: 'no-store', credentials: 'omit' })
+        return fetch(base + '/adminUnitEngineering', { method: 'GET', credentials: 'omit' })
             .then(function(res) { return res.ok ? res.json() : { valid: {}, prices: {} }; })
             .then(function(data) {
                 _valid = (data && data.valid) ? data.valid : {};

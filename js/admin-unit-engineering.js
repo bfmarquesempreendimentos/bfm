@@ -1885,7 +1885,6 @@
             if (keep && sel.querySelector('option[value="' + keep + '"]')) sel.value = keep;
             else if (sel.options.length > 1 && !sel.value) sel.selectedIndex = 1;
         }
-        if (typeof loadEngineeringAlerts === 'function') loadEngineeringAlerts();
         var pid = selectedPropertyId();
         if (loadUnitEngineeringAdmin._pid && loadUnitEngineeringAdmin._pid !== pid) {
             _filterText = '';
