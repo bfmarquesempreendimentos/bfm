@@ -2098,14 +2098,61 @@
         }).catch(function() {});
     }
 
+    function formatDaysRemainingLabel(daysLeft) {
+        if (daysLeft == null || daysLeft === '') return '';
+        var n = Number(daysLeft);
+        if (!isFinite(n)) return '';
+        if (n < 0) return 'Vencida';
+        if (n === 0) return 'Vence hoje';
+        if (n === 1) return 'Vence amanhã';
+        return n + ' dia(s) restantes';
+    }
+
+    function renderDashboardEngineering(data) {
+        var stats = document.getElementById('ueDashEngineeringStats');
+        var list = document.getElementById('ueDashEngineeringList');
+        if (!stats && !list) return;
+        var c = data.counts || {};
+        var horizon = data.dashboardAlertDays != null ? data.dashboardAlertDays : 60;
+        var valid = c.validLaudos != null ? c.validLaudos : ((c.vigente || 0) + (c.expiring || 0));
+        var soon = c.expiringSoon60 != null ? c.expiringSoon60 : 0;
+        var expired = c.expired || 0;
+        if (stats) {
+            stats.innerHTML =
+                '<p class="dashboard-eng-stat"><span class="dashboard-eng-stat__n">' + valid + '</span> engenharia(s) <strong>válida(s)</strong> (laudo + PDF dentro da validade)</p>' +
+                '<p class="dashboard-eng-stat"><span class="dashboard-eng-stat__n dashboard-eng-stat__n--warn">' + soon + '</span> a vencer em até <strong>' + horizon + ' dias</strong> (2 meses)</p>' +
+                (expired ? '<p class="dashboard-eng-stat dashboard-eng-stat--muted"><strong>' + expired + '</strong> vencida(s) — renovar para voltar à vitrine</p>' : '');
+        }
+        if (list) {
+            var rows = data.expiringSoon60 || [];
+            if (!rows.length) {
+                list.innerHTML = '<li class="dashboard-eng-item dashboard-eng-item--ok">Nenhuma engenharia vence nos próximos ' + horizon + ' dias.</li>';
+            } else {
+                list.innerHTML = rows.map(function(r) {
+                    var title = r.propertyName || r.propertyId;
+                    var remain = r.remainingLabel || formatDaysRemainingLabel(r.daysLeft);
+                    var val = formatMoney(r.engineeringValue);
+                    var due = formatDate(r.expiresAt);
+                    var desc = r.description || (title + ' — ' + r.unitCode);
+                    return '<li class="dashboard-eng-item dashboard-eng-item--soon">' +
+                        '<div class="dashboard-eng-item__head"><strong>' + esc(title) + '</strong> · ' + esc(r.unitCode) + '</div>' +
+                        '<div class="dashboard-eng-item__meta"><span class="dashboard-eng-remain">' + esc(remain) + '</span>' +
+                        (due ? ' · validade ' + esc(due) : '') +
+                        (val ? ' · ' + esc(val) : '') + '</div>' +
+                        '<div class="dashboard-eng-item__desc">' + esc(desc) + '</div></li>';
+                }).join('');
+            }
+        }
+    }
+
     function renderAlerts(data) {
         var box = document.getElementById('ueAlerts');
-        var dash = document.getElementById('ueDashHint');
         var report = document.getElementById('ueReportBody');
+        renderDashboardEngineering(data || {});
         if (!data) return;
         var c = data.counts || {};
         var html = '<p><strong>' + (c.expiring || 0) + '</strong> engenharia(s) a vencer (45 dias) · <strong>' +
-            (c.expired || 0) + '</strong> vencida(s) · <strong>' + (c.vigente || 0) + '</strong> vigente(s).</p>';
+            (c.expired || 0) + '</strong> vencida(s) · <strong>' + (c.validLaudos != null ? c.validLaudos : c.vigente) + '</strong> válida(s) no total.</p>';
         if ((c.leaseEnding || 0) || (c.vacantPatrimonio || 0)) {
             html += '<p><strong>' + (c.leaseEnding || 0) + '</strong> contrato(s) de locação a vencer · <strong>' +
                 (c.vacantPatrimonio || 0) + '</strong> unidade(s) vaga(s) no patrimônio.</p>';
@@ -2116,7 +2163,6 @@
                 (c.maintenancesDue || 0) + '</strong> manutenção(ões) na agenda.</p>';
         }
         if (box) box.innerHTML = html;
-        if (dash) dash.textContent = (c.expiring || 0) + ' engenharia(s) a vencer';
         if (report) {
             var rows = (data.expiring || []).concat(data.expired || []);
             if (!rows.length) {

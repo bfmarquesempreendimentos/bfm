@@ -13,6 +13,8 @@ var COL = 'unit_engineering';
 var PROP_COL = 'property_dossiers';
 var VALIDITY_MONTHS = 6;
 var ALERT_DAYS = 45;
+/** Painel: alertar engenharias que vencem nos próximos 2 meses (~60 dias). */
+var DASHBOARD_ALERT_DAYS = 60;
 
 var BUILDING_FIELDS = [
   'officialName', 'street', 'neighborhood', 'city', 'cep', 'mapsUrl',
@@ -807,11 +809,53 @@ async function adminUnitEngineeringHttp(req, res) {
         chargesOverdue = chargesOverdue.concat(b.overdue);
         maintDue = maintDue.concat(m.due || []).concat(m.overdue || []);
       });
+      function catalogPropertyName(propertyId) {
+        var cat = catalogUnits(propertyId);
+        if (cat && cat.name) return cat.name;
+        return 'Empreendimento ' + propertyId;
+      }
+
+      function enrichExpiringRow(r) {
+        var c = classify(r.expiresAt);
+        var daysLeft = c.daysLeft;
+        var remainingLabel = '';
+        if (daysLeft != null && daysLeft >= 0) {
+          if (daysLeft === 0) remainingLabel = 'Vence hoje';
+          else if (daysLeft === 1) remainingLabel = 'Vence amanhã';
+          else remainingLabel = daysLeft + ' dia(s) restantes';
+        }
+        var propName = catalogPropertyName(r.propertyId);
+        return {
+          propertyId: r.propertyId,
+          propertyName: propName,
+          unitCode: r.unitCode || '',
+          engineeringValue: r.engineeringValue,
+          expiresAt: r.expiresAt || '',
+          status: r.status,
+          statusLabel: r.statusLabel || c.label,
+          daysLeft: daysLeft,
+          remainingLabel: remainingLabel,
+          description: propName + ' — ' + (r.unitCode || 'unidade') +
+            ': laudo vigente vence em ' + (r.expiresAt || '—') +
+            (remainingLabel ? ' (' + remainingLabel + ')' : ''),
+        };
+      }
+
+      var validLaudos = all.filter(function(r) { return !!publicValue(r); });
+      var expiringSoon60 = validLaudos.filter(function(r) {
+        var c = classify(r.expiresAt);
+        return c.daysLeft != null && c.daysLeft >= 0 && c.daysLeft <= DASHBOARD_ALERT_DAYS;
+      }).map(enrichExpiringRow).sort(function(a, b) {
+        return (a.daysLeft == null ? 9999 : a.daysLeft) - (b.daysLeft == null ? 9999 : b.daysLeft);
+      });
+
       return res.json({
         ok: true,
         alertDays: ALERT_DAYS,
+        dashboardAlertDays: DASHBOARD_ALERT_DAYS,
         expiring: expiring,
         expired: expired,
+        expiringSoon60: expiringSoon60,
         leaseEnding: leaseEnding,
         vacantPatrimonio: vacantPatrimonio,
         chargesDue: chargesDue,
@@ -821,6 +865,8 @@ async function adminUnitEngineeringHttp(req, res) {
           expiring: expiring.length,
           expired: expired.length,
           vigente: all.filter(function(r) { return r.status === 'vigente'; }).length,
+          validLaudos: validLaudos.length,
+          expiringSoon60: expiringSoon60.length,
           leaseEnding: leaseEnding.length,
           vacantPatrimonio: vacantPatrimonio.length,
           chargesDue: chargesDue.length,
@@ -1034,6 +1080,7 @@ async function loadValidEngineeringMap(db) {
 module.exports = {
   VALIDITY_MONTHS,
   ALERT_DAYS,
+  DASHBOARD_ALERT_DAYS,
   classify,
   publicValue,
   loadValidEngineeringMap,
