@@ -17,7 +17,7 @@
     })();
     </script>
     <link rel="stylesheet" href="styles/main.css?v=37">
-    <link rel="stylesheet" href="styles/admin.css?v=53">
+    <link rel="stylesheet" href="styles/admin.css?v=54">
     <link rel="stylesheet" href="styles/admin-finance.css?v=2">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -584,6 +584,7 @@
                     <h3 style="margin-top:0;">Ficha das unidades</h3>
                     <p class="form-hint">O nome da unidade é o mesmo das reservas e da vitrine. Clique na coluna para ordenar (validade = o que vence primeiro). Clique na linha para abrir a ficha ao lado.</p>
                     <div class="ue-units-toolbar">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="applyCaixaEmailLaudos()">Aplicar laudos do e-mail Caixa (13/11)</button>
                         <label class="ue-units-search">Buscar
                             <input type="search" id="ueUnitFilter" placeholder="Unidade, matrícula, IPTU ou inquilino" autocomplete="off">
                         </label>
@@ -1940,9 +1941,6 @@
                         <label>Data da engenharia
                             <input type="date" id="ueDate" onchange="onEngineeringDateChange()">
                         </label>
-                        <label>Ref. Caixa (nº laudo)
-                            <input type="text" id="ueCaixaRef" placeholder="Ex: 84684" maxlength="40" inputmode="numeric">
-                        </label>
                         <label>Projeção do vencimento
                             <input type="date" id="ueExpiresAt" readonly>
                         </label>
@@ -2399,7 +2397,7 @@
     <script src="js/admin-finance.js?v=2"></script>
     <script src="js/admin-reports.js?v=4"></script>
     <script src="js/admin-broker-reservations-report.js?v=4"></script>
-    <script src="js/admin-unit-engineering.js?v=25"></script>
+    <script src="js/admin-unit-engineering.js?v=26"></script>
     <script src="js/admin.js?v=52"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

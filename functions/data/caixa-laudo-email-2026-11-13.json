@@ -1,0 +1,39 @@
+{
+  "source": "E-mail Caixa (Diego Chiacchio) — 13/11/2026",
+  "valid": [
+    {
+      "matricula": "84684",
+      "description": "casa 09",
+      "appraisalDateBr": "16.07.2026",
+      "engineeringValue": 190000
+    },
+    {
+      "matricula": "83625",
+      "description": "casa 05",
+      "appraisalDateBr": "02.06.2026",
+      "engineeringValue": 168000
+    },
+    {
+      "matricula": "83627",
+      "description": "casa 07",
+      "appraisalDateBr": "24.07.2026",
+      "engineeringValue": 166254.52
+    },
+    {
+      "matricula": "68913",
+      "appraisalDateBr": "15.09.2026",
+      "engineeringValue": 200000
+    },
+    {
+      "matricula": "68914",
+      "appraisalDateBr": "21.08.2026",
+      "engineeringValue": 145000
+    },
+    {
+      "matricula": "69062",
+      "appraisalDateBr": "05.06.2026",
+      "engineeringValue": 195000
+    }
+  ],
+  "vencidaMatriculas": ["69061", "69063", "69067"]
+}

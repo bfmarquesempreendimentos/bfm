@@ -1016,8 +1016,8 @@
         if (!r) return '';
         var propName = (_property && _property.officialName) || ('Empreendimento ' + (selectedPropertyId() || r.propertyId || ''));
         var bits = propName + ' — ' + (r.unitCode || 'unidade');
-        if (r.caixaLaudoRef) bits += ' · Caixa ' + r.caixaLaudoRef;
-        bits += ': laudo vigente vence em ' + (formatDate(r.expiresAt) || '—');
+        if (r.matricula) bits += ' · matrícula ' + r.matricula;
+        bits += ': laudo de ' + (formatDate(r.appraisalDate) || '—') + ', validade ' + (formatDate(r.expiresAt) || '—');
         if (r.remainingLabel) bits += ' (' + r.remainingLabel + ')';
         if (r.engineeringValue) bits += ' · valor ' + formatMoney(r.engineeringValue);
         return bits;
@@ -1035,7 +1035,7 @@
         var remain = r.remainingLabel || formatDaysRemainingLabel(r.daysLeft);
         var val = formatMoney(r.engineeringValue || r.historicalEngineering);
         var due = formatDate(r.expiresAt);
-        var caixa = r.caixaLaudoRef ? '<span>Caixa <strong>' + esc(r.caixaLaudoRef) + '</strong></span>' : '';
+        var mat = r.matricula ? '<span>Matrícula <strong>' + esc(r.matricula) + '</strong></span>' : '';
         var cls = 'ue-eng-summary';
         if (r.status === 'vencida') cls += ' ue-eng-summary--expired';
         else if (r.status === 'a_vencer') cls += ' ue-eng-summary--soon';
@@ -1047,7 +1047,7 @@
             (remain ? '<span class="dashboard-eng-remain">' + esc(remain) + '</span>' : '') +
             (due ? '<span>Validade <strong>' + esc(due) + '</strong></span>' : '') +
             (val ? '<span>Laudo <strong>' + esc(val) + '</strong></span>' : '') +
-            caixa +
+            mat +
             '</div>' +
             '<p class="ue-eng-summary__desc">' + esc(engineeringStatusDescription(r)) + '</p>';
         box.hidden = false;
@@ -1268,7 +1268,6 @@
         set('ueValue', r ? formatMoney(r.engineeringValue || r.historicalEngineering) : '');
         set('ueM2', r ? formatMoney(r.valuePerM2) : '');
         set('ueDate', r ? r.appraisalDate : '');
-        set('ueCaixaRef', r ? (r.caixaLaudoRef || '') : '');
         set('ueGarantiaCaixa', r ? (r.garantiaCaixa || '') : '');
         updateGarantiaHint(r ? r.garantiaCaixa : '', '');
         setCurrentReportLabel(r ? r.reportName : '', r ? r.reportPath : '', false, r ? r.laudoUnitHint : '');
@@ -2099,7 +2098,6 @@
             historicalEngineering: current.historicalEngineering || '',
             valuePerM2: parseMoneyInput(document.getElementById('ueM2').value),
             appraisalDate: document.getElementById('ueDate').value,
-            caixaLaudoRef: document.getElementById('ueCaixaRef') ? document.getElementById('ueCaixaRef').value : '',
             notes: document.getElementById('ueNotes').value,
             archiveDocuments: current.archiveDocuments || [],
             engineeringHistory: current.engineeringHistory || [],
@@ -2146,29 +2144,61 @@
         openStoredDocument(path);
     }
 
-    var CAIXA_IMPORT_STORAGE_KEY = 'bfm_applied_caixa_itauna_20261113';
-
-    function tryApplyCaixaItaunaImport() {
+    function applyCaixaEmailLaudos() {
         if (typeof adminPostJson !== 'function') return;
-        if (typeof localStorage !== 'undefined' && localStorage.getItem(CAIXA_IMPORT_STORAGE_KEY)) return;
+        if (!window.confirm('Atualizar fichas com a lista do e-mail Caixa (13/11/2026)?\n\nMatrícula, data do laudo e valor — só unidades vigentes. Vencidas não são gravadas.')) return;
         adminPostJson('/adminUnitEngineering', {
             action: 'apply_caixa_import',
-            importId: 'itauna-2026-11-13'
+            importId: 'email-2026-11-13'
         }).then(function(data) {
-            if (!data || !data.ok) return;
-            if (typeof localStorage !== 'undefined') localStorage.setItem(CAIXA_IMPORT_STORAGE_KEY, '1');
-            var n = (data.updated || []).length;
-            if (typeof showMessage === 'function' && n) {
-                showMessage('Laudos Caixa (Itaúna): ' + n + ' unidade(s) atualizada(s) nas fichas.', 'success');
+            if (!data || !data.ok) {
+                if (typeof showMessage === 'function') showMessage((data && data.error) || 'Não foi possível aplicar a lista.', 'error');
+                return;
             }
+            var n = (data.updated || []).length;
+            var venc = data.vencidas || [];
+            var msg = n + ' unidade(s) atualizada(s) (matrícula, data e valor do laudo).';
+            if (venc.length) {
+                msg += ' Vencidas (não alteradas): ' + venc.map(function(v) {
+                    return (v.propertyName || '') + ' · ' + (v.unitCode || '?') + ' · mat. ' + (v.matricula || v.matriculaDigits || '');
+                }).join('; ');
+            }
+            if (typeof showMessage === 'function') showMessage(msg, venc.length ? 'warning' : 'success');
+            if (typeof invalidateEngineeringCache === 'function') invalidateEngineeringCache();
             if (typeof loadUnitEngineeringAdmin === 'function') loadUnitEngineeringAdmin();
-            loadEngineeringAlerts(true);
-        }).catch(function() {});
+            loadEngineeringAlerts();
+        }).catch(function() {
+            if (typeof showMessage === 'function') showMessage('Erro ao aplicar lista Caixa.', 'error');
+        });
     }
 
-    function loadEngineeringAlerts(skipCaixaImport) {
+    function maybeApplyCaixaEmailOnce() {
+        var k = 'bfm_caixa_email_v3';
+        if (typeof localStorage !== 'undefined' && localStorage.getItem(k)) return;
         if (typeof adminPostJson !== 'function') return;
-        if (!skipCaixaImport) tryApplyCaixaItaunaImport();
+        adminPostJson('/adminUnitEngineering', { action: 'apply_caixa_import', importId: 'email-2026-11-13' })
+            .then(function(data) {
+                if (!data || !data.ok) return;
+                if (typeof localStorage !== 'undefined') localStorage.setItem(k, '1');
+                var n = (data.updated || []).length;
+                var venc = data.vencidas || [];
+                if (typeof showMessage === 'function' && (n || venc.length)) {
+                    var msg = n ? n + ' ficha(s) atualizada(s) (matrícula, data e valor do laudo).' : '';
+                    if (venc.length) {
+                        msg += (msg ? ' ' : '') + 'Vencidas (só identificadas): ' + venc.map(function(v) {
+                            return (v.propertyName || '') + ' · ' + (v.unitCode || '?') + ' · mat. ' + (v.matricula || v.matriculaDigits);
+                        }).join('; ');
+                    }
+                    showMessage(msg, venc.length ? 'warning' : 'success');
+                }
+                if (typeof invalidateEngineeringCache === 'function') invalidateEngineeringCache();
+                if (typeof loadUnitEngineeringAdmin === 'function') loadUnitEngineeringAdmin();
+            }).catch(function() {});
+    }
+
+    function loadEngineeringAlerts() {
+        if (typeof adminPostJson !== 'function') return;
+        maybeApplyCaixaEmailOnce();
         adminPostJson('/adminUnitEngineering', { action: 'alerts' }).then(function(data) {
             _alerts = data;
             renderAlerts(data);
@@ -2277,6 +2307,7 @@
         window.propertyInventoryKind = propertyInventoryKind;
         window.occupancyLabel = occupancyLabel;
         window.loadEngineeringAlerts = loadEngineeringAlerts;
+        window.applyCaixaEmailLaudos = applyCaixaEmailLaudos;
         window.openEngineeringReport = openEngineeringReport;
         window.startNewUnitEngineering = startNewUnitEngineering;
         window.startNewUnitRgi = startNewUnitRgi;
