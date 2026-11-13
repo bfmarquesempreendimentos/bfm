@@ -116,6 +116,13 @@ var CONFIG = {
         baseURL: 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.net'
     },
 
+    /** Engenharia vigente na vitrine (JSON público no Storage; atualizado ao salvar ficha). */
+    engineering: {
+        snapshotStorageUrl:
+            'https://firebasestorage.googleapis.com/v0/b/site-interativo-b-f-marques.firebasestorage.app/o/public-data%2Fvalid-engineering.json?alt=media',
+        staticFallbackPath: 'data/valid-engineering.json'
+    },
+
     /** Web Push — chave pública em Firebase Console > Cloud Messaging > Web Push certificates */
     fcm: {
         vapidKey: 'BFaiXd48qrtQUkFcOto30n1czYxXJWyCBDxQk-bEmG-r_dS62kMXq8VUtxXeVagKoglyJXuyR_1Eys0OjdhsaQE'
@@ -155,7 +162,7 @@ var CONFIG = {
     },
 
     /** Versão de cache para CSS/JS (incrementar a cada deploy público) */
-        assetVersion: '56',
+        assetVersion: '57',
 
     /** Permissões por perfil do painel admin (espelha functions/admin-accounts.js) */
     adminRoles: {

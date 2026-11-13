@@ -281,6 +281,71 @@ function invalidateEngineeringCaches() {
   _publicCache.body = null;
 }
 
+var PUBLIC_ENGINEERING_SNAPSHOT_PATH = 'public-data/valid-engineering.json';
+var STORAGE_BUCKETS_ENGINEERING = [
+  'site-interativo-b-f-marques.firebasestorage.app',
+  'site-interativo-b-f-marques.appspot.com',
+];
+
+async function buildPublicEngineeringBody(db) {
+  var rows = await loadAllRows(db);
+  var overrides = await loadUnitOverridesMap(db);
+  var publicMap = {};
+  var prices = {};
+  rows.forEach(function(r) {
+    var pid = String(r.propertyId);
+    var unitSt = effectiveUnitStatusForVitrine(pid, r.unitCode, overrides);
+    if (!unitStatus.shouldShowEngineeringOnVitrine(unitSt)) return;
+    var val = publicValue(r);
+    if (val) {
+      if (!publicMap[pid]) publicMap[pid] = {};
+      publicMap[pid][r.unitCode] = {
+        value: val,
+        expiresAt: r.expiresAt,
+      };
+    }
+    if (r.salePrice !== '' && r.salePrice != null && r.updatedBy && String(r.updatedBy).indexOf('@') !== -1) {
+      if (!prices[pid]) prices[pid] = {};
+      prices[pid][r.unitCode] = r.salePrice;
+    }
+  });
+  return {
+    ok: true,
+    valid: publicMap,
+    prices: prices,
+    publishedAt: new Date().toISOString(),
+  };
+}
+
+async function publishValidEngineeringSnapshot(db) {
+  var body = await buildPublicEngineeringBody(db);
+  var buf = Buffer.from(JSON.stringify(body), 'utf8');
+  var i;
+  for (i = 0; i < STORAGE_BUCKETS_ENGINEERING.length; i++) {
+    try {
+      var bucket = admin.storage().bucket(STORAGE_BUCKETS_ENGINEERING[i]);
+      await bucket.file(PUBLIC_ENGINEERING_SNAPSHOT_PATH).save(buf, {
+        contentType: 'application/json; charset=utf-8',
+        metadata: { cacheControl: 'public, max-age=120' },
+        resumable: false,
+      });
+    } catch (err) {
+      console.warn('publishValidEngineeringSnapshot', STORAGE_BUCKETS_ENGINEERING[i], err && err.message);
+    }
+  }
+  _publicCache = {
+    at: Date.now(),
+    body: { ok: true, valid: body.valid, prices: body.prices },
+  };
+  return body;
+}
+
+function schedulePublishValidEngineeringSnapshot(db) {
+  publishValidEngineeringSnapshot(db).catch(function(err) {
+    console.error('publishValidEngineeringSnapshot:', err);
+  });
+}
+
 async function loadAllRows(db) {
   if (_rowsCache.rows && Date.now() - _rowsCache.at < ROWS_CACHE_MS) {
     return _rowsCache.rows;
@@ -907,28 +972,8 @@ async function adminUnitEngineeringHttp(req, res) {
         return res.json(_publicCache.body);
       }
       var db = admin.firestore();
-      var rows = await loadAllRows(db);
-      var overrides = await loadUnitOverridesMap(db);
-      var publicMap = {};
-      var prices = {};
-      rows.forEach(function(r) {
-        var pid = String(r.propertyId);
-        var unitSt = effectiveUnitStatusForVitrine(pid, r.unitCode, overrides);
-        if (!unitStatus.shouldShowEngineeringOnVitrine(unitSt)) return;
-        var val = publicValue(r);
-        if (val) {
-          if (!publicMap[pid]) publicMap[pid] = {};
-          publicMap[pid][r.unitCode] = {
-            value: val,
-            expiresAt: r.expiresAt,
-          };
-        }
-        if (r.salePrice !== '' && r.salePrice != null && r.updatedBy && String(r.updatedBy).indexOf('@') !== -1) {
-          if (!prices[pid]) prices[pid] = {};
-          prices[pid][r.unitCode] = r.salePrice;
-        }
-      });
-      var publicBody = { ok: true, valid: publicMap, prices: prices };
+      var built = await buildPublicEngineeringBody(db);
+      var publicBody = { ok: true, valid: built.valid, prices: built.prices };
       _publicCache = { at: Date.now(), body: publicBody };
       res.set('Cache-Control', 'public, max-age=45');
       return res.json(publicBody);
@@ -1253,6 +1298,7 @@ async function adminUnitEngineeringHttp(req, res) {
       }
       await db.collection(COL).doc(id).set(docU, { merge: true });
       invalidateEngineeringCaches();
+      schedulePublishValidEngineeringSnapshot(db);
       return res.json({ ok: true, row: adminRow(id, docU) });
     }
 
@@ -1261,7 +1307,13 @@ async function adminUnitEngineeringHttp(req, res) {
       var importResult = await applyCaixaLaudoImport(db, importId, auth);
       if (!importResult.ok) return res.status(400).json(importResult);
       invalidateEngineeringCaches();
+      schedulePublishValidEngineeringSnapshot(db);
       return res.json(importResult);
+    }
+
+    if (action === 'publish_public_snapshot') {
+      var published = await publishValidEngineeringSnapshot(db);
+      return res.json({ ok: true, publishedAt: published.publishedAt });
     }
 
     if (action === 'delete') {
@@ -1269,6 +1321,7 @@ async function adminUnitEngineeringHttp(req, res) {
       if (!delId) return res.status(400).json({ error: 'id obrigatório' });
       await db.collection(COL).doc(delId).delete();
       invalidateEngineeringCaches();
+      schedulePublishValidEngineeringSnapshot(db);
       return res.json({ ok: true });
     }
 
@@ -1302,5 +1355,7 @@ module.exports = {
   classify,
   publicValue,
   loadValidEngineeringMap,
+  buildPublicEngineeringBody,
+  publishValidEngineeringSnapshot,
   adminUnitEngineeringHttp,
 };

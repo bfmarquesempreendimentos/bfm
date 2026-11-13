@@ -307,30 +307,6 @@ async function handleRegister(e) {
         return;
     }
     
-    // Check if email already exists (case-insensitive)
-    var existingBroker = null;
-    var ei;
-    for (ei = 0; ei < brokers.length; ei++) {
-        if ((brokers[ei].email || '').toLowerCase() === email) {
-            existingBroker = brokers[ei];
-            break;
-        }
-    }
-    if (existingBroker) {
-        showRegisterFeedback(false, 'Você já possui cadastro. Use Entrar com seu email e senha — não é necessário recadastrar.');
-        showLoginForm();
-        var loginEmailInput = document.getElementById('email');
-        if (loginEmailInput) loginEmailInput.value = email;
-        showAuthMessage('Use seu email e senha para entrar. Se esqueceu a senha, clique em "Esqueci minha senha".', 'info');
-        return;
-    }
-    
-    // Check if CRECI already exists
-    if (creci && brokers.find(b => b.creci === creci)) {
-        showRegisterFeedback(false, 'Este CRECI já está cadastrado.');
-        return;
-    }
-    
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -373,31 +349,35 @@ async function handleRegister(e) {
             if (id) { newBroker.id = id; saved = true; }
         } catch (err) {
             registerError = err;
-            console.warn('API falhou, tentando Firestore:', err);
+            console.warn('API de cadastro falhou:', err);
         }
     }
-    if (!saved && typeof saveBrokerToFirestore === 'function') {
-        try {
-            const docId = await saveBrokerToFirestore(newBroker);
-            if (docId) { newBroker.id = docId; saved = true; }
-        } catch (err) {
-            if (!registerError) registerError = err;
-            console.error('Firestore falhou:', err);
-        }
-    }
-
     if (!saved) {
         var failMsg = (registerError && registerError.message) ? String(registerError.message) : '';
-        if (/já cadastrado|already|409/i.test(failMsg)) {
-            showRegisterFeedback(false, 'Este e-mail já está cadastrado. Faça login ou use a recuperação de senha.');
+        var failStatus = registerError && registerError.status;
+        if (/já cadastrado|already|409/i.test(failMsg) || failStatus === 409) {
+            brokers = brokers.filter(function(b) {
+                return String(b.email || '').toLowerCase() !== email;
+            });
+            saveBrokersToStorage();
+            showRegisterFeedback(false, 'Este e-mail já está cadastrado no servidor. Faça login ou use a recuperação de senha.');
+            showLoginForm();
+            var loginEmailInput = document.getElementById('email');
+            if (loginEmailInput) loginEmailInput.value = email;
         } else {
             showRegisterFeedback(false, 'Não foi possível gravar o cadastro no servidor. Tente novamente em alguns minutos ou fale com o suporte.');
         }
         return;
     }
 
+    brokers = brokers.filter(function(b) {
+        return String(b.email || '').toLowerCase() !== email;
+    });
     brokers.push(newBroker);
     saveBrokersToStorage();
+    if (typeof loadBrokersFromFirestore === 'function') {
+        loadBrokersFromFirestore({});
+    }
 
     if (hasAllRegisterFields || newBroker.isActive === true) {
         showRegisterFeedback(true, 'Seu cadastro foi aprovado automaticamente! Você já pode fazer login e acessar o sistema.');
@@ -784,18 +764,58 @@ function showBrokerForgotPassword() {
     }
 }
 
+async function fetchBrokerEmailStatus(email) {
+    var base = typeof getCloudFunctionsBaseUrl === 'function'
+        ? getCloudFunctionsBaseUrl()
+        : (typeof getFirebaseServiceFunctionsBase === 'function' ? getFirebaseServiceFunctionsBase() : '');
+    if (!base) return null;
+    try {
+        var res = await fetch(base + '/brokerEmailStatus?email=' + encodeURIComponent(email), { credentials: 'omit' });
+        if (!res.ok) return null;
+        return await res.json();
+    } catch (e) {
+        return null;
+    }
+}
+
 async function handleBrokerForgotPasswordSubmit() {
     const emailInput = document.getElementById('forgotEmail');
-    const email = emailInput?.value?.trim();
+    const email = emailInput?.value?.trim().toLowerCase();
     if (!email) {
         if (typeof showMessage === 'function') showMessage('Digite seu email.', 'error');
         return;
     }
-    const broker = brokers.find(b => String(b.email).toLowerCase() === String(email).toLowerCase());
-    if (!broker) {
-        if (typeof showMessage === 'function') showMessage('Email não encontrado em nossa base de dados.', 'error');
-        else alert('Email não encontrado em nossa base de dados.');
-        return;
+    var serverStatus = await fetchBrokerEmailStatus(email);
+    var broker = null;
+    if (serverStatus) {
+        if (!serverStatus.exists) {
+            brokers = brokers.filter(function(b) {
+                return String(b.email || '').toLowerCase() !== email;
+            });
+            saveBrokersToStorage();
+            showLoginForm();
+            if (typeof showMessage === 'function') {
+                showMessage('Se o e-mail estiver cadastrado no servidor, você receberá um link para redefinir a senha. Verifique também o spam.', 'success');
+            }
+            return;
+        }
+        broker = {
+            id: serverStatus.id,
+            email: email,
+            name: serverStatus.name || email,
+            isActive: !!serverStatus.isActive
+        };
+    } else {
+        broker = brokers.find(function(b) {
+            return String(b.email || '').toLowerCase() === email;
+        }) || null;
+        if (!broker) {
+            showLoginForm();
+            if (typeof showMessage === 'function') {
+                showMessage('Não foi possível consultar o servidor. Tente novamente em instantes.', 'error');
+            }
+            return;
+        }
     }
     if (!brokerIsActiveLocal(broker)) {
         const tel = (typeof CONFIG !== 'undefined' && CONFIG?.company?.phone) ? CONFIG.company.phone : '(21) 99759-0814';

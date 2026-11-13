@@ -1613,3 +1613,13 @@ function scrollToTop() {
         });
     }
 }
+
+/** Área do cliente fica em página dedicada (scripts pesados não carregam na vitrine). */
+function openClientArea() {
+    window.location.href = 'client-area.html';
+}
+
+function closeClientArea() {
+    var modal = document.getElementById('clientAreaModal');
+    if (modal) modal.style.display = 'none';
+}

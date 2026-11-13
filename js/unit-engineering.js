@@ -1,6 +1,7 @@
 /**
  * Engenharia vigente (só valores com laudo dentro de 6 meses).
  * Valores antigos do catálogo não entram na vitrine nem no WhatsApp.
+ * Carrega primeiro o snapshot estático (Storage / data/), depois a função nos EUA.
  */
 (function() {
     var _valid = null;
@@ -16,31 +17,89 @@
         return '';
     }
 
-    function fetchValidEngineering() {
-        if (_valid && Date.now() - _at < CACHE_MS) return Promise.resolve(_valid);
-        var base = functionsBase();
-        if (!base) {
-            _valid = {};
-            _prices = {};
-            _at = Date.now();
-            return Promise.resolve(_valid);
+    function cacheBust() {
+        var ver = (typeof CONFIG !== 'undefined' && CONFIG.assetVersion)
+            ? String(CONFIG.assetVersion)
+            : '';
+        return ver ? ('?v=' + encodeURIComponent(ver)) : ('?t=' + Math.floor(Date.now() / 300000));
+    }
+
+    function applyEngineeringPayload(data) {
+        _valid = (data && data.valid) ? data.valid : {};
+        _prices = (data && data.prices) ? data.prices : {};
+        _at = Date.now();
+        if (typeof refreshEngineeringValuesDisplay === 'function') {
+            refreshEngineeringValuesDisplay();
         }
-        return fetch(base + '/adminUnitEngineering', { method: 'GET', credentials: 'omit' })
-            .then(function(res) { return res.ok ? res.json() : { valid: {}, prices: {} }; })
-            .then(function(data) {
-                _valid = (data && data.valid) ? data.valid : {};
-                _prices = (data && data.prices) ? data.prices : {};
-                _at = Date.now();
-                if (typeof refreshEngineeringValuesDisplay === 'function') {
-                    refreshEngineeringValuesDisplay();
-                }
-                return _valid;
+        return _valid;
+    }
+
+    function snapshotUrls() {
+        var urls = [];
+        var eng = (typeof CONFIG !== 'undefined' && CONFIG.engineering) ? CONFIG.engineering : null;
+        if (eng && eng.snapshotStorageUrl) {
+            urls.push(String(eng.snapshotStorageUrl));
+        }
+        var basePath = '';
+        try {
+            basePath = window.location.pathname.replace(/\/[^/]*$/, '') || '';
+        } catch (e) { /* ignore */ }
+        var fallback = (eng && eng.staticFallbackPath) ? String(eng.staticFallbackPath) : 'data/valid-engineering.json';
+        if (fallback.indexOf('http') === 0) {
+            urls.push(fallback + cacheBust());
+        } else {
+            urls.push((basePath ? basePath + '/' : '') + fallback + cacheBust());
+        }
+        return urls;
+    }
+
+    function tryFetchSnapshot(urls, index) {
+        index = index || 0;
+        if (!urls || index >= urls.length) return Promise.resolve(null);
+        var url = urls[index];
+        return fetch(url, { credentials: 'omit', cache: 'default' })
+            .then(function(res) {
+                if (!res.ok) return tryFetchSnapshot(urls, index + 1);
+                return res.json().then(function(data) {
+                    if (data && (data.valid || data.prices)) return data;
+                    return tryFetchSnapshot(urls, index + 1);
+                });
             })
             .catch(function() {
-                _valid = _valid || {};
-                _prices = _prices || {};
-                _at = Date.now();
-                return _valid;
+                return tryFetchSnapshot(urls, index + 1);
+            });
+    }
+
+    function fetchFromCloudFunction() {
+        var base = functionsBase();
+        if (!base) return Promise.resolve(null);
+        return fetch(base + '/adminUnitEngineering', { method: 'GET', credentials: 'omit' })
+            .then(function(res) { return res.ok ? res.json() : null; })
+            .catch(function() { return null; });
+    }
+
+    function fetchValidEngineering() {
+        if (_valid && Date.now() - _at < CACHE_MS) return Promise.resolve(_valid);
+
+        return tryFetchSnapshot(snapshotUrls())
+            .then(function(snapshot) {
+                if (snapshot) return applyEngineeringPayload(snapshot);
+                return fetchFromCloudFunction().then(function(data) {
+                    if (data) return applyEngineeringPayload(data);
+                    _valid = _valid || {};
+                    _prices = _prices || {};
+                    _at = Date.now();
+                    return _valid;
+                });
+            })
+            .catch(function() {
+                return fetchFromCloudFunction().then(function(data) {
+                    if (data) return applyEngineeringPayload(data);
+                    _valid = _valid || {};
+                    _prices = _prices || {};
+                    _at = Date.now();
+                    return _valid;
+                });
             });
     }
 

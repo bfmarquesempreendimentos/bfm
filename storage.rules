@@ -31,6 +31,10 @@ service firebase.storage {
       allow read: if isAdminUser();
       allow write: if isAdminUser() && request.resource.size < 15 * 1024 * 1024;
     }
+    match /public-data/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
     match /{allPaths=**} {
       allow read, write: if false;
     }

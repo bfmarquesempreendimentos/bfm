@@ -2683,6 +2683,33 @@ function renderBrokerActionResultPage(title, message, ok) {
   );
 }
 
+/** Consulta pública se o e-mail de corretor existe (evita fantasma do localStorage). */
+exports.brokerEmailStatus = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido' });
+  try {
+    const emailNorm = String(req.query.email || '').trim().toLowerCase();
+    if (!emailNorm) return res.status(400).json({ error: 'email obrigatório' });
+    const db = admin.firestore();
+    const snap = await db.collection('brokers').where('email', '==', emailNorm).limit(1).get();
+    if (snap.empty) return res.json({ exists: false });
+    const doc = snap.docs[0];
+    const d = doc.data() || {};
+    return res.json({
+      exists: true,
+      id: doc.id,
+      name: d.name || '',
+      isActive: brokerAuth.brokerIsActive(d),
+    });
+  } catch (err) {
+    console.error('brokerEmailStatus:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── API de Cadastro de Corretor (server-side, garantido) ─────────────
 exports.registerBroker = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
@@ -2704,6 +2731,13 @@ exports.registerBroker = functions.https.onRequest(async (req, res) => {
     const existing = await db.collection('brokers').where('email', '==', emailNorm).get();
     if (!existing.empty) {
       return res.status(409).json({ error: 'Email já cadastrado' });
+    }
+    const creciNorm = String(creci || '').trim();
+    if (creciNorm) {
+      const byCreci = await db.collection('brokers').where('creci', '==', creciNorm).limit(1).get();
+      if (!byCreci.empty) {
+        return res.status(409).json({ error: 'CRECI já cadastrado' });
+      }
     }
     var pwdFields = passwordFieldsForStorage(password || '');
     const docRef = await db.collection('brokers').add({
