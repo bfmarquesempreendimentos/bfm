@@ -989,17 +989,68 @@
             };
         });
         _rows.forEach(function(r) {
-            if (!r.expiresAt) return;
-            var p = String(r.expiresAt).split('-');
-            if (p.length !== 3) return;
-            var dt = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-            var today = new Date();
-            var t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            var days = Math.round((dt - t0) / 86400000);
-            if (days < 0) { r.status = 'vencida'; r.statusLabel = 'Vencida'; }
-            else if (days <= 45) { r.status = 'a_vencer'; r.statusLabel = 'A vencer'; }
-            else { r.status = 'vigente'; r.statusLabel = 'Vigente'; }
+            applyEngineeringDaysMeta(r);
         });
+    }
+
+    function applyEngineeringDaysMeta(r) {
+        if (!r || !r.expiresAt) {
+            r.daysLeft = null;
+            r.remainingLabel = '';
+            return;
+        }
+        var p = String(r.expiresAt).split('-');
+        if (p.length !== 3) return;
+        var dt = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+        var today = new Date();
+        var t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        var days = Math.round((dt - t0) / 86400000);
+        r.daysLeft = days;
+        r.remainingLabel = formatDaysRemainingLabel(days);
+        if (days < 0) { r.status = 'vencida'; r.statusLabel = 'Vencida'; }
+        else if (days <= 45) { r.status = 'a_vencer'; r.statusLabel = 'A vencer'; }
+        else { r.status = 'vigente'; r.statusLabel = 'Vigente'; }
+    }
+
+    function engineeringStatusDescription(r) {
+        if (!r) return '';
+        var propName = (_property && _property.officialName) || ('Empreendimento ' + (selectedPropertyId() || r.propertyId || ''));
+        var bits = propName + ' — ' + (r.unitCode || 'unidade');
+        if (r.caixaLaudoRef) bits += ' · Caixa ' + r.caixaLaudoRef;
+        bits += ': laudo vigente vence em ' + (formatDate(r.expiresAt) || '—');
+        if (r.remainingLabel) bits += ' (' + r.remainingLabel + ')';
+        if (r.engineeringValue) bits += ' · valor ' + formatMoney(r.engineeringValue);
+        return bits;
+    }
+
+    function renderEngineeringSummaryCard(r) {
+        var box = document.getElementById('ueEngSummary');
+        if (!box) return;
+        if (!r || (!r.expiresAt && !r.engineeringValue && !r.appraisalDate)) {
+            box.hidden = true;
+            box.innerHTML = '';
+            return;
+        }
+        applyEngineeringDaysMeta(r);
+        var remain = r.remainingLabel || formatDaysRemainingLabel(r.daysLeft);
+        var val = formatMoney(r.engineeringValue || r.historicalEngineering);
+        var due = formatDate(r.expiresAt);
+        var caixa = r.caixaLaudoRef ? '<span>Caixa <strong>' + esc(r.caixaLaudoRef) + '</strong></span>' : '';
+        var cls = 'ue-eng-summary';
+        if (r.status === 'vencida') cls += ' ue-eng-summary--expired';
+        else if (r.status === 'a_vencer') cls += ' ue-eng-summary--soon';
+        else if (r.status === 'vigente') cls += ' ue-eng-summary--ok';
+        box.className = cls;
+        box.innerHTML =
+            '<div class="ue-eng-summary__row">' +
+            '<span class="' + statusClass(r.status) + '">' + esc(r.statusLabel || 'Sem data') + '</span>' +
+            (remain ? '<span class="dashboard-eng-remain">' + esc(remain) + '</span>' : '') +
+            (due ? '<span>Validade <strong>' + esc(due) + '</strong></span>' : '') +
+            (val ? '<span>Laudo <strong>' + esc(val) + '</strong></span>' : '') +
+            caixa +
+            '</div>' +
+            '<p class="ue-eng-summary__desc">' + esc(engineeringStatusDescription(r)) + '</p>';
+        box.hidden = false;
     }
 
     function fillBuildingForm(p) {
@@ -1096,8 +1147,10 @@
             var docTxt = docs.length ? docs.filter(function(v, i, a) { return a.indexOf(v) === i; }).join(', ') : '—';
             var openCls = String(r.unitCode) === String(_openUnit) ? ' is-open' : '';
             var rowCls = (r.status === 'vencida' ? 'ue-row--expired' : (r.status === 'a_vencer' ? 'ue-row--soon' : '')) + openCls;
+            var remain = r.remainingLabel || (r.daysLeft != null ? formatDaysRemainingLabel(r.daysLeft) : '');
             var validity = '<div class="ue-validity"><span>' + esc(formatDate(r.expiresAt) || '—') + '</span>' +
-                '<span class="' + statusClass(r.status) + '">' + esc(r.statusLabel || 'Sem data') + '</span></div>';
+                '<span class="' + statusClass(r.status) + '">' + esc(r.statusLabel || 'Sem data') + '</span>' +
+                (remain ? '<span class="ue-table-remain">' + esc(remain) + '</span>' : '') + '</div>';
             var occ = unitOccupancy(r);
             var occHtml = '<span class="' + occupancyClass(occ) + '">' + esc(occupancyLabel(occ)) + '</span>';
             if (occ === 'alugado' && (r.leaseTenant || r.leaseRent)) {
@@ -1215,6 +1268,7 @@
         set('ueValue', r ? formatMoney(r.engineeringValue || r.historicalEngineering) : '');
         set('ueM2', r ? formatMoney(r.valuePerM2) : '');
         set('ueDate', r ? r.appraisalDate : '');
+        set('ueCaixaRef', r ? (r.caixaLaudoRef || '') : '');
         set('ueGarantiaCaixa', r ? (r.garantiaCaixa || '') : '');
         updateGarantiaHint(r ? r.garantiaCaixa : '', '');
         setCurrentReportLabel(r ? r.reportName : '', r ? r.reportPath : '', false, r ? r.laudoUnitHint : '');
@@ -1238,6 +1292,7 @@
         if (banner) {
             banner.hidden = !(r && r.status === 'vencida');
         }
+        renderEngineeringSummaryCard(r);
         var newHint = document.getElementById('ueNewEngHint');
         if (newHint) newHint.hidden = true;
         set('ueRgiDate', r ? (r.rgiDate || '') : '');
@@ -2044,6 +2099,7 @@
             historicalEngineering: current.historicalEngineering || '',
             valuePerM2: parseMoneyInput(document.getElementById('ueM2').value),
             appraisalDate: document.getElementById('ueDate').value,
+            caixaLaudoRef: document.getElementById('ueCaixaRef') ? document.getElementById('ueCaixaRef').value : '',
             notes: document.getElementById('ueNotes').value,
             archiveDocuments: current.archiveDocuments || [],
             engineeringHistory: current.engineeringHistory || [],
@@ -2090,8 +2146,29 @@
         openStoredDocument(path);
     }
 
-    function loadEngineeringAlerts() {
+    var CAIXA_IMPORT_STORAGE_KEY = 'bfm_applied_caixa_itauna_20261113';
+
+    function tryApplyCaixaItaunaImport() {
         if (typeof adminPostJson !== 'function') return;
+        if (typeof localStorage !== 'undefined' && localStorage.getItem(CAIXA_IMPORT_STORAGE_KEY)) return;
+        adminPostJson('/adminUnitEngineering', {
+            action: 'apply_caixa_import',
+            importId: 'itauna-2026-11-13'
+        }).then(function(data) {
+            if (!data || !data.ok) return;
+            if (typeof localStorage !== 'undefined') localStorage.setItem(CAIXA_IMPORT_STORAGE_KEY, '1');
+            var n = (data.updated || []).length;
+            if (typeof showMessage === 'function' && n) {
+                showMessage('Laudos Caixa (Itaúna): ' + n + ' unidade(s) atualizada(s) nas fichas.', 'success');
+            }
+            if (typeof loadUnitEngineeringAdmin === 'function') loadUnitEngineeringAdmin();
+            loadEngineeringAlerts(true);
+        }).catch(function() {});
+    }
+
+    function loadEngineeringAlerts(skipCaixaImport) {
+        if (typeof adminPostJson !== 'function') return;
+        if (!skipCaixaImport) tryApplyCaixaItaunaImport();
         adminPostJson('/adminUnitEngineering', { action: 'alerts' }).then(function(data) {
             _alerts = data;
             renderAlerts(data);

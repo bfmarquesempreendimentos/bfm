@@ -46,6 +46,10 @@ function addMonthsYmd(ymd, months) {
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 }
 
+function subtractMonthsYmd(ymd, months) {
+  return addMonthsYmd(ymd, -months);
+}
+
 function daysBetween(fromYmd, toYmd) {
   var a = new Date(fromYmd + 'T12:00:00');
   var b = new Date(toYmd + 'T12:00:00');
@@ -234,6 +238,7 @@ function adminRow(id, d) {
     expiresAt: d.expiresAt || '',
     reportPath: d.reportPath || '',
     reportName: d.reportName || '',
+    caixaLaudoRef: d.caixaLaudoRef || '',
     garantiaCaixa: d.garantiaCaixa === 'apta' || d.garantiaCaixa === 'inapta' ? d.garantiaCaixa : '',
     laudoUnitHint: d.laudoUnitHint || '',
     archiveDocuments: Array.isArray(d.archiveDocuments) ? d.archiveDocuments : [],
@@ -535,10 +540,98 @@ function snapshotEngineering(d) {
     valuePerM2: d.valuePerM2 == null ? '' : d.valuePerM2,
     reportPath: d.reportPath || '',
     reportName: d.reportName || '',
+    caixaLaudoRef: d.caixaLaudoRef || '',
     garantiaCaixa: d.garantiaCaixa === 'apta' || d.garantiaCaixa === 'inapta' ? d.garantiaCaixa : '',
     laudoUnitHint: d.laudoUnitHint || '',
     archivedAt: new Date().toISOString(),
   };
+}
+
+var CAIXA_IMPORTS = {
+  'itauna-2026-11-13': function() {
+    return require('./data/caixa-laudo-itauna-2026-11-13.json');
+  },
+};
+
+function mergeCaixaNote(oldNotes, ref, extra) {
+  var base = String(oldNotes || '').trim();
+  var line = 'Caixa laudo ' + ref + (extra ? ' — ' + extra : '');
+  if (base.indexOf(line) >= 0) return base;
+  return base ? base + '\n' + line : line;
+}
+
+async function applyCaixaLaudoImport(db, importId, auth) {
+  var load = CAIXA_IMPORTS[importId];
+  if (!load) {
+    return { ok: false, error: 'Importação não encontrada: ' + importId };
+  }
+  var pack = load();
+  if (!pack || pack.propertyId == null) {
+    return { ok: false, error: 'Arquivo de importação inválido' };
+  }
+  var now = new Date().toISOString();
+  var updated = [];
+  var i;
+  for (i = 0; i < (pack.items || []).length; i++) {
+    var item = pack.items[i] || {};
+    var unitCode = String(item.unitCode || '').trim();
+    if (!unitCode) continue;
+    var id = dossierId(pack.propertyId, unitCode);
+    var prev = await db.collection(COL).doc(id).get();
+    var old = prev.exists ? (prev.data() || {}) : {};
+    var history = Array.isArray(old.engineeringHistory) ? old.engineeringHistory.slice() : [];
+    var ref = String(item.caixaLaudoRef || '').trim();
+    var patch = {
+      propertyId: pack.propertyId,
+      unitCode: unitCode,
+      updatedAt: now,
+      updatedBy: auth.email || 'caixa-import',
+    };
+    if (ref) patch.caixaLaudoRef = ref;
+
+    if (item.vencida) {
+      var expOld = old.expiresAt || '';
+      var cOld = classify(expOld);
+      if (!expOld || cOld.status !== 'vencida') {
+        patch.expiresAt = subtractMonthsYmd(todayYmd(), 1);
+        if (old.appraisalDate) patch.appraisalDate = old.appraisalDate;
+      }
+      if (ref) patch.notes = mergeCaixaNote(old.notes, ref, 'vencida (lista Caixa ' + (pack.source || '') + ')');
+      await db.collection(COL).doc(id).set(patch, { merge: true });
+      updated.push({ id: id, unitCode: unitCode, status: 'vencida' });
+      continue;
+    }
+
+    var expiresAt = String(item.expiresAt || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) continue;
+    var appraisalDate = subtractMonthsYmd(expiresAt, VALIDITY_MONTHS);
+    var engVal = item.engineeringValue != null ? item.engineeringValue : old.engineeringValue;
+    var valueChanged = engVal != null && String(engVal) !== String(old.engineeringValue || '');
+    var dateChanged = expiresAt !== String(old.expiresAt || '');
+    if (item.archiveIfChanged && hasRealEngineeringData(old) && (valueChanged || dateChanged)) {
+      var snap = snapshotEngineering(old);
+      snap.archivedBy = auth.email || 'caixa-import';
+      history.unshift(snap);
+      if (history.length > 20) history = history.slice(0, 20);
+    }
+    patch.appraisalDate = appraisalDate;
+    patch.expiresAt = expiresAt;
+    patch.engineeringValue = engVal;
+    patch.engineeringHistory = history;
+    if (ref) {
+      patch.notes = mergeCaixaNote(old.notes, ref, 'válido até ' + expiresAt);
+    }
+    if (!old.reportPath && !patch.reportPath) {
+      var seedU = seedUnitByCode(pack.propertyId, unitCode);
+      if (seedU && seedU.reportPath) {
+        patch.reportPath = seedU.reportPath;
+        patch.reportName = seedU.reportName || patch.reportName || '';
+      }
+    }
+    await db.collection(COL).doc(id).set(patch, { merge: true });
+    updated.push({ id: id, unitCode: unitCode, status: 'atualizado', expiresAt: expiresAt });
+  }
+  return { ok: true, importId: importId, propertyId: pack.propertyId, updated: updated };
 }
 
 function hasEngineeringSnapshot(d) {
@@ -836,6 +929,7 @@ async function adminUnitEngineeringHttp(req, res) {
           daysLeft: daysLeft,
           remainingLabel: remainingLabel,
           description: propName + ' — ' + (r.unitCode || 'unidade') +
+            (r.caixaLaudoRef ? ' · Caixa ' + r.caixaLaudoRef : '') +
             ': laudo vigente vence em ' + (r.expiresAt || '—') +
             (remainingLabel ? ' (' + remainingLabel + ')' : ''),
         };
@@ -1010,6 +1104,7 @@ async function adminUnitEngineeringHttp(req, res) {
         expiresAt: expiresAt,
         reportPath: String(body.reportPath || '').trim() || (archiveCurrent ? '' : (old.reportPath || '')),
         reportName: String(body.reportName || '').trim().slice(0, 160) || (archiveCurrent ? '' : (old.reportName || '')),
+        caixaLaudoRef: String(body.caixaLaudoRef != null ? body.caixaLaudoRef : (old.caixaLaudoRef || '')).trim().slice(0, 40),
         garantiaCaixa: (function() {
           var g = String(body.garantiaCaixa != null ? body.garantiaCaixa : (archiveCurrent ? '' : (old.garantiaCaixa || ''))).trim();
           return g === 'apta' || g === 'inapta' ? g : '';
@@ -1045,6 +1140,13 @@ async function adminUnitEngineeringHttp(req, res) {
       }
       await db.collection(COL).doc(id).set(docU, { merge: true });
       return res.json({ ok: true, row: adminRow(id, docU) });
+    }
+
+    if (action === 'apply_caixa_import') {
+      var importId = String(body.importId || 'itauna-2026-11-13').trim();
+      var importResult = await applyCaixaLaudoImport(db, importId, auth);
+      if (!importResult.ok) return res.status(400).json(importResult);
+      return res.json(importResult);
     }
 
     if (action === 'delete') {
