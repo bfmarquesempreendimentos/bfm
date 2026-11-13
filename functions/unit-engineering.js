@@ -7,6 +7,7 @@ var { dateFromDocName, isPersonName, extractLaudoFromPdf } = require('./laudo-ex
 var { documentIdentityError, allSeedProperties } = require('./property-identity');
 var propertyUnitsCatalog = require('./chatbot/property-units-data');
 var dossierSeed = require('./property-dossier-seed.json');
+var unitStatus = require('./unit-status');
 
 var COL = 'unit_engineering';
 var PROP_COL = 'property_dossiers';
@@ -268,6 +269,33 @@ async function loadAllRows(db) {
     rows.push(adminRow(doc.id, doc.data() || {}));
   });
   return rows;
+}
+
+async function loadUnitOverridesMap(db) {
+  var snap = await db.collection('unit_status_overrides').get();
+  var payload = {};
+  snap.forEach(function(doc) {
+    var d = doc.data() || {};
+    if (d.map && typeof d.map === 'object') payload[doc.id] = d.map;
+  });
+  return payload;
+}
+
+function catalogUnitStatus(propertyId, unitCode) {
+  var cat = catalogUnits(propertyId);
+  var i;
+  for (i = 0; i < (cat.units || []).length; i++) {
+    if (String(cat.units[i].code) === String(unitCode)) {
+      return cat.units[i].status || 'disponivel';
+    }
+  }
+  return 'disponivel';
+}
+
+function effectiveUnitStatusForVitrine(propertyId, unitCode, overrides) {
+  var pid = String(propertyId);
+  var ov = (overrides && overrides[pid]) || {};
+  return unitStatus.resolveUnitStatus(catalogUnitStatus(propertyId, unitCode), ov[unitCode]);
 }
 
 function catalogUnits(propertyId) {
@@ -675,10 +703,13 @@ async function adminUnitEngineeringHttp(req, res) {
     try {
       var db = admin.firestore();
       var rows = await loadAllRows(db);
+      var overrides = await loadUnitOverridesMap(db);
       var publicMap = {};
       var prices = {};
       rows.forEach(function(r) {
         var pid = String(r.propertyId);
+        var unitSt = effectiveUnitStatusForVitrine(pid, r.unitCode, overrides);
+        if (!unitStatus.shouldShowEngineeringOnVitrine(unitSt)) return;
         var val = publicValue(r);
         if (val) {
           if (!publicMap[pid]) publicMap[pid] = {};
@@ -986,11 +1017,14 @@ async function adminUnitEngineeringHttp(req, res) {
 
 async function loadValidEngineeringMap(db) {
   var rows = await loadAllRows(db);
+  var overrides = await loadUnitOverridesMap(db);
   var map = {};
   rows.forEach(function(r) {
+    var pid = String(r.propertyId);
+    var unitSt = effectiveUnitStatusForVitrine(pid, r.unitCode, overrides);
+    if (!unitStatus.shouldShowEngineeringOnVitrine(unitSt)) return;
     var val = publicValue(r);
     if (!val) return;
-    var pid = String(r.propertyId);
     if (!map[pid]) map[pid] = {};
     map[pid][r.unitCode] = val;
   });

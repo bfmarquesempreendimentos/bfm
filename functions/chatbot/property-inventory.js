@@ -1,7 +1,7 @@
 const admin = require('firebase-admin');
 const propertyUnitsBase = require('./property-units-data');
 const { OFFERING_EXCLUDED_PROPERTY_IDS } = require('./property-data');
-const { resolveUnitStatus } = require('../unit-status');
+const { resolveUnitStatus, shouldShowEngineeringOnVitrine } = require('../unit-status');
 
 var overrideCache = { at: 0, data: null };
 var OVERRIDE_CACHE_MS = 60000;
@@ -142,7 +142,7 @@ function formatUnitLine(unit, engineeringValues, includeEngineering) {
   var line = '• *' + unit.code + '* — ' + statusLabelPt(unit.status) +
     ' | Venda: ' + formatMoneyBrl(unit.price);
   if (unit.bedrooms) line += ' | ' + unit.bedrooms + ' quarto(s)';
-  if (includeEngineering) {
+  if (includeEngineering && shouldShowEngineeringOnVitrine(unit.status)) {
     var eng = lookupEngineeringValue(engineeringValues, unit.code);
     if (eng != null && eng !== '') {
       var engTxt = typeof eng === 'number' ? formatMoneyBrl(eng) : String(eng);
@@ -205,7 +205,7 @@ async function formatUnitDetail(propertyId, codigoUnidade, options) {
     'Preço de venda: ' + formatMoneyBrl(unit.price) + '\n';
   if (unit.bedrooms) text += 'Quartos: ' + unit.bedrooms + '\n';
 
-  if (includeEngineering) {
+  if (includeEngineering && shouldShowEngineeringOnVitrine(unit.status)) {
     var validMap = await getValidEngineeringMap();
     var eng = lookupEngineeringValue(validMap[String(propertyId)] || {}, unit.code);
     if (eng != null && eng !== '') {

@@ -424,16 +424,26 @@ function formatPublicEngineeringValue(val) {
     return s;
 }
 
+/** Vitrine: disponível e reservado; oculta assinado/vendido. */
+function shouldShowEngineeringOnVitrine(unitStatus) {
+    var st = String(unitStatus || '').toLowerCase();
+    if (st === 'assinado' || st === 'vendido' || st === 'entregue') return false;
+    return true;
+}
+
 function engineeringItemsHtml(propertyId, units) {
     var html = '';
     (units || []).forEach(function(u) {
+        if (!shouldShowEngineeringOnVitrine(u.status)) return;
         var raw = (typeof lookupValidEngineeringValue === 'function')
             ? lookupValidEngineeringValue(propertyId, u.code)
             : '';
         var shown = formatPublicEngineeringValue(raw);
         if (!shown) return;
+        var st = String(u.status || '').toLowerCase();
+        var reservedTag = st === 'reservado' ? ' <span class="engineering-unit-tag">reservado</span>' : '';
         html += '<div class="engineering-item">' +
-            '<span class="engineering-unit">' + String(u.code) + '</span>' +
+            '<span class="engineering-unit">' + String(u.code) + reservedTag + '</span>' +
             '<span class="engineering-value">' + shown + '</span>' +
             '</div>';
     });
@@ -445,7 +455,7 @@ function engineeringValuesSectionHtml(propertyId, units) {
     var hidden = items ? '' : ' hidden';
     return '<div class="engineering-values-section"' + hidden + ' data-property-id="' + String(propertyId) + '">' +
         '<h5>Valor Engenharia:</h5>' +
-        '<p class="engineering-hint">Somente unidades com laudo vigente (validade de 6 meses).</p>' +
+        '<p class="engineering-hint">Unidades disponíveis e reservadas com laudo vigente (6 meses). Assinadas ou vendidas não aparecem aqui.</p>' +
         '<div class="engineering-grid">' + items + '</div>' +
         '</div>';
 }

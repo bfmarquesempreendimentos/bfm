@@ -17,7 +17,20 @@ function resolveUnitStatus(catalogStatus, overrideStatus) {
   return String(catalogStatus || 'disponivel').toLowerCase();
 }
 
+/** Unidade já fechada — não publicar valor de engenharia na vitrine. */
+function isUnitSoldOrSigned(unitStatus) {
+  var st = String(unitStatus || '').toLowerCase();
+  return st === 'assinado' || st === 'vendido' || st === 'entregue';
+}
+
+/** Vitrine: disponível e reservado mostram engenharia vigente; assinado/vendido não. */
+function shouldShowEngineeringOnVitrine(unitStatus) {
+  return !isUnitSoldOrSigned(unitStatus);
+}
+
 module.exports = {
   isCatalogStatusLocked: isCatalogStatusLocked,
   resolveUnitStatus: resolveUnitStatus,
+  isUnitSoldOrSigned: isUnitSoldOrSigned,
+  shouldShowEngineeringOnVitrine: shouldShowEngineeringOnVitrine,
 };
