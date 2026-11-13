@@ -767,8 +767,9 @@ async function getBrokerCampaignPreview(db, opts) {
       ? 'Conta Meta de TESTE: cadastre cada celular de corretor em developers.facebook.com → seu app → WhatsApp → API Setup → números de teste. Sem isso a API aceita mas não entrega (0 no painel Meta).'
       : '',
     productionMigration: prodMigration,
+    scheduleLabel: formatCampaignScheduleLabel(config),
     nextWeeklyNote: config.enabled
-      ? 'Segunda-feira 08:00 (Brasília): envio automático para quem está ativo, com campanha ligada e telefone válido.'
+      ? (formatCampaignScheduleLabel(config) + ': envio automático para quem está ativo, com campanha ligada e telefone válido.')
       : 'Envio automático desligado. Disparar agora envia manualmente quando você quiser.',
     biaPhoneNumberId: templateStatus.biaPhoneNumberId || '',
     biaPhoneDisplay: templateStatus.biaPhoneDisplay || '',
@@ -920,9 +921,63 @@ function getCampaignRunWeekKey(now) {
   return String(d.getFullYear()) + '-W' + getWeekOfYearNumber(d);
 }
 
+function saoPauloScheduleParts(now) {
+  now = now || new Date();
+  var fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  var parts = fmt.formatToParts(now);
+  var map = {};
+  parts.forEach(function(p) { map[p.type] = p.value; });
+  var weekdayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    weekday: weekdayMap[map.weekday] != null ? weekdayMap[map.weekday] : 0,
+    hour: parseInt(map.hour, 10) || 0,
+    minute: parseInt(map.minute, 10) || 0,
+  };
+}
+
+function normalizeCampaignScheduleFields(config) {
+  if (!config) return config;
+  var wd = parseInt(config.scheduleWeekday, 10);
+  config.scheduleWeekday = (isNaN(wd) || wd < 0 || wd > 6) ? 1 : wd;
+  var h = parseInt(config.scheduleHour, 10);
+  config.scheduleHour = (isNaN(h) || h < 0 || h > 23) ? 8 : h;
+  var m = parseInt(config.scheduleMinute, 10);
+  config.scheduleMinute = (isNaN(m) || m < 0 || m > 59) ? 0 : m;
+  return config;
+}
+
+function formatCampaignScheduleLabel(config) {
+  var cfg = normalizeCampaignScheduleFields(Object.assign({}, config || {}));
+  var days = [
+    'domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
+    'quinta-feira', 'sexta-feira', 'sábado',
+  ];
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  return days[cfg.scheduleWeekday] + ' ' + pad(cfg.scheduleHour) + ':' + pad(cfg.scheduleMinute) + ' (Brasília)';
+}
+
+function isCampaignScheduleSlot(now, config, offsetMinutes) {
+  var cfg = normalizeCampaignScheduleFields(Object.assign({}, config || {}));
+  offsetMinutes = offsetMinutes || 0;
+  var p = saoPauloScheduleParts(now);
+  var targetMin = cfg.scheduleHour * 60 + cfg.scheduleMinute + offsetMinutes;
+  if (p.weekday !== cfg.scheduleWeekday) return false;
+  var nowMin = p.hour * 60 + p.minute;
+  return nowMin >= targetMin && nowMin < targetMin + 15;
+}
+
 function getDefaultBrokerCampaignConfig() {
   return {
     enabled: true,
+    scheduleWeekday: 1,
+    scheduleHour: 8,
+    scheduleMinute: 0,
     siteUrl: 'https://bfmarquesempreendimentos.github.io/bfm/',
     whatsappContato: '(21) 99555-7010',
     skipMetaTemplate: false,
@@ -1002,6 +1057,7 @@ async function getBrokerCampaignConfig(db) {
   }
   const current = snap.data() || {};
   var merged = { ...getDefaultBrokerCampaignConfig(), ...current };
+  normalizeCampaignScheduleFields(merged);
   var persist = {};
   var fixedContact = normalizeCampaignContactPhone(merged.whatsappContato);
   if (fixedContact !== merged.whatsappContato) {
@@ -3600,20 +3656,6 @@ exports.chatbotFollowUp = functions
   });
 
 // ─── Campanha semanal WhatsApp para corretores ───────────────────
-exports.brokerWeeklyCampaign = functions
-  .runWith({
-    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
-    timeoutSeconds: 540,
-    memory: '512MB',
-  })
-  .pubsub.schedule('every monday 08:00')
-  .timeZone('America/Sao_Paulo')
-  .onRun(async () => {
-    const result = await sendWeeklyBrokerCampaignInternal({ type: 'weekly', force: false });
-    console.log('brokerWeeklyCampaign:', JSON.stringify(result));
-    return null;
-  });
-
 async function runWeeklyCampaignResumeIfPending(label) {
   const db = admin.firestore();
   const weekKey = getCampaignRunWeekKey(new Date());
@@ -3624,32 +3666,36 @@ async function runWeeklyCampaignResumeIfPending(label) {
   }
   const result = await sendWeeklyBrokerCampaignInternal({ type: 'weekly', force: false, resume: true });
   console.log(label + ':', JSON.stringify(result));
+  return result;
+}
+
+async function brokerCampaignSchedulerTick() {
+  const db = admin.firestore();
+  const config = await getBrokerCampaignConfig(db);
+  const now = new Date();
+  if (!config.enabled) return null;
+  if (isCampaignScheduleSlot(now, config, 0)) {
+    const result = await sendWeeklyBrokerCampaignInternal({ type: 'weekly', force: false });
+    console.log('brokerCampaignScheduler main:', JSON.stringify(result));
+  }
+  if (isCampaignScheduleSlot(now, config, 15)) {
+    await runWeeklyCampaignResumeIfPending('brokerCampaignScheduler+15');
+  }
+  if (isCampaignScheduleSlot(now, config, 30)) {
+    await runWeeklyCampaignResumeIfPending('brokerCampaignScheduler+30');
+  }
   return null;
 }
 
-exports.brokerWeeklyCampaignResume = functions
+exports.brokerCampaignScheduler = functions
   .runWith({
     secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
     timeoutSeconds: 540,
     memory: '512MB',
   })
-  .pubsub.schedule('every monday 08:15')
+  .pubsub.schedule('every 15 minutes')
   .timeZone('America/Sao_Paulo')
-  .onRun(function() {
-    return runWeeklyCampaignResumeIfPending('brokerWeeklyCampaignResume');
-  });
-
-exports.brokerWeeklyCampaignResume2 = functions
-  .runWith({
-    secrets: ['WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID'],
-    timeoutSeconds: 540,
-    memory: '512MB',
-  })
-  .pubsub.schedule('every monday 08:30')
-  .timeZone('America/Sao_Paulo')
-  .onRun(function() {
-    return runWeeklyCampaignResumeIfPending('brokerWeeklyCampaignResume2');
-  });
+  .onRun(brokerCampaignSchedulerTick);
 
 exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
   allowCors(res);
@@ -3660,6 +3706,7 @@ exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
     const ref = db.collection('broker_campaign').doc('config');
     if (req.method === 'GET') {
       const config = await getBrokerCampaignConfig(db);
+      config.scheduleLabel = formatCampaignScheduleLabel(config);
       return res.json(config);
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
@@ -3687,6 +3734,12 @@ exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
         : undefined,
       marketNewsTitle: body.marketNewsTitle !== undefined ? String(body.marketNewsTitle || '').trim() : undefined,
       marketNewsText: body.marketNewsText !== undefined ? String(body.marketNewsText || '').trim() : undefined,
+      scheduleWeekday: body.scheduleWeekday !== undefined
+        ? Math.min(6, Math.max(0, parseInt(body.scheduleWeekday, 10) || 1)) : undefined,
+      scheduleHour: body.scheduleHour !== undefined
+        ? Math.min(23, Math.max(0, parseInt(body.scheduleHour, 10) || 0)) : undefined,
+      scheduleMinute: body.scheduleMinute !== undefined
+        ? Math.min(59, Math.max(0, parseInt(body.scheduleMinute, 10) || 0)) : undefined,
       updatedAt: new Date().toISOString(),
     };
     const payload = {};
@@ -3695,6 +3748,7 @@ exports.brokerCampaignConfig = functions.https.onRequest(async (req, res) => {
     });
     await ref.set(payload, { merge: true });
     const config = await getBrokerCampaignConfig(db);
+    config.scheduleLabel = formatCampaignScheduleLabel(config);
     return res.json({ success: true, config: config });
   } catch (err) {
     console.error('brokerCampaignConfig:', err);

@@ -2725,6 +2725,160 @@ function openSaleFromReservation(reservationId, reservationRow) {
 }
 
 var _brokerCampaignPreview = null;
+var _brokersColumnSort = { key: 'name', dir: 'asc' };
+
+function parseBrokerCreatedAt(b) {
+    if (!b || !b.createdAt) return 0;
+    var t = new Date(b.createdAt).getTime();
+    return isNaN(t) ? 0 : t;
+}
+
+function sortBrokersList(list, sortKey) {
+    var items = (list || []).slice();
+    var key = sortKey || 'name_asc';
+    items.sort(function(a, b) {
+        var cmp = 0;
+        if (key === 'name_asc' || key === 'name_desc') {
+            cmp = String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'pt-BR');
+            if (key === 'name_desc') cmp = -cmp;
+        } else if (key === 'email_asc') {
+            cmp = String(a.email || '').localeCompare(String(b.email || ''), 'pt-BR');
+        } else if (key === 'creci_asc') {
+            cmp = String(a.creci || '').localeCompare(String(b.creci || ''), 'pt-BR');
+        } else if (key === 'created_desc' || key === 'created_asc') {
+            cmp = parseBrokerCreatedAt(a) - parseBrokerCreatedAt(b);
+            if (key === 'created_desc') cmp = -cmp;
+        } else if (key === 'campaign_first' || key === 'campaign_last') {
+            var aOn = a.whatsappCampaignOptOut ? 0 : 1;
+            var bOn = b.whatsappCampaignOptOut ? 0 : 1;
+            cmp = bOn - aOn;
+            if (key === 'campaign_last') cmp = -cmp;
+        } else {
+            cmp = String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR');
+        }
+        return cmp;
+    });
+    return items;
+}
+
+function filterBrokersList(list) {
+    var searchEl = document.getElementById('brokersListSearch');
+    var filterEl = document.getElementById('brokersListFilterCampaign');
+    var q = searchEl ? String(searchEl.value || '').trim().toLowerCase() : '';
+    var f = filterEl ? String(filterEl.value || 'all') : 'all';
+    return (list || []).filter(function(b) {
+        if (f === 'receives' && b.whatsappCampaignOptOut) return false;
+        if (f === 'optout' && !b.whatsappCampaignOptOut) return false;
+        if (f === 'no_phone') {
+            var phoneOk = typeof hasLikelyPhone === 'function' ? hasLikelyPhone(b.phone) : false;
+            if (phoneOk) return false;
+        }
+        if (!q) return true;
+        var blob = [
+            b.name, b.email, b.phone, b.creci
+        ].map(function(v) { return String(v || '').toLowerCase(); }).join(' ');
+        return blob.indexOf(q) !== -1;
+    });
+}
+
+function getBrokersListSortKey() {
+    var sel = document.getElementById('brokersListSort');
+    return sel ? String(sel.value || 'name_asc') : 'name_asc';
+}
+
+function onBrokersListFiltersChange() {
+    renderBrokersActiveTable();
+}
+
+function sortBrokersTableBy(columnKey) {
+    var sortSel = document.getElementById('brokersListSort');
+    if (!columnKey) return;
+    if (columnKey === 'name') {
+        var next = (_brokersColumnSort.key === 'name' && _brokersColumnSort.dir === 'asc') ? 'name_desc' : 'name_asc';
+        if (sortSel) sortSel.value = next;
+        _brokersColumnSort = { key: 'name', dir: next === 'name_desc' ? 'desc' : 'asc' };
+    } else if (columnKey === 'email') {
+        if (sortSel) sortSel.value = 'email_asc';
+        _brokersColumnSort = { key: 'email', dir: 'asc' };
+    } else if (columnKey === 'creci') {
+        if (sortSel) sortSel.value = 'creci_asc';
+        _brokersColumnSort = { key: 'creci', dir: 'asc' };
+    } else if (columnKey === 'created') {
+        var createdNext = (_brokersColumnSort.key === 'created' && _brokersColumnSort.dir === 'desc')
+            ? 'created_asc' : 'created_desc';
+        if (sortSel) sortSel.value = createdNext;
+        _brokersColumnSort = { key: 'created', dir: createdNext === 'created_desc' ? 'desc' : 'asc' };
+    }
+    updateBrokersTableSortHeaders();
+    renderBrokersActiveTable();
+}
+
+function updateBrokersTableSortHeaders() {
+    document.querySelectorAll('#brokersTable .admin-th-sort').forEach(function(btn) {
+        btn.classList.remove('is-sorted');
+        var col = btn.getAttribute('data-broker-sort');
+        if (col === _brokersColumnSort.key) btn.classList.add('is-sorted');
+    });
+}
+
+function applyBrokerCampaignScheduleFields(cfg) {
+    if (!cfg) return;
+    var wd = document.getElementById('brokerCampaignScheduleWeekday');
+    var time = document.getElementById('brokerCampaignScheduleTime');
+    var hint = document.getElementById('brokerCampaignScheduleHint');
+    var weekday = cfg.scheduleWeekday != null ? String(cfg.scheduleWeekday) : '1';
+    var hour = cfg.scheduleHour != null ? cfg.scheduleHour : 8;
+    var minute = cfg.scheduleMinute != null ? cfg.scheduleMinute : 0;
+    if (wd) wd.value = weekday;
+    if (time) {
+        var pad = function(n) { return (n < 10 ? '0' : '') + n; };
+        time.value = pad(hour) + ':' + pad(minute);
+    }
+    if (hint) {
+        hint.textContent = cfg.scheduleLabel
+            ? ('Próximo envio automático: ' + cfg.scheduleLabel + '. Retomadas +15 e +30 min se o disparo ficar incompleto.')
+            : '';
+    }
+    updateBrokerCampaignWeeklyLabel(cfg);
+}
+
+function updateBrokerCampaignWeeklyLabel(cfg) {
+    var lbl = document.getElementById('brokerCampaignWeeklyLabel');
+    if (!lbl || !cfg) return;
+    var wd = cfg.scheduleWeekday != null ? cfg.scheduleWeekday : 1;
+    var names = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+    var hour = cfg.scheduleHour != null ? cfg.scheduleHour : 8;
+    var minute = cfg.scheduleMinute != null ? cfg.scheduleMinute : 0;
+    var pad = function(n) { return (n < 10 ? '0' : '') + n; };
+    lbl.textContent = 'Semanal (' + (names[wd] || 'seg') + ' ' + pad(hour) + ':' + pad(minute) + ')';
+}
+
+function saveBrokerCampaignSchedule() {
+    var wd = document.getElementById('brokerCampaignScheduleWeekday');
+    var time = document.getElementById('brokerCampaignScheduleTime');
+    var parts = time && time.value ? String(time.value).split(':') : ['08', '00'];
+    var payload = {
+        scheduleWeekday: wd ? parseInt(wd.value, 10) : 1,
+        scheduleHour: parseInt(parts[0], 10) || 8,
+        scheduleMinute: parseInt(parts[1], 10) || 0
+    };
+    var hint = document.getElementById('brokerCampaignScheduleHint');
+    if (hint) hint.textContent = 'Salvando horário…';
+    adminPostJson('/brokerCampaignConfig', payload).then(function(res) {
+        if (res && res.config) applyBrokerCampaignConfigFields(res.config);
+        if (typeof showMessage === 'function') showMessage('Horário da campanha salvo.', 'success');
+        return loadBrokerCampaignPreview();
+    }).catch(function(err) {
+        if (hint) hint.textContent = '';
+        if (typeof showMessage === 'function') showMessage('Erro ao salvar horário: ' + (err.message || ''), 'error');
+    });
+}
+
+function onBrokerCampaignRowToggle(brokerId, inputEl) {
+    if (!brokerId || !inputEl) return;
+    var wantReceive = !!inputEl.checked;
+    setBrokerCampaignOptOut(brokerId, !wantReceive, { confirm: !wantReceive, revertEl: inputEl });
+}
 
 function isAdminPanelLoggedIn() {
     try {
@@ -2783,12 +2937,32 @@ async function loadBrokersData() {
         testSelect.innerHTML = opts.join('');
     }
     
-    const brokerId = (id) => typeof id === 'string' ? `'${id.replace(/'/g, "\\'")}'` : id;
+    renderBrokersActiveTable(allBrokers);
+}
+
+function renderBrokersActiveTable(sourceList) {
+    var tbody = document.getElementById('brokersTableBody');
+    var countEl = document.getElementById('brokersListCount');
+    if (!tbody) return;
+    var allBrokers = sourceList || (typeof getAllBrokers === 'function'
+        ? getAllBrokers().filter(function(b) { return !!b.isActive; })
+        : []);
+    var filtered = filterBrokersList(allBrokers);
+    var sorted = sortBrokersList(filtered, getBrokersListSortKey());
+    var brokerId = function(id) { return typeof id === 'string' ? "'" + String(id).replace(/'/g, "\\'") + "'" : id; };
+    if (countEl) {
+        countEl.textContent = sorted.length + ' de ' + allBrokers.length + ' corretor(es)';
+    }
+    updateBrokersTableSortHeaders();
     if (allBrokers.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Nenhum corretor ativo. Aprove cadastros pendentes ou atualize a lista.</td></tr>';
         return;
     }
-    tbody.innerHTML = allBrokers.map(function(broker) {
+    if (sorted.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Nenhum corretor corresponde aos filtros.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = sorted.map(function(broker) {
         var campOn = !broker.whatsappCampaignOptOut;
         var phoneOk = typeof hasLikelyPhone === 'function' ? hasLikelyPhone(broker.phone) : !!(broker.phone && String(broker.phone).replace(/\D/g, '').length >= 10);
         var rowClass = campOn && phoneOk ? '' : ' class="broker-row-muted"';
@@ -2801,12 +2975,18 @@ async function loadBrokersData() {
             actions += '<option value="delete">Excluir cadastro</option>';
         }
         actions += '</select>';
+        var campToggle = '<label class="broker-switch broker-switch--table" title="' + (campOn ? 'Recebe campanha' : 'Opt-out') + '">' +
+            '<input type="checkbox" class="broker-switch__input" ' + (campOn ? 'checked' : '') +
+            ' aria-label="Campanha WhatsApp para ' + escapeHtml(broker.name || broker.email || '') + '" ' +
+            'onchange="onBrokerCampaignRowToggle(' + brokerId(broker.id) + ', this)">' +
+            '<span class="broker-switch__track" aria-hidden="true"><span class="broker-switch__thumb"></span></span>' +
+            '</label>';
         return '<tr' + rowClass + '>' +
             '<td><strong>' + escapeHtml(broker.name || '—') + '</strong></td>' +
             '<td>' + escapeHtml(broker.email || '') + '</td>' +
             '<td>' + escapeHtml(broker.phone || '—') + '</td>' +
             '<td>' + escapeHtml(broker.creci || '—') + '</td>' +
-            '<td><span class="status-badge status-' + (campOn ? 'ativo' : 'inativo') + '">' + (campOn ? 'Recebe' : 'Opt-out') + '</span></td>' +
+            '<td style="text-align:center">' + campToggle + '</td>' +
             '<td>' + formatDate(broker.createdAt) + '</td>' +
             '<td>' + actions + '</td>' +
             '</tr>';
@@ -2953,7 +3133,7 @@ function onBrokerCampaignWeeklyToggleChange(el) {
     if (statusEl) statusEl.textContent = 'Salvando...';
     adminPostJson('/brokerCampaignConfig', { enabled: enabled }).then(function(res) {
         if (res && res.config) applyBrokerCampaignConfigFields(res.config);
-        updateBrokerCampaignWeeklyBarUi(enabled);
+        updateBrokerCampaignWeeklyBarUi(enabled, res && res.config);
         if (typeof showMessage === 'function') {
             showMessage(enabled ? 'Campanha semanal ligada.' : 'Campanha semanal desligada.', 'success');
         }
@@ -2968,16 +3148,18 @@ function onBrokerCampaignWeeklyToggleChange(el) {
     });
 }
 
-function updateBrokerCampaignWeeklyBarUi(enabled) {
+function updateBrokerCampaignWeeklyBarUi(enabled, cfg) {
     var wrap = document.querySelector('.broker-campaign-top__switch');
     var statusEl = document.getElementById('brokerCampaignWeeklyStatus');
     if (wrap) {
         if (enabled) wrap.classList.remove('is-off');
         else wrap.classList.add('is-off');
     }
+    if (cfg) updateBrokerCampaignWeeklyLabel(cfg);
     if (statusEl && statusEl.textContent !== 'Salvando...') {
+        var sched = (cfg && cfg.scheduleLabel) ? cfg.scheduleLabel : 'horário configurado';
         statusEl.textContent = enabled
-            ? 'Ligada · próxima segunda 08h'
+            ? ('Ligada · ' + sched)
             : 'Desligada · só manual';
     }
 }
@@ -3055,7 +3237,8 @@ function applyBrokerCampaignConfigFields(cfg) {
     var checkTop = document.getElementById('brokerCampaignEnabledTop');
     if (check) check.checked = !!cfg.enabled;
     if (checkTop) checkTop.checked = !!cfg.enabled;
-    updateBrokerCampaignWeeklyBarUi(!!cfg.enabled);
+    applyBrokerCampaignScheduleFields(cfg);
+    updateBrokerCampaignWeeklyBarUi(!!cfg.enabled, cfg);
     var title = document.getElementById('brokerCampaignTitle');
     var siteUrl = document.getElementById('brokerCampaignSiteUrl');
     var contact = document.getElementById('brokerCampaignContact');
@@ -3338,8 +3521,14 @@ function collectBrokerCampaignConfigPayload() {
         usefulTips = tips.value.split('\n').map(function(t) { return String(t || '').trim(); }).filter(Boolean);
     }
     var featVal = feat ? String(feat.value || '').trim() : '';
+    var wd = document.getElementById('brokerCampaignScheduleWeekday');
+    var timeInp = document.getElementById('brokerCampaignScheduleTime');
+    var timeParts = timeInp && timeInp.value ? String(timeInp.value).split(':') : [];
     return {
         enabled: !!(check && check.checked),
+        scheduleWeekday: wd ? parseInt(wd.value, 10) : undefined,
+        scheduleHour: timeParts.length ? parseInt(timeParts[0], 10) : undefined,
+        scheduleMinute: timeParts.length > 1 ? parseInt(timeParts[1], 10) : undefined,
         weeklyTitle: title ? title.value : '',
         siteUrl: siteUrl ? siteUrl.value : '',
         whatsappContato: contact ? contact.value : '',
@@ -3365,7 +3554,7 @@ function saveBrokerCampaignConfig() {
         if (typeof showMessage === 'function') {
             showMessage('Configuração da campanha salva.', 'success');
         }
-        updateBrokerCampaignWeeklyBarUi(top ? top.checked : !!(inner && inner.checked));
+        updateBrokerCampaignWeeklyBarUi(top ? top.checked : !!(inner && inner.checked), res && res.config);
         return loadBrokerCampaignPreview();
     }).catch(function(err) {
         if (typeof showMessage === 'function') showMessage('Erro ao salvar campanha: ' + (err.message || ''), 'error');
@@ -3470,12 +3659,18 @@ function sendBrokerCampaignTestSingle() {
     });
 }
 
-function toggleBrokerCampaignOptOut(brokerId, optOut) {
+function setBrokerCampaignOptOut(brokerId, optOut, options) {
+    options = options || {};
     var willOptOut = !!optOut;
-    var msg = willOptOut
-        ? 'Retirar este corretor da campanha semanal de WhatsApp?'
-        : 'Reativar este corretor na campanha semanal de WhatsApp?';
-    if (!confirm(msg)) return;
+    if (options.confirm) {
+        var msg = willOptOut
+            ? 'Retirar este corretor da campanha semanal de WhatsApp?'
+            : 'Reativar este corretor na campanha semanal de WhatsApp?';
+        if (!confirm(msg)) {
+            if (options.revertEl) options.revertEl.checked = !options.revertEl.checked;
+            return;
+        }
+    }
     adminPostJson('/brokerCampaignOptOut', {
         brokerId: brokerId,
         optOut: willOptOut
@@ -3485,12 +3680,19 @@ function toggleBrokerCampaignOptOut(brokerId, optOut) {
         }
         var found = (typeof findBrokerById === 'function') ? findBrokerById(brokerId) : null;
         if (found) found.whatsappCampaignOptOut = willOptOut;
-        if (typeof showMessage === 'function') showMessage('Preferência da campanha atualizada.', 'success');
+        if (options.confirm && typeof showMessage === 'function') {
+            showMessage('Preferência da campanha atualizada.', 'success');
+        }
         loadBrokerCampaignPreview();
-        if (typeof loadBrokersData === 'function') loadBrokersData();
+        renderBrokersActiveTable();
     }).catch(function(err) {
+        if (options.revertEl) options.revertEl.checked = !options.revertEl.checked;
         if (typeof showMessage === 'function') showMessage('Erro ao atualizar preferência: ' + (err.message || ''), 'error');
     });
+}
+
+function toggleBrokerCampaignOptOut(brokerId, optOut) {
+    setBrokerCampaignOptOut(brokerId, optOut, { confirm: true });
 }
 
 // Show add broker modal (apenas superAdmin pode adicionar corretor manualmente)
