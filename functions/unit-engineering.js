@@ -77,11 +77,22 @@ function classify(expiresAt) {
   return { status: 'vigente', daysLeft: daysLeft, label: 'Vigente (' + daysLeft + ' dias)' };
 }
 
+function effectiveExpiresAt(d) {
+  if (!d) return '';
+  var exp = String(d.expiresAt || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(exp)) return exp;
+  var appr = String(d.appraisalDate || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(appr)) return addMonthsYmd(appr, VALIDITY_MONTHS);
+  return '';
+}
+
+/** Valor que pode ir à vitrine: valor + data do laudo vigente (PDF opcional). */
 function publicValue(d) {
-  if (!d || !d.expiresAt || !d.reportPath) return '';
-  var c = classify(d.expiresAt);
+  if (!d || d.engineeringValue == null || d.engineeringValue === '') return '';
+  var expiresAt = effectiveExpiresAt(d);
+  if (!expiresAt) return '';
+  var c = classify(expiresAt);
   if (c.status === 'vencida' || c.status === 'sem_laudo') return '';
-  if (d.engineeringValue == null || d.engineeringValue === '') return '';
   return d.engineeringValue;
 }
 

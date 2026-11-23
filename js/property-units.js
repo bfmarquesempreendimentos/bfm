@@ -455,7 +455,7 @@ function engineeringValuesSectionHtml(propertyId, units) {
     var hidden = items ? '' : ' hidden';
     return '<div class="engineering-values-section"' + hidden + ' data-property-id="' + String(propertyId) + '">' +
         '<h5>Valor Engenharia:</h5>' +
-        '<p class="engineering-hint">Unidades disponíveis e reservadas com laudo vigente (6 meses). Assinadas ou vendidas não aparecem aqui.</p>' +
+        '<p class="engineering-hint">Unidades disponíveis e reservadas com valor e data de engenharia vigente (6 meses). PDF do laudo não é obrigatório na vitrine. Assinadas ou vendidas não aparecem aqui.</p>' +
         '<div class="engineering-grid">' + items + '</div>' +
         '</div>';
 }
