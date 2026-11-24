@@ -674,7 +674,7 @@
             </div>
 
             <div class="admin-filters-row" id="reservationsFilters">
-                <select id="resFilterStatus" onchange="loadReservationsData()">
+                <select id="resFilterStatus" onchange="loadReservationsData(true)">
                     <option value="">Todos os status</option>
                     <option value="pending">Pendentes</option>
                     <option value="active">Ativas</option>
@@ -683,14 +683,14 @@
                     <option value="rejected">Rejeitadas</option>
                     <option value="signed">Assinadas</option>
                 </select>
-                <select id="resFilterProperty" onchange="loadReservationsData()">
+                <select id="resFilterProperty" onchange="loadReservationsData(true)">
                     <option value="">Todos empreendimentos</option>
                 </select>
                 <label class="admin-filter-check">
-                    <input type="checkbox" id="resFilterRenewalDue" onchange="loadReservationsData()"> Aguardando decisão
+                    <input type="checkbox" id="resFilterRenewalDue" onchange="loadReservationsData(true)"> Aguardando decisão
                 </label>
                 <label class="admin-filter-check">
-                    <input type="checkbox" id="resFilterExpiring" onchange="loadReservationsData()"> Vencem em 24h
+                    <input type="checkbox" id="resFilterExpiring" onchange="loadReservationsData(true)"> Vencem em 24h
                 </label>
             </div>
 
@@ -2498,7 +2498,7 @@
     <script src="js/documents.js"></script>
     <script src="js/sample-data.js"></script>
     <script src="js/property-sales.js"></script>
-    <script src="js/whatsapp-leads.js?v=34"></script>
+    <script src="js/whatsapp-leads.js?v=35"></script>
     <script src="js/admin-analytics.js?v=36"></script>
     <script src="js/admin-repairs.js?v=37"></script>
     <script src="js/admin-boletos.js?v=36"></script>
@@ -2508,7 +2508,7 @@
     <script src="js/admin-reports.js?v=4"></script>
     <script src="js/admin-broker-reservations-report.js?v=4"></script>
     <script src="js/admin-unit-engineering.js?v=28"></script>
-    <script src="js/admin.js?v=54"></script>
+    <script src="js/admin.js?v=55"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>

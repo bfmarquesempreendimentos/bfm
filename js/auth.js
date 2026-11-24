@@ -82,6 +82,7 @@ async function loadBrokersFromFirestore(opts) {
         });
         ensureAdminBroker();
         saveBrokersToStorage();
+        if (typeof window !== 'undefined') window._brokersFirestoreLoadedAt = Date.now();
         return true;
     } catch (err) { if (typeof console !== 'undefined' && console.error) console.error('Erro ao carregar corretores do Firestore:', err); }
     return false;

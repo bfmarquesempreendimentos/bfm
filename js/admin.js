@@ -5,6 +5,24 @@ let currentSection = 'dashboard';
 let editingProperty = null;
 let editingBroker = null;
 
+/** Evita refetch ao voltar na mesma seção (navegação rápida). */
+var _adminSectionLoadedAt = {};
+var ADMIN_SECTION_CACHE_MS = 45000;
+
+function shouldSkipAdminSectionReload(sectionId) {
+    var t = _adminSectionLoadedAt[sectionId];
+    return !!(t && Date.now() - t < ADMIN_SECTION_CACHE_MS);
+}
+
+function markAdminSectionLoaded(sectionId) {
+    _adminSectionLoadedAt[sectionId] = Date.now();
+}
+
+function invalidateAdminSectionCache(sectionId) {
+    if (sectionId) delete _adminSectionLoadedAt[sectionId];
+    else _adminSectionLoadedAt = {};
+}
+
 // Initialize admin panel
 document.addEventListener('DOMContentLoaded', function() {
     initializeAdminPanel();
@@ -61,8 +79,6 @@ function bootAdminPanelAfterAuth() {
             nameEl.title = adminUser.email + ' (Admin)';
         }
     }
-    // Load initial data
-    loadDashboardData();
     setupAdminEventListeners();
     applyAdminReservationPermissions();
     setTimeout(function() {
@@ -1074,17 +1090,18 @@ function showSection(sectionId) {
     if (target) target.classList.add('active');
     
     currentSection = sectionId;
+    var skipCachedReload = shouldSkipAdminSectionReload(sectionId);
     
     // Load section data
     switch (sectionId) {
         case 'dashboard':
-            loadDashboardData();
+            if (!skipCachedReload) loadDashboardData();
             break;
         case 'properties':
             loadPropertiesData();
             break;
         case 'reservations':
-            loadReservationsData();
+            if (!skipCachedReload) loadReservationsData();
             break;
         case 'sales':
             loadSalesData();
@@ -1093,7 +1110,7 @@ function showSection(sectionId) {
             if (typeof loadAdminBoletos === 'function') loadAdminBoletos();
             break;
         case 'brokers':
-            loadBrokersData();
+            if (!skipCachedReload) loadBrokersData();
             break;
         case 'reports':
             loadReportsData();
@@ -1111,7 +1128,7 @@ function showSection(sectionId) {
             if (typeof loadAnalytics === 'function') loadAnalytics();
             break;
         case 'whatsapp-leads':
-            if (typeof loadWhatsAppLeads === 'function') loadWhatsAppLeads();
+            if (!skipCachedReload && typeof loadWhatsAppLeads === 'function') loadWhatsAppLeads();
             break;
         case 'bia-learning':
             if (typeof loadBiaLearning === 'function') loadBiaLearning();
@@ -1536,6 +1553,14 @@ function fetchDashboardRemoteThenActivity(localBrokers) {
         if (bundle && !bundle.error && bundle.wa) {
             applyRemoteDashboardWidgets(bundle.wa, bundle.repairsOpen, bundle.salesCount, bundle.brokersActive, localBrokers, bundle);
             if (typeof renderDashboardCharts === 'function') renderDashboardCharts(bundle);
+            var localRepairs = [];
+            try {
+                localRepairs = JSON.parse(localStorage.getItem('repairRequests') || '[]');
+            } catch (eLoc) { localRepairs = []; }
+            renderDashboardActivityList(
+                buildMergedDashboardActivity(localRepairs, null, bundle.recentReservations || null)
+            );
+            return;
         } else {
             return Promise.all([
                 adminFetchJson('/getBrokers'),
@@ -1567,13 +1592,6 @@ function fetchDashboardRemoteThenActivity(localBrokers) {
                 renderDashboardActivityList(buildMergedDashboardActivity(repairsList, salesList));
             });
         }
-        return Promise.all([
-            adminFetchJson('/getRepairs'),
-            fetchDashboardSalesListForActivity()
-        ]).then(function(rs) {
-            var recentRes = (bundle && bundle.recentReservations) ? bundle.recentReservations : null;
-            renderDashboardActivityList(buildMergedDashboardActivity(rs[0], rs[1], recentRes));
-        });
     }).catch(function() {
         applyRemoteDashboardWidgets({ total: 0 }, 0, 0, undefined, localBrokers);
         renderDashboardActivityList(buildMergedDashboardActivity(null, null));
@@ -1628,6 +1646,7 @@ function loadDashboardData() {
     loadExpiringReservations();
 
     fetchDashboardRemoteThenActivity(localBrokers);
+    markAdminSectionLoaded('dashboard');
 }
 
 // Atividade de exemplo (fallback se necessário)
@@ -2064,9 +2083,10 @@ function adminReservationMutate(payload) {
     return adminPostJson('/adminReservationsMutate', payload);
 }
 
-function loadReservationsData() {
+function loadReservationsData(force) {
     var tbody = document.getElementById('reservationsTableBody');
     if (!tbody) return;
+    if (force !== true && shouldSkipAdminSectionReload('reservations')) return;
     applyAdminReservationPermissions();
     if (!adminCan('reservations_read') && !adminCan('reservations')) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Sem permissão para ver reservas.</td></tr>';
@@ -2099,6 +2119,7 @@ function loadReservationsData() {
         if (elA) elA.textContent = stats.active != null ? stats.active : '0';
         if (elE) elE.textContent = stats.expiringToday != null ? stats.expiringToday : '0';
         if (elR) elR.textContent = stats.renewalDue != null ? stats.renewalDue : '0';
+        markAdminSectionLoaded('reservations');
         if (!rows.length) {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Nenhuma reserva encontrada.</td></tr>';
             return;
@@ -2214,7 +2235,7 @@ function approveReservationAdmin(reservationId) {
             if (data && data.reservation) {
                 refreshUnitStatusFromReservationRow(data.reservation);
             }
-            loadReservationsData();
+            loadReservationsData(true);
             loadExpiringReservations();
         })
         .catch(function(err) { showMessage(err.message || 'Erro ao aprovar.', 'error'); });
@@ -2225,7 +2246,7 @@ function rejectReservationAdmin(reservationId) {
     adminReservationMutate({ action: 'reject', reservationId: reservationId, reason: reason, rejectedBy: adminReservationActor() })
         .then(function() {
             showMessage('Reserva rejeitada.', 'success');
-            loadReservationsData();
+            loadReservationsData(true);
         })
         .catch(function(err) { showMessage(err.message || 'Erro ao rejeitar.', 'error'); });
 }
@@ -2235,7 +2256,7 @@ function extendReservationAdmin(reservationId) {
     adminReservationMutate({ action: 'extend', reservationId: reservationId })
         .then(function() {
             showMessage('Reserva prorrogada por 3 dias úteis.', 'success');
-            loadReservationsData();
+            loadReservationsData(true);
             loadExpiringReservations();
         })
         .catch(function(err) { showMessage(err.message || 'Erro ao prorrogar.', 'error'); });
@@ -2251,7 +2272,7 @@ function releaseReservationAdmin(reservationId) {
             if (row && row.unitCode) {
                 refreshUnitStatusAfterReservation(row.propertyId, row.unitCode, 'disponivel');
             }
-            loadReservationsData();
+            loadReservationsData(true);
             loadExpiringReservations();
         })
         .catch(function(err) { showMessage(err.message || 'Erro ao liberar.', 'error'); });
@@ -2280,7 +2301,7 @@ function syncUnitStatusesFromReservations() {
                 }
             });
         }
-        loadReservationsData();
+        loadReservationsData(true);
     }).catch(function(err) {
         showMessage(err.message || 'Erro ao sincronizar cores.', 'error');
     });
@@ -2297,7 +2318,7 @@ function syncReservationsFromInventory() {
         if (data.already) msg += ' · Já existiam: ' + data.already;
         if (data.skipped) msg += ' · Ignoradas: ' + data.skipped;
         showMessage(msg, 'success');
-        loadReservationsData();
+        loadReservationsData(true);
         loadExpiringReservations();
     }).catch(function(err) {
         showMessage(err.message || 'Erro ao importar.', 'error');
@@ -2411,7 +2432,7 @@ function submitAdminCreateReservation(e) {
             refreshUnitStatusAfterReservation(payload.propertyId, payload.unitCode, 'reservado');
         }
         closeAdminCreateReservationModal();
-        loadReservationsData();
+        loadReservationsData(true);
         loadExpiringReservations();
     }).catch(function(err) {
         showMessage(err.message || 'Erro ao criar reserva.', 'error');
@@ -2504,7 +2525,7 @@ function confirmAssignBroker() {
     }).then(function() {
         showMessage('Corretor atribuído.', 'success');
         closeAssignBrokerModal();
-        loadReservationsData();
+        loadReservationsData(true);
     }).catch(function(err) {
         showMessage(err.message || 'Erro ao atribuir corretor.', 'error');
     });
@@ -2525,7 +2546,7 @@ function markReservationSignedAdmin(reservationId) {
         if (data && data.reservation) {
             refreshUnitStatusFromReservationRow(data.reservation);
         }
-        loadReservationsData();
+        loadReservationsData(true);
         loadExpiringReservations();
         if (confirm('Abrir o formulário de Vendas com os dados desta reserva?')) {
             var row = data && data.reservation ? data.reservation : null;
@@ -2667,7 +2688,7 @@ function submitAdminUpdateReservation(e) {
             refreshUnitStatusFromReservationRow(data.reservation);
         }
         closeAdminEditReservationModal();
-        loadReservationsData();
+        loadReservationsData(true);
         loadExpiringReservations();
     }).catch(function(err) {
         showMessage(err.message || 'Erro ao atualizar reserva.', 'error');
@@ -2889,17 +2910,27 @@ function isAdminPanelLoggedIn() {
 }
 
 // Load brokers data
-async function loadBrokersData() {
+async function loadBrokersData(force) {
     const tbody = document.getElementById('brokersTableBody');
     if (!tbody) return;
+    if (force !== true && shouldSkipAdminSectionReload('brokers')) return;
     const btnAdd = document.getElementById('btnAddBroker');
     if (btnAdd) btnAdd.style.display = (typeof isSuperAdmin === 'function' && isSuperAdmin()) ? '' : 'none';
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Carregando corretores...</td></tr>';
 
     await prepareBrokersPanelIfNeeded(false);
     
-    if (typeof loadBrokersFromFirestore === 'function') {
+    var skipBrokerFetch = false;
+    try {
+        var lastBr = window._brokersFirestoreLoadedAt || 0;
+        if (force !== true && Date.now() - lastBr < ADMIN_SECTION_CACHE_MS && typeof getAllBrokers === 'function' && getAllBrokers().length) {
+            skipBrokerFetch = true;
+        }
+    } catch (eBr) { /* ignore */ }
+
+    if (!skipBrokerFetch && typeof loadBrokersFromFirestore === 'function') {
         await loadBrokersFromFirestore({});
+        window._brokersFirestoreLoadedAt = Date.now();
     } else if (typeof adminFetchJson === 'function') {
         try {
             var remoteBrokers = await adminFetchJson('/getBrokers');
@@ -2940,6 +2971,7 @@ async function loadBrokersData() {
     renderBrokersActiveTable(allBrokers);
     renderInactiveBrokersSection();
     loadBrokerCampaignMetrics(false);
+    markAdminSectionLoaded('brokers');
 }
 
 function getInactiveDeactivatedBrokers() {
@@ -3429,6 +3461,13 @@ function prepareBrokersPanelIfNeeded(force) {
     }
     if (!force) {
         try {
+            if (sessionStorage.getItem('brokerCampaignPrepared') !== '1') {
+                if (statusEl) {
+                    statusEl.textContent =
+                        'Para campanha WhatsApp, use «Preparar disparo» quando for enviar (a primeira vez pode demorar).';
+                }
+                return loadBrokerCampaignPreview();
+            }
             if (sessionStorage.getItem('brokerCampaignPrepared') === '1') {
                 if (statusEl) statusEl.textContent = '';
                 return loadBrokerCampaignPreview().then(function() {
@@ -3930,7 +3969,7 @@ async function handleBrokerFormSubmission(e) {
     }
     
     closeBrokerModal();
-    loadBrokersData();
+    loadBrokersData(true);
 }
 
 // Close broker modal

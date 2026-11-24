@@ -92,12 +92,26 @@ function waInboxApi(path, options) {
   });
 }
 
-function waInboxRefresh() {
+function waInboxRefresh(opts) {
+  opts = opts || {};
   waLastListSig = '';
   waLastChatSig = '';
   waInboxLoadList();
   waInboxLoadStats();
-  if (typeof showMessage === 'function') showMessage('Lista atualizada.', 'success');
+  if (typeof markAdminSectionLoaded === 'function') {
+    markAdminSectionLoaded('whatsapp-leads');
+  } else {
+    window._waInboxLoadedAt = Date.now();
+  }
+  if (!opts.silent && typeof showMessage === 'function') showMessage('Lista atualizada.', 'success');
+}
+
+function shouldSkipWaInboxReload() {
+  if (typeof shouldSkipAdminSectionReload === 'function') {
+    return shouldSkipAdminSectionReload('whatsapp-leads');
+  }
+  var t = window._waInboxLoadedAt || 0;
+  return !!(t && Date.now() - t < 45000);
 }
 
 function waInboxLoadStats() {
@@ -212,10 +226,16 @@ function waInboxLoadList(quiet) {
   });
 }
 
+var waInboxFilterDebounceTimer = null;
+
 function waInboxFilter() {
   waInboxQuickFilter = '';
   waInboxUpdateStatCardActive('');
-  waInboxLoadList();
+  if (waInboxFilterDebounceTimer) clearTimeout(waInboxFilterDebounceTimer);
+  waInboxFilterDebounceTimer = setTimeout(function() {
+    waInboxFilterDebounceTimer = null;
+    waInboxLoadList();
+  }, 350);
 }
 
 function waInboxUpdateStatCardActive(key) {
@@ -817,7 +837,7 @@ function formatPhoneShort(phone) {
 
 /* Compatibilidade: manter funções antigas para admin.js */
 function loadWhatsAppLeads() {
-  waInboxRefresh();
+  waInboxRefresh({ silent: true });
 }
 
 function filterWALeads() {
@@ -878,7 +898,6 @@ document.addEventListener('DOMContentLoaded', function() {
       var active = section.classList.contains('active');
       window.waInboxSectionActive = active;
       if (active && !wasSectionActive) {
-        waInboxRefresh();
         if (waInboxSelectedPhone) waInboxStartPoll();
       }
       if (!active && waInboxPollTimer) {
@@ -887,6 +906,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       wasSectionActive = active;
     });
-    obs.observe(main, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    obs.observe(section, { attributes: true, attributeFilter: ['class'] });
   }
 });
