@@ -883,7 +883,7 @@
           "engineeringValue": 150000.0
         },
         {
-          "code": "cassa 08",
+          "code": "casa 08",
           "salePrice": 155000,
           "bedrooms": 1,
           "catalogStatus": "assinado",
@@ -2121,7 +2121,7 @@
           "engineeringValue": 159000.0
         },
         {
-          "code": "cassa 08",
+          "code": "casa 08",
           "salePrice": 145000,
           "bedrooms": 1,
           "catalogStatus": "disponivel",
@@ -2441,7 +2441,7 @@
           "inscricaoMunicipal": "359067004"
         },
         {
-          "code": "cassa 08",
+          "code": "casa 08",
           "salePrice": 150000,
           "bedrooms": 1,
           "catalogStatus": "assinado",

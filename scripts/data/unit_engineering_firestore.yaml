@@ -1,0 +1,1414 @@
+documents:
+  - __path__: unit_engineering/1__31_1qt
+    inscricaoMunicipal: '25237000'
+    unitCode: 31 (1qt)
+    propertyId: 1
+    valuePerM2: 3458.08
+    reportName: LAUDO VALIDO N 31.pdf
+    reportPath: property-dossiers/1/unidades/LAUDO_VALIDO_N_31.pdf
+    engineeringValue: 213398.12
+    updatedBy: seed-laudos-completos
+    appraiser: JULLIA LUIZA PINTO SOARES FERNANDES
+    daysLeft: -397
+    appraisalDate: '2025-03-14'
+    expiresAt: '2025-09-14'
+    status: vencida
+  - __path__: unit_engineering/1__31_cs_1_2qts
+    inscricaoMunicipal: '74085000'
+    updatedBy: seed-iptu-ocr
+    unitCode: 31 cs 1 (2qts)
+    propertyId: 1
+  - __path__: unit_engineering/1__31_cs_2_2qts
+    inscricaoMunicipal: '74086000'
+    unitCode: 31 cs 2 (2qts)
+    propertyId: 1
+    valuePerM2: 3295.89
+    reportName: Laudo 31 cs 2.pdf
+    reportPath: property-dossiers/1/unidades/Laudo_31_cs_2.pdf
+    appraiser: EDISON FORTUNATO DE SOUZA JUNIOR
+    daysLeft: -282
+    appraisalDate: '2025-07-07'
+    expiresAt: '2026-01-07'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 162000
+  - __path__: unit_engineering/1__31_cs_3_2qts
+    inscricaoMunicipal: '74087000'
+    updatedBy: seed-iptu-ocr
+    unitCode: 31 cs 3 (2qts)
+    propertyId: 1
+  - __path__: unit_engineering/1__31_cs_4_1qt
+    inscricaoMunicipal: '505929000'
+    unitCode: 31 cs 4 (1qt)
+    propertyId: 1
+    valuePerM2: 4525.17
+    reportName: LAUDO VALIDO CASA 04.pdf
+    reportPath: property-dossiers/1/unidades/LAUDO_VALIDO_CASA_04.pdf
+    appraiser: SERGIO MENEZES DA SILVA
+    daysLeft: -396
+    appraisalDate: '2025-03-15'
+    expiresAt: '2025-09-15'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 162906.09
+  - __path__: unit_engineering/1__31_cs_4_ap_2qts
+    inscricaoMunicipal: '128856000'
+    unitCode: 31 cs 4 ap (2qts)
+    propertyId: 1
+    valuePerM2: 2957.75
+    reportName: LAUDO VALIDO CASA 04 APT 103.pdf
+    reportPath: property-dossiers/1/unidades/LAUDO_VALIDO_CASA_04_APT_103.pdf
+    engineeringValue: 210000
+    updatedBy: seed-laudos-completos
+    appraiser: LORENA COSTA PACHECO
+    daysLeft: -398
+    appraisalDate: '2025-03-13'
+    expiresAt: '2025-09-13'
+    status: vencida
+  - __path__: unit_engineering/1__31_cs_5_1qt_ind
+    inscricaoMunicipal: '128854000'
+    updatedBy: seed-iptu-ocr
+    unitCode: 31 cs 5 (1qt ind.)
+    propertyId: 1
+  - __path__: unit_engineering/1__31_cs_5_sob_1qt
+    inscricaoMunicipal: '505930000'
+    unitCode: 31 cs 5 sob (1qt)
+    propertyId: 1
+    valuePerM2: 5222.22
+    reportName: Laudo cs 5 Sobrado.pdf
+    reportPath: property-dossiers/1/unidades/Laudo_cs_5_Sobrado.pdf
+    appraiser: CAMILA OLIVEIRA NUNES
+    daysLeft: -213
+    appraisalDate: '2025-09-17'
+    expiresAt: '2026-03-17'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 188000
+  - __path__: unit_engineering/1__31_cs_6_1qt
+    inscricaoMunicipal: '505927000'
+    updatedBy: seed-iptu-ocr
+    unitCode: 31 cs 6 (1qt)
+    propertyId: 1
+  - __path__: unit_engineering/1__31_cs_6_sob_1_qt
+    inscricaoMunicipal: '505931000'
+    updatedBy: seed-iptu-ocr
+    unitCode: 31 cs 6 sob (1 qt)
+    propertyId: 1
+  - __path__: unit_engineering/1__31_cs_7_1qt
+    inscricaoMunicipal: '128855000'
+    updatedBy: seed-iptu-ocr
+    unitCode: 31 cs 7 (1qt)
+    propertyId: 1
+  - __path__: unit_engineering/1__31_cs_7_sob_1qt
+    inscricaoMunicipal: '505932000'
+    updatedBy: seed-iptu-ocr
+    unitCode: 31 cs 7 sob (1qt)
+    propertyId: 1
+  - __path__: unit_engineering/1__31_cs_8_1qt
+    inscricaoMunicipal: '505928000'
+    unitCode: 31 cs 8 (1qt)
+    propertyId: 1
+    valuePerM2: 3334.32
+    reportName: Laudo_cs 8.pdf
+    reportPath: property-dossiers/1/unidades/Laudo_cs_8.pdf
+    engineeringValue: 225000
+    daysLeft: -212
+    appraisalDate: '2025-09-18'
+    expiresAt: '2026-03-18'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    appraiser: JULIO CEZAR DE LEMOS
+  - __path__: unit_engineering/1__31_cs_8_sob_1qt
+    inscricaoMunicipal: '505933000'
+    unitCode: 31 cs 8 sob (1qt)
+    propertyId: 1
+    valuePerM2: 2741.96
+    reportName: Laudo cs 8 Sobrado.pdf
+    reportPath: property-dossiers/1/unidades/Laudo_cs_8_Sobrado.pdf
+    engineeringValue: 218397.48
+    updatedBy: seed-laudos-completos
+    appraiser: CHARLESTON DA SILVA ALBINO
+    daysLeft: -214
+    appraisalDate: '2025-09-16'
+    expiresAt: '2026-03-16'
+    status: vencida
+  - __path__: unit_engineering/2__casa_01
+    historicalEngineering: R$ 193.000,00
+    matricula: '69.062'
+    propertyId: 2
+    unitCode: casa 01
+    inscricaoMunicipal: '154828002'
+    valuePerM2: 5574.81
+    reportName: Laudo-348-Casa01.pdf
+    reportPath: property-dossiers/2/unidades/Laudo-348-Casa01.pdf
+    appraiser: LUIZ FERNANDO GOMES SOUTINHO
+    daysLeft: -87
+    status: vencida
+    engineeringValue: 195000
+    appraisalDate: '2026-06-05'
+    engineeringHistory:
+      - appraisalDate: '2026-01-21'
+        expiresAt: '2026-07-21'
+        appraiser: LUIZ FERNANDO GOMES SOUTINHO
+        engineeringValue: 193000
+        valuePerM2: 5574.81
+        reportPath: property-dossiers/2/unidades/Laudo-348-Casa01.pdf
+        reportName: Laudo-348-Casa01.pdf
+        caixaLaudoRef: ''
+        garantiaCaixa: ''
+        laudoUnitHint: ''
+        archivedAt: '2026-11-13T20:59:14.089Z'
+        archivedBy: brunoferreiramarques@gmail.com
+    expiresAt: '2026-12-05'
+    updatedBy: brunoferreiramarques@gmail.com
+    updatedAt: '2026-11-18T13:35:31.342Z'
+  - __path__: unit_engineering/2__casa_02
+    historicalEngineering: R$ 200.000,00
+    matricula: '69.063'
+    propertyId: 2
+    unitCode: casa 02
+    inscricaoMunicipal: '154828003'
+    valuePerM2: 7225.43
+    reportName: Casa 2.pdf
+    reportPath: property-dossiers/2/unidades/Casa_2.pdf
+    appraiser: LUIZ HENRIQUE DA SILVA
+    daysLeft: -89
+    appraisalDate: '2026-01-19'
+    expiresAt: '2026-07-19'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 200000
+  - __path__: unit_engineering/2__casa_03
+    historicalEngineering: R$ 150.000,00
+    matricula: '69.064'
+    propertyId: 2
+    unitCode: casa 03
+    inscricaoMunicipal: '154828004'
+    valuePerM2: 5432.86
+    reportName: LAUDO-348-CASA 03.pdf
+    reportPath: property-dossiers/2/unidades/LAUDO-348-CASA_03.pdf
+    appraiser: CLAUDIA MARIA DANTAS
+    daysLeft: -87
+    appraisalDate: '2026-01-21'
+    expiresAt: '2026-07-21'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 150000
+  - __path__: unit_engineering/2__casa_04
+    historicalEngineering: R$ 205.000,00
+    matricula: '69.065'
+    propertyId: 2
+    unitCode: casa 04
+    inscricaoMunicipal: '154828005'
+    reportName: Casa 4.pdf
+    reportPath: property-dossiers/2/unidades/Casa_4.pdf
+    daysLeft: -87
+    appraisalDate: '2026-01-21'
+    expiresAt: '2026-07-21'
+    status: vencida
+    valuePerM2: 5377.75
+    updatedBy: seed-laudos-completos
+    engineeringValue: 205000
+    appraiser: LAIS MENEZES GOMES
+  - __path__: unit_engineering/2__casa_05
+    historicalEngineering: R$ 193.000,00
+    matricula: '69.066'
+    propertyId: 2
+    unitCode: casa 05
+    inscricaoMunicipal: '154828006'
+    valuePerM2: 5574.81
+    reportName: Laudo-348-Casa05.pdf
+    reportPath: property-dossiers/2/unidades/Laudo-348-Casa05.pdf
+    appraiser: LUIZ FERNANDO GOMES SOUTINHO
+    daysLeft: -87
+    appraisalDate: '2026-01-21'
+    expiresAt: '2026-07-21'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 193000
+  - __path__: unit_engineering/2__casa_06
+    historicalEngineering: R$ 150.000,00
+    matricula: '69.067'
+    propertyId: 2
+    unitCode: casa 06
+    inscricaoMunicipal: '154828007'
+    valuePerM2: 5432.86
+    reportName: Laudo cs 6.pdf
+    reportPath: property-dossiers/2/unidades/Laudo_cs_6.pdf
+    appraiser: CLAUDIA MARIA DANTAS
+    daysLeft: -87
+    appraisalDate: '2026-01-21'
+    expiresAt: '2026-07-21'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 150000
+  - __path__: unit_engineering/2__casa_07
+    historicalEngineering: R$ 193.000,00
+    matricula: '69.068'
+    propertyId: 2
+    unitCode: casa 07
+    inscricaoMunicipal: '154828008'
+    valuePerM2: 5574.81
+    reportName: Laudo-348-Casa07.pdf
+    reportPath: property-dossiers/2/unidades/Laudo-348-Casa07.pdf
+    appraiser: LUIZ FERNANDO GOMES SOUTINHO
+    daysLeft: -87
+    appraisalDate: '2026-01-21'
+    expiresAt: '2026-07-21'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 193000
+  - __path__: unit_engineering/2__casa_09
+    historicalEngineering: R$ 205.000,00
+    matricula: '69.070'
+    propertyId: 2
+    unitCode: casa 09
+    inscricaoMunicipal: '154828010'
+    valuePerM2: 5377.75
+    reportName: Casa 9.pdf
+    reportPath: property-dossiers/2/unidades/Casa_9.pdf
+    appraiser: LUIZ HENRIQUE DA SILVA
+    daysLeft: -89
+    appraisalDate: '2026-01-19'
+    expiresAt: '2026-07-19'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 205000
+  - __path__: unit_engineering/2__casa_base
+    historicalEngineering: R$ 195.000,00
+    matricula: '69.061'
+    propertyId: 2
+    unitCode: casa base
+    inscricaoMunicipal: '154828001'
+    reportName: Casa base.pdf
+    reportPath: property-dossiers/2/unidades/Casa_base.pdf
+    daysLeft: -87
+    appraisalDate: '2026-01-21'
+    expiresAt: '2026-07-21'
+    status: vencida
+    valuePerM2: 7044.8
+    updatedBy: seed-laudos-completos
+    engineeringValue: 195000
+    appraiser: LAIS MENEZES GOMES
+  - __path__: unit_engineering/2__casa_08
+    historicalEngineering: R$ 195.000,00
+    matricula: '69.069'
+    propertyId: 2
+    unitCode: casa 08
+    inscricaoMunicipal: '154828009'
+    reportName: Casa 8.pdf
+    reportPath: property-dossiers/2/unidades/Casa_8.pdf
+    daysLeft: -87
+    appraisalDate: '2026-01-21'
+    expiresAt: '2026-07-21'
+    status: vencida
+    valuePerM2: 7044.8
+    updatedBy: seed-laudos-completos
+    engineeringValue: 195000
+    appraiser: LAIS MENEZES GOMES
+  - __path__: unit_engineering/3__apto_101
+    unitCode: APTO 101
+    inscricaoMunicipal: '359068001'
+    propertyId: 3
+    daysLeft: -93
+    status: vencida
+    valuePerM2: 5003.13
+    notes: ''
+    updatedBy: raphaelmonteirodasilva@yahoo.com.br
+    reportName: LAUDO 2.pdf
+    reportPath: engineering-reports/1794340330132-LAUDO_2.pdf
+    salePrice: 160000
+    rgiName: ''
+    historicalEngineering: R$ 177.000,00
+    expiresAt: '2027-04-13'
+    rgiPath: ''
+    rgiHistory: []
+    rgiDate: ''
+    engineeringValue: 160000
+    matricula: '84.382'
+    garantiaCaixa: apta
+    appraiser: DANIEL LUIZ COSTA E SILVA
+    archiveDocuments:
+      - kind: laudo
+        label: Laudo de engenharia
+        name: Laudo 101.pdf
+        zipPath: >-
+          Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/Laudos Caixa/Laudo
+          101.pdf
+        storagePath: property-dossiers/3/unidades/Laudo_101.pdf
+      - kind: onus
+        label: Ônus / RGI
+        name: Apto 101.pdf
+        zipPath: >-
+          Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/RGI - Onus/Apto
+          101.pdf
+        storagePath: property-dossiers/3/unidades/Apto_101.pdf
+    appraisalDate: '2026-10-13'
+    engineeringHistory:
+      - appraisalDate: '2026-01-15'
+        expiresAt: '2026-07-15'
+        appraiser: CYNTHIA VARGAS CUCHAVA ROCHA
+        engineeringValue: 176830.79
+        valuePerM2: 5529.42
+        reportPath: property-dossiers/3/unidades/Laudo_101.pdf
+        reportName: Laudo 101.pdf
+        garantiaCaixa: ''
+        archivedAt: '2026-11-10T19:54:47.172Z'
+        archivedBy: raphaelmonteirodasilva@yahoo.com.br
+    updatedAt: '2026-11-10T19:54:46.274Z'
+  - __path__: unit_engineering/3__apto_102
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 102
+    inscricaoMunicipal: '359068002'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_103
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 103
+    inscricaoMunicipal: '359068003'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_104
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 104
+    inscricaoMunicipal: '359068004'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_105
+    unitCode: APTO 105
+    inscricaoMunicipal: '359068005'
+    propertyId: 3
+    valuePerM2: 5529.42
+    reportName: Laudo 105.pdf
+    reportPath: property-dossiers/3/unidades/Laudo_105.pdf
+    engineeringValue: 176830.79
+    daysLeft: -93
+    appraisalDate: '2026-01-15'
+    expiresAt: '2026-07-15'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    appraiser: CYNTHIA VARGAS CUCHAVA ROCHA
+  - __path__: unit_engineering/3__apto_106
+    unitCode: APTO 106
+    inscricaoMunicipal: '359068006'
+    propertyId: 3
+    notes: ''
+    updatedBy: brunoferreiramarques@gmail.com
+    salePrice: 165000
+    rgiName: ''
+    historicalEngineering: ''
+    rgiPath: ''
+    rgiHistory: []
+    rgiDate: ''
+    matricula: '84.387'
+    archiveDocuments:
+      - kind: onus
+        label: Ônus / RGI
+        name: Apto 106.pdf
+        zipPath: >-
+          Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/RGI - Onus/Apto
+          106.pdf
+        storagePath: property-dossiers/3/unidades/Apto_106.pdf
+    engineeringValue: 203000
+    appraisalDate: '2026-10-13'
+    expiresAt: '2027-04-13'
+    reportName: laudo3.pdf
+    reportPath: engineering-reports/3/apto_106/laudo3.pdf
+    engineeringHistory: []
+    garantiaCaixa: apta
+    updatedAt: '2026-11-10T23:03:04.301Z'
+    valuePerM2: 6347.72
+    appraiser: IGOR MIRANDA DO REGO BARROS
+    laudoUnitHint: '106'
+  - __path__: unit_engineering/3__apto_107
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 107
+    inscricaoMunicipal: '359068007'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_108
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 108
+    inscricaoMunicipal: '359068008'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_109
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 109
+    inscricaoMunicipal: '359068009'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_110
+    unitCode: APTO 110
+    inscricaoMunicipal: '359068010'
+    propertyId: 3
+    valuePerM2: 5083.7
+    reportName: Laudo apto 110.pdf
+    reportPath: property-dossiers/3/unidades/Laudo_apto_110.pdf
+    engineeringValue: 194603.92
+    daysLeft: -93
+    appraisalDate: '2026-01-15'
+    expiresAt: '2026-07-15'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    appraiser: CYNTHIA VARGAS CUCHAVA ROCHA
+  - __path__: unit_engineering/3__apto_201
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 201
+    inscricaoMunicipal: '359068011'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_202
+    unitCode: APTO 202
+    inscricaoMunicipal: '359068012'
+    propertyId: 3
+    reportName: Apto 202.pdf
+    reportPath: property-dossiers/3/unidades/Apto_202.pdf
+    engineeringValue: 149000
+    valuePerM2: 4839.23
+    updatedBy: seed-laudos-completos
+    appraiser: YARA PRADO STEWART DANTAS
+    daysLeft: -92
+    appraisalDate: '2026-01-16'
+    expiresAt: '2026-07-16'
+    status: vencida
+  - __path__: unit_engineering/3__apto_203
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 203
+    inscricaoMunicipal: '359068013'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_204
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 204
+    inscricaoMunicipal: '359068014'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_205
+    unitCode: APTO 205
+    inscricaoMunicipal: '359068015'
+    propertyId: 3
+    notes: ''
+    updatedBy: brunoferreiramarques@gmail.com
+    salePrice: 160000
+    rgiName: ''
+    historicalEngineering: ''
+    rgiPath: ''
+    rgiHistory: []
+    rgiDate: ''
+    matricula: '84.396'
+    archiveDocuments:
+      - kind: onus
+        label: Ônus / RGI
+        name: Apto 205.pdf
+        zipPath: >-
+          Imóveis à venda/Edificio - Lopes da Cruz, 136. 20u/RGI - Onus/Apto
+          205.pdf
+        storagePath: property-dossiers/3/unidades/Apto_205.pdf
+    engineeringHistory: []
+    reportName: laudo.pdf
+    reportPath: engineering-reports/3/apto_205/laudo.pdf
+    valuePerM2: 5978.58
+    engineeringValue: 201000
+    garantiaCaixa: apta
+    appraiser: GUALTER VIEIRA FIGUEIREDO
+    appraisalDate: '2026-06-01'
+    expiresAt: '2026-12-01'
+    updatedAt: '2026-11-10T22:20:00.000Z'
+  - __path__: unit_engineering/3__apto_206
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 206
+    inscricaoMunicipal: '359068016'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_207
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 207
+    inscricaoMunicipal: '359068017'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_208
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 208
+    inscricaoMunicipal: '359068018'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_209
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 209
+    inscricaoMunicipal: '359068019'
+    propertyId: 3
+  - __path__: unit_engineering/3__apto_210
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 210
+    inscricaoMunicipal: '359068020'
+    propertyId: 3
+  - __path__: unit_engineering/4__cs_01
+    updatedBy: seed-iptu-ocr
+    unitCode: CS 01
+    inscricaoMunicipal: '802598002'
+    propertyId: 4
+  - __path__: unit_engineering/4__cs_02
+    updatedBy: seed-iptu-ocr
+    unitCode: CS 02
+    inscricaoMunicipal: '802598003'
+    propertyId: 4
+  - __path__: unit_engineering/4__cs_03
+    unitCode: CS 03
+    inscricaoMunicipal: '802598004'
+    propertyId: 4
+    notes: Matrícula pela sequência do RGI do prédio.
+    updatedBy: brunoferreiramarques@gmail.com
+    salePrice: 145000
+    rgiName: ''
+    historicalEngineering: ''
+    rgiPath: ''
+    rgiHistory: []
+    rgiDate: ''
+    matricula: '84.678'
+    archiveDocuments: []
+    engineeringHistory: []
+    updatedAt: '2026-11-10T23:27:04.130Z'
+    reportName: ''
+    reportPath: ''
+    garantiaCaixa: ''
+    appraiser: ''
+    appraisalDate: ''
+    laudoUnitHint: ''
+    expiresAt: ''
+    valuePerM2: ''
+    engineeringValue: ''
+  - __path__: unit_engineering/4__cs_04
+    unitCode: CS 04
+    inscricaoMunicipal: '802598005'
+    propertyId: 4
+    valuePerM2: 5292.48
+    reportName: Cs 4.pdf
+    reportPath: property-dossiers/4/unidades/Cs_4.pdf
+    appraiser: DANIELLE CHAGAS BERTHOLO FREDERICK
+    daysLeft: 34
+    appraisalDate: '2026-05-19'
+    expiresAt: '2026-11-19'
+    status: a_vencer
+    updatedBy: seed-laudos-completos
+    engineeringValue: 190000
+  - __path__: unit_engineering/4__cs_05
+    updatedBy: seed-iptu-ocr
+    unitCode: CS 05
+    inscricaoMunicipal: '802598006'
+    propertyId: 4
+  - __path__: unit_engineering/4__cs_06
+    unitCode: CS 06
+    inscricaoMunicipal: '802598007'
+    propertyId: 4
+    valuePerM2: 6536.2
+    reportName: Cs 6.pdf
+    reportPath: property-dossiers/4/unidades/Cs_6.pdf
+    appraiser: LUCAS REBELLO CORDEIRO
+    daysLeft: 36
+    appraisalDate: '2026-05-21'
+    expiresAt: '2026-11-21'
+    status: a_vencer
+    updatedBy: seed-laudos-completos
+    engineeringValue: 167000
+  - __path__: unit_engineering/4__cs_07
+    unitCode: CS 07
+    inscricaoMunicipal: '802598008'
+    propertyId: 4
+    valuePerM2: 5870.84
+    reportName: Cs 7.pdf
+    reportPath: property-dossiers/4/unidades/Cs_7.pdf
+    appraiser: FERNANDO SOARES NUNES
+    daysLeft: 30
+    appraisalDate: '2026-05-15'
+    expiresAt: '2026-11-15'
+    status: a_vencer
+    updatedBy: seed-laudos-completos
+    engineeringValue: 150000
+  - __path__: unit_engineering/4__cs_08
+    updatedBy: seed-iptu-ocr
+    unitCode: CS 08
+    inscricaoMunicipal: '802598009'
+    propertyId: 4
+  - __path__: unit_engineering/4__cs_09
+    unitCode: CS 09
+    inscricaoMunicipal: '802598010'
+    propertyId: 4
+    valuePerM2: 5454.56
+    reportName: Cs 9.pdf
+    reportPath: property-dossiers/4/unidades/Cs_9.pdf
+    appraiser: ANDRE ANDRADE DE LIMA
+    daysLeft: 36
+    status: a_vencer
+    engineeringValue: 190000
+    matricula: '84.684'
+    appraisalDate: '2026-07-16'
+    engineeringHistory:
+      - appraisalDate: '2026-05-21'
+        expiresAt: '2026-11-21'
+        appraiser: ANDRE ANDRADE DE LIMA
+        engineeringValue: 190000
+        valuePerM2: 5454.56
+        reportPath: property-dossiers/4/unidades/Cs_9.pdf
+        reportName: Cs 9.pdf
+        caixaLaudoRef: ''
+        garantiaCaixa: ''
+        laudoUnitHint: ''
+        archivedAt: '2026-11-13T20:59:12.367Z'
+        archivedBy: brunoferreiramarques@gmail.com
+    expiresAt: '2027-01-16'
+    updatedBy: brunoferreiramarques@gmail.com
+    updatedAt: '2026-11-18T13:35:31.342Z'
+  - __path__: unit_engineering/4__cs_10
+    updatedBy: seed-iptu-ocr
+    unitCode: CS 10
+    inscricaoMunicipal: '802598011'
+    propertyId: 4
+  - __path__: unit_engineering/4__cs_11
+    updatedBy: seed-iptu-ocr
+    unitCode: CS 11
+    inscricaoMunicipal: '802598012'
+    propertyId: 4
+  - __path__: unit_engineering/4__cs_12
+    updatedBy: seed-iptu-ocr
+    unitCode: CS 12
+    inscricaoMunicipal: '802598013'
+    propertyId: 4
+  - __path__: unit_engineering/4__cs_13
+    updatedBy: seed-iptu-ocr
+    unitCode: CS 13
+    inscricaoMunicipal: '802598014'
+    propertyId: 4
+  - __path__: unit_engineering/4__cs_14
+    unitCode: CS 14
+    inscricaoMunicipal: '802598015'
+    propertyId: 4
+    valuePerM2: 5454.56
+    reportName: Cs 14.pdf
+    reportPath: property-dossiers/4/unidades/Cs_14.pdf
+    appraiser: ANDRE ANDRADE DE LIMA
+    daysLeft: 36
+    appraisalDate: '2026-05-21'
+    expiresAt: '2026-11-21'
+    status: a_vencer
+    updatedBy: seed-laudos-completos
+    engineeringValue: 190000
+  - __path__: unit_engineering/4__cs_base
+    unitCode: CS BASE
+    inscricaoMunicipal: '802598001'
+    propertyId: 4
+    updatedBy: admin-matricula-base
+    matricula: '84.675'
+  - __path__: unit_engineering/5__casa_01
+    unitCode: casa 01
+    inscricaoMunicipal: 206832-001
+    propertyId: 5
+    valuePerM2: 5732.73
+    reportName: Casa 1.pdf
+    reportPath: property-dossiers/5/unidades/Casa_1.pdf
+    appraiser: JEAN FERREIRA DE OLIVEIRA
+    daysLeft: -78
+    appraisalDate: '2026-01-30'
+    expiresAt: '2026-07-30'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 177714.59
+  - __path__: unit_engineering/5__casa_02
+    unitCode: casa 02
+    inscricaoMunicipal: 206833-001
+    propertyId: 5
+    daysLeft: -88
+    status: vencida
+    valuePerM2: 4933.33
+    notes: ''
+    updatedBy: brunoferreiramarques@gmail.com
+    reportName: laudo.pdf
+    reportPath: engineering-reports/5/casa_02/laudo.pdf
+    salePrice: 145000
+    rgiName: ''
+    historicalEngineering: R$ 140.000,00
+    expiresAt: '2027-04-15'
+    rgiPath: ''
+    rgiHistory: []
+    rgiDate: ''
+    engineeringValue: 148000
+    matricula: '54.766'
+    garantiaCaixa: inapta
+    appraiser: JONATHAS FERNANDES DE OLIVEIRA
+    archiveDocuments:
+      - kind: laudo
+        label: Laudo de engenharia
+        name: Laudo-APOLO-Casa02.pdf
+        zipPath: >-
+          Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos
+          Caixa/Laudo-APOLO-Casa02.pdf
+        storagePath: property-dossiers/5/unidades/Laudo-APOLO-Casa02.pdf
+      - kind: onus
+        label: Ônus / RGI
+        name: ONUS CASA 02 APOLO.pdf
+        zipPath: >-
+          Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI Ônus
+          /ONUS CASA 02 APOLO.pdf
+        storagePath: property-dossiers/5/unidades/ONUS_CASA_02_APOLO.pdf
+    appraisalDate: '2026-10-15'
+    engineeringHistory:
+      - appraisalDate: '2026-01-20'
+        expiresAt: '2026-07-20'
+        appraiser: MAYCON REI MONTEIRO
+        engineeringValue: 140000
+        valuePerM2: 4519.04
+        reportPath: property-dossiers/5/unidades/Laudo-APOLO-Casa02.pdf
+        reportName: Laudo-APOLO-Casa02.pdf
+        garantiaCaixa: ''
+        laudoUnitHint: ''
+        archivedAt: '2026-11-10T23:30:14.342Z'
+        archivedBy: brunoferreiramarques@gmail.com
+    updatedAt: '2026-11-10T23:30:47.715Z'
+  - __path__: unit_engineering/5__casa_03
+    unitCode: casa 03
+    inscricaoMunicipal: 206834-001
+    propertyId: 5
+    daysLeft: -22
+    status: vencida
+    valuePerM2: 4583.6
+    notes: ''
+    updatedBy: brunoferreiramarques@gmail.com
+    reportName: laudo.pdf
+    reportPath: engineering-reports/5/casa_03/laudo.pdf
+    salePrice: 145000
+    rgiName: ''
+    historicalEngineering: R$ 159.000,00
+    laudoUnitHint: '03'
+    expiresAt: '2027-04-16'
+    rgiPath: ''
+    rgiHistory: []
+    rgiDate: ''
+    engineeringValue: 142000
+    matricula: '54.767'
+    garantiaCaixa: apta
+    appraiser: DANIEL LUIZ COSTA E SILVA
+    archiveDocuments:
+      - kind: laudo
+        label: Laudo de engenharia
+        name: Laudo cs 3.pdf
+        zipPath: >-
+          Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos
+          Caixa/Laudo cs 3.pdf
+        storagePath: property-dossiers/5/unidades/Laudo_cs_3.pdf
+      - kind: onus
+        label: Ônus / RGI
+        name: Ônus cs 3.pdf
+        zipPath: >-
+          Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI Ônus
+          /Ônus cs 3.pdf
+        storagePath: property-dossiers/5/unidades/Onus_cs_3.pdf
+    appraisalDate: '2026-10-16'
+    engineeringHistory:
+      - appraisalDate: '2026-03-24'
+        expiresAt: '2026-09-24'
+        appraiser: DAVY BARRETO MARINHO MENEZES
+        engineeringValue: 159000
+        valuePerM2: 5132.34
+        reportPath: property-dossiers/5/unidades/Laudo_cs_3.pdf
+        reportName: Laudo cs 3.pdf
+        garantiaCaixa: ''
+        laudoUnitHint: ''
+        archivedAt: '2026-11-10T23:36:47.084Z'
+        archivedBy: brunoferreiramarques@gmail.com
+    updatedAt: '2026-11-10T23:37:15.443Z'
+  - __path__: unit_engineering/5__casa_04
+    unitCode: casa 04
+    inscricaoMunicipal: 206835-001
+    propertyId: 5
+    reportName: Laudo-APOLO-CASA04-134MIL.pdf
+    reportPath: property-dossiers/5/unidades/Laudo-APOLO-CASA04-134MIL.pdf
+    daysLeft: -87
+    appraisalDate: '2026-01-21'
+    expiresAt: '2026-07-21'
+    status: vencida
+    valuePerM2: 4313.49
+    updatedBy: seed-laudos-completos
+    engineeringValue: 134000
+    appraiser: KARON MURY ARAUJO NOBRE
+  - __path__: unit_engineering/5__casa_05
+    unitCode: casa 05
+    inscricaoMunicipal: 206836-001
+    propertyId: 5
+    reportName: Laudo-APOLO-CASA05-130MIL.pdf
+    reportPath: property-dossiers/5/unidades/Laudo-APOLO-CASA05-130MIL.pdf
+    daysLeft: -87
+    appraisalDate: '2026-01-21'
+    expiresAt: '2026-07-21'
+    status: vencida
+    valuePerM2: 4168.45
+    updatedBy: seed-laudos-completos
+    engineeringValue: 130000
+    appraiser: KARON MURY ARAUJO NOBRE
+  - __path__: unit_engineering/5__casa_06
+    unitCode: casa 06
+    inscricaoMunicipal: 206837-001
+    propertyId: 5
+    valuePerM2: 4196.26
+    reportName: Laudo cs 6.pdf
+    reportPath: property-dossiers/5/unidades/Laudo_cs_6.pdf
+    appraiser: LUCAS REBELLO CORDEIRO
+    daysLeft: -15
+    appraisalDate: '2026-04-01'
+    expiresAt: '2026-10-01'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 130000
+  - __path__: unit_engineering/5__casa_07
+    unitCode: casa 07
+    inscricaoMunicipal: 206838-001
+    propertyId: 5
+    daysLeft: -88
+    status: vencida
+    valuePerM2: 5810.2
+    notes: ''
+    updatedBy: brunoferreiramarques@gmail.com
+    reportName: laudo.pdf
+    reportPath: engineering-reports/5/casa_07/laudo.pdf
+    salePrice: 145000
+    rgiName: ''
+    historicalEngineering: R$ 140.000,00
+    expiresAt: '2027-04-20'
+    rgiPath: ''
+    rgiHistory: []
+    rgiDate: ''
+    engineeringValue: 180000
+    matricula: '54.771'
+    garantiaCaixa: apta
+    archiveDocuments:
+      - kind: laudo
+        label: Laudo de engenharia
+        name: Laudo-APOLO-Casa07.pdf
+        zipPath: >-
+          Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/Laudos
+          Caixa/Laudo-APOLO-Casa07.pdf
+        storagePath: property-dossiers/5/unidades/Laudo-APOLO-Casa07.pdf
+      - kind: onus
+        label: Ônus / RGI
+        name: ONUS CASA 07 APOLO.pdf
+        zipPath: >-
+          Imóveis à venda/Residencial - Apolo lado CRAS Itaborai 10u/RGI Ônus
+          /ONUS CASA 07 APOLO.pdf
+        storagePath: property-dossiers/5/unidades/ONUS_CASA_07_APOLO.pdf
+    appraisalDate: '2026-10-20'
+    engineeringHistory:
+      - appraisalDate: '2026-01-20'
+        expiresAt: '2026-07-20'
+        appraiser: MAYCON REI MONTEIRO
+        engineeringValue: 140000
+        valuePerM2: 4519.04
+        reportPath: property-dossiers/5/unidades/Laudo-APOLO-Casa07.pdf
+        reportName: Laudo-APOLO-Casa07.pdf
+        garantiaCaixa: ''
+        laudoUnitHint: ''
+        archivedAt: '2026-11-10T23:28:59.866Z'
+        archivedBy: brunoferreiramarques@gmail.com
+    appraiser: MAYCON REI MONTEIRO
+    updatedAt: '2026-11-10T23:29:18.523Z'
+  - __path__: unit_engineering/5__casa_09
+    unitCode: casa 09
+    inscricaoMunicipal: 206840-001
+    propertyId: 5
+    valuePerM2: 6488.06
+    reportName: Laudo cs 9.pdf
+    reportPath: property-dossiers/5/unidades/Laudo_cs_9.pdf
+    appraiser: GUALTER VIEIRA FIGUEIREDO
+    daysLeft: -87
+    appraisalDate: '2026-01-21'
+    expiresAt: '2026-07-21'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 201000
+  - __path__: unit_engineering/5__casa_base
+    historicalEngineering: R$ 195.000,00
+    matricula: '54.764'
+    propertyId: 5
+    unitCode: casa base
+    inscricaoMunicipal: 056094-001
+    valuePerM2: 5842.48
+    reportName: Casa base.pdf
+    reportPath: property-dossiers/5/unidades/Casa_base.pdf
+    appraiser: DIEGO SOARES OLIVEIRA
+    daysLeft: -75
+    appraisalDate: '2026-02-02'
+    expiresAt: '2026-08-02'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 181000
+  - __path__: unit_engineering/5__casa_08
+    unitCode: casa 08
+    inscricaoMunicipal: 206839-001
+    propertyId: 5
+    valuePerM2: 5358.3
+    reportName: Cs 08.pdf
+    reportPath: property-dossiers/5/unidades/Cs_08.pdf
+    appraiser: CARLA REGINA GOMES BARRETO
+    daysLeft: -75
+    appraisalDate: '2026-02-02'
+    expiresAt: '2026-08-02'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 166000
+  - __path__: unit_engineering/6__casa_01
+    unitCode: casa 01
+    inscricaoMunicipal: '359067002'
+    propertyId: 6
+    valuePerM2: 5238.11
+    reportName: Laudo Cs 1.pdf
+    reportPath: property-dossiers/6/unidades/Laudo_Cs_1.pdf
+    appraiser: DANILO DE ARAUJO CUNHA
+    daysLeft: -286
+    appraisalDate: '2025-07-03'
+    expiresAt: '2026-01-03'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 177152.79
+  - __path__: unit_engineering/6__casa_02
+    unitCode: casa 02
+    inscricaoMunicipal: '359067003'
+    propertyId: 6
+    valuePerM2: 6980.16
+    reportName: Laudo cs 2.pdf
+    reportPath: property-dossiers/6/unidades/Laudo_cs_2.pdf
+    appraiser: CRISTINA FLORENCIO NASCIMENTO
+    daysLeft: -247
+    appraisalDate: '2025-08-11'
+    expiresAt: '2026-02-11'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 190000
+  - __path__: unit_engineering/6__casa_03
+    updatedBy: seed-iptu-ocr
+    unitCode: casa 03
+    inscricaoMunicipal: '359067004'
+    propertyId: 6
+  - __path__: unit_engineering/6__casa_04
+    updatedBy: seed-iptu-ocr
+    unitCode: casa 04
+    inscricaoMunicipal: '359067005'
+    propertyId: 6
+  - __path__: unit_engineering/6__casa_05
+    unitCode: casa 05
+    inscricaoMunicipal: '359067006'
+    propertyId: 6
+    engineeringValue: 168000
+    matricula: '83.625'
+    appraisalDate: '2026-06-02'
+    engineeringHistory: []
+    expiresAt: '2026-12-02'
+    updatedBy: brunoferreiramarques@gmail.com
+    updatedAt: '2026-11-18T13:35:31.342Z'
+  - __path__: unit_engineering/6__casa_06
+    unitCode: casa 06
+    inscricaoMunicipal: '359067007'
+    propertyId: 6
+    valuePerM2: 5740.09
+    reportName: Cs 6.pdf
+    reportPath: property-dossiers/6/unidades/Cs_6.pdf
+    appraiser: LUIS HENRIQUE DOS SANTOS SAMPAIO
+    daysLeft: -245
+    appraisalDate: '2025-08-13'
+    expiresAt: '2026-02-13'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    engineeringValue: 197000
+  - __path__: unit_engineering/6__casa_07
+    unitCode: casa 07
+    inscricaoMunicipal: '359067008'
+    propertyId: 6
+    valuePerM2: 5801.28
+    reportName: Laudo cs 7.pdf
+    reportPath: property-dossiers/6/unidades/Laudo_cs_7.pdf
+    appraiser: JESSICA DE ABREU CARVALHAES
+    daysLeft: -286
+    status: vencida
+    engineeringValue: 166254.52
+    matricula: '83.627'
+    appraisalDate: '2026-07-24'
+    engineeringHistory:
+      - appraisalDate: '2025-07-03'
+        expiresAt: '2026-01-03'
+        appraiser: JESSICA DE ABREU CARVALHAES
+        engineeringValue: 199100
+        valuePerM2: 5801.28
+        reportPath: property-dossiers/6/unidades/Laudo_cs_7.pdf
+        reportName: Laudo cs 7.pdf
+        caixaLaudoRef: ''
+        garantiaCaixa: ''
+        laudoUnitHint: ''
+        archivedAt: '2026-11-13T20:59:13.087Z'
+        archivedBy: brunoferreiramarques@gmail.com
+    expiresAt: '2027-01-24'
+    updatedBy: brunoferreiramarques@gmail.com
+    updatedAt: '2026-11-18T13:35:31.342Z'
+  - __path__: unit_engineering/6__casa_09
+    unitCode: casa 09
+    inscricaoMunicipal: '359067010'
+    propertyId: 6
+    updatedBy: seed-laudos-completos
+  - __path__: unit_engineering/6__casa_base
+    unitCode: casa base
+    inscricaoMunicipal: '359067001'
+    propertyId: 6
+    updatedBy: admin-matricula-base
+    matricula: '83.620'
+  - __path__: unit_engineering/6__casa_08
+    updatedBy: seed-iptu-ocr
+    unitCode: casa 08
+    inscricaoMunicipal: '359067009'
+    propertyId: 6
+  - __path__: unit_engineering/7__apto_101
+    historicalEngineering: R$ 159.923,35
+    matricula: '68.904'
+    propertyId: 7
+    unitCode: APTO 101
+    inscricaoMunicipal: '366126001'
+    valuePerM2: 5000.73
+    reportName: Laudo 101.pdf
+    reportPath: property-dossiers/7/unidades/Laudo_101.pdf
+    engineeringValue: 159923.35
+    appraisalDate: '2026-01-21'
+    expiresAt: '2026-07-21'
+    daysLeft: -87
+    status: vencida
+    updatedBy: seed-laudos-completos
+    appraiser: CLAUDIA MARIA DANTAS
+  - __path__: unit_engineering/7__apto_102
+    unitCode: APTO 102
+    inscricaoMunicipal: '366126002'
+    propertyId: 7
+    valuePerM2: 6035.02
+    reportName: Laudo 102 .pdf
+    reportPath: property-dossiers/7/unidades/Laudo_102_.pdf
+    engineeringValue: 193000
+    updatedBy: seed-laudos-completos
+    appraiser: TALITA DE SOUZA SANTOS ABREU
+    daysLeft: -79
+    appraisalDate: '2026-01-29'
+    expiresAt: '2026-07-29'
+    status: vencida
+  - __path__: unit_engineering/7__apto_103
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 103
+    inscricaoMunicipal: '366126003'
+    propertyId: 7
+  - __path__: unit_engineering/7__apto_104
+    unitCode: APTO 104
+    inscricaoMunicipal: '366126004'
+    propertyId: 7
+    valuePerM2: 6035.02
+    reportName: Laudo 104 -venc jul.pdf
+    reportPath: property-dossiers/7/unidades/Laudo_104_-venc_jul.pdf
+    engineeringValue: 193000
+    updatedBy: seed-laudos-completos
+    appraiser: TALITA DE SOUZA SANTOS ABREU
+    daysLeft: -79
+    appraisalDate: '2026-01-29'
+    expiresAt: '2026-07-29'
+    status: vencida
+  - __path__: unit_engineering/7__apto_105
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 105
+    inscricaoMunicipal: '366126005'
+    propertyId: 7
+  - __path__: unit_engineering/7__apto_106
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 106
+    inscricaoMunicipal: '366126006'
+    propertyId: 7
+  - __path__: unit_engineering/7__apto_107
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 107
+    inscricaoMunicipal: '366126007'
+    propertyId: 7
+  - __path__: unit_engineering/7__apto_108
+    updatedBy: seed-iptu-ocr
+    unitCode: APTO 108
+    inscricaoMunicipal: '366126008'
+    propertyId: 7
+  - __path__: unit_engineering/7__apto_109
+    unitCode: APTO 109
+    inscricaoMunicipal: '366126009'
+    propertyId: 7
+    valuePerM2: ''
+    notes: Matrícula pela sequência do RGI do prédio.
+    reportName: ''
+    occupancy: ''
+    rgiName: rgi.pdf
+    leaseDueDay: ''
+    leaseDeposit: ''
+    leaseIndex: ''
+    leaseNotes: ''
+    leaseRent: ''
+    engineeringValue: ''
+    appraiser: ''
+    appraisalDate: ''
+    leaseTenant: ''
+    leasePhone: ''
+    leaseDoc: ''
+    updatedBy: raphaelmonteirodasilva@yahoo.com.br
+    reportPath: ''
+    salePrice: 165000
+    caixaLaudoRef: ''
+    historicalEngineering: ''
+    expiresAt: ''
+    rgiPath: property-dossiers/7/unidades/rgi.pdf
+    leaseEmail: ''
+    rgiHistory: []
+    charges: []
+    leaseStart: ''
+    matricula: '68.912'
+    garantiaCaixa: ''
+    archiveDocuments: []
+    leaseEnd: ''
+    engineeringHistory: []
+    rgiDate: '2026-11-16'
+    updatedAt: '2026-11-17T20:03:55.828Z'
+  - __path__: unit_engineering/7__apto_110
+    unitCode: APTO 110
+    inscricaoMunicipal: '366126010'
+    propertyId: 7
+    valuePerM2: 4583.07
+    reportName: Laudo 110.pdf
+    reportPath: property-dossiers/7/unidades/Laudo_110.pdf
+    daysLeft: -87
+    status: vencida
+    appraiser: CLAUDIA MARIA DANTAS
+    engineeringValue: 200000
+    matricula: '68.913'
+    appraisalDate: '2026-09-15'
+    engineeringHistory:
+      - appraisalDate: '2026-01-21'
+        expiresAt: '2026-07-21'
+        appraiser: CLAUDIA MARIA DANTAS
+        engineeringValue: 161094.88
+        valuePerM2: 4583.07
+        reportPath: property-dossiers/7/unidades/Laudo_110.pdf
+        reportName: Laudo 110.pdf
+        caixaLaudoRef: ''
+        garantiaCaixa: ''
+        laudoUnitHint: ''
+        archivedAt: '2026-11-13T20:59:13.442Z'
+        archivedBy: brunoferreiramarques@gmail.com
+    expiresAt: '2027-03-15'
+    updatedBy: brunoferreiramarques@gmail.com
+    updatedAt: '2026-11-18T13:35:31.342Z'
+  - __path__: unit_engineering/7__apto_201
+    unitCode: APTO 201
+    inscricaoMunicipal: '366126011'
+    propertyId: 7
+    engineeringValue: 145000
+    matricula: '68.914'
+    appraisalDate: '2026-08-21'
+    engineeringHistory: []
+    expiresAt: '2027-02-21'
+    updatedBy: brunoferreiramarques@gmail.com
+    updatedAt: '2026-11-18T13:35:31.342Z'
+  - __path__: unit_engineering/7__apto_202
+    historicalEngineering: R$ 167.000,00
+    matricula: '68.915'
+    propertyId: 7
+    unitCode: APTO 202
+    inscricaoMunicipal: '366126012'
+    valuePerM2: 5423.84
+    reportName: Laudo-ALCIOSOUTO-576-APTO202 - 167MIL.pdf
+    reportPath: property-dossiers/7/unidades/Laudo-ALCIOSOUTO-576-APTO202_-_167MIL.pdf
+    appraisalDate: '2026-01-19'
+    expiresAt: '2026-07-19'
+    daysLeft: -89
+    status: vencida
+    engineeringValue: 167000
+    appraiser: LUCAS REBELLO CORDEIRO
+    notes: ''
+    occupancy: ''
+    rgiName: rgi.pdf
+    leaseDueDay: ''
+    leaseDeposit: ''
+    leaseIndex: ''
+    rgiDate: '2026-11-18'
+    leaseNotes: ''
+    leaseRent: ''
+    leaseTenant: ''
+    leasePhone: ''
+    updatedAt: '2026-11-18T17:13:34.386Z'
+    leaseDoc: ''
+    updatedBy: raphaelmonteirodasilva@yahoo.com.br
+    salePrice: 160000
+    caixaLaudoRef: ''
+    rgiPath: property-dossiers/7/unidades/rgi.pdf
+    leaseEmail: ''
+    rgiHistory: []
+    charges: []
+    leaseStart: ''
+    garantiaCaixa: ''
+    archiveDocuments:
+      - kind: onus
+        label: Ônus / RGI
+        name: ONUS APT 202 ALCIO SOUTO 376.pdf
+        zipPath: >-
+          Imóveis à venda/Edificio - Alcio Souto, 576. 20u/RGI Ônus /ONUS APT
+          202 ALCIO SOUTO 376.pdf
+        storagePath: property-dossiers/7/unidades/ONUS_APT_202_ALCIO_SOUTO_376.pdf
+      - kind: laudo
+        label: Laudo de engenharia
+        name: Laudo-ALCIOSOUTO-576-APTO202 - 167MIL.pdf
+        zipPath: >-
+          Imóveis à venda/Edificio - Alcio Souto, 576. 20u/Laudos
+          Caixa/Laudo-ALCIOSOUTO-576-APTO202 - 167MIL.pdf
+        storagePath: property-dossiers/7/unidades/Laudo-ALCIOSOUTO-576-APTO202_-_167MIL.pdf
+    leaseEnd: ''
+    engineeringHistory: []
+  - __path__: unit_engineering/7__apto_203
+    unitCode: APTO 203
+    inscricaoMunicipal: '366126013'
+    propertyId: 7
+    valuePerM2: ''
+    notes: Matrícula pela sequência do RGI do prédio.
+    updatedBy: raphaelmonteirodasilva@yahoo.com.br
+    reportName: ''
+    reportPath: ''
+    salePrice: 160000
+    rgiName: rgi.pdf
+    historicalEngineering: ''
+    expiresAt: ''
+    rgiPath: property-dossiers/7/unidades/rgi.pdf
+    rgiHistory: []
+    rgiDate: '2026-11-11'
+    engineeringValue: ''
+    matricula: '68.916'
+    garantiaCaixa: ''
+    appraiser: ''
+    archiveDocuments: []
+    appraisalDate: ''
+    engineeringHistory: []
+    updatedAt: '2026-11-11T16:42:52.159Z'
+  - __path__: unit_engineering/7__apto_204
+    unitCode: APTO 204
+    inscricaoMunicipal: '366126014'
+    propertyId: 7
+    valuePerM2: ''
+    notes: Matrícula pela sequência do RGI do prédio.
+    updatedBy: raphaelmonteirodasilva@yahoo.com.br
+    reportName: ''
+    reportPath: ''
+    salePrice: 160000
+    rgiName: CERTIDÃO APT 204 ALCIO SOUTO 576.PDF
+    historicalEngineering: ''
+    expiresAt: ''
+    rgiPath: property-dossiers/7/unidades/CERTID_O_APT_204_ALCIO_SOUTO_576.PDF
+    rgiHistory: []
+    rgiDate: '2026-11-10'
+    engineeringValue: ''
+    matricula: '68.917'
+    garantiaCaixa: ''
+    appraiser: ''
+    archiveDocuments: []
+    appraisalDate: ''
+    engineeringHistory: []
+    updatedAt: '2026-11-10T20:57:37.424Z'
+  - __path__: unit_engineering/7__apto_205
+    unitCode: APTO 205
+    inscricaoMunicipal: '366126015'
+    propertyId: 7
+    valuePerM2: 5196.49
+    reportName: Laudo 205-venc jul.pdf
+    reportPath: property-dossiers/7/unidades/Laudo_205-venc_jul.pdf
+    engineeringValue: 160000
+    updatedBy: seed-laudos-completos
+    appraiser: ALAN PERRONE PEREIRA
+    daysLeft: -79
+    appraisalDate: '2026-01-29'
+    expiresAt: '2026-07-29'
+    status: vencida
+  - __path__: unit_engineering/7__apto_206
+    unitCode: APTO 206
+    inscricaoMunicipal: '366126016'
+    propertyId: 7
+    valuePerM2: ''
+    notes: Matrícula pela sequência do RGI do prédio.
+    updatedBy: raphaelmonteirodasilva@yahoo.com.br
+    reportName: ''
+    reportPath: ''
+    salePrice: 160000
+    rgiName: CERTIDÃO APT 206 ALCIO SOUTO 576.PDF
+    historicalEngineering: ''
+    expiresAt: ''
+    rgiPath: property-dossiers/7/unidades/CERTID_O_APT_206_ALCIO_SOUTO_576.PDF
+    rgiHistory: []
+    rgiDate: '2026-11-09'
+    engineeringValue: ''
+    matricula: '68.919'
+    garantiaCaixa: ''
+    appraiser: ''
+    archiveDocuments: []
+    appraisalDate: ''
+    engineeringHistory: []
+    updatedAt: '2026-11-10T21:05:41.050Z'
+  - __path__: unit_engineering/7__apto_207
+    unitCode: APTO 207
+    inscricaoMunicipal: '366126017'
+    propertyId: 7
+    valuePerM2: 4936.67
+    reportName: Apto 207.pdf
+    reportPath: property-dossiers/7/unidades/Apto_207.pdf
+    engineeringValue: 152000
+    updatedBy: seed-laudos-completos
+    appraiser: MAYCON REI MONTEIRO
+    daysLeft: -78
+    appraisalDate: '2026-01-30'
+    expiresAt: '2026-07-30'
+    status: vencida
+  - __path__: unit_engineering/7__apto_208
+    unitCode: APTO 208
+    inscricaoMunicipal: '366126018'
+    propertyId: 7
+    valuePerM2: ''
+    notes: Matrícula pela sequência do RGI do prédio.
+    updatedBy: raphaelmonteirodasilva@yahoo.com.br
+    reportName: ''
+    reportPath: ''
+    salePrice: 160000
+    rgiName: CERTIDÃO APT 208 ALCIO SOUTO 576.PDF
+    historicalEngineering: ''
+    expiresAt: ''
+    rgiPath: property-dossiers/7/unidades/CERTID_O_APT_208_ALCIO_SOUTO_576.PDF
+    rgiHistory: []
+    rgiDate: '2026-11-09'
+    engineeringValue: ''
+    matricula: '68.921'
+    garantiaCaixa: ''
+    appraiser: ''
+    archiveDocuments: []
+    appraisalDate: ''
+    engineeringHistory: []
+    updatedAt: '2026-11-10T21:03:16.810Z'
+  - __path__: unit_engineering/7__apto_209
+    unitCode: APTO 209
+    inscricaoMunicipal: '366126019'
+    propertyId: 7
+    valuePerM2: ''
+    notes: Matrícula pela sequência do RGI do prédio.
+    updatedBy: raphaelmonteirodasilva@yahoo.com.br
+    reportName: ''
+    reportPath: ''
+    salePrice: 160000
+    rgiName: CERTIDÃO APT 209 ALCIO SOUTO 576.PDF
+    historicalEngineering: ''
+    expiresAt: ''
+    rgiPath: property-dossiers/7/unidades/CERTID_O_APT_209_ALCIO_SOUTO_576.PDF
+    rgiHistory: []
+    rgiDate: '2026-11-09'
+    engineeringValue: ''
+    matricula: '68.922'
+    garantiaCaixa: ''
+    appraiser: ''
+    archiveDocuments: []
+    appraisalDate: ''
+    engineeringHistory: []
+    updatedAt: '2026-11-10T21:02:38.986Z'
+  - __path__: unit_engineering/7__apto_210
+    unitCode: APTO 210
+    inscricaoMunicipal: '366126020'
+    propertyId: 7
+    valuePerM2: 5423.84
+    reportName: Laudo-ALCIOSOUTO-576-APTO210 -167MIL.pdf
+    reportPath: property-dossiers/7/unidades/Laudo-ALCIOSOUTO-576-APTO210_-167MIL.pdf
+    engineeringValue: 167000
+    daysLeft: -89
+    appraisalDate: '2026-01-19'
+    expiresAt: '2026-07-19'
+    status: vencida
+    updatedBy: seed-laudos-completos
+    appraiser: LUCAS REBELLO CORDEIRO

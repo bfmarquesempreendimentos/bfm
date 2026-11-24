@@ -6,7 +6,7 @@ const { salesExcludedPropertyIds: SALES_EXCLUDED_PROPERTY_IDS } = require('./sha
 
 function normalizeUnitSlotToken(raw) {
   if (raw == null || raw === '') return '';
-  return String(raw).toLowerCase().replace(/\s+/g, ' ').trim();
+  return String(raw).toLowerCase().replace(/\s+/g, ' ').trim().replace(/\bcassa\b/, 'casa');
 }
 
 function normAlnumUnit(s) {

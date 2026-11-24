@@ -1,0 +1,9 @@
+{
+  "1": {"31 cs 7 sob (1qt)": "assinado", "31 (1qt)": "assinado", "31 cs 4 (1qt)": "assinado", "31 cs 7 (1qt)": "assinado", "31 cs 6 (1qt)": "assinado", "31 cs 4 ap (2qts)": "assinado", "31 cs 5 (1qt ind.)": "assinado", "31 cs 5 sob (1qt)": "assinado", "31 cs 1 (2qts)": "assinado", "31 cs 8 sob (1qt)": "assinado", "31 cs 3 (2qts)": "assinado", "31 cs 8 (1qt)": "assinado", "31 cs 6 sob (1 qt)": "assinado", "31 cs 2 (2qts)": "assinado"},
+  "2": {"casa 03": "assinado", "casa 01": "reservado", "casa 07": "assinado", "casa 08": "assinado", "casa 02": "disponivel", "casa 09": "assinado", "casa base": "reservado", "casa 04": "assinado", "casa 05": "assinado", "casa 06": "reservado"},
+  "3": {"APTO 110": "disponivel", "APTO 201": "assinado", "APTO 101": "disponivel", "APTO 205": "disponivel", "APTO 202": "disponivel"},
+  "4": {"CS 04": "assinado", "CS 07": "assinado", "CS 06": "reservado", "CS 02": "assinado", "CS 09": "reservado", "CS 01": "assinado", "CS 14": "assinado", "CS 08": "disponivel", "CS BASE": "assinado"},
+  "5": {"casa 04": "assinado", "casa 02": "disponivel", "casa 09": "assinado", "casa base": "assinado", "casa 05": "assinado", "casa 06": "disponivel", "casa 03": "reservado", "casa 08": "reservado", "casa 01": "assinado"},
+  "6": {"casa 03": "assinado", "casa base": "assinado", "casa 07": "reservado", "casa 08": "assinado", "casa 01": "assinado", "casa 09": "assinado", "casa 02": "assinado", "casa 04": "assinado", "casa 06": "assinado", "casa 05": "reservado"},
+  "7": {"APTO 110": "reservado", "APTO 109": "reservado", "APTO 209": "reservado", "APTO 201": "reservado", "APTO 101": "disponivel", "APTO 205": "assinado", "APTO 102": "assinado"}
+}

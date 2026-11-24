@@ -169,7 +169,7 @@ var propertyUnits = {
                 "status": "assinado"
             },
             {
-                "code": "cassa 08",
+                "code": "casa 08",
                 "price": 155000,
                 "bedrooms": 1,
                 "status": "assinado"
@@ -476,7 +476,7 @@ var propertyUnits = {
                 "status": "reservado"
             },
             {
-                "code": "cassa 08",
+                "code": "casa 08",
                 "price": 145000,
                 "bedrooms": 1,
                 "status": "disponivel"
@@ -552,7 +552,7 @@ var propertyUnits = {
                 "status": "assinado"
             },
             {
-                "code": "cassa 08",
+                "code": "casa 08",
                 "price": 150000,
                 "bedrooms": 1,
                 "status": "assinado"

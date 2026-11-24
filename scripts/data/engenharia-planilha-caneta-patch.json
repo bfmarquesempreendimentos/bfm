@@ -10,9 +10,9 @@
   },
   "upserts": [
     {
-      "id": "5__cassa_08",
+      "id": "5__casa_08",
       "propertyId": 5,
-      "unitCode": "cassa 08",
+      "unitCode": "casa 08",
       "matricula": "54.772",
       "appraisalDate": "2026-08-21",
       "engineeringValue": 180000,

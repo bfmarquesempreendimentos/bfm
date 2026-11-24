@@ -57,7 +57,7 @@ function classify(expiresAt) {
 
 var UPDATES = [
   // Bloco A — data + valor (vitrine se vigente e unidade disponível/reservado)
-  { propertyId: 5, unitCode: 'cassa 08', matricula: '54.772', appraisalDate: '2026-08-21', engineeringValue: 180000 },
+  { propertyId: 5, unitCode: 'casa 08', matricula: '54.772', appraisalDate: '2026-08-21', engineeringValue: 180000 },
   { propertyId: 7, unitCode: 'APTO 202', matricula: '68.915', appraisalDate: '2026-11-10', engineeringValue: 188000, caixaLaudoRef: 'A0174' },
   { propertyId: 2, unitCode: 'casa base', matricula: '69.061', appraisalDate: '2026-11-11', engineeringValue: 190000 },
   { propertyId: 2, unitCode: 'casa 06', matricula: '69.067', appraisalDate: '2026-11-12', engineeringValue: 197000 },
