@@ -81,15 +81,13 @@ var UPDATES = [
     garantiaCaixa: 'inapta',
     notes: 'Inapta Caixa — GÁS (planilha 24/11/2026). Não publicar na vitrine.',
   },
-  // Bloco C — só data, sem valor (sem vitrine)
+  // Bloco C — só data na ficha; não lança valor de engenharia (vitrine já omite sem valor)
   {
     propertyId: 7,
     unitCode: 'APTO 208',
     matricula: '68.921',
     appraisalDate: '2026-11-18',
-    engineeringValue: '',
-    clearEngineeringValue: true,
-    notes: 'Sem laudo/valor — só data de referência (planilha 24/11/2026).',
+    notes: 'Laudo ainda não saiu — data de referência da planilha 24/11/2026. Preço de venda na ficha permanece.',
   },
 ];
 

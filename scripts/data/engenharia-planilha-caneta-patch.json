@@ -90,8 +90,7 @@
       "unitCode": "APTO 208",
       "matricula": "68.921",
       "appraisalDate": "2026-11-18",
-      "engineeringValue": null,
-      "notes": "Sem laudo/valor — só data de referência.",
+      "notes": "Laudo ainda não saiu — só data na engenharia; não alterar valor de venda nem apagar campos.",
       "expiresAt": "2027-05-18",
       "bloco": "C"
     }
