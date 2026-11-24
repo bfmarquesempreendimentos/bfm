@@ -2959,11 +2959,27 @@ body {
 
 .engineering-item {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
     padding: 8px 12px;
     background: #e8f5e8;
     border-radius: 5px;
     font-size: 0.9rem;
+}
+
+.engineering-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+}
+
+.engineering-days-left {
+    font-size: 0.8rem;
+    color: #5d6d7e;
+    font-weight: 500;
 }
 
 .engineering-unit {

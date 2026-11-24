@@ -15,15 +15,15 @@ var PUBLIC_FN = 'https://us-central1-site-interativo-b-f-marques.cloudfunctions.
 var STORAGE_OBJECT = 'public-data/valid-engineering.json';
 var STORAGE_BUCKET = 'site-interativo-b-f-marques.firebasestorage.app';
 
-var VALIDITY_MONTHS = 6;
+var VALIDITY_DAYS = 180;
 var COL = 'unit_engineering';
 
-function addMonthsYmd(ymd, months) {
+function addDaysYmd(ymd, days) {
   var parts = String(ymd || '').split('-');
   if (parts.length < 3) return '';
   var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
   if (isNaN(d.getTime())) return '';
-  d.setMonth(d.getMonth() + months);
+  d.setDate(d.getDate() + Number(days));
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 }
@@ -93,7 +93,7 @@ var UPDATES = [
 
 function buildPatch(item) {
   var appraisalDate = item.appraisalDate || '';
-  var expiresAt = appraisalDate ? addMonthsYmd(appraisalDate, VALIDITY_MONTHS) : '';
+  var expiresAt = appraisalDate ? addDaysYmd(appraisalDate, VALIDITY_DAYS) : '';
   var c = expiresAt ? classify(expiresAt) : { status: 'sem_laudo', daysLeft: null };
   var patch = {
     propertyId: item.propertyId,
@@ -209,7 +209,28 @@ async function uploadPublicSnapshot(accessToken, body) {
   }
 }
 
+async function publishSnapshotOnly() {
+  var accessToken = await getFirebaseCliAccessToken();
+  console.log('Aguardando cache da function expirar (50s)…');
+  await sleep(50000);
+  var pub = await fetchPublicEngineeringSnapshot();
+  var snap = {
+    ok: true,
+    valid: pub.valid || {},
+    prices: pub.prices || {},
+    publishedAt: new Date().toISOString(),
+  };
+  var outPath = path.join(__dirname, '..', 'data', 'valid-engineering.json');
+  fs.writeFileSync(outPath, JSON.stringify(snap, null, 2) + '\n', 'utf8');
+  await uploadPublicSnapshot(accessToken, snap);
+  console.log('Snapshot republicado:', outPath);
+}
+
 async function main() {
+  if (process.argv.indexOf('--publish-only') !== -1) {
+    await publishSnapshotOnly();
+    return;
+  }
   var dryRun = process.argv.indexOf('--dry-run') !== -1;
   var noPublish = process.argv.indexOf('--no-publish') !== -1;
   var accessToken = dryRun ? '' : await getFirebaseCliAccessToken();

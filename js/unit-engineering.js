@@ -1,5 +1,5 @@
 /**
- * Engenharia vigente (só valores com laudo dentro de 6 meses).
+ * Engenharia vigente (laudo dentro de 180 dias).
  * Valores antigos do catálogo não entram na vitrine nem no WhatsApp.
  * Carrega primeiro o snapshot estático (Storage / data/), depois a função nos EUA.
  */
@@ -107,19 +107,32 @@
         return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     }
 
-    function lookupValidValue(propertyId, unitCode) {
-        if (!_valid || !propertyId || !unitCode) return '';
+    function lookupValidEntry(propertyId, unitCode) {
+        if (!_valid || !propertyId || !unitCode) return null;
         var map = _valid[String(propertyId)] || {};
-        if (map[unitCode] && map[unitCode].value) return map[unitCode].value;
+        if (map[unitCode] && map[unitCode].value != null && map[unitCode].value !== '') {
+            return map[unitCode];
+        }
         var target = normAlnum(unitCode);
         var keys = Object.keys(map);
         var i;
         for (i = 0; i < keys.length; i++) {
-            if (normAlnum(keys[i]) === target && map[keys[i]] && map[keys[i]].value) {
-                return map[keys[i]].value;
+            if (normAlnum(keys[i]) === target && map[keys[i]] && map[keys[i]].value != null && map[keys[i]].value !== '') {
+                return map[keys[i]];
             }
         }
-        return '';
+        return null;
+    }
+
+    function lookupValidValue(propertyId, unitCode) {
+        var entry = lookupValidEntry(propertyId, unitCode);
+        return entry ? entry.value : '';
+    }
+
+    function lookupValidDaysLeft(propertyId, unitCode) {
+        var entry = lookupValidEntry(propertyId, unitCode);
+        if (!entry || entry.daysLeft == null || !isFinite(entry.daysLeft)) return null;
+        return entry.daysLeft;
     }
 
     function displayEngineering(propertyId, unitCode) {
@@ -157,6 +170,8 @@
     if (typeof window !== 'undefined') {
         window.fetchValidEngineering = fetchValidEngineering;
         window.lookupValidEngineeringValue = lookupValidValue;
+        window.lookupValidEngineeringEntry = lookupValidEntry;
+        window.lookupValidEngineeringDaysLeft = lookupValidDaysLeft;
         window.displayEngineeringValue = displayEngineering;
         window.lookupCadastroSalePrice = lookupSalePrice;
         window.invalidateEngineeringCache = invalidateEngineeringCache;

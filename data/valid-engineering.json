@@ -4,77 +4,93 @@
     "2": {
       "casa 01": {
         "value": 195000,
-        "expiresAt": "2026-12-05"
+        "expiresAt": "2026-12-02",
+        "daysLeft": 8
       },
       "casa 06": {
         "value": 197000,
-        "expiresAt": "2027-05-12"
+        "expiresAt": "2027-05-11",
+        "daysLeft": 168
       },
       "casa base": {
         "value": 190000,
-        "expiresAt": "2027-05-11"
+        "expiresAt": "2027-05-10",
+        "daysLeft": 167
       }
     },
     "3": {
       "APTO 101": {
         "value": 160000,
-        "expiresAt": "2027-04-13"
+        "expiresAt": "2027-04-11",
+        "daysLeft": 138
       },
       "APTO 106": {
         "value": 203000,
-        "expiresAt": "2027-04-13"
+        "expiresAt": "2027-04-11",
+        "daysLeft": 138
       },
       "APTO 205": {
         "value": 201000,
-        "expiresAt": "2026-12-01"
+        "expiresAt": "2026-11-28",
+        "daysLeft": 4
       }
     },
     "4": {
       "CS 08": {
         "value": 142000,
-        "expiresAt": "2027-02-19"
+        "expiresAt": "2027-02-15",
+        "daysLeft": 83
       },
       "CS 09": {
         "value": 190000,
-        "expiresAt": "2027-01-16"
+        "expiresAt": "2027-01-12",
+        "daysLeft": 49
       }
     },
     "5": {
       "casa 03": {
         "value": 142000,
-        "expiresAt": "2027-04-16"
+        "expiresAt": "2027-04-14",
+        "daysLeft": 141
       },
       "casa 07": {
         "value": 180000,
-        "expiresAt": "2027-04-20"
+        "expiresAt": "2027-04-18",
+        "daysLeft": 145
       },
       "casa 08": {
         "value": 180000,
-        "expiresAt": "2027-02-21"
+        "expiresAt": "2027-02-17",
+        "daysLeft": 85
       }
     },
     "6": {
       "casa 05": {
         "value": 168000,
-        "expiresAt": "2026-12-02"
+        "expiresAt": "2026-11-29",
+        "daysLeft": 5
       },
       "casa 07": {
         "value": 166254.52,
-        "expiresAt": "2027-01-24"
+        "expiresAt": "2027-01-20",
+        "daysLeft": 57
       }
     },
     "7": {
       "APTO 110": {
         "value": 200000,
-        "expiresAt": "2027-03-15"
+        "expiresAt": "2027-03-14",
+        "daysLeft": 110
       },
       "APTO 201": {
         "value": 145000,
-        "expiresAt": "2027-02-21"
+        "expiresAt": "2027-02-17",
+        "daysLeft": 85
       },
       "APTO 202": {
         "value": 188000,
-        "expiresAt": "2027-05-10"
+        "expiresAt": "2027-05-09",
+        "daysLeft": 166
       }
     }
   },
@@ -98,5 +114,5 @@
       "APTO 204": 160000
     }
   },
-  "publishedAt": "2026-11-24T21:04:45.218Z"
+  "publishedAt": "2026-11-24T21:21:50.620Z"
 }

@@ -11,6 +11,9 @@ var unitStatus = require('./unit-status');
 
 var COL = 'unit_engineering';
 var PROP_COL = 'property_dossiers';
+/** Validade do laudo Caixa: 180 dias corridos a partir da data da engenharia. */
+var VALIDITY_DAYS = 180;
+/** @deprecated use VALIDITY_DAYS — mantido só para referência legada */
 var VALIDITY_MONTHS = 6;
 var ALERT_DAYS = 45;
 /** Painel: alertar engenharias que vencem nos próximos 2 meses (~60 dias). */
@@ -42,6 +45,16 @@ function addMonthsYmd(ymd, months) {
   var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
   if (isNaN(d.getTime())) return '';
   d.setMonth(d.getMonth() + months);
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+
+function addDaysYmd(ymd, days) {
+  var parts = String(ymd || '').split('-');
+  if (parts.length < 3) return '';
+  var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  if (isNaN(d.getTime())) return '';
+  d.setDate(d.getDate() + Number(days));
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 }
@@ -79,10 +92,10 @@ function classify(expiresAt) {
 
 function effectiveExpiresAt(d) {
   if (!d) return '';
+  var appr = String(d.appraisalDate || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(appr)) return addDaysYmd(appr, VALIDITY_DAYS);
   var exp = String(d.expiresAt || '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(exp)) return exp;
-  var appr = String(d.appraisalDate || '').trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(appr)) return addMonthsYmd(appr, VALIDITY_MONTHS);
   return '';
 }
 
@@ -311,9 +324,12 @@ async function buildPublicEngineeringBody(db) {
     var val = publicValue(r);
     if (val) {
       if (!publicMap[pid]) publicMap[pid] = {};
+      var expAt = effectiveExpiresAt(r);
+      var expClass = classify(expAt);
       publicMap[pid][r.unitCode] = {
         value: val,
-        expiresAt: r.expiresAt,
+        expiresAt: expAt,
+        daysLeft: expClass.daysLeft,
       };
     }
     if (r.salePrice !== '' && r.salePrice != null && r.updatedBy && String(r.updatedBy).indexOf('@') !== -1) {
@@ -571,7 +587,7 @@ function mergeUnitRow(propertyId, catalogUnit, catalog, firestoreRow) {
     row.reportName = seedU.reportName || row.reportName || '';
   }
   if (!row.expiresAt && row.appraisalDate) {
-    row.expiresAt = addMonthsYmd(row.appraisalDate, VALIDITY_MONTHS);
+    row.expiresAt = addDaysYmd(row.appraisalDate, VALIDITY_DAYS);
     var c = classify(row.expiresAt);
     row.status = c.status;
     row.daysLeft = c.daysLeft;
@@ -760,7 +776,7 @@ async function applyCaixaLaudoImport(db, importId, auth) {
       skipped.push({ matricula: digits, unitCode: hit.unitCode, reason: 'data do laudo inválida' });
       continue;
     }
-    var expiresAt = addMonthsYmd(appraisalDate, VALIDITY_MONTHS);
+    var expiresAt = addDaysYmd(appraisalDate, VALIDITY_DAYS);
     var pid = hit.propertyId;
     var unitCode = hit.unitCode;
     var id = dossierId(pid, unitCode);
@@ -874,7 +890,7 @@ function mergeExtractIntoDoc(docU, extracted, overwrite) {
   if (!extracted) return docU;
   if (extracted.appraisalDate && (overwrite || !docU.appraisalDate)) {
     docU.appraisalDate = extracted.appraisalDate;
-    docU.expiresAt = addMonthsYmd(extracted.appraisalDate, VALIDITY_MONTHS);
+    docU.expiresAt = addDaysYmd(extracted.appraisalDate, VALIDITY_DAYS);
   }
   if (extracted.appraiser && (overwrite || !isPersonName(docU.appraiser))) {
     docU.appraiser = extracted.appraiser;
@@ -1017,6 +1033,7 @@ async function adminUnitEngineeringHttp(req, res) {
         rows: merged.rows,
         catalog: merged.catalog,
         property: property,
+        validityDays: VALIDITY_DAYS,
         validityMonths: VALIDITY_MONTHS,
         alertDays: ALERT_DAYS,
       });
@@ -1222,7 +1239,7 @@ async function adminUnitEngineeringHttp(req, res) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(appraisalDate)) {
           return res.status(400).json({ error: 'Data da engenharia inválida' });
         }
-        expiresAt = addMonthsYmd(appraisalDate, VALIDITY_MONTHS);
+        expiresAt = addDaysYmd(appraisalDate, VALIDITY_DAYS);
       }
       var id = String(body.id || dossierId(propertyId, unitCode));
       var nowU = new Date().toISOString();
@@ -1361,7 +1378,9 @@ async function loadValidEngineeringMap(db) {
 }
 
 module.exports = {
+  VALIDITY_DAYS,
   VALIDITY_MONTHS,
+  addDaysYmd,
   ALERT_DAYS,
   DASHBOARD_ALERT_DAYS,
   classify,

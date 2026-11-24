@@ -302,6 +302,18 @@
         return String(code || '').trim();
     }
 
+    var UE_VALIDITY_DAYS = 180;
+
+    function addDaysYmd(ymd, days) {
+        var parts = String(ymd || '').split('-');
+        if (parts.length < 3) return '';
+        var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        if (isNaN(d.getTime())) return '';
+        d.setDate(d.getDate() + Number(days));
+        function pad(n) { return (n < 10 ? '0' : '') + n; }
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    }
+
     function addMonthsYmd(ymd, months) {
         var parts = String(ymd || '').split('-');
         if (parts.length < 3) return '';
@@ -979,7 +991,7 @@
                 salePrice: (su && su.salePrice) != null ? su.salePrice : u.price,
                 engineeringValue: (su && su.historicalEngineering) || (su && su.engineeringValue) || '',
                 historicalEngineering: (su && su.historicalEngineering) || '',
-                expiresAt: (su && su.appraisalDate) ? addMonthsYmd(su.appraisalDate, 6) : '',
+                expiresAt: (su && su.appraisalDate) ? addDaysYmd(su.appraisalDate, UE_VALIDITY_DAYS) : '',
                 archiveDocuments: (su && su.documents) || [],
                 notes: (su && su.notes) || '',
                 status: 'sem_laudo',
@@ -1278,11 +1290,11 @@
                 ? String(r.unitCode || '') + (r.matricula ? ' · matrícula ' + r.matricula : '')
                 : '';
         }
-        set('ueExpiresAt', r && r.expiresAt ? r.expiresAt : (r && r.appraisalDate ? addMonthsYmd(r.appraisalDate, 6) : ''));
+        set('ueExpiresAt', r && r.expiresAt ? r.expiresAt : (r && r.appraisalDate ? addDaysYmd(r.appraisalDate, UE_VALIDITY_DAYS) : ''));
         var exp = document.getElementById('ueExpiresHint');
         if (exp) {
             if (r && (r.expiresAt || r.appraisalDate)) {
-                exp.textContent = 'Validade de 6 meses a partir da data da engenharia.';
+                exp.textContent = 'Validade de 180 dias a partir da data da engenharia.';
             } else {
                 exp.textContent = 'Sem data ou sem PDF = esta unidade não aparece na lista de engenharia da vitrine.';
             }
@@ -1866,14 +1878,14 @@
         var out = document.getElementById('ueExpiresAt');
         var hint = document.getElementById('ueExpiresHint');
         if (!el) return;
-        var expires = el.value ? addMonthsYmd(el.value, 6) : '';
+        var expires = el.value ? addDaysYmd(el.value, UE_VALIDITY_DAYS) : '';
         if (out) out.value = expires;
         if (!hint) return;
         if (!el.value) {
             hint.textContent = 'Sem data ou sem PDF = esta unidade não aparece na lista de engenharia da vitrine.';
             return;
         }
-        hint.textContent = 'Validade de 6 meses a partir da data da engenharia.';
+        hint.textContent = 'Validade de 180 dias a partir da data da engenharia.';
     }
 
     function loadUnitEngineeringAdmin(preferredId) {

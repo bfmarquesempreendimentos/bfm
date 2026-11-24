@@ -414,6 +414,13 @@ function getAggregatedUnitInventoryForDashboard() {
     return out;
 }
 
+function formatEngineeringDaysRemaining(daysLeft) {
+    if (daysLeft == null || !isFinite(daysLeft) || daysLeft < 0) return '';
+    if (daysLeft === 0) return 'Vence hoje';
+    if (daysLeft === 1) return '1 dia restante';
+    return daysLeft + ' dias restantes';
+}
+
 function formatPublicEngineeringValue(val) {
     if (val == null || val === '') return '';
     if (typeof val === 'number' && isFinite(val)) {
@@ -435,16 +442,27 @@ function engineeringItemsHtml(propertyId, units) {
     var html = '';
     (units || []).forEach(function(u) {
         if (!shouldShowEngineeringOnVitrine(u.status)) return;
-        var raw = (typeof lookupValidEngineeringValue === 'function')
-            ? lookupValidEngineeringValue(propertyId, u.code)
-            : '';
+        var entry = (typeof lookupValidEngineeringEntry === 'function')
+            ? lookupValidEngineeringEntry(propertyId, u.code)
+            : null;
+        var raw = entry ? entry.value : '';
         var shown = formatPublicEngineeringValue(raw);
         if (!shown) return;
+        var daysLabel = formatEngineeringDaysRemaining(
+            entry && entry.daysLeft != null ? entry.daysLeft : (
+                typeof lookupValidEngineeringDaysLeft === 'function'
+                    ? lookupValidEngineeringDaysLeft(propertyId, u.code)
+                    : null
+            )
+        );
         var st = String(u.status || '').toLowerCase();
         var reservedTag = st === 'reservado' ? ' <span class="engineering-unit-tag">reservado</span>' : '';
         html += '<div class="engineering-item">' +
+            '<div class="engineering-item-row">' +
             '<span class="engineering-unit">' + String(u.code) + reservedTag + '</span>' +
             '<span class="engineering-value">' + shown + '</span>' +
+            '</div>' +
+            (daysLabel ? '<span class="engineering-days-left">' + daysLabel + '</span>' : '') +
             '</div>';
     });
     return html;
@@ -455,7 +473,7 @@ function engineeringValuesSectionHtml(propertyId, units) {
     var hidden = items ? '' : ' hidden';
     return '<div class="engineering-values-section"' + hidden + ' data-property-id="' + String(propertyId) + '">' +
         '<h5>Valor Engenharia:</h5>' +
-        '<p class="engineering-hint">Unidades disponíveis e reservadas com valor e data de engenharia vigente (6 meses). PDF do laudo não é obrigatório na vitrine. Assinadas ou vendidas não aparecem aqui.</p>' +
+        '<p class="engineering-hint">Unidades disponíveis e reservadas com laudo vigente (180 dias). PDF não é obrigatório na vitrine. Assinadas ou vendidas não aparecem aqui.</p>' +
         '<div class="engineering-grid">' + items + '</div>' +
         '</div>';
 }
