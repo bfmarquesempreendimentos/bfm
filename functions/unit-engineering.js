@@ -86,9 +86,10 @@ function effectiveExpiresAt(d) {
   return '';
 }
 
-/** Valor que pode ir à vitrine: valor + data do laudo vigente (PDF opcional). */
+/** Valor que pode ir à vitrine: valor + data do laudo vigente (PDF opcional). Inapta Caixa fica só na ficha. */
 function publicValue(d) {
   if (!d || d.engineeringValue == null || d.engineeringValue === '') return '';
+  if (d.garantiaCaixa === 'inapta') return '';
   var expiresAt = effectiveExpiresAt(d);
   if (!expiresAt) return '';
   var c = classify(expiresAt);

@@ -1,0 +1,117 @@
+{
+  "meta": {
+    "source": "planilha manuscrita 24/11/2026",
+    "rules": {
+      "A": "data + valor → vitrine se vigente e unidade disponível/reservado",
+      "B": "inapta Caixa → ficha só; vitrine não (garantiaCaixa inapta)",
+      "C": "só data, sem valor → vitrine não",
+      "APTO_101": "laudo vencido — manter sem publicação (sem alteração de valor/data)"
+    }
+  },
+  "upserts": [
+    {
+      "id": "5__cassa_08",
+      "propertyId": 5,
+      "unitCode": "cassa 08",
+      "matricula": "54.772",
+      "appraisalDate": "2026-08-21",
+      "engineeringValue": 180000,
+      "expiresAt": "2027-02-21",
+      "bloco": "A"
+    },
+    {
+      "id": "7__apto_202",
+      "propertyId": 7,
+      "unitCode": "APTO 202",
+      "matricula": "68.915",
+      "appraisalDate": "2026-11-10",
+      "engineeringValue": 188000,
+      "caixaLaudoRef": "A0174",
+      "expiresAt": "2027-05-10",
+      "bloco": "A"
+    },
+    {
+      "id": "2__casa_base",
+      "propertyId": 2,
+      "unitCode": "casa base",
+      "matricula": "69.061",
+      "appraisalDate": "2026-11-11",
+      "engineeringValue": 190000,
+      "expiresAt": "2027-05-11",
+      "bloco": "A"
+    },
+    {
+      "id": "2__casa_06",
+      "propertyId": 2,
+      "unitCode": "casa 06",
+      "matricula": "69.067",
+      "appraisalDate": "2026-11-12",
+      "engineeringValue": 197000,
+      "expiresAt": "2027-05-12",
+      "bloco": "A"
+    },
+    {
+      "id": "4__cs_08",
+      "propertyId": 4,
+      "unitCode": "CS 08",
+      "matricula": "84.683",
+      "appraisalDate": "2026-08-19",
+      "engineeringValue": 142000,
+      "expiresAt": "2027-02-19",
+      "bloco": "A"
+    },
+    {
+      "id": "7__apto_206",
+      "propertyId": 7,
+      "unitCode": "APTO 206",
+      "matricula": "68.919",
+      "appraisalDate": "2026-11-17",
+      "engineeringValue": 160000,
+      "garantiaCaixa": "inapta",
+      "notes": "Inapta Caixa — GÁS (planilha 24/11/2026).",
+      "expiresAt": "2027-05-17",
+      "bloco": "B"
+    },
+    {
+      "id": "7__apto_209",
+      "propertyId": 7,
+      "unitCode": "APTO 209",
+      "matricula": "68.922",
+      "appraisalDate": "2026-11-17",
+      "engineeringValue": 160000,
+      "garantiaCaixa": "inapta",
+      "notes": "Inapta Caixa — GÁS (planilha 24/11/2026).",
+      "expiresAt": "2027-05-17",
+      "bloco": "B"
+    },
+    {
+      "id": "7__apto_208",
+      "propertyId": 7,
+      "unitCode": "APTO 208",
+      "matricula": "68.921",
+      "appraisalDate": "2026-11-18",
+      "engineeringValue": null,
+      "notes": "Sem laudo/valor — só data de referência.",
+      "expiresAt": "2027-05-18",
+      "bloco": "C"
+    }
+  ],
+  "skip": [
+    {
+      "id": "7__apto_101",
+      "reason": "Engenharia vencida — não republicar na vitrine"
+    },
+    {
+      "id": "7__apto_207",
+      "reason": "Bloco A só com data e valor — valor ausente na planilha"
+    },
+    {
+      "id": "4__cs_06",
+      "reason": "Bloco A só com data e valor — valor ausente na planilha"
+    },
+    {
+      "id": "4__cs_05",
+      "reason": "Bloco C sem data na planilha"
+    }
+  ]
+}
