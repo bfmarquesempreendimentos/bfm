@@ -5,7 +5,7 @@ let currentSection = 'dashboard';
 let editingProperty = null;
 let editingBroker = null;
 
-/** Evita refetch ao voltar na mesma seção (navegação rápida). */
+/** Cache curto só para dashboard e WhatsApp (reservas/corretores sempre recarregam). */
 var _adminSectionLoadedAt = {};
 var ADMIN_SECTION_CACHE_MS = 45000;
 
@@ -1095,13 +1095,18 @@ function showSection(sectionId) {
     // Load section data
     switch (sectionId) {
         case 'dashboard':
-            if (!skipCachedReload) loadDashboardData();
+            if (!skipCachedReload) {
+                var dashLoad = (typeof adminEnsureDashboardCharts === 'function')
+                    ? adminEnsureDashboardCharts().then(function() { loadDashboardData(); })
+                    : Promise.resolve(loadDashboardData());
+                dashLoad.catch(function() { loadDashboardData(); });
+            }
             break;
         case 'properties':
             loadPropertiesData();
             break;
         case 'reservations':
-            if (!skipCachedReload) loadReservationsData();
+            loadReservationsData();
             break;
         case 'sales':
             loadSalesData();
@@ -1110,10 +1115,16 @@ function showSection(sectionId) {
             if (typeof loadAdminBoletos === 'function') loadAdminBoletos();
             break;
         case 'brokers':
-            if (!skipCachedReload) loadBrokersData();
+            loadBrokersData();
             break;
         case 'reports':
-            loadReportsData();
+            if (typeof adminEnsureReportsModule === 'function') {
+                adminEnsureReportsModule().then(function() {
+                    if (typeof loadReportsData === 'function') loadReportsData();
+                }).catch(function() { loadReportsData(); });
+            } else {
+                loadReportsData();
+            }
             break;
         case 'notifications':
             loadNotificationsData();
@@ -1122,10 +1133,18 @@ function showSection(sectionId) {
             loadSettingsData();
             break;
         case 'repairs':
-            if (typeof loadAdminRepairs === 'function') loadAdminRepairs();
+            if (typeof adminEnsureRepairsModule === 'function') {
+                adminEnsureRepairsModule().then(function() {
+                    if (typeof loadAdminRepairs === 'function') loadAdminRepairs();
+                });
+            } else if (typeof loadAdminRepairs === 'function') loadAdminRepairs();
             break;
         case 'analytics':
-            if (typeof loadAnalytics === 'function') loadAnalytics();
+            if (typeof adminEnsureAnalyticsModule === 'function') {
+                adminEnsureAnalyticsModule().then(function() {
+                    if (typeof loadAnalytics === 'function') loadAnalytics();
+                });
+            } else if (typeof loadAnalytics === 'function') loadAnalytics();
             break;
         case 'whatsapp-leads':
             if (!skipCachedReload && typeof loadWhatsAppLeads === 'function') loadWhatsAppLeads();
@@ -1134,7 +1153,11 @@ function showSection(sectionId) {
             if (typeof loadBiaLearning === 'function') loadBiaLearning();
             break;
         case 'finance':
-            if (typeof loadFinanceModule === 'function') loadFinanceModule();
+            if (typeof adminEnsureFinanceModule === 'function') {
+                adminEnsureFinanceModule().then(function() {
+                    if (typeof loadFinanceModule === 'function') loadFinanceModule();
+                });
+            } else if (typeof loadFinanceModule === 'function') loadFinanceModule();
             break;
         case 'legal':
             break;
@@ -1601,7 +1624,16 @@ function fetchDashboardRemoteThenActivity(localBrokers) {
 // Load dashboard data
 function loadDashboardData() {
     syncAdminDashboardLocalData();
-    if (typeof loadEngineeringAlerts === 'function') loadEngineeringAlerts();
+    (function loadEngAlerts() {
+        var run = function() {
+            if (typeof loadEngineeringAlerts === 'function') loadEngineeringAlerts();
+        };
+        if (typeof adminEnsureEngineeringModule === 'function') {
+            adminEnsureEngineeringModule().then(run).catch(run);
+        } else {
+            run();
+        }
+    })();
 
     if ((!properties || properties.length === 0) && typeof loadProperties === 'function') {
         loadProperties();
@@ -1702,13 +1734,29 @@ function showPropertiesTab(tab) {
     document.querySelectorAll('#properties .admin-section-tab').forEach(function(btn) {
         btn.classList.toggle('is-active', btn.getAttribute('data-prop-tab') === (isDocs ? 'docs' : 'list'));
     });
-    if (isDocs && typeof loadUnitEngineeringAdmin === 'function') loadUnitEngineeringAdmin();
+    if (isDocs) {
+        var startEng = function() {
+            if (typeof loadUnitEngineeringAdmin === 'function') loadUnitEngineeringAdmin();
+        };
+        if (typeof adminEnsureEngineeringModule === 'function') {
+            adminEnsureEngineeringModule().then(startEng).catch(startEng);
+        } else {
+            startEng();
+        }
+    }
 }
 
 function openPropertyDocumentation(propertyId) {
     showSection('properties');
     showPropertiesTab('docs');
-    if (typeof loadUnitEngineeringAdmin === 'function') loadUnitEngineeringAdmin(propertyId);
+    var openEng = function() {
+        if (typeof loadUnitEngineeringAdmin === 'function') loadUnitEngineeringAdmin(propertyId);
+    };
+    if (typeof adminEnsureEngineeringModule === 'function') {
+        adminEnsureEngineeringModule().then(openEng).catch(openEng);
+    } else {
+        openEng();
+    }
 }
 
 function adminInventoryKind(pid) {
@@ -2086,7 +2134,6 @@ function adminReservationMutate(payload) {
 function loadReservationsData(force) {
     var tbody = document.getElementById('reservationsTableBody');
     if (!tbody) return;
-    if (force !== true && shouldSkipAdminSectionReload('reservations')) return;
     applyAdminReservationPermissions();
     if (!adminCan('reservations_read') && !adminCan('reservations')) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Sem permissão para ver reservas.</td></tr>';
@@ -2119,12 +2166,11 @@ function loadReservationsData(force) {
         if (elA) elA.textContent = stats.active != null ? stats.active : '0';
         if (elE) elE.textContent = stats.expiringToday != null ? stats.expiringToday : '0';
         if (elR) elR.textContent = stats.renewalDue != null ? stats.renewalDue : '0';
-        markAdminSectionLoaded('reservations');
         if (!rows.length) {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Nenhuma reserva encontrada.</td></tr>';
             return;
         }
-        tbody.innerHTML = rows.map(function(reservation) {
+        var htmlRows = rows.map(function(reservation) {
             var rid = String(reservation.id).replace(/'/g, "\\'");
             var title = reservation.propertyTitle || (getPropertyById(reservation.propertyId) || {}).title || 'N/A';
             var brokerName = reservation.brokerName || 'N/A';
@@ -2173,7 +2219,12 @@ function loadReservationsData(force) {
                 '<td><span class="status-badge status-' + statusClass + '">' + statusLabel + '</span></td>' +
                 '<td><div class="action-buttons">' + actions + '</div></td>' +
                 '</tr>';
-        }).join('');
+        });
+        if (typeof adminRenderHtmlChunks === 'function') {
+            adminRenderHtmlChunks(tbody, htmlRows);
+        } else {
+            tbody.innerHTML = htmlRows.join('');
+        }
     }
 
     function fetchReservationsList() {
@@ -2913,22 +2964,13 @@ function isAdminPanelLoggedIn() {
 async function loadBrokersData(force) {
     const tbody = document.getElementById('brokersTableBody');
     if (!tbody) return;
-    if (force !== true && shouldSkipAdminSectionReload('brokers')) return;
     const btnAdd = document.getElementById('btnAddBroker');
     if (btnAdd) btnAdd.style.display = (typeof isSuperAdmin === 'function' && isSuperAdmin()) ? '' : 'none';
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Carregando corretores...</td></tr>';
 
     await prepareBrokersPanelIfNeeded(false);
     
-    var skipBrokerFetch = false;
-    try {
-        var lastBr = window._brokersFirestoreLoadedAt || 0;
-        if (force !== true && Date.now() - lastBr < ADMIN_SECTION_CACHE_MS && typeof getAllBrokers === 'function' && getAllBrokers().length) {
-            skipBrokerFetch = true;
-        }
-    } catch (eBr) { /* ignore */ }
-
-    if (!skipBrokerFetch && typeof loadBrokersFromFirestore === 'function') {
+    if (typeof loadBrokersFromFirestore === 'function') {
         await loadBrokersFromFirestore({});
         window._brokersFirestoreLoadedAt = Date.now();
     } else if (typeof adminFetchJson === 'function') {
@@ -2971,7 +3013,6 @@ async function loadBrokersData(force) {
     renderBrokersActiveTable(allBrokers);
     renderInactiveBrokersSection();
     loadBrokerCampaignMetrics(false);
-    markAdminSectionLoaded('brokers');
 }
 
 function getInactiveDeactivatedBrokers() {
@@ -3087,7 +3128,7 @@ function renderBrokersActiveTable(sourceList) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Nenhum corretor corresponde aos filtros.</td></tr>';
         return;
     }
-    tbody.innerHTML = sorted.map(function(broker) {
+    var htmlRows = sorted.map(function(broker) {
         var campOn = !broker.whatsappCampaignOptOut;
         var phoneOk = typeof hasLikelyPhone === 'function' ? hasLikelyPhone(broker.phone) : !!(broker.phone && String(broker.phone).replace(/\D/g, '').length >= 10);
         var rowClass = campOn && phoneOk ? '' : ' class="broker-row-muted"';
@@ -3115,7 +3156,12 @@ function renderBrokersActiveTable(sourceList) {
             '<td>' + formatDate(broker.createdAt) + '</td>' +
             '<td>' + actions + '</td>' +
             '</tr>';
-    }).join('');
+    });
+    if (typeof adminRenderHtmlChunks === 'function') {
+        adminRenderHtmlChunks(tbody, htmlRows);
+    } else {
+        tbody.innerHTML = htmlRows.join('');
+    }
 }
 
 function renderPendingBrokersSection() {

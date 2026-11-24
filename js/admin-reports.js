@@ -118,21 +118,28 @@
     }
 
     function exportReportsPdf() {
-        if (typeof window.jspdf === 'undefined' || !window.jspdf.jsPDF) {
-            showMessage('Biblioteca PDF não carregada. Recarregue a página.', 'error');
-            return;
-        }
         if (!ensureAdminApiReady()) {
             showMessage('Faça login para exportar.', 'error');
             return;
         }
 
-        Promise.all([
+        var ensurePdf = (typeof adminEnsureJsPdf === 'function')
+            ? adminEnsureJsPdf()
+            : Promise.resolve();
+
+        ensurePdf.then(function() {
+            if (typeof window === 'undefined' || !window.jspdf || !window.jspdf.jsPDF) {
+                showMessage('Biblioteca PDF não carregada. Tente de novo.', 'error');
+                return;
+            }
+            return Promise.all([
             adminFetchJson('/adminDashboardBundle'),
             adminPostJson('/adminPropertySalesList', {}),
             adminPostJson('/adminReservationsMutate', { action: 'list' }),
             adminFetchJson('/getRepairs')
-        ]).then(function(results) {
+            ]);
+        }).then(function(results) {
+            if (!results) return;
             var bundle = results[0] || {};
             var sales = (results[1] && results[1].sales) ? results[1].sales : [];
             var reservations = (results[2] && results[2].reservations) ? results[2].reservations : [];
