@@ -341,13 +341,13 @@ var propertyUnits = {
             },
             {
                 "code": "CS 05",
-                "price": 145000,
+                "price": 150000,
                 "bedrooms": 1,
                 "status": "disponivel"
             },
             {
                 "code": "CS 10",
-                "price": 145000,
+                "price": 150000,
                 "bedrooms": 1,
                 "status": "disponivel"
             },
@@ -365,7 +365,7 @@ var propertyUnits = {
             },
             {
                 "code": "CS 11",
-                "price": 145000,
+                "price": 150000,
                 "bedrooms": 1,
                 "status": "disponivel"
             },
@@ -383,25 +383,25 @@ var propertyUnits = {
             },
             {
                 "code": "CS 12",
-                "price": 145000,
+                "price": 150000,
                 "bedrooms": 1,
                 "status": "disponivel"
             },
             {
                 "code": "CS 03",
-                "price": 145000,
+                "price": 150000,
                 "bedrooms": 1,
                 "status": "disponivel"
             },
             {
                 "code": "CS 08",
-                "price": 145000,
+                "price": 150000,
                 "bedrooms": 1,
                 "status": "disponivel"
             },
             {
                 "code": "CS 13",
-                "price": 145000,
+                "price": 150000,
                 "bedrooms": 1,
                 "status": "disponivel"
             },
