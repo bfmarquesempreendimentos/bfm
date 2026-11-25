@@ -395,7 +395,7 @@ var propertyUnits = {
             },
             {
                 "code": "CS 08",
-                "price": 150000,
+                "price": 145000,
                 "bedrooms": 1,
                 "status": "disponivel"
             },
