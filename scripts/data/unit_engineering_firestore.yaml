@@ -1133,9 +1133,9 @@ documents:
     leaseIndex: ''
     leaseNotes: ''
     leaseRent: ''
-    engineeringValue: ''
+    engineeringValue: 186000
     appraiser: ''
-    appraisalDate: ''
+    appraisalDate: '2026-11-20'
     leaseTenant: ''
     leasePhone: ''
     leaseDoc: ''
@@ -1144,7 +1144,9 @@ documents:
     salePrice: 165000
     caixaLaudoRef: ''
     historicalEngineering: ''
-    expiresAt: ''
+    expiresAt: '2027-05-19'
+    daysLeft: 175
+    status: vigente
     rgiPath: property-dossiers/7/unidades/rgi.pdf
     leaseEmail: ''
     rgiHistory: []
@@ -1156,7 +1158,7 @@ documents:
     leaseEnd: ''
     engineeringHistory: []
     rgiDate: '2026-11-16'
-    updatedAt: '2026-11-17T20:03:55.828Z'
+    updatedAt: '2026-11-25T20:35:00.000Z'
   - __path__: unit_engineering/7__apto_110
     unitCode: APTO 110
     inscricaoMunicipal: '366126010'

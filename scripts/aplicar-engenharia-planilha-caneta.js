@@ -62,6 +62,7 @@ var UPDATES = [
   { propertyId: 2, unitCode: 'casa base', matricula: '69.061', appraisalDate: '2026-11-11', engineeringValue: 190000 },
   { propertyId: 2, unitCode: 'casa 06', matricula: '69.067', appraisalDate: '2026-11-12', engineeringValue: 197000 },
   { propertyId: 4, unitCode: 'CS 08', matricula: '84.683', appraisalDate: '2026-08-19', engineeringValue: 142000 },
+  { propertyId: 7, unitCode: 'APTO 109', matricula: '68.912', appraisalDate: '2026-11-20', engineeringValue: 186000 },
   // Bloco B — ficha com valor/data, inapta Caixa (GÁS), sem vitrine
   {
     propertyId: 7,

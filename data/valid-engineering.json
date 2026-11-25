@@ -91,6 +91,11 @@
         "value": 188000,
         "expiresAt": "2027-05-09",
         "daysLeft": 166
+      },
+      "APTO 109": {
+        "value": 186000,
+        "expiresAt": "2027-05-19",
+        "daysLeft": 175
       }
     }
   },
